@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 CREATE TABLE IF NOT EXISTS public.user_roles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL UNIQUE,
-  role app_role NOT NULL DEFAULT 'worker'
+  role public.app_role NOT NULL DEFAULT 'worker'
 );
 
 CREATE TABLE IF NOT EXISTS public.login_history (
@@ -147,7 +147,7 @@ CREATE TABLE IF NOT EXISTS public.customers (
   dic TEXT,
   ic_dph TEXT,
   bank_account TEXT,
-  payment_method payment_method DEFAULT 'cash',
+  payment_method public.payment_method DEFAULT 'cash',
   free_delivery BOOLEAN DEFAULT false,
   delivery_notes TEXT,
   delivery_day_ids UUID[] DEFAULT '{}',
@@ -610,7 +610,7 @@ ALTER TABLE public.notification_settings ENABLE ROW LEVEL SECURITY;
 -- HELPER FUNCTIONS
 -- ============================================
 
-CREATE OR REPLACE FUNCTION public.has_role(_user_id UUID, _role app_role)
+CREATE OR REPLACE FUNCTION public.has_role(_user_id UUID, _role public.app_role)
 RETURNS BOOLEAN
 LANGUAGE sql
 STABLE
@@ -624,7 +624,7 @@ AS $$
 $$;
 
 CREATE OR REPLACE FUNCTION public.get_user_role(_user_id UUID)
-RETURNS app_role
+RETURNS public.app_role
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
