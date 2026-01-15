@@ -533,6 +533,27 @@ CREATE TABLE IF NOT EXISTS public.notification_settings (
 -- ADD FOREIGN KEYS
 -- ============================================
 
+-- Add missing columns if they don't exist (for existing databases)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'customers' AND column_name = 'delivery_route_id') THEN
+    ALTER TABLE public.customers ADD COLUMN delivery_route_id UUID;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'parent_order_id') THEN
+    ALTER TABLE public.orders ADD COLUMN parent_order_id UUID;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'planting_plans' AND column_name = 'seed_id') THEN
+    ALTER TABLE public.planting_plans ADD COLUMN seed_id UUID;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'order_items' AND column_name = 'packaging_id') THEN
+    ALTER TABLE public.order_items ADD COLUMN packaging_id UUID;
+  END IF;
+END $$;
+
+-- Add foreign key constraints
 ALTER TABLE public.customers DROP CONSTRAINT IF EXISTS customers_delivery_route_id_fkey;
 ALTER TABLE public.customers ADD CONSTRAINT customers_delivery_route_id_fkey
   FOREIGN KEY (delivery_route_id) REFERENCES public.delivery_routes(id) ON DELETE SET NULL;
