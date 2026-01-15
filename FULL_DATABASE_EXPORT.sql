@@ -10,13 +10,6 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ============================================
--- ENUMS
--- ============================================
-
-CREATE TYPE public.app_role AS ENUM ('admin', 'worker');
-CREATE TYPE public.payment_method AS ENUM ('cash', 'invoice');
-
--- ============================================
 -- CORE TABLES
 -- ============================================
 
@@ -34,7 +27,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 CREATE TABLE IF NOT EXISTS public.user_roles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL UNIQUE,
-  role public.app_role NOT NULL DEFAULT 'worker'
+  role TEXT NOT NULL DEFAULT 'worker' CHECK (role IN ('admin', 'worker'))
 );
 
 CREATE TABLE IF NOT EXISTS public.login_history (
@@ -147,7 +140,7 @@ CREATE TABLE IF NOT EXISTS public.customers (
   dic TEXT,
   ic_dph TEXT,
   bank_account TEXT,
-  payment_method public.payment_method DEFAULT 'cash',
+  payment_method TEXT DEFAULT 'cash' CHECK (payment_method IN ('cash', 'invoice')),
   free_delivery BOOLEAN DEFAULT false,
   delivery_notes TEXT,
   delivery_day_ids UUID[] DEFAULT '{}',
@@ -610,7 +603,7 @@ ALTER TABLE public.notification_settings ENABLE ROW LEVEL SECURITY;
 -- HELPER FUNCTIONS
 -- ============================================
 
-CREATE OR REPLACE FUNCTION public.has_role(_user_id UUID, _role public.app_role)
+CREATE OR REPLACE FUNCTION public.has_role(_user_id UUID, _role TEXT)
 RETURNS BOOLEAN
 LANGUAGE sql
 STABLE
@@ -624,7 +617,7 @@ AS $$
 $$;
 
 CREATE OR REPLACE FUNCTION public.get_user_role(_user_id UUID)
-RETURNS public.app_role
+RETURNS TEXT
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
