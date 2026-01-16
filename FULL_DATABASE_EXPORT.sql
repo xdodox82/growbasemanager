@@ -1,7 +1,7 @@
 -- ============================================
 -- COMPLETE DATABASE SETUP FOR MICROGREENS APP
 -- ============================================
--- This script creates all tables from scratch
+-- This script creates all tables from scratch with proper ordering
 -- Run this in your Supabase SQL Editor
 -- ============================================
 
@@ -10,15 +10,30 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ============================================
--- CORE TABLES
+-- STEP 1: CREATE ALL TABLES
 -- ============================================
 
+-- Settings table (created first, contains business settings)
+CREATE TABLE IF NOT EXISTS public.settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_name TEXT DEFAULT 'Microgreens Farm',
+  business_email TEXT,
+  business_phone TEXT,
+  business_address TEXT,
+  currency TEXT DEFAULT 'EUR',
+  default_vat_rate NUMERIC DEFAULT 20,
+  vat_enabled BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Core user tables
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL UNIQUE,
   full_name TEXT,
   email TEXT,
-  sidebar_settings JSONB,
+  sidebar_settings JSONB DEFAULT '{}'::jsonb,
   delivery_settings JSONB DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -27,7 +42,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 CREATE TABLE IF NOT EXISTS public.user_roles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL UNIQUE,
-  role TEXT NOT NULL DEFAULT 'worker' CHECK (role IN ('admin', 'worker'))
+  role TEXT NOT NULL DEFAULT 'worker' CHECK (role IN ('admin', 'worker')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS public.login_history (
@@ -80,10 +96,7 @@ CREATE TABLE IF NOT EXISTS public.worker_permissions (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- ============================================
--- CROPS & BLENDS
--- ============================================
-
+-- Crops & Blends
 CREATE TABLE IF NOT EXISTS public.crops (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -95,8 +108,8 @@ CREATE TABLE IF NOT EXISTS public.crops (
   germination_type TEXT DEFAULT 'warm',
   days_in_darkness INTEGER DEFAULT 2,
   days_on_light INTEGER DEFAULT 5,
-  seed_density NUMERIC,
-  expected_yield NUMERIC,
+  seed_density NUMERIC DEFAULT 0,
+  expected_yield NUMERIC DEFAULT 0,
   seed_soaking BOOLEAN DEFAULT false,
   can_be_cut BOOLEAN DEFAULT true,
   can_be_live BOOLEAN DEFAULT false,
@@ -122,10 +135,7 @@ CREATE TABLE IF NOT EXISTS public.blends (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- ============================================
--- CUSTOMERS & SUPPLIERS
--- ============================================
-
+-- Customers & Suppliers
 CREATE TABLE IF NOT EXISTS public.customers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -167,10 +177,7 @@ CREATE TABLE IF NOT EXISTS public.suppliers (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- ============================================
--- DELIVERY
--- ============================================
-
+-- Delivery
 CREATE TABLE IF NOT EXISTS public.delivery_days (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -203,10 +210,7 @@ CREATE TABLE IF NOT EXISTS public.delivery_settings (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- ============================================
--- ORDERS
--- ============================================
-
+-- Orders
 CREATE SEQUENCE IF NOT EXISTS orders_order_number_seq;
 
 CREATE TABLE IF NOT EXISTS public.orders (
@@ -266,10 +270,7 @@ CREATE TABLE IF NOT EXISTS public.order_items (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- ============================================
--- PLANTING & PLANNING
--- ============================================
-
+-- Planting & Planning
 CREATE TABLE IF NOT EXISTS public.planting_plans (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -304,10 +305,7 @@ CREATE TABLE IF NOT EXISTS public.tasks (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- ============================================
--- INVENTORY
--- ============================================
-
+-- Inventory
 CREATE TABLE IF NOT EXISTS public.seeds (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -322,7 +320,7 @@ CREATE TABLE IF NOT EXISTS public.seeds (
   expiry_date DATE,
   finished_date DATE,
   certificate_url TEXT,
-  min_stock NUMERIC,
+  min_stock NUMERIC DEFAULT 0,
   unit_price_per_kg NUMERIC DEFAULT 0,
   price_includes_vat BOOLEAN DEFAULT true,
   vat_rate NUMERIC DEFAULT 20,
@@ -337,7 +335,7 @@ CREATE TABLE IF NOT EXISTS public.packagings (
   type TEXT,
   size TEXT,
   quantity INTEGER NOT NULL DEFAULT 0,
-  min_stock INTEGER,
+  min_stock INTEGER DEFAULT 0,
   supplier_id UUID,
   price_per_piece NUMERIC DEFAULT 0,
   price_includes_vat BOOLEAN DEFAULT true,
@@ -363,7 +361,7 @@ CREATE TABLE IF NOT EXISTS public.substrates (
   type TEXT,
   quantity NUMERIC NOT NULL DEFAULT 0,
   unit TEXT DEFAULT 'kg',
-  min_stock NUMERIC,
+  min_stock NUMERIC DEFAULT 0,
   supplier_id UUID,
   unit_cost NUMERIC DEFAULT 0,
   notes TEXT,
@@ -377,7 +375,7 @@ CREATE TABLE IF NOT EXISTS public.labels (
   type TEXT DEFAULT 'standard',
   size TEXT,
   quantity INTEGER NOT NULL DEFAULT 0,
-  min_stock INTEGER,
+  min_stock INTEGER DEFAULT 0,
   supplier_id UUID,
   unit_cost NUMERIC DEFAULT 0,
   notes TEXT,
@@ -389,9 +387,9 @@ CREATE TABLE IF NOT EXISTS public.consumable_inventory (
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   category TEXT NOT NULL,
   name TEXT NOT NULL,
-  quantity NUMERIC NOT NULL,
+  quantity NUMERIC NOT NULL DEFAULT 0,
   unit TEXT NOT NULL,
-  min_quantity NUMERIC,
+  min_quantity NUMERIC DEFAULT 0,
   unit_cost NUMERIC DEFAULT 0,
   price_includes_vat BOOLEAN DEFAULT false,
   vat_rate NUMERIC DEFAULT 20,
@@ -411,10 +409,7 @@ CREATE TABLE IF NOT EXISTS public.other_inventory (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- ============================================
--- COSTS TRACKING
--- ============================================
-
+-- Costs Tracking
 CREATE TABLE IF NOT EXISTS public.fuel_costs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -488,10 +483,7 @@ CREATE TABLE IF NOT EXISTS public.other_costs (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- ============================================
--- PRICING & VAT
--- ============================================
-
+-- Pricing & VAT
 CREATE TABLE IF NOT EXISTS public.prices (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -515,36 +507,12 @@ CREATE TABLE IF NOT EXISTS public.vat_settings (
 
 CREATE TABLE IF NOT EXISTS public.notification_settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL UNIQUE,
   email_low_stock BOOLEAN DEFAULT true,
   email_address TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
--- ============================================
--- ADD FOREIGN KEYS
--- ============================================
-
--- Add missing columns if they don't exist (for existing databases)
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'customers' AND column_name = 'delivery_route_id') THEN
-    ALTER TABLE public.customers ADD COLUMN delivery_route_id UUID;
-  END IF;
-
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'parent_order_id') THEN
-    ALTER TABLE public.orders ADD COLUMN parent_order_id UUID;
-  END IF;
-
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'planting_plans' AND column_name = 'seed_id') THEN
-    ALTER TABLE public.planting_plans ADD COLUMN seed_id UUID;
-  END IF;
-
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'order_items' AND column_name = 'packaging_id') THEN
-    ALTER TABLE public.order_items ADD COLUMN packaging_id UUID;
-  END IF;
-END $$;
 
 -- Add foreign key constraints
 ALTER TABLE public.customers DROP CONSTRAINT IF EXISTS customers_delivery_route_id_fkey;
@@ -564,9 +532,10 @@ ALTER TABLE public.order_items ADD CONSTRAINT order_items_packaging_id_fkey
   FOREIGN KEY (packaging_id) REFERENCES public.packagings(id) ON DELETE SET NULL;
 
 -- ============================================
--- ENABLE ROW LEVEL SECURITY
+-- STEP 2: ENABLE ROW LEVEL SECURITY ON ALL TABLES
 -- ============================================
 
+ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.login_history ENABLE ROW LEVEL SECURITY;
@@ -600,7 +569,195 @@ ALTER TABLE public.vat_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notification_settings ENABLE ROW LEVEL SECURITY;
 
 -- ============================================
--- HELPER FUNCTIONS
+-- STEP 3: CREATE RLS POLICIES (FULL ACCESS FOR AUTHENTICATED USERS)
+-- ============================================
+
+-- Settings policies
+CREATE POLICY "Authenticated users can view settings" ON public.settings FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can update settings" ON public.settings FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert settings" ON public.settings FOR INSERT TO authenticated WITH CHECK (true);
+
+-- Profiles policies
+CREATE POLICY "Authenticated users can view all profiles" ON public.profiles FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can update own profile" ON public.profiles FOR UPDATE TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Authenticated users can insert own profile" ON public.profiles FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+
+-- User roles policies
+CREATE POLICY "Authenticated users can view all roles" ON public.user_roles FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert roles" ON public.user_roles FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update roles" ON public.user_roles FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete roles" ON public.user_roles FOR DELETE TO authenticated USING (true);
+
+-- Login history policies
+CREATE POLICY "Authenticated users can view own login history" ON public.login_history FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Authenticated users can insert login history" ON public.login_history FOR INSERT TO authenticated WITH CHECK (true);
+
+-- Worker permissions policies
+CREATE POLICY "Authenticated users can view all worker permissions" ON public.worker_permissions FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can manage worker permissions" ON public.worker_permissions FOR ALL TO authenticated USING (true);
+
+-- Crops policies
+CREATE POLICY "Authenticated users can view crops" ON public.crops FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert crops" ON public.crops FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update crops" ON public.crops FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete crops" ON public.crops FOR DELETE TO authenticated USING (true);
+
+-- Blends policies
+CREATE POLICY "Authenticated users can view blends" ON public.blends FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert blends" ON public.blends FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update blends" ON public.blends FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete blends" ON public.blends FOR DELETE TO authenticated USING (true);
+
+-- Customers policies
+CREATE POLICY "Authenticated users can view customers" ON public.customers FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert customers" ON public.customers FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update customers" ON public.customers FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete customers" ON public.customers FOR DELETE TO authenticated USING (true);
+
+-- Suppliers policies
+CREATE POLICY "Authenticated users can view suppliers" ON public.suppliers FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert suppliers" ON public.suppliers FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update suppliers" ON public.suppliers FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete suppliers" ON public.suppliers FOR DELETE TO authenticated USING (true);
+
+-- Delivery days policies
+CREATE POLICY "Authenticated users can view delivery days" ON public.delivery_days FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert delivery days" ON public.delivery_days FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update delivery days" ON public.delivery_days FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete delivery days" ON public.delivery_days FOR DELETE TO authenticated USING (true);
+
+-- Delivery routes policies
+CREATE POLICY "Authenticated users can view delivery routes" ON public.delivery_routes FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert delivery routes" ON public.delivery_routes FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update delivery routes" ON public.delivery_routes FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete delivery routes" ON public.delivery_routes FOR DELETE TO authenticated USING (true);
+
+-- Delivery settings policies
+CREATE POLICY "Authenticated users can view delivery settings" ON public.delivery_settings FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert delivery settings" ON public.delivery_settings FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update delivery settings" ON public.delivery_settings FOR UPDATE TO authenticated USING (true);
+
+-- Orders policies
+CREATE POLICY "Authenticated users can view orders" ON public.orders FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert orders" ON public.orders FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update orders" ON public.orders FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete orders" ON public.orders FOR DELETE TO authenticated USING (true);
+
+-- Order items policies
+CREATE POLICY "Authenticated users can view order items" ON public.order_items FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert order items" ON public.order_items FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update order items" ON public.order_items FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete order items" ON public.order_items FOR DELETE TO authenticated USING (true);
+
+-- Planting plans policies
+CREATE POLICY "Authenticated users can view planting plans" ON public.planting_plans FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert planting plans" ON public.planting_plans FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update planting plans" ON public.planting_plans FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete planting plans" ON public.planting_plans FOR DELETE TO authenticated USING (true);
+
+-- Tasks policies
+CREATE POLICY "Authenticated users can view tasks" ON public.tasks FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert tasks" ON public.tasks FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update tasks" ON public.tasks FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete tasks" ON public.tasks FOR DELETE TO authenticated USING (true);
+
+-- Seeds policies
+CREATE POLICY "Authenticated users can view seeds" ON public.seeds FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert seeds" ON public.seeds FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update seeds" ON public.seeds FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete seeds" ON public.seeds FOR DELETE TO authenticated USING (true);
+
+-- Packagings policies
+CREATE POLICY "Authenticated users can view packagings" ON public.packagings FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert packagings" ON public.packagings FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update packagings" ON public.packagings FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete packagings" ON public.packagings FOR DELETE TO authenticated USING (true);
+
+-- Packaging mappings policies
+CREATE POLICY "Authenticated users can view packaging mappings" ON public.packaging_mappings FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert packaging mappings" ON public.packaging_mappings FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update packaging mappings" ON public.packaging_mappings FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete packaging mappings" ON public.packaging_mappings FOR DELETE TO authenticated USING (true);
+
+-- Substrates policies
+CREATE POLICY "Authenticated users can view substrates" ON public.substrates FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert substrates" ON public.substrates FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update substrates" ON public.substrates FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete substrates" ON public.substrates FOR DELETE TO authenticated USING (true);
+
+-- Labels policies
+CREATE POLICY "Authenticated users can view labels" ON public.labels FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert labels" ON public.labels FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update labels" ON public.labels FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete labels" ON public.labels FOR DELETE TO authenticated USING (true);
+
+-- Consumable inventory policies
+CREATE POLICY "Authenticated users can view consumable inventory" ON public.consumable_inventory FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert consumable inventory" ON public.consumable_inventory FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update consumable inventory" ON public.consumable_inventory FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete consumable inventory" ON public.consumable_inventory FOR DELETE TO authenticated USING (true);
+
+-- Other inventory policies
+CREATE POLICY "Authenticated users can view other inventory" ON public.other_inventory FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert other inventory" ON public.other_inventory FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update other inventory" ON public.other_inventory FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete other inventory" ON public.other_inventory FOR DELETE TO authenticated USING (true);
+
+-- Fuel costs policies
+CREATE POLICY "Authenticated users can view fuel costs" ON public.fuel_costs FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert fuel costs" ON public.fuel_costs FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update fuel costs" ON public.fuel_costs FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete fuel costs" ON public.fuel_costs FOR DELETE TO authenticated USING (true);
+
+-- Adblue costs policies
+CREATE POLICY "Authenticated users can view adblue costs" ON public.adblue_costs FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert adblue costs" ON public.adblue_costs FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update adblue costs" ON public.adblue_costs FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete adblue costs" ON public.adblue_costs FOR DELETE TO authenticated USING (true);
+
+-- Electricity costs policies
+CREATE POLICY "Authenticated users can view electricity costs" ON public.electricity_costs FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert electricity costs" ON public.electricity_costs FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update electricity costs" ON public.electricity_costs FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete electricity costs" ON public.electricity_costs FOR DELETE TO authenticated USING (true);
+
+-- Water costs policies
+CREATE POLICY "Authenticated users can view water costs" ON public.water_costs FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert water costs" ON public.water_costs FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update water costs" ON public.water_costs FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete water costs" ON public.water_costs FOR DELETE TO authenticated USING (true);
+
+-- Car service costs policies
+CREATE POLICY "Authenticated users can view car service costs" ON public.car_service_costs FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert car service costs" ON public.car_service_costs FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update car service costs" ON public.car_service_costs FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete car service costs" ON public.car_service_costs FOR DELETE TO authenticated USING (true);
+
+-- Other costs policies
+CREATE POLICY "Authenticated users can view other costs" ON public.other_costs FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert other costs" ON public.other_costs FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update other costs" ON public.other_costs FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete other costs" ON public.other_costs FOR DELETE TO authenticated USING (true);
+
+-- Prices policies
+CREATE POLICY "Authenticated users can view prices" ON public.prices FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert prices" ON public.prices FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update prices" ON public.prices FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete prices" ON public.prices FOR DELETE TO authenticated USING (true);
+
+-- VAT settings policies
+CREATE POLICY "Authenticated users can view vat settings" ON public.vat_settings FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert vat settings" ON public.vat_settings FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update vat settings" ON public.vat_settings FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete vat settings" ON public.vat_settings FOR DELETE TO authenticated USING (true);
+
+-- Notification settings policies
+CREATE POLICY "Authenticated users can view notification settings" ON public.notification_settings FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert notification settings" ON public.notification_settings FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update notification settings" ON public.notification_settings FOR UPDATE TO authenticated USING (true);
+
+-- ============================================
+-- STEP 4: CREATE HELPER FUNCTIONS
 -- ============================================
 
 CREATE OR REPLACE FUNCTION public.has_role(_user_id UUID, _role TEXT)
@@ -706,13 +863,18 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ============================================
--- CREATE TRIGGERS
+-- STEP 5: CREATE TRIGGERS
 -- ============================================
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+DROP TRIGGER IF EXISTS update_settings_updated_at ON settings;
+CREATE TRIGGER update_settings_updated_at
+  BEFORE UPDATE ON public.settings
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 DROP TRIGGER IF EXISTS update_profiles_updated_at ON profiles;
 CREATE TRIGGER update_profiles_updated_at
@@ -779,163 +941,35 @@ CREATE TRIGGER set_suppliers_user_id BEFORE INSERT ON suppliers FOR EACH ROW EXE
 DROP TRIGGER IF EXISTS set_delivery_routes_user_id ON delivery_routes;
 CREATE TRIGGER set_delivery_routes_user_id BEFORE INSERT ON delivery_routes FOR EACH ROW EXECUTE FUNCTION set_user_id();
 
+DROP TRIGGER IF EXISTS set_delivery_days_user_id ON delivery_days;
+CREATE TRIGGER set_delivery_days_user_id BEFORE INSERT ON delivery_days FOR EACH ROW EXECUTE FUNCTION set_user_id();
+
 DROP TRIGGER IF EXISTS set_other_inventory_user_id ON other_inventory;
 CREATE TRIGGER set_other_inventory_user_id BEFORE INSERT ON other_inventory FOR EACH ROW EXECUTE FUNCTION set_user_id();
 
--- ============================================
--- ROW LEVEL SECURITY POLICIES
--- ============================================
+DROP TRIGGER IF EXISTS set_planting_plans_user_id ON planting_plans;
+CREATE TRIGGER set_planting_plans_user_id BEFORE INSERT ON planting_plans FOR EACH ROW EXECUTE FUNCTION set_user_id();
 
-CREATE POLICY "Users can view all profiles" ON public.profiles FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+DROP TRIGGER IF EXISTS set_tasks_user_id ON tasks;
+CREATE TRIGGER set_tasks_user_id BEFORE INSERT ON tasks FOR EACH ROW EXECUTE FUNCTION set_user_id();
 
-CREATE POLICY "Users can view all roles" ON public.user_roles FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Admins can insert roles" ON public.user_roles FOR INSERT TO authenticated WITH CHECK (public.has_role(auth.uid(), 'admin'));
-CREATE POLICY "Admins can update roles" ON public.user_roles FOR UPDATE TO authenticated USING (public.has_role(auth.uid(), 'admin'));
-CREATE POLICY "Admins can delete roles" ON public.user_roles FOR DELETE TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+DROP TRIGGER IF EXISTS set_consumable_inventory_user_id ON consumable_inventory;
+CREATE TRIGGER set_consumable_inventory_user_id BEFORE INSERT ON consumable_inventory FOR EACH ROW EXECUTE FUNCTION set_user_id();
 
-CREATE POLICY "Users can view own login history" ON public.login_history FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Service role can insert login history" ON public.login_history FOR INSERT TO authenticated WITH CHECK (true);
+DROP TRIGGER IF EXISTS set_order_items_user_id ON order_items;
+CREATE TRIGGER set_order_items_user_id BEFORE INSERT ON order_items FOR EACH ROW EXECUTE FUNCTION set_user_id();
 
-CREATE POLICY "Users can view all worker permissions" ON public.worker_permissions FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Admins can manage worker permissions" ON public.worker_permissions FOR ALL TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+DROP TRIGGER IF EXISTS set_prices_user_id ON prices;
+CREATE TRIGGER set_prices_user_id BEFORE INSERT ON prices FOR EACH ROW EXECUTE FUNCTION set_user_id();
 
-CREATE POLICY "Users can view own crops" ON crops FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own crops" ON crops FOR INSERT TO authenticated WITH CHECK (auth.uid() = COALESCE(user_id, auth.uid()));
-CREATE POLICY "Users can update own crops" ON crops FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete own crops" ON crops FOR DELETE TO authenticated USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
+DROP TRIGGER IF EXISTS set_vat_settings_user_id ON vat_settings;
+CREATE TRIGGER set_vat_settings_user_id BEFORE INSERT ON vat_settings FOR EACH ROW EXECUTE FUNCTION set_user_id();
 
-CREATE POLICY "Users can view own blends" ON blends FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own blends" ON blends FOR INSERT TO authenticated WITH CHECK (auth.uid() = COALESCE(user_id, auth.uid()));
-CREATE POLICY "Users can update own blends" ON blends FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete own blends" ON blends FOR DELETE TO authenticated USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Users can view own customers" ON customers FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own customers" ON customers FOR INSERT TO authenticated WITH CHECK (auth.uid() = COALESCE(user_id, auth.uid()));
-CREATE POLICY "Users can update own customers" ON customers FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete own customers" ON customers FOR DELETE TO authenticated USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Users can view own suppliers" ON suppliers FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own suppliers" ON suppliers FOR INSERT TO authenticated WITH CHECK (auth.uid() = COALESCE(user_id, auth.uid()));
-CREATE POLICY "Users can update own suppliers" ON suppliers FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete own suppliers" ON suppliers FOR DELETE TO authenticated USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Users can view own orders" ON orders FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own orders" ON orders FOR INSERT TO authenticated WITH CHECK (auth.uid() = COALESCE(user_id, auth.uid()));
-CREATE POLICY "Users can update own orders" ON orders FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete own orders" ON orders FOR DELETE TO authenticated USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Users can view own order items" ON order_items FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own order items" ON order_items FOR INSERT TO authenticated WITH CHECK (auth.uid() = COALESCE(user_id, auth.uid()));
-CREATE POLICY "Users can update own order items" ON order_items FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete own order items" ON order_items FOR DELETE TO authenticated USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Users can view own planting plans" ON planting_plans FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own planting plans" ON planting_plans FOR INSERT TO authenticated WITH CHECK (auth.uid() = COALESCE(user_id, auth.uid()));
-CREATE POLICY "Users can update own planting plans" ON planting_plans FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete own planting plans" ON planting_plans FOR DELETE TO authenticated USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Users can view own seeds" ON seeds FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own seeds" ON seeds FOR INSERT TO authenticated WITH CHECK (auth.uid() = COALESCE(user_id, auth.uid()));
-CREATE POLICY "Users can update own seeds" ON seeds FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete own seeds" ON seeds FOR DELETE TO authenticated USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Users can view own packagings" ON packagings FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own packagings" ON packagings FOR INSERT TO authenticated WITH CHECK (auth.uid() = COALESCE(user_id, auth.uid()));
-CREATE POLICY "Users can update own packagings" ON packagings FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete own packagings" ON packagings FOR DELETE TO authenticated USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Users can view own packaging mappings" ON packaging_mappings FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own packaging mappings" ON packaging_mappings FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own packaging mappings" ON packaging_mappings FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete own packaging mappings" ON packaging_mappings FOR DELETE TO authenticated USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can view own substrates" ON substrates FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own substrates" ON substrates FOR INSERT TO authenticated WITH CHECK (auth.uid() = COALESCE(user_id, auth.uid()));
-CREATE POLICY "Users can update own substrates" ON substrates FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete own substrates" ON substrates FOR DELETE TO authenticated USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Users can view own labels" ON labels FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own labels" ON labels FOR INSERT TO authenticated WITH CHECK (auth.uid() = COALESCE(user_id, auth.uid()));
-CREATE POLICY "Users can update own labels" ON labels FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete own labels" ON labels FOR DELETE TO authenticated USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Users can view own consumable inventory" ON consumable_inventory FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own consumable inventory" ON consumable_inventory FOR INSERT TO authenticated WITH CHECK (auth.uid() = COALESCE(user_id, auth.uid()));
-CREATE POLICY "Users can update own consumable inventory" ON consumable_inventory FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete own consumable inventory" ON consumable_inventory FOR DELETE TO authenticated USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Users can view own other inventory" ON other_inventory FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own other inventory" ON other_inventory FOR INSERT TO authenticated WITH CHECK (auth.uid() = COALESCE(user_id, auth.uid()));
-CREATE POLICY "Users can update own other inventory" ON other_inventory FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete own other inventory" ON other_inventory FOR DELETE TO authenticated USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Users can view own delivery days" ON delivery_days FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own delivery days" ON delivery_days FOR INSERT TO authenticated WITH CHECK (auth.uid() = COALESCE(user_id, auth.uid()));
-CREATE POLICY "Users can update own delivery days" ON delivery_days FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete own delivery days" ON delivery_days FOR DELETE TO authenticated USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Users can view own delivery routes" ON delivery_routes FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own delivery routes" ON delivery_routes FOR INSERT TO authenticated WITH CHECK (auth.uid() = COALESCE(user_id, auth.uid()));
-CREATE POLICY "Users can update own delivery routes" ON delivery_routes FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete own delivery routes" ON delivery_routes FOR DELETE TO authenticated USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Users can view own delivery settings" ON delivery_settings FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own delivery settings" ON delivery_settings FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own delivery settings" ON delivery_settings FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can view own tasks" ON tasks FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own tasks" ON tasks FOR INSERT TO authenticated WITH CHECK (auth.uid() = COALESCE(user_id, auth.uid()));
-CREATE POLICY "Users can update own tasks" ON tasks FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete own tasks" ON tasks FOR DELETE TO authenticated USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Users can view own prices" ON prices FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own prices" ON prices FOR INSERT TO authenticated WITH CHECK (auth.uid() = COALESCE(user_id, auth.uid()));
-CREATE POLICY "Users can update own prices" ON prices FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete own prices" ON prices FOR DELETE TO authenticated USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Users can view own vat settings" ON vat_settings FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own vat settings" ON vat_settings FOR INSERT TO authenticated WITH CHECK (auth.uid() = COALESCE(user_id, auth.uid()));
-CREATE POLICY "Users can update own vat settings" ON vat_settings FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete own vat settings" ON vat_settings FOR DELETE TO authenticated USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Users can view own notification settings" ON notification_settings FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own notification settings" ON notification_settings FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own notification settings" ON notification_settings FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can view own fuel costs" ON fuel_costs FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own fuel costs" ON fuel_costs FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own fuel costs" ON fuel_costs FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete own fuel costs" ON fuel_costs FOR DELETE TO authenticated USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can view own adblue costs" ON adblue_costs FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own adblue costs" ON adblue_costs FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own adblue costs" ON adblue_costs FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete own adblue costs" ON adblue_costs FOR DELETE TO authenticated USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can view own electricity costs" ON electricity_costs FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own electricity costs" ON electricity_costs FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own electricity costs" ON electricity_costs FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete own electricity costs" ON electricity_costs FOR DELETE TO authenticated USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can view own water costs" ON water_costs FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own water costs" ON water_costs FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own water costs" ON water_costs FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete own water costs" ON water_costs FOR DELETE TO authenticated USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can view own car service costs" ON car_service_costs FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own car service costs" ON car_service_costs FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own car service costs" ON car_service_costs FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete own car service costs" ON car_service_costs FOR DELETE TO authenticated USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can view own other costs" ON other_costs FOR SELECT TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own other costs" ON other_costs FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own other costs" ON other_costs FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete own other costs" ON other_costs FOR DELETE TO authenticated USING (auth.uid() = user_id);
+DROP TRIGGER IF EXISTS set_packaging_mappings_user_id ON packaging_mappings;
+CREATE TRIGGER set_packaging_mappings_user_id BEFORE INSERT ON packaging_mappings FOR EACH ROW EXECUTE FUNCTION set_user_id();
 
 -- ============================================
--- CREATE INDEXES
+-- STEP 6: CREATE INDEXES
 -- ============================================
 
 CREATE INDEX IF NOT EXISTS idx_packaging_mappings_crop_weight ON packaging_mappings(crop_id, weight_g);
@@ -947,3 +981,31 @@ CREATE INDEX IF NOT EXISTS idx_planting_plans_user_id ON planting_plans(user_id)
 CREATE INDEX IF NOT EXISTS idx_planting_plans_sow_date ON planting_plans(sow_date);
 CREATE INDEX IF NOT EXISTS idx_crops_user_id ON crops(user_id);
 CREATE INDEX IF NOT EXISTS idx_customers_user_id ON customers(user_id);
+
+-- ============================================
+-- STEP 7: SEED DATA (DEFAULT SETTINGS ROW)
+-- ============================================
+
+INSERT INTO public.settings (
+  business_name,
+  business_email,
+  business_phone,
+  business_address,
+  currency,
+  default_vat_rate,
+  vat_enabled
+) VALUES (
+  'Microgreens Farm',
+  'info@microgreensfarm.com',
+  '+421 XXX XXX XXX',
+  'Your Business Address',
+  'EUR',
+  20,
+  false
+) ON CONFLICT DO NOTHING;
+
+-- ============================================
+-- SCRIPT COMPLETE
+-- ============================================
+-- Your database is now ready to use!
+-- The first user to register will automatically become an admin.
