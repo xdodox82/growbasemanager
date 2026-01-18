@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import {
@@ -23,8 +25,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ViewToggle, ViewMode } from '@/components/ui/view-toggle';
 import { useSubstrates, useSuppliers, DbSubstrate } from '@/hooks/useSupabaseData';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, Layers } from 'lucide-react';
+import { Plus, Edit, Trash2, Layers, CalendarIcon } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { format } from 'date-fns';
+import { sk } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 const SUBSTRATE_TYPES = {
   coconut: 'Kokos',
@@ -44,8 +49,12 @@ export default function SubstratePage() {
   // Form states
   const [name, setName] = useState('');
   const [type, setType] = useState<string>('coconut');
+  const [customType, setCustomType] = useState('');
   const [supplierId, setSupplierId] = useState('');
+  const [supplier, setSupplier] = useState('');
+  const [stockDate, setStockDate] = useState<Date | undefined>(undefined);
   const [quantity, setQuantity] = useState('');
+  const [currentStock, setCurrentStock] = useState('');
   const [quantityUnit, setQuantityUnit] = useState<'l' | 'kg'>('kg');
   const [unitCost, setUnitCost] = useState('');
   const [priceIncludesVat, setPriceIncludesVat] = useState(true);
@@ -55,8 +64,12 @@ export default function SubstratePage() {
   const resetForm = () => {
     setName('');
     setType('coconut');
+    setCustomType('');
     setSupplierId('');
+    setSupplier('');
+    setStockDate(undefined);
     setQuantity('');
+    setCurrentStock('');
     setQuantityUnit('kg');
     setUnitCost('');
     setPriceIncludesVat(true);
@@ -79,8 +92,12 @@ export default function SubstratePage() {
     const substrateData = {
       name: typeName,
       type: type || null,
+      custom_type: customType || null,
       supplier_id: supplierId || null,
+      supplier: supplier || null,
+      stock_date: stockDate ? format(stockDate, 'yyyy-MM-dd') : null,
       quantity: parseFloat(quantity),
+      current_stock: currentStock ? parseFloat(currentStock) : parseFloat(quantity),
       unit: quantityUnit,
       notes: notes || null,
       min_stock: null,
@@ -110,8 +127,12 @@ export default function SubstratePage() {
     setEditingSubstrate(substrate);
     setName(substrate.name);
     setType(substrate.type || 'coconut');
+    setCustomType((substrate as any).custom_type || '');
     setSupplierId(substrate.supplier_id || '');
+    setSupplier((substrate as any).supplier || '');
+    setStockDate((substrate as any).stock_date ? new Date((substrate as any).stock_date) : undefined);
     setQuantity(substrate.quantity.toString());
+    setCurrentStock((substrate as any).current_stock?.toString() || substrate.quantity.toString());
     setQuantityUnit((substrate.unit as 'l' | 'kg') || 'kg');
     setUnitCost((substrate as any).unit_cost?.toString() || '');
     setPriceIncludesVat((substrate as any).price_includes_vat ?? true);
@@ -261,12 +282,25 @@ export default function SubstratePage() {
                       <SelectValue placeholder="Vyberte druh" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="coconut">Kokos</SelectItem>
                       <SelectItem value="peat">Rašelina</SelectItem>
+                      <SelectItem value="coconut">Kokos</SelectItem>
                       <SelectItem value="other">Iné</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+                {type === 'other' && (
+                  <div className="space-y-2">
+                    <Label>Vlastný typ</Label>
+                    <Input
+                      value={customType}
+                      onChange={(e) => setCustomType(e.target.value)}
+                      placeholder="Napríklad: Perlít"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Dodávateľ</Label>
                   <Select value={supplierId} onValueChange={setSupplierId}>
@@ -280,26 +314,75 @@ export default function SubstratePage() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="space-y-2">
+                  <Label>Dodávateľ (text)</Label>
+                  <Input
+                    value={supplier}
+                    onChange={(e) => setSupplier(e.target.value)}
+                    placeholder="Názov dodávateľa"
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
-                <Label>Množstvo *</Label>
-                <div className="flex gap-2">
+                <Label>Dátum naskladnenia</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        'w-full justify-start text-left font-normal',
+                        !stockDate && 'text-muted-foreground'
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {stockDate ? format(stockDate, 'PPP', { locale: sk }) : 'Vyberte dátum'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-popover" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={stockDate}
+                      onSelect={setStockDate}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Množstvo *</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      value={quantity}
+                      onChange={(e) => setQuantity(e.target.value)}
+                      placeholder="Zadajte množstvo"
+                    />
+                    <Select value={quantityUnit} onValueChange={(v) => setQuantityUnit(v as 'l' | 'kg')}>
+                      <SelectTrigger className="w-20">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="l">l</SelectItem>
+                        <SelectItem value="kg">kg</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Aktuálny stav ({quantityUnit})</Label>
                   <Input
                     type="number"
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
-                    placeholder="Zadajte množstvo"
+                    value={currentStock}
+                    onChange={(e) => setCurrentStock(e.target.value)}
+                    placeholder="Automaticky rovnaký ako množstvo"
                   />
-                  <Select value={quantityUnit} onValueChange={(v) => setQuantityUnit(v as 'l' | 'kg')}>
-                    <SelectTrigger className="w-20">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="l">l</SelectItem>
-                      <SelectItem value="kg">kg</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Ponechajte prázdne pre automatické nastavenie
+                  </p>
                 </div>
               </div>
 

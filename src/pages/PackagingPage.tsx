@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import {
@@ -24,9 +26,12 @@ import { ViewToggle, ViewMode } from '@/components/ui/view-toggle';
 import { Checkbox } from '@/components/ui/checkbox';
 import { usePackagings, useSuppliers, DbPackaging } from '@/hooks/useSupabaseData';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, Package } from 'lucide-react';
+import { Plus, Edit, Trash2, Package, CalendarIcon } from 'lucide-react';
 import { PackagingMappings } from '@/components/PackagingMappings';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { format } from 'date-fns';
+import { sk } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 const PACKAGING_KINDS = ['Pre zrezanú mikrozeleninu', 'Pre živú mikrozeleninu'] as const;
 const PACKAGING_MATERIALS = ['rPET', 'PET', 'EKO'] as const;
@@ -46,6 +51,8 @@ export default function PackagingPage() {
   const [type, setType] = useState<string>('');
   const [size, setSize] = useState('');
   const [supplierId, setSupplierId] = useState('');
+  const [supplier, setSupplier] = useState('');
+  const [stockDate, setStockDate] = useState<Date | undefined>(undefined);
   const [quantity, setQuantity] = useState('');
   const [minStock, setMinStock] = useState('');
   const [pricePerPiece, setPricePerPiece] = useState('');
@@ -58,6 +65,8 @@ export default function PackagingPage() {
     setType('');
     setSize('');
     setSupplierId('');
+    setSupplier('');
+    setStockDate(undefined);
     setQuantity('');
     setMinStock('');
     setPricePerPiece('');
@@ -82,6 +91,8 @@ export default function PackagingPage() {
       type: type || null,
       size: size || null,
       supplier_id: supplierId || null,
+      supplier: supplier || null,
+      stock_date: stockDate ? format(stockDate, 'yyyy-MM-dd') : null,
       quantity: parseInt(quantity),
       notes: notes || null,
       min_stock: minStock ? parseInt(minStock) : null,
@@ -113,6 +124,8 @@ export default function PackagingPage() {
     setType(packaging.type || '');
     setSize(packaging.size || '');
     setSupplierId(packaging.supplier_id || '');
+    setSupplier((packaging as any).supplier || '');
+    setStockDate((packaging as any).stock_date ? new Date((packaging as any).stock_date) : undefined);
     setQuantity(packaging.quantity.toString());
     setMinStock((packaging as any).min_stock?.toString() || '');
     setPricePerPiece((packaging as any).price_per_piece?.toString() || '');
@@ -314,6 +327,43 @@ export default function PackagingPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Dodávateľ (text)</Label>
+                  <Input
+                    value={supplier}
+                    onChange={(e) => setSupplier(e.target.value)}
+                    placeholder="Názov dodávateľa"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Dátum naskladnenia</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          'w-full justify-start text-left font-normal',
+                          !stockDate && 'text-muted-foreground'
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {stockDate ? format(stockDate, 'PPP', { locale: sk }) : 'Vyberte dátum'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 bg-popover" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={stockDate}
+                        onSelect={setStockDate}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div className="space-y-2">
                   <Label>Počet kusov *</Label>
