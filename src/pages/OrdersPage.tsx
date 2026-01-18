@@ -211,7 +211,12 @@ export default function OrdersPage() {
       if (pricesRes.data) setPrices(pricesRes.data);
       if (packagingsRes.data) setPackagings(packagingsRes.data);
       if (deliveryDaysRes.data) setDeliveryDays(deliveryDaysRes.data);
-      if (profileRes.data?.delivery_settings) setDeliverySettings(profileRes.data.delivery_settings);
+      if (profileRes.data?.delivery_settings) {
+        console.log('✅ Delivery settings loaded:', profileRes.data.delivery_settings);
+        setDeliverySettings(profileRes.data.delivery_settings);
+      } else {
+        console.warn('⚠️ No delivery settings found in profile');
+      }
 
       setDataLoaded(true);
     } catch (error) {
@@ -262,14 +267,26 @@ export default function OrdersPage() {
       if (!customerType) return 0;
 
       const settingsToUse = settings || deliverySettings;
-      if (!settingsToUse) return 0;
+      if (!settingsToUse) {
+        console.warn('⚠️ No delivery settings available for fee calculation');
+        return 0;
+      }
 
       const feeByType = settingsToUse?.fees_by_customer_type || {};
       const minFreeByType = settingsToUse?.min_free_by_customer_type || {};
       const minFree = minFreeByType[customerType] || 0;
+      const fee = feeByType[customerType] || settingsToUse?.default_fee || 0;
+
+      console.log('🚚 Delivery fee calculation:', {
+        customerType,
+        orderTotal,
+        minFree,
+        fee,
+        result: (orderTotal >= minFree && minFree > 0) ? 0 : fee
+      });
 
       if (orderTotal >= minFree && minFree > 0) return 0;
-      return feeByType[customerType] || settingsToUse?.default_fee || 0;
+      return fee;
     } catch (error) {
       console.error('[OrdersPage] Error calculating delivery fee:', error);
       return 0;
@@ -1595,7 +1612,6 @@ export default function OrdersPage() {
                               placeholder="Vyberte alebo zadajte (napr. 8g, 50g, 100g)"
                             />
                             <datalist id="weight-options">
-                              <option value="8g" />
                               <option value="25g" />
                               <option value="50g" />
                               <option value="60g" />
