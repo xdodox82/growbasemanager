@@ -187,6 +187,90 @@ export default function OrdersPage() {
     fetchPriceAutomatically();
   }, [currentItem.crop_id, currentItem.packaging_size, customerType, currentItem.is_special_item]);
 
+  useEffect(() => {
+    if (selectedOrderDetail && deliverySettings && customers.length > 0) {
+      const recalculatedFee = getDeliveryFee(selectedOrderDetail);
+      const currentStoredFee = parseFloat((selectedOrderDetail.delivery_price || 0).toString());
+
+      if (Math.abs(recalculatedFee - currentStoredFee) > 0.01) {
+        console.warn(`⚠️ Order ${selectedOrderDetail.id?.substring(0, 8)} has incorrect delivery fee. Stored: ${currentStoredFee}€, Should be: ${recalculatedFee}€`);
+      }
+    }
+  }, [selectedOrderDetail, deliverySettings, customers]);
+
+  const repairAllOrders = async () => {
+    if (!deliverySettings) {
+      toast({
+        variant: 'destructive',
+        title: 'Chyba',
+        description: 'Delivery settings not loaded. Please wait and try again.'
+      });
+      return;
+    }
+
+    try {
+      let repairedCount = 0;
+      const updates = [];
+
+      for (const order of orders) {
+        if (!order.charge_delivery) continue;
+
+        const correctFee = getDeliveryFee(order);
+        const currentFee = parseFloat((order.delivery_price || 0).toString());
+
+        if (Math.abs(correctFee - currentFee) > 0.01) {
+          let subtotal = 0;
+          if (order.order_items && Array.isArray(order.order_items) && order.order_items.length > 0) {
+            subtotal = order.order_items.reduce((sum, item) => {
+              if (!item) return sum;
+              const qty = parseFloat(item.quantity?.toString() || '0');
+              const pricePerUnit = parseFloat((item.price_per_unit?.toString() || '0').replace(',', '.'));
+              return sum + (qty * pricePerUnit);
+            }, 0);
+          }
+
+          const newTotal = subtotal + correctFee;
+
+          console.log(`🔧 Repairing order ${order.id?.substring(0, 8)}: ${currentFee}€ → ${correctFee}€, Total: ${order.total_price}€ → ${newTotal.toFixed(2)}€`);
+
+          updates.push(
+            supabase
+              .from('orders')
+              .update({
+                delivery_price: correctFee,
+                total_price: newTotal
+              })
+              .eq('id', order.id)
+          );
+
+          repairedCount++;
+        }
+      }
+
+      if (updates.length > 0) {
+        await Promise.all(updates);
+        await loadData();
+
+        toast({
+          title: 'Úspech',
+          description: `Opravených ${repairedCount} objednávok.`
+        });
+      } else {
+        toast({
+          title: 'Info',
+          description: 'Všetky objednávky sú správne.'
+        });
+      }
+    } catch (error) {
+      console.error('Error repairing orders:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Chyba',
+        description: 'Nepodarilo sa opraviť objednávky.'
+      });
+    }
+  };
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -268,24 +352,35 @@ export default function OrdersPage() {
       if (!settingsToUse) return 0;
 
       // CRITICAL: Calculate order SUBTOTAL from items, not total_price
-      // total_price might already include delivery fee from when order was created
       let orderSubtotal = 0;
       if (order.order_items && Array.isArray(order.order_items) && order.order_items.length > 0) {
         orderSubtotal = order.order_items.reduce((sum, item) => {
           if (!item) return sum;
           const qty = parseFloat(item.quantity?.toString() || '0');
-          const pricePerUnit = parseFloat(item.price_per_unit?.toString().replace(',', '.') || '0');
-          return sum + (qty * pricePerUnit);
+          const pricePerUnit = parseFloat((item.price_per_unit?.toString() || '0').replace(',', '.'));
+          const itemTotal = qty * pricePerUnit;
+          return sum + itemTotal;
         }, 0);
       } else {
-        // Fallback: use stored total_price minus delivery_price if available
-        orderSubtotal = (order?.total_price || 0) - (order?.delivery_price || 0);
+        const totalPrice = parseFloat((order?.total_price || 0).toString());
+        const deliveryPrice = parseFloat((order?.delivery_price || 0).toString());
+        orderSubtotal = totalPrice - deliveryPrice;
       }
 
       const feeByType = settingsToUse?.fees_by_customer_type || {};
       const minFreeByType = settingsToUse?.min_free_by_customer_type || {};
-      const deliveryFee = feeByType[customerType] || settingsToUse?.default_fee || 0;
-      const minFreeThreshold = minFreeByType[customerType] || 0;
+      const deliveryFee = parseFloat((feeByType[customerType] || settingsToUse?.default_fee || 0).toString());
+      const minFreeThreshold = parseFloat((minFreeByType[customerType] || 0).toString());
+
+      // Debug output
+      console.table([{
+        Order_ID: order.id?.substring(0, 8),
+        Customer_Type: customerType,
+        Subtotal: orderSubtotal.toFixed(2),
+        Threshold: minFreeThreshold.toFixed(2),
+        Delivery_Fee: deliveryFee.toFixed(2),
+        Final_Fee: (minFreeThreshold > 0 && orderSubtotal >= minFreeThreshold) ? '0.00' : deliveryFee.toFixed(2)
+      }]);
 
       // STRICT RULE: If orderSubtotal < minFreeThreshold, charge delivery fee
       if (minFreeThreshold > 0 && orderSubtotal >= minFreeThreshold) {
@@ -912,6 +1007,16 @@ export default function OrdersPage() {
             <Button onClick={openNew} className="bg-[#10b981] hover:bg-[#059669] text-white">
               <Plus className="h-4 w-4 mr-2" />
               Nová objednávka
+            </Button>
+            <Button
+              onClick={repairAllOrders}
+              variant="outline"
+              className="border-orange-500 text-orange-600 hover:bg-orange-50"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Opraviť poplatky
             </Button>
             <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
               <Button
