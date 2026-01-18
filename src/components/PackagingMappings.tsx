@@ -25,7 +25,6 @@ type Packaging = {
 };
 
 const STANDARD_WEIGHTS = [25, 50, 60, 70, 100, 120, 150];
-const PACKAGING_VOLUMES = ['250ml', '500ml', '750ml', '1000ml', '1200ml', '1500ml'];
 
 export function PackagingMappings() {
   const { toast } = useToast();
@@ -39,7 +38,7 @@ export function PackagingMappings() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCrop, setEditingCrop] = useState<Crop | null>(null);
-  const [volumeMappings, setVolumeMappings] = useState<Record<number, string>>({});
+  const [packagingIdMappings, setPackagingIdMappings] = useState<Record<number, string>>({});
   const [enabledWeights, setEnabledWeights] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
@@ -54,11 +53,14 @@ export function PackagingMappings() {
         supabase.from('packagings').select('id, name, type, size').order('name'),
       ]);
 
+      console.log('📦 Loaded packagings:', packagingsRes.data);
+
       if (cropsRes.data) {
         // Load mappings for all crops
         const cropsWithMappings = await Promise.all(
           cropsRes.data.map(async (crop) => {
             const mappings = await loadMappingsByCrop(crop.id);
+            console.log(`📋 Mappings for ${crop.name}:`, mappings);
             const formattedMappings = mappings.map((m: any) => ({
               weight_g: m.weight_g,
               volume: m.packagings?.size || ''
@@ -76,7 +78,7 @@ export function PackagingMappings() {
         setPackagings(packagingsRes.data);
       }
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('❌ Error loading data:', error);
       toast({
         title: 'Chyba',
         description: 'Nepodarilo sa načítať dáta',
@@ -92,17 +94,20 @@ export function PackagingMappings() {
 
     // Load current mappings for this crop
     const mappings = await loadMappingsByCrop(crop.id);
-    const volumeMap: Record<number, string> = {};
+    console.log(`🔧 Opening edit dialog for ${crop.name}, mappings:`, mappings);
+
+    const idMap: Record<number, string> = {};
     const enabledMap: Record<number, boolean> = {};
 
     mappings.forEach((m: any) => {
-      if (m?.packagings?.size && m?.weight_g) {
-        volumeMap[m.weight_g] = m.packagings.size;
+      if (m?.packaging_id && m?.weight_g) {
+        idMap[m.weight_g] = m.packaging_id;
         enabledMap[m.weight_g] = true;
       }
     });
 
-    setVolumeMappings(volumeMap);
+    console.log('🗺️ Packaging ID mappings:', idMap);
+    setPackagingIdMappings(idMap);
     setEnabledWeights(enabledMap);
     setIsDialogOpen(true);
   };
@@ -110,21 +115,28 @@ export function PackagingMappings() {
   const closeDialog = () => {
     setIsDialogOpen(false);
     setEditingCrop(null);
-    setVolumeMappings({});
+    setPackagingIdMappings({});
     setEnabledWeights({});
   };
 
   const handleWeightToggle = (weight: number, checked: boolean) => {
     setEnabledWeights({ ...enabledWeights, [weight]: checked });
     if (!checked) {
-      const newMappings = { ...volumeMappings };
+      const newMappings = { ...packagingIdMappings };
       delete newMappings[weight];
-      setVolumeMappings(newMappings);
+      setPackagingIdMappings(newMappings);
     }
   };
 
-  const handleVolumeChange = (weight: number, volume: string) => {
-    setVolumeMappings({ ...volumeMappings, [weight]: volume === 'none' ? '' : volume });
+  const handlePackagingChange = (weight: number, packagingId: string) => {
+    if (packagingId === 'none') {
+      const newMappings = { ...packagingIdMappings };
+      delete newMappings[weight];
+      setPackagingIdMappings(newMappings);
+    } else {
+      setPackagingIdMappings({ ...packagingIdMappings, [weight]: packagingId });
+    }
+    console.log(`📝 Updated packaging for ${weight}g:`, packagingId);
   };
 
   const handleSaveConfiguration = async () => {
@@ -133,22 +145,33 @@ export function PackagingMappings() {
     setIsSaving(true);
 
     try {
-      const mappingsToInsert = Object.entries(volumeMappings)
-        .filter(([weight, volume]) => enabledWeights[parseInt(weight)] && volume && volume !== '')
-        .map(([weight, volume]) => {
-          const packaging = packagings?.find(p => p?.size === volume);
-          return {
-            crop_id: editingCrop.id,
-            weight_g: parseInt(weight),
-            packaging_id: packaging?.id || '',
-          };
-        })
-        .filter(m => m?.packaging_id);
+      const mappingsToInsert = Object.entries(packagingIdMappings)
+        .filter(([weight, packagingId]) => enabledWeights[parseInt(weight)] && packagingId && packagingId !== '')
+        .map(([weight, packagingId]) => ({
+          crop_id: editingCrop.id,
+          weight_g: parseInt(weight),
+          packaging_id: packagingId,
+        }));
 
-      const result = await upsertMappings(mappingsToInsert);
+      console.log('💾 Saving mappings for', editingCrop.name, ':', mappingsToInsert);
 
-      if (!result.success) {
-        throw new Error(result.error?.message || 'Chyba pri ukladaní');
+      if (mappingsToInsert.length === 0) {
+        console.log('⚠️ No mappings to save (empty array)');
+        // If no mappings, delete all for this crop
+        const { error: deleteError } = await supabase
+          .from('packaging_mappings')
+          .delete()
+          .eq('crop_id', editingCrop.id);
+
+        if (deleteError) throw deleteError;
+      } else {
+        const result = await upsertMappings(mappingsToInsert);
+
+        if (!result.success) {
+          throw new Error(result.error?.message || 'Chyba pri ukladaní');
+        }
+
+        console.log('✅ Mappings saved successfully:', result.data);
       }
 
       toast({
@@ -160,7 +183,7 @@ export function PackagingMappings() {
       await loadData();
       closeDialog();
     } catch (error: any) {
-      console.error('Error saving configuration:', error);
+      console.error('❌ Error saving configuration:', error);
       toast({
         title: 'Chyba',
         description: error.message || 'Nepodarilo sa uložiť konfiguráciu',
@@ -323,66 +346,82 @@ export function PackagingMappings() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {STANDARD_WEIGHTS.map((weight) => (
-                <div
-                  key={weight}
-                  className={`flex items-center gap-3 p-3 border rounded-lg transition-all ${
-                    enabledWeights[weight]
-                      ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800'
-                      : 'bg-white dark:bg-gray-950 border-gray-200'
-                  }`}
-                >
-                  <Switch
-                    checked={enabledWeights[weight] || false}
-                    onCheckedChange={(checked) => handleWeightToggle(weight, checked)}
-                  />
-                  <div className="w-14">
-                    <span
-                      className={`font-bold text-sm ${
-                        enabledWeights[weight] ? 'text-green-700 dark:text-green-300' : 'text-gray-400'
-                      }`}
-                    >
-                      {weight}g
-                    </span>
+              {STANDARD_WEIGHTS.map((weight) => {
+                const selectedPackaging = packagingIdMappings[weight]
+                  ? packagings.find(p => p.id === packagingIdMappings[weight])
+                  : null;
+
+                return (
+                  <div
+                    key={weight}
+                    className={`flex items-center gap-3 p-3 border rounded-lg transition-all ${
+                      enabledWeights[weight]
+                        ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800'
+                        : 'bg-white dark:bg-gray-950 border-gray-200'
+                    }`}
+                  >
+                    <Switch
+                      checked={enabledWeights[weight] || false}
+                      onCheckedChange={(checked) => handleWeightToggle(weight, checked)}
+                    />
+                    <div className="w-14">
+                      <span
+                        className={`font-bold text-sm ${
+                          enabledWeights[weight] ? 'text-green-700 dark:text-green-300' : 'text-gray-400'
+                        }`}
+                      >
+                        {weight}g
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <Select
+                        disabled={!enabledWeights[weight]}
+                        value={packagingIdMappings[weight] || 'none'}
+                        onValueChange={(value) => handlePackagingChange(weight, value)}
+                      >
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="Objem..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">-</SelectItem>
+                          {packagings
+                            .filter(p => p.size) // Only show packagings with a size
+                            .sort((a, b) => {
+                              const aNum = parseInt(a.size);
+                              const bNum = parseInt(b.size);
+                              return aNum - bNum;
+                            })
+                            .map((packaging) => (
+                              <SelectItem key={packaging.id} value={packaging.id}>
+                                {packaging.size}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <Select
-                      disabled={!enabledWeights[weight]}
-                      value={volumeMappings[weight] || 'none'}
-                      onValueChange={(value) => handleVolumeChange(weight, value)}
-                    >
-                      <SelectTrigger className="h-9 text-sm">
-                        <SelectValue placeholder="Objem..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">-</SelectItem>
-                        {PACKAGING_VOLUMES.map((volume) => (
-                          <SelectItem key={volume} value={volume}>
-                            {volume}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
-            {Object.entries(volumeMappings).filter(([_, vol]) => vol && vol !== '').length > 0 && (
+            {Object.entries(packagingIdMappings).filter(([_, id]) => id && id !== '').length > 0 && (
               <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border">
                 <h3 className="text-sm font-semibold mb-3">Náhľad konfigurácie</h3>
                 <div className="flex flex-wrap gap-2">
-                  {Object.entries(volumeMappings)
-                    .filter(([_, volume]) => volume && volume !== '')
+                  {Object.entries(packagingIdMappings)
+                    .filter(([_, packagingId]) => packagingId && packagingId !== '')
                     .sort(([a], [b]) => parseInt(a) - parseInt(b))
-                    .map(([weight, volume]) => (
-                      <span
-                        key={weight}
-                        className="inline-flex items-center px-3 py-2 rounded-md bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-sm font-medium"
-                      >
-                        {weight}g → {volume}
-                      </span>
-                    ))}
+                    .map(([weight, packagingId]) => {
+                      const packaging = packagings.find(p => p.id === packagingId);
+                      return (
+                        <span
+                          key={weight}
+                          className="inline-flex items-center px-3 py-2 rounded-md bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-sm font-medium"
+                        >
+                          {weight}g → {packaging?.size || 'N/A'}
+                        </span>
+                      );
+                    })}
                 </div>
               </div>
             )}

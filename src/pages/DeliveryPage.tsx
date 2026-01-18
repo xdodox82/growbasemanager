@@ -364,24 +364,32 @@ function DeliveryPage() {
       return 0;
     }
 
-    // PRIORITY 3: Check if order total exceeds free delivery threshold (from settings)
-    const FREE_DELIVERY_THRESHOLD = parseFloat(localStorage.getItem('free_delivery_threshold') || '20');
-    if (orderTotal >= FREE_DELIVERY_THRESHOLD) {
-      return 0;
-    }
-
-    // PRIORITY 4: Return route delivery fee based on customer type
+    // PRIORITY 3: Return route delivery fee based on customer type, considering free delivery thresholds
     if (!route) return 0;
 
     const type = customerType || customer?.customer_type || 'home';
 
+    // Check if order total exceeds free delivery threshold for this customer type
+    let minFreeDelivery = 0;
+    let deliveryFee = 0;
+
     if (type === 'gastro') {
-      return route.delivery_fee_gastro ?? route.delivery_fee ?? 0;
+      minFreeDelivery = route.gastro_min_free_delivery ?? 0;
+      deliveryFee = route.delivery_fee_gastro ?? route.delivery_fee ?? 0;
     } else if (type === 'wholesale') {
-      return route.delivery_fee_wholesale ?? route.delivery_fee ?? 0;
+      minFreeDelivery = route.wholesale_min_free_delivery ?? 0;
+      deliveryFee = route.delivery_fee_wholesale ?? route.delivery_fee ?? 0;
     } else {
-      return route.delivery_fee_home ?? route.delivery_fee ?? 0;
+      minFreeDelivery = route.home_min_free_delivery ?? 0;
+      deliveryFee = route.delivery_fee_home ?? route.delivery_fee ?? 0;
     }
+
+    // If min free delivery threshold is met, no delivery fee
+    if (minFreeDelivery > 0 && orderTotal >= minFreeDelivery) {
+      return 0;
+    }
+
+    return deliveryFee;
   };
 
   // Check if order is paid (notes contain 'Zaplatené')
