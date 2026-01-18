@@ -231,21 +231,8 @@ export default function OrdersPage() {
         console.log('✅ Delivery settings loaded:', profileRes.data.delivery_settings);
         setDeliverySettings(profileRes.data.delivery_settings);
       } else {
-        console.warn('⚠️ No delivery settings found in profile, using defaults');
-        const defaultSettings = {
-          default_fee: 3,
-          fees_by_customer_type: {
-            home: 3,
-            gastro: 3,
-            wholesale: 3
-          },
-          min_free_by_customer_type: {
-            home: 15,
-            gastro: 30,
-            wholesale: 50
-          }
-        };
-        setDeliverySettings(defaultSettings);
+        console.warn('⚠️ No delivery settings found in profile');
+        setDeliverySettings(null);
       }
 
       setDataLoaded(true);
