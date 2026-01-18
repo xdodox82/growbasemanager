@@ -464,6 +464,8 @@ export default function OrdersPage() {
       const weightG = parseInt(packagingSize.replace(/[^0-9]/g, ''));
       if (!weightG) return null;
 
+      console.log(`📦 Auto-fetching packaging for crop ${cropId}, weight ${weightG}g`);
+
       const { data: mapping } = await supabase
         .from('packaging_mappings')
         .select('packaging_id, packagings(type, size)')
@@ -476,16 +478,20 @@ export default function OrdersPage() {
         const volumeMatch = pkg.size?.match(/(\d+)/);
         const volumeMl = volumeMatch ? parseInt(volumeMatch[1]) : 250;
 
-        return {
+        const result = {
           packaging_id: mapping.packaging_id,
           packaging_material: pkg.type || 'rPET',
           packaging_volume_ml: volumeMl
         };
+
+        console.log('✅ Auto-selected packaging:', result);
+        return result;
       }
 
+      console.log('⚠️ No packaging mapping found for this crop and weight');
       return null;
     } catch (error) {
-      console.error('Error fetching packaging mapping:', error);
+      console.error('❌ Error fetching packaging mapping:', error);
       return null;
     }
   };
@@ -580,12 +586,54 @@ export default function OrdersPage() {
         return sum + (quantity * price);
       }, 0);
 
+      // Calculate delivery fee automatically based on route, customer type, and order total
+      const orderRoute = routes?.find(r => r.name === route);
+      let deliveryPrice = 0;
+
+      if (chargeDelivery && orderRoute && customer) {
+        const custType = customer.customer_type || 'home';
+        let deliveryFee = 0;
+        let minFreeDelivery = 0;
+
+        if (custType === 'home') {
+          deliveryFee = parseFloat(orderRoute.delivery_fee_home || '0');
+          minFreeDelivery = parseFloat(orderRoute.home_min_free_delivery || '0');
+        } else if (custType === 'gastro') {
+          deliveryFee = parseFloat(orderRoute.delivery_fee_gastro || '0');
+          minFreeDelivery = parseFloat(orderRoute.gastro_min_free_delivery || '0');
+        } else if (custType === 'wholesale') {
+          deliveryFee = parseFloat(orderRoute.delivery_fee_wholesale || '0');
+          minFreeDelivery = parseFloat(orderRoute.wholesale_min_free_delivery || '0');
+        }
+
+        // Check if customer has free delivery exception
+        if (customer.free_delivery) {
+          deliveryPrice = 0;
+        } else if (minFreeDelivery > 0 && totalPrice >= minFreeDelivery) {
+          // Free delivery threshold met
+          deliveryPrice = 0;
+        } else {
+          deliveryPrice = deliveryFee;
+        }
+
+        console.log('💶 Auto-calculated delivery price:', {
+          customerType: custType,
+          orderTotal: totalPrice,
+          deliveryFee,
+          minFreeDelivery,
+          finalDeliveryPrice: deliveryPrice,
+          freeDeliveryException: customer.free_delivery
+        });
+      }
+
       const orderData = {
         customer_id: customerId,
         customer_name: customer?.company_name || customer?.name || '',
+        customer_type: customer?.customer_type || 'home',
         delivery_date: deliveryDate,
         status: status,
         total_price: parseFloat(totalPrice.toFixed(2)),
+        delivery_price: parseFloat(deliveryPrice.toFixed(2)),
         charge_delivery: chargeDelivery,
         route: route || null,
         notes: orderNotes || null,

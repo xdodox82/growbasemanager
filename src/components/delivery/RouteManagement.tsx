@@ -27,8 +27,6 @@ import { Plus, Pencil, Trash2, MapPin, Users } from 'lucide-react';
 import { useDeliveryRoutes, useCustomers } from '@/hooks/useSupabaseData';
 import { useToast } from '@/hooks/use-toast';
 
-const FREE_DELIVERY_THRESHOLD_KEY = 'free_delivery_threshold';
-
 export function RouteManagement() {
   const { data: routes, add: addRoute, update: updateRoute, remove: deleteRoute } = useDeliveryRoutes();
   const { data: customers, update: updateCustomer } = useCustomers();
@@ -47,19 +45,6 @@ export function RouteManagement() {
     delivery_fee_gastro: '',
     delivery_fee_wholesale: '',
   });
-
-  const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState<string>(
-    localStorage.getItem(FREE_DELIVERY_THRESHOLD_KEY) || '20'
-  );
-
-  const handleThresholdChange = (value: string) => {
-    setFreeDeliveryThreshold(value);
-    localStorage.setItem(FREE_DELIVERY_THRESHOLD_KEY, value);
-    toast({
-      title: 'Nastavenie uložené',
-      description: `Limit pre dopravu zdarma nastavený na ${value} €`,
-    });
-  };
 
   const getCustomersForRoute = (routeId: string) => {
     return customers.filter(c => c.delivery_route_id === routeId);
@@ -209,32 +194,6 @@ export function RouteManagement() {
           Pridať trasu
         </Button>
       </div>
-
-      <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-        <div className="flex items-center gap-4">
-          <div className="flex-1">
-            <Label htmlFor="freeDeliveryThreshold" className="text-sm font-semibold mb-1 block">
-              Doprava zdarma od sumy (€)
-            </Label>
-            <p className="text-xs text-muted-foreground mb-2">
-              Ak objednávka presiahne túto sumu, dopravný poplatok sa neúčtuje
-            </p>
-            <div className="flex items-center gap-2 max-w-xs">
-              <Input
-                id="freeDeliveryThreshold"
-                type="number"
-                step="0.01"
-                value={freeDeliveryThreshold}
-                onChange={(e) => setFreeDeliveryThreshold(e.target.value)}
-                onBlur={(e) => handleThresholdChange(e.target.value)}
-                className="w-32"
-              />
-              <span className="text-sm text-muted-foreground">€</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
 
       {routes.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
