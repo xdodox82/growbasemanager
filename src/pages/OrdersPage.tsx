@@ -570,12 +570,11 @@ export default function OrdersPage() {
 
       if (chargeDelivery && customer) {
         const custType = customer.customer_type || 'home';
-        const settingsToUse = settings || deliverySettings;
 
-        if (settingsToUse) {
-          const feeByType = settingsToUse?.fees_by_customer_type || {};
-          const minFreeByType = settingsToUse?.min_free_by_customer_type || {};
-          const deliveryFee = feeByType[custType] || settingsToUse?.default_fee || 0;
+        if (deliverySettings) {
+          const feeByType = deliverySettings?.fees_by_customer_type || {};
+          const minFreeByType = deliverySettings?.min_free_by_customer_type || {};
+          const deliveryFee = feeByType[custType] || deliverySettings?.default_fee || 0;
           const minFreeDelivery = minFreeByType[custType] || 0;
 
           // Check if customer has free delivery exception
@@ -1223,7 +1222,25 @@ export default function OrdersPage() {
                   )}
                 </div>
 
-                <div className="border-t border-gray-200 pt-3">
+                <div className="border-t border-gray-200 pt-3 space-y-2">
+                  {(() => {
+                    const deliveryFee = getDeliveryFee(order);
+                    if (deliveryFee > 0) {
+                      return (
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-gray-600">Doprava:</span>
+                          <span className="font-semibold text-gray-900">{deliveryFee.toFixed(2)} €</span>
+                        </div>
+                      );
+                    } else if (order.charge_delivery) {
+                      return (
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-[#10b981] font-medium">Doprava zdarma</span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                   <div className="flex justify-between items-center">
                     <span className="text-base text-gray-700 font-semibold">Celkom:</span>
                     <span className="text-2xl font-bold text-[#10b981]">
@@ -1541,37 +1558,52 @@ export default function OrdersPage() {
 
                           <div>
                             <Label className="text-sm">Váha</Label>
-                            <select
+                            <Input
+                              list="weight-options"
+                              type="text"
                               value={currentItem?.packaging_size || ''}
                               onChange={async (e) => {
                                 const newSize = e.target.value;
-                                if (currentItem?.crop_id && customerType) {
+                                setCurrentItem({ ...currentItem, packaging_size: newSize });
+                              }}
+                              onBlur={async (e) => {
+                                let value = e.target.value.trim();
+                                if (!value) return;
+
+                                // Auto-append 'g' if user enters just a number
+                                if (/^\d+$/.test(value)) {
+                                  value = value + 'g';
+                                  setCurrentItem({ ...currentItem, packaging_size: value });
+                                }
+
+                                // Try to auto-fetch price and packaging
+                                if (currentItem?.crop_id && customerType && value) {
                                   const [autoPrice, autoPackaging] = await Promise.all([
-                                    autoFetchPrice(currentItem.crop_id, newSize, customerType),
-                                    autoFetchPackaging(currentItem.crop_id, newSize)
+                                    autoFetchPrice(currentItem.crop_id, value, customerType),
+                                    autoFetchPackaging(currentItem.crop_id, value)
                                   ]);
 
                                   setCurrentItem({
                                     ...currentItem,
-                                    packaging_size: newSize,
+                                    packaging_size: value,
                                     price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
                                     ...(autoPackaging || {})
                                   });
-                                } else {
-                                  setCurrentItem({ ...currentItem, packaging_size: newSize });
                                 }
                               }}
-                              className="mt-1 w-full px-3 h-10 border border-gray-300 rounded-md text-sm"
-                            >
-                              <option value="">Vyberte hmotnosť</option>
-                              <option value="25g">25g</option>
-                              <option value="50g">50g</option>
-                              <option value="60g">60g</option>
-                              <option value="70g">70g</option>
-                              <option value="100g">100g</option>
-                              <option value="120g">120g</option>
-                              <option value="150g">150g</option>
-                            </select>
+                              className="mt-1 h-10"
+                              placeholder="Vyberte alebo zadajte (napr. 8g, 50g, 100g)"
+                            />
+                            <datalist id="weight-options">
+                              <option value="8g" />
+                              <option value="25g" />
+                              <option value="50g" />
+                              <option value="60g" />
+                              <option value="70g" />
+                              <option value="100g" />
+                              <option value="120g" />
+                              <option value="150g" />
+                            </datalist>
                           </div>
 
                           <div>
@@ -1830,33 +1862,31 @@ export default function OrdersPage() {
                     })()}€
                   </span>
                 </div>
-                {selectedOrderDetail?.charge_delivery ? (
-                  getDeliveryFee(selectedOrderDetail) > 0 ? (
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-gray-600 flex items-center gap-1">
-                        <Truck className="h-3 w-3" />
-                        Doprava:
-                      </span>
-                      <span className="font-semibold text-gray-900">
-                        {(getDeliveryFee(selectedOrderDetail) || 0).toFixed(2)} €
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-[#10b981] flex items-center gap-1 font-medium">
-                        <Truck className="h-3 w-3" />
-                        Doprava zdarma
-                      </span>
-                    </div>
-                  )
-                ) : (
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-[#10b981] flex items-center gap-1 font-medium">
-                      <Truck className="h-3 w-3" />
-                      Doprava zdarma
-                    </span>
-                  </div>
-                )}
+                {(() => {
+                  const deliveryFee = getDeliveryFee(selectedOrderDetail);
+                  if (deliveryFee > 0) {
+                    return (
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-gray-600 flex items-center gap-1">
+                          <Truck className="h-3 w-3" />
+                          Doprava:
+                        </span>
+                        <span className="font-semibold text-gray-900">
+                          {deliveryFee.toFixed(2)} €
+                        </span>
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-[#10b981] flex items-center gap-1 font-medium">
+                          <Truck className="h-3 w-3" />
+                          Doprava zdarma
+                        </span>
+                      </div>
+                    );
+                  }
+                })()}
                 <div className="flex justify-between items-center pt-2 border-t border-gray-300">
                   <span className="text-lg text-gray-700 font-semibold">Celkom:</span>
                   <span className="text-3xl font-bold text-[#10b981]">

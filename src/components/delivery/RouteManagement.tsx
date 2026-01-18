@@ -38,6 +38,7 @@ export function RouteManagement() {
   const [managingRouteId, setManagingRouteId] = useState<string | null>(null);
   const [deleteRouteId, setDeleteRouteId] = useState<string | null>(null);
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<string>>(new Set());
+  const [customerTypeFilter, setCustomerTypeFilter] = useState<string>('all');
 
   const [routeFormData, setRouteFormData] = useState({
     name: '',
@@ -106,6 +107,7 @@ export function RouteManagement() {
     setManagingRouteId(routeId);
     const assignedCustomers = customers.filter(c => c.delivery_route_id === routeId);
     setSelectedCustomerIds(new Set(assignedCustomers.map(c => c.id)));
+    setCustomerTypeFilter('all');
     setIsCustomersDialogOpen(true);
   };
 
@@ -172,10 +174,7 @@ export function RouteManagement() {
           <MapPin className="h-5 w-5 text-primary" />
           <h3 className="text-lg font-semibold">Rozvozové trasy</h3>
         </div>
-        <Button onClick={() => setIsRouteDialogOpen(true)} size="sm">
-          <Plus className="h-4 w-4 mr-1" />
-          Pridať trasu
-        </Button>
+        <p className="text-sm text-muted-foreground">Trasy sa spravujú v Nastaveniach</p>
       </div>
 
       {routes.length === 0 ? (
@@ -233,9 +232,17 @@ export function RouteManagement() {
                 {customersCount > 0 && (
                   <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t">
                     {getCustomersForRoute(route.id).map((customer) => (
-                      <Badge key={customer.id} variant="secondary" className="text-xs">
-                        {customer.company_name || customer.name}
-                      </Badge>
+                      <div key={customer.id} className="flex items-center gap-1">
+                        <Badge variant="secondary" className="text-xs">
+                          {customer.company_name || customer.name}
+                        </Badge>
+                        <Badge
+                          variant={customer.customer_type === 'home' ? 'default' : customer.customer_type === 'gastro' ? 'outline' : 'outline'}
+                          className="text-xs"
+                        >
+                          {customer.customer_type === 'home' ? 'D' : customer.customer_type === 'gastro' ? 'G' : 'VO'}
+                        </Badge>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -295,13 +302,45 @@ export function RouteManagement() {
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
+            <div className="flex gap-2 mb-4">
+              <Button
+                variant={customerTypeFilter === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setCustomerTypeFilter('all')}
+              >
+                Všetci
+              </Button>
+              <Button
+                variant={customerTypeFilter === 'home' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setCustomerTypeFilter('home')}
+              >
+                Domáci
+              </Button>
+              <Button
+                variant={customerTypeFilter === 'gastro' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setCustomerTypeFilter('gastro')}
+              >
+                Gastro
+              </Button>
+              <Button
+                variant={customerTypeFilter === 'wholesale' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setCustomerTypeFilter('wholesale')}
+              >
+                VO
+              </Button>
+            </div>
             <div className="space-y-2">
               {customers.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">
                   Žiadni zákazníci v systéme
                 </p>
               ) : (
-                customers.map((customer) => {
+                customers
+                  .filter(customer => customerTypeFilter === 'all' || customer.customer_type === customerTypeFilter)
+                  .map((customer) => {
                   const isSelected = selectedCustomerIds.has(customer.id);
                   const currentRouteId = customer.delivery_route_id;
                   const isInAnotherRoute = currentRouteId && currentRouteId !== managingRouteId;
