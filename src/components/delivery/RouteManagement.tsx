@@ -210,22 +210,6 @@ export function RouteManagement() {
                       <Users className="h-4 w-4 mr-1" />
                       Spravovať zákazníkov
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9"
-                      onClick={() => openEditRouteDialog(route)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9"
-                      onClick={() => setDeleteRouteId(route.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
                   </div>
                 </div>
 

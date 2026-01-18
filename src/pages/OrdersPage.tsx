@@ -254,39 +254,76 @@ export default function OrdersPage() {
 
   const getDeliveryFee = (order: Order, settings?: any): number => {
     try {
-      if (!order) return 0;
-      if (!order.charge_delivery) return 0;
+      if (!order) {
+        console.log('❌ getDeliveryFee: No order provided');
+        return 0;
+      }
+
+      if (!order.charge_delivery) {
+        console.log('❌ getDeliveryFee: charge_delivery is false');
+        return 0;
+      }
 
       const customer = customers?.find(c => c.id === order.customer_id);
-      if (!customer) return 0;
+      if (!customer) {
+        console.log('❌ getDeliveryFee: Customer not found');
+        return 0;
+      }
 
-      if (customer?.free_delivery) return 0;
+      if (customer?.free_delivery) {
+        console.log('✅ getDeliveryFee: Customer has free delivery exception');
+        return 0;
+      }
 
-      const orderTotal = order?.total_price || 0;
       const customerType = customer?.customer_type;
-      if (!customerType) return 0;
+      if (!customerType) {
+        console.log('❌ getDeliveryFee: No customer type');
+        return 0;
+      }
 
       const settingsToUse = settings || deliverySettings;
       if (!settingsToUse) {
-        console.warn('⚠️ No delivery settings available for fee calculation');
+        console.error('❌ getDeliveryFee: No delivery settings available');
         return 0;
+      }
+
+      // CRITICAL: Calculate order SUBTOTAL from items, not total_price
+      // total_price might already include delivery fee from when order was created
+      let orderSubtotal = 0;
+      if (order.order_items && Array.isArray(order.order_items) && order.order_items.length > 0) {
+        orderSubtotal = order.order_items.reduce((sum, item) => {
+          if (!item) return sum;
+          const qty = parseFloat(item.quantity?.toString() || '0');
+          const pricePerUnit = parseFloat(item.price_per_unit?.toString().replace(',', '.') || '0');
+          return sum + (qty * pricePerUnit);
+        }, 0);
+      } else {
+        // Fallback: use stored total_price minus delivery_price if available
+        orderSubtotal = (order?.total_price || 0) - (order?.delivery_price || 0);
       }
 
       const feeByType = settingsToUse?.fees_by_customer_type || {};
       const minFreeByType = settingsToUse?.min_free_by_customer_type || {};
-      const minFree = minFreeByType[customerType] || 0;
-      const fee = feeByType[customerType] || settingsToUse?.default_fee || 0;
+      const deliveryFee = feeByType[customerType] || settingsToUse?.default_fee || 0;
+      const minFreeThreshold = minFreeByType[customerType] || 0;
 
       console.log('🚚 Delivery fee calculation:', {
         customerType,
-        orderTotal,
-        minFree,
-        fee,
-        result: (orderTotal >= minFree && minFree > 0) ? 0 : fee
+        orderSubtotal: orderSubtotal.toFixed(2),
+        minFreeThreshold,
+        deliveryFee,
+        meetsThreshold: minFreeThreshold > 0 && orderSubtotal >= minFreeThreshold,
+        willCharge: !(minFreeThreshold > 0 && orderSubtotal >= minFreeThreshold)
       });
 
-      if (orderTotal >= minFree && minFree > 0) return 0;
-      return fee;
+      // STRICT RULE: If orderSubtotal < minFreeThreshold, charge delivery fee
+      if (minFreeThreshold > 0 && orderSubtotal >= minFreeThreshold) {
+        console.log('✅ Free delivery threshold met');
+        return 0;
+      }
+
+      console.log(`💰 Charging delivery fee: ${deliveryFee}€`);
+      return deliveryFee;
     } catch (error) {
       console.error('[OrdersPage] Error calculating delivery fee:', error);
       return 0;
