@@ -254,38 +254,18 @@ export default function OrdersPage() {
 
   const getDeliveryFee = (order: Order, settings?: any): number => {
     try {
-      if (!order) {
-        console.log('❌ getDeliveryFee: No order provided');
-        return 0;
-      }
-
-      if (!order.charge_delivery) {
-        console.log('❌ getDeliveryFee: charge_delivery is false');
-        return 0;
-      }
+      if (!order) return 0;
+      if (!order.charge_delivery) return 0;
 
       const customer = customers?.find(c => c.id === order.customer_id);
-      if (!customer) {
-        console.log('❌ getDeliveryFee: Customer not found');
-        return 0;
-      }
-
-      if (customer?.free_delivery) {
-        console.log('✅ getDeliveryFee: Customer has free delivery exception');
-        return 0;
-      }
+      if (!customer) return 0;
+      if (customer?.free_delivery) return 0;
 
       const customerType = customer?.customer_type;
-      if (!customerType) {
-        console.log('❌ getDeliveryFee: No customer type');
-        return 0;
-      }
+      if (!customerType) return 0;
 
       const settingsToUse = settings || deliverySettings;
-      if (!settingsToUse) {
-        console.error('❌ getDeliveryFee: No delivery settings available');
-        return 0;
-      }
+      if (!settingsToUse) return 0;
 
       // CRITICAL: Calculate order SUBTOTAL from items, not total_price
       // total_price might already include delivery fee from when order was created
@@ -307,22 +287,11 @@ export default function OrdersPage() {
       const deliveryFee = feeByType[customerType] || settingsToUse?.default_fee || 0;
       const minFreeThreshold = minFreeByType[customerType] || 0;
 
-      console.log('🚚 Delivery fee calculation:', {
-        customerType,
-        orderSubtotal: orderSubtotal.toFixed(2),
-        minFreeThreshold,
-        deliveryFee,
-        meetsThreshold: minFreeThreshold > 0 && orderSubtotal >= minFreeThreshold,
-        willCharge: !(minFreeThreshold > 0 && orderSubtotal >= minFreeThreshold)
-      });
-
       // STRICT RULE: If orderSubtotal < minFreeThreshold, charge delivery fee
       if (minFreeThreshold > 0 && orderSubtotal >= minFreeThreshold) {
-        console.log('✅ Free delivery threshold met');
         return 0;
       }
 
-      console.log(`💰 Charging delivery fee: ${deliveryFee}€`);
       return deliveryFee;
     } catch (error) {
       console.error('[OrdersPage] Error calculating delivery fee:', error);
@@ -1617,21 +1586,14 @@ export default function OrdersPage() {
                               type="text"
                               value={currentItem?.packaging_size || ''}
                               onChange={async (e) => {
-                                const newSize = e.target.value;
-                                setCurrentItem({ ...currentItem, packaging_size: newSize });
-                              }}
-                              onBlur={async (e) => {
                                 let value = e.target.value.trim();
-                                if (!value) return;
 
-                                // Auto-append 'g' if user enters just a number
-                                if (/^\d+$/.test(value)) {
-                                  value = value + 'g';
-                                  setCurrentItem({ ...currentItem, packaging_size: value });
-                                }
+                                // Update immediately
+                                setCurrentItem({ ...currentItem, packaging_size: value });
 
-                                // Try to auto-fetch price and packaging
-                                if (currentItem?.crop_id && customerType && value) {
+                                // If user types just a number, wait for blur to append 'g'
+                                // But if user selects from datalist (includes 'g'), process immediately
+                                if (value && value.includes('g') && currentItem?.crop_id && customerType) {
                                   const [autoPrice, autoPackaging] = await Promise.all([
                                     autoFetchPrice(currentItem.crop_id, value, customerType),
                                     autoFetchPackaging(currentItem.crop_id, value)
@@ -1643,6 +1605,32 @@ export default function OrdersPage() {
                                     price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
                                     ...(autoPackaging || {})
                                   });
+                                }
+                              }}
+                              onBlur={async (e) => {
+                                let value = e.target.value.trim();
+                                if (!value) return;
+
+                                // Auto-append 'g' if user enters just a number
+                                if (/^\d+$/.test(value)) {
+                                  value = value + 'g';
+
+                                  // Update with 'g' appended
+                                  if (currentItem?.crop_id && customerType) {
+                                    const [autoPrice, autoPackaging] = await Promise.all([
+                                      autoFetchPrice(currentItem.crop_id, value, customerType),
+                                      autoFetchPackaging(currentItem.crop_id, value)
+                                    ]);
+
+                                    setCurrentItem({
+                                      ...currentItem,
+                                      packaging_size: value,
+                                      price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
+                                      ...(autoPackaging || {})
+                                    });
+                                  } else {
+                                    setCurrentItem({ ...currentItem, packaging_size: value });
+                                  }
                                 }
                               }}
                               className="mt-1 h-10"
