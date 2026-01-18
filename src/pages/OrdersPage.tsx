@@ -304,7 +304,21 @@ export default function OrdersPage() {
         console.log('✅ Delivery settings loaded:', profileRes.data.delivery_settings);
         setDeliverySettings(profileRes.data.delivery_settings);
       } else {
-        console.warn('⚠️ No delivery settings found in profile');
+        console.warn('⚠️ No delivery settings found in profile, using defaults');
+        const defaultSettings = {
+          default_fee: 3,
+          fees_by_customer_type: {
+            home: 3,
+            gastro: 3,
+            wholesale: 3
+          },
+          min_free_by_customer_type: {
+            home: 15,
+            gastro: 30,
+            wholesale: 50
+          }
+        };
+        setDeliverySettings(defaultSettings);
       }
 
       setDataLoaded(true);
@@ -341,18 +355,36 @@ export default function OrdersPage() {
 
   const getDeliveryFee = (order: Order, settings?: any): number => {
     try {
-      if (!order) return 0;
-      if (!order.charge_delivery) return 0;
+      if (!order) {
+        console.log('[getDeliveryFee] No order provided');
+        return 0;
+      }
+      if (!order.charge_delivery) {
+        console.log('[getDeliveryFee] Order does not charge delivery');
+        return 0;
+      }
 
       const customer = customers?.find(c => c.id === order.customer_id);
-      if (!customer) return 0;
-      if (customer?.free_delivery) return 0;
+      if (!customer) {
+        console.warn('[getDeliveryFee] Customer not found for order:', order.id);
+        return 0;
+      }
+      if (customer?.free_delivery) {
+        console.log('[getDeliveryFee] Customer has free delivery enabled');
+        return 0;
+      }
 
       const customerType = customer?.customer_type;
-      if (!customerType) return 0;
+      if (!customerType) {
+        console.warn('[getDeliveryFee] Customer type not found for customer:', customer.name);
+        return 0;
+      }
 
       const settingsToUse = settings || deliverySettings;
-      if (!settingsToUse) return 0;
+      if (!settingsToUse) {
+        console.warn('[getDeliveryFee] Delivery settings not loaded');
+        return 0;
+      }
 
       // CRITICAL: Calculate order SUBTOTAL from items, not total_price
       let orderSubtotal = 0;
@@ -375,11 +407,15 @@ export default function OrdersPage() {
       const deliveryFee = parseFloat((feeByType?.[customerType] || settingsToUse?.default_fee || 0).toString());
       const minFreeThreshold = parseFloat((minFreeByType?.[customerType] || 0).toString());
 
+      console.log(`[getDeliveryFee] Order ${order.id?.substring(0, 8)}: Customer ${customer.name} (${customerType}), Subtotal: ${orderSubtotal.toFixed(2)}€, Threshold: ${minFreeThreshold.toFixed(2)}€, Fee: ${deliveryFee.toFixed(2)}€`);
+
       // STRICT RULE: If orderSubtotal < minFreeThreshold, charge delivery fee
       if (minFreeThreshold > 0 && orderSubtotal >= minFreeThreshold) {
+        console.log(`[getDeliveryFee] Free delivery (threshold met)`);
         return 0;
       }
 
+      console.log(`[getDeliveryFee] Charging delivery fee: ${deliveryFee.toFixed(2)}€`);
       return deliveryFee;
     } catch (error) {
       console.error('[OrdersPage] Error calculating delivery fee:', error);
@@ -709,13 +745,15 @@ export default function OrdersPage() {
         }
       }
 
+      const finalTotalPrice = totalPrice + deliveryPrice;
+
       const orderData = {
         customer_id: customerId,
         customer_name: customer?.company_name || customer?.name || '',
         customer_type: customer?.customer_type || 'home',
         delivery_date: deliveryDate,
         status: status,
-        total_price: parseFloat(totalPrice.toFixed(2)),
+        total_price: parseFloat(finalTotalPrice.toFixed(2)),
         delivery_price: parseFloat(deliveryPrice.toFixed(2)),
         charge_delivery: chargeDelivery,
         route: route || null,
@@ -1000,16 +1038,6 @@ export default function OrdersPage() {
             <Button onClick={openNew} className="bg-[#10b981] hover:bg-[#059669] text-white">
               <Plus className="h-4 w-4 mr-2" />
               Nová objednávka
-            </Button>
-            <Button
-              onClick={repairAllOrders}
-              variant="outline"
-              className="border-orange-500 text-orange-600 hover:bg-orange-50"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Opraviť poplatky
             </Button>
             <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
               <Button
@@ -1345,6 +1373,14 @@ export default function OrdersPage() {
 
                 <div className="border-t border-gray-200 pt-3 space-y-2">
                   {(() => {
+                    if (!deliverySettings || customers.length === 0) {
+                      return null;
+                    }
+
+                    if (!order.charge_delivery) {
+                      return null;
+                    }
+
                     const deliveryFee = getDeliveryFee(order);
                     if (deliveryFee > 0) {
                       return (
@@ -1353,14 +1389,13 @@ export default function OrdersPage() {
                           <span className="font-semibold text-gray-900">{deliveryFee.toFixed(2)} €</span>
                         </div>
                       );
-                    } else if (order.charge_delivery) {
+                    } else {
                       return (
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-[#10b981] font-medium">Doprava zdarma</span>
                         </div>
                       );
                     }
-                    return null;
                   })()}
                   <div className="flex justify-between items-center">
                     <span className="text-base text-gray-700 font-semibold">Celkom:</span>
@@ -2002,6 +2037,14 @@ export default function OrdersPage() {
                   </span>
                 </div>
                 {(() => {
+                  if (!deliverySettings || customers.length === 0) {
+                    return null;
+                  }
+
+                  if (!selectedOrderDetail.charge_delivery) {
+                    return null;
+                  }
+
                   const deliveryFee = getDeliveryFee(selectedOrderDetail);
                   if (deliveryFee > 0) {
                     return (
