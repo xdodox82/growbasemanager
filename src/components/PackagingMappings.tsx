@@ -273,6 +273,8 @@ export function PackagingMappings() {
     );
   }
 
+  console.log('🔍 All Packagings in State:', packagings);
+
   return (
     <>
       <Card className="p-6">
@@ -384,17 +386,20 @@ export function PackagingMappings() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">-</SelectItem>
-                          {packagings
-                            .sort((a, b) => {
-                              const aNum = parseInt(a.size || '0');
-                              const bNum = parseInt(b.size || '0');
-                              return aNum - bNum;
-                            })
-                            .map((packaging) => (
-                              <SelectItem key={packaging.id} value={packaging.id}>
-                                {packaging.size || packaging.name}
-                              </SelectItem>
-                            ))}
+                          {(() => {
+                            console.log(`📦 Rendering dropdown for ${weight}g with ${packagings.length} packagings:`, packagings.map(p => ({ id: p.id, size: p.size, name: p.name })));
+                            return packagings
+                              .sort((a, b) => {
+                                const aNum = parseInt(a.size || '0');
+                                const bNum = parseInt(b.size || '0');
+                                return aNum - bNum;
+                              })
+                              .map((packaging) => (
+                                <SelectItem key={packaging.id} value={packaging.id}>
+                                  {packaging.size || packaging.name}
+                                </SelectItem>
+                              ));
+                          })()}
                         </SelectContent>
                       </Select>
                     </div>
