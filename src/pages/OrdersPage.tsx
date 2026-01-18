@@ -169,6 +169,7 @@ export default function OrdersPage() {
     custom_crop_name: ''
   });
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [deliverySettings, setDeliverySettings] = useState<any>(null);
 
   useEffect(() => {
     loadData();
@@ -188,12 +189,16 @@ export default function OrdersPage() {
   }, [currentItem.crop_id, currentItem.packaging_size, customerType, currentItem.is_special_item]);
 
   useEffect(() => {
-    if (selectedOrderDetail && deliverySettings && customers.length > 0) {
-      const recalculatedFee = getDeliveryFee(selectedOrderDetail);
-      const currentStoredFee = parseFloat((selectedOrderDetail.delivery_price || 0).toString());
+    if (selectedOrderDetail && deliverySettings && customers?.length > 0) {
+      try {
+        const recalculatedFee = getDeliveryFee(selectedOrderDetail);
+        const currentStoredFee = parseFloat((selectedOrderDetail?.delivery_price || 0).toString());
 
-      if (Math.abs(recalculatedFee - currentStoredFee) > 0.01) {
-        console.warn(`⚠️ Order ${selectedOrderDetail.id?.substring(0, 8)} has incorrect delivery fee. Stored: ${currentStoredFee}€, Should be: ${recalculatedFee}€`);
+        if (Math.abs(recalculatedFee - currentStoredFee) > 0.01) {
+          console.warn(`⚠️ Order ${selectedOrderDetail?.id?.substring(0, 8)} has incorrect delivery fee. Stored: ${currentStoredFee}€, Should be: ${recalculatedFee}€`);
+        }
+      } catch (error) {
+        console.error('[OrdersPage] Error validating order delivery fee:', error);
       }
     }
   }, [selectedOrderDetail, deliverySettings, customers]);
@@ -213,25 +218,25 @@ export default function OrdersPage() {
       const updates = [];
 
       for (const order of orders) {
-        if (!order.charge_delivery) continue;
+        if (!order || !order?.charge_delivery) continue;
 
         const correctFee = getDeliveryFee(order);
-        const currentFee = parseFloat((order.delivery_price || 0).toString());
+        const currentFee = parseFloat((order?.delivery_price || 0).toString());
 
         if (Math.abs(correctFee - currentFee) > 0.01) {
           let subtotal = 0;
-          if (order.order_items && Array.isArray(order.order_items) && order.order_items.length > 0) {
+          if (order?.order_items && Array.isArray(order.order_items) && order.order_items.length > 0) {
             subtotal = order.order_items.reduce((sum, item) => {
               if (!item) return sum;
-              const qty = parseFloat(item.quantity?.toString() || '0');
-              const pricePerUnit = parseFloat((item.price_per_unit?.toString() || '0').replace(',', '.'));
+              const qty = parseFloat(item?.quantity?.toString() || '0');
+              const pricePerUnit = parseFloat((item?.price_per_unit?.toString() || '0').replace(',', '.'));
               return sum + (qty * pricePerUnit);
             }, 0);
           }
 
           const newTotal = subtotal + correctFee;
 
-          console.log(`🔧 Repairing order ${order.id?.substring(0, 8)}: ${currentFee}€ → ${correctFee}€, Total: ${order.total_price}€ → ${newTotal.toFixed(2)}€`);
+          console.log(`🔧 Repairing order ${order?.id?.substring(0, 8)}: ${currentFee}€ → ${correctFee}€, Total: ${order?.total_price}€ → ${newTotal.toFixed(2)}€`);
 
           updates.push(
             supabase
@@ -240,7 +245,7 @@ export default function OrdersPage() {
                 delivery_price: correctFee,
                 total_price: newTotal
               })
-              .eq('id', order.id)
+              .eq('id', order?.id)
           );
 
           repairedCount++;
@@ -334,8 +339,6 @@ export default function OrdersPage() {
     return true;
   });
 
-  const [deliverySettings, setDeliverySettings] = useState<any>(null);
-
   const getDeliveryFee = (order: Order, settings?: any): number => {
     try {
       if (!order) return 0;
@@ -353,11 +356,11 @@ export default function OrdersPage() {
 
       // CRITICAL: Calculate order SUBTOTAL from items, not total_price
       let orderSubtotal = 0;
-      if (order.order_items && Array.isArray(order.order_items) && order.order_items.length > 0) {
+      if (order?.order_items && Array.isArray(order.order_items) && order.order_items.length > 0) {
         orderSubtotal = order.order_items.reduce((sum, item) => {
           if (!item) return sum;
-          const qty = parseFloat(item.quantity?.toString() || '0');
-          const pricePerUnit = parseFloat((item.price_per_unit?.toString() || '0').replace(',', '.'));
+          const qty = parseFloat(item?.quantity?.toString() || '0');
+          const pricePerUnit = parseFloat((item?.price_per_unit?.toString() || '0').replace(',', '.'));
           const itemTotal = qty * pricePerUnit;
           return sum + itemTotal;
         }, 0);
@@ -369,18 +372,8 @@ export default function OrdersPage() {
 
       const feeByType = settingsToUse?.fees_by_customer_type || {};
       const minFreeByType = settingsToUse?.min_free_by_customer_type || {};
-      const deliveryFee = parseFloat((feeByType[customerType] || settingsToUse?.default_fee || 0).toString());
-      const minFreeThreshold = parseFloat((minFreeByType[customerType] || 0).toString());
-
-      // Debug output
-      console.table([{
-        Order_ID: order.id?.substring(0, 8),
-        Customer_Type: customerType,
-        Subtotal: orderSubtotal.toFixed(2),
-        Threshold: minFreeThreshold.toFixed(2),
-        Delivery_Fee: deliveryFee.toFixed(2),
-        Final_Fee: (minFreeThreshold > 0 && orderSubtotal >= minFreeThreshold) ? '0.00' : deliveryFee.toFixed(2)
-      }]);
+      const deliveryFee = parseFloat((feeByType?.[customerType] || settingsToUse?.default_fee || 0).toString());
+      const minFreeThreshold = parseFloat((minFreeByType?.[customerType] || 0).toString());
 
       // STRICT RULE: If orderSubtotal < minFreeThreshold, charge delivery fee
       if (minFreeThreshold > 0 && orderSubtotal >= minFreeThreshold) {
