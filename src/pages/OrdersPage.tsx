@@ -261,36 +261,15 @@ export default function OrdersPage() {
       const customerType = customer?.customer_type;
       if (!customerType) return 0;
 
-      const orderRoute = routes?.find(r => r.name === order.route);
-      if (!orderRoute) {
-        const settingsToUse = settings || deliverySettings;
-        if (!settingsToUse) return 0;
+      const settingsToUse = settings || deliverySettings;
+      if (!settingsToUse) return 0;
 
-        const feeByType = settingsToUse?.fees_by_customer_type || {};
-        const minFreeByType = settingsToUse?.min_free_by_customer_type || {};
-        const minFree = minFreeByType[customerType] || 0;
+      const feeByType = settingsToUse?.fees_by_customer_type || {};
+      const minFreeByType = settingsToUse?.min_free_by_customer_type || {};
+      const minFree = minFreeByType[customerType] || 0;
 
-        if (orderTotal >= minFree && minFree > 0) return 0;
-        return feeByType[customerType] || settingsToUse?.default_fee || 0;
-      }
-
-      let deliveryFee = 0;
-      let minFreeDelivery = 0;
-
-      if (customerType === 'home') {
-        deliveryFee = parseFloat(orderRoute.delivery_fee_home || '0');
-        minFreeDelivery = parseFloat(orderRoute.home_min_free_delivery || '0');
-      } else if (customerType === 'gastro') {
-        deliveryFee = parseFloat(orderRoute.delivery_fee_gastro || '0');
-        minFreeDelivery = parseFloat(orderRoute.gastro_min_free_delivery || '0');
-      } else if (customerType === 'wholesale') {
-        deliveryFee = parseFloat(orderRoute.delivery_fee_wholesale || '0');
-        minFreeDelivery = parseFloat(orderRoute.wholesale_min_free_delivery || '0');
-      }
-
-      if (orderTotal >= minFreeDelivery && minFreeDelivery > 0) return 0;
-
-      return deliveryFee;
+      if (orderTotal >= minFree && minFree > 0) return 0;
+      return feeByType[customerType] || settingsToUse?.default_fee || 0;
     } catch (error) {
       console.error('[OrdersPage] Error calculating delivery fee:', error);
       return 0;
@@ -586,44 +565,38 @@ export default function OrdersPage() {
         return sum + (quantity * price);
       }, 0);
 
-      // Calculate delivery fee automatically based on route, customer type, and order total
-      const orderRoute = routes?.find(r => r.name === route);
+      // Calculate delivery fee automatically based on customer type and order total using global settings
       let deliveryPrice = 0;
 
-      if (chargeDelivery && orderRoute && customer) {
+      if (chargeDelivery && customer) {
         const custType = customer.customer_type || 'home';
-        let deliveryFee = 0;
-        let minFreeDelivery = 0;
+        const settingsToUse = settings || deliverySettings;
 
-        if (custType === 'home') {
-          deliveryFee = parseFloat(orderRoute.delivery_fee_home || '0');
-          minFreeDelivery = parseFloat(orderRoute.home_min_free_delivery || '0');
-        } else if (custType === 'gastro') {
-          deliveryFee = parseFloat(orderRoute.delivery_fee_gastro || '0');
-          minFreeDelivery = parseFloat(orderRoute.gastro_min_free_delivery || '0');
-        } else if (custType === 'wholesale') {
-          deliveryFee = parseFloat(orderRoute.delivery_fee_wholesale || '0');
-          minFreeDelivery = parseFloat(orderRoute.wholesale_min_free_delivery || '0');
+        if (settingsToUse) {
+          const feeByType = settingsToUse?.fees_by_customer_type || {};
+          const minFreeByType = settingsToUse?.min_free_by_customer_type || {};
+          const deliveryFee = feeByType[custType] || settingsToUse?.default_fee || 0;
+          const minFreeDelivery = minFreeByType[custType] || 0;
+
+          // Check if customer has free delivery exception
+          if (customer.free_delivery) {
+            deliveryPrice = 0;
+          } else if (minFreeDelivery > 0 && totalPrice >= minFreeDelivery) {
+            // Free delivery threshold met
+            deliveryPrice = 0;
+          } else {
+            deliveryPrice = deliveryFee;
+          }
+
+          console.log('💶 Auto-calculated delivery price:', {
+            customerType: custType,
+            orderTotal: totalPrice,
+            deliveryFee,
+            minFreeDelivery,
+            finalDeliveryPrice: deliveryPrice,
+            freeDeliveryException: customer.free_delivery
+          });
         }
-
-        // Check if customer has free delivery exception
-        if (customer.free_delivery) {
-          deliveryPrice = 0;
-        } else if (minFreeDelivery > 0 && totalPrice >= minFreeDelivery) {
-          // Free delivery threshold met
-          deliveryPrice = 0;
-        } else {
-          deliveryPrice = deliveryFee;
-        }
-
-        console.log('💶 Auto-calculated delivery price:', {
-          customerType: custType,
-          orderTotal: totalPrice,
-          deliveryFee,
-          minFreeDelivery,
-          finalDeliveryPrice: deliveryPrice,
-          freeDeliveryException: customer.free_delivery
-        });
       }
 
       const orderData = {
@@ -1568,9 +1541,7 @@ export default function OrdersPage() {
 
                           <div>
                             <Label className="text-sm">Váha</Label>
-                            <Input
-                              list="weight-options"
-                              type="text"
+                            <select
                               value={currentItem?.packaging_size || ''}
                               onChange={async (e) => {
                                 const newSize = e.target.value;
@@ -1590,24 +1561,17 @@ export default function OrdersPage() {
                                   setCurrentItem({ ...currentItem, packaging_size: newSize });
                                 }
                               }}
-                              onBlur={(e) => {
-                                const value = e.target.value.trim();
-                                if (value && /^\d+$/.test(value)) {
-                                  setCurrentItem({ ...currentItem, packaging_size: value + 'g' });
-                                }
-                              }}
-                              className="mt-1 h-10"
-                              placeholder="Napr. 50g alebo 50"
-                            />
-                            <datalist id="weight-options">
-                              <option value="25g" />
-                              <option value="50g" />
-                              <option value="60g" />
-                              <option value="70g" />
-                              <option value="100g" />
-                              <option value="120g" />
-                              <option value="150g" />
-                            </datalist>
+                              className="mt-1 w-full px-3 h-10 border border-gray-300 rounded-md text-sm"
+                            >
+                              <option value="">Vyberte hmotnosť</option>
+                              <option value="25g">25g</option>
+                              <option value="50g">50g</option>
+                              <option value="60g">60g</option>
+                              <option value="70g">70g</option>
+                              <option value="100g">100g</option>
+                              <option value="120g">120g</option>
+                              <option value="150g">150g</option>
+                            </select>
                           </div>
 
                           <div>

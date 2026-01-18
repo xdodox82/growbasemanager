@@ -41,9 +41,6 @@ export function RouteManagement() {
 
   const [routeFormData, setRouteFormData] = useState({
     name: '',
-    delivery_fee_home: '',
-    delivery_fee_gastro: '',
-    delivery_fee_wholesale: '',
   });
 
   const getCustomersForRoute = (routeId: string) => {
@@ -62,16 +59,8 @@ export function RouteManagement() {
       return;
     }
 
-    const deliveryFeeHome = routeFormData.delivery_fee_home ? parseFloat(routeFormData.delivery_fee_home) : 0;
-    const deliveryFeeGastro = routeFormData.delivery_fee_gastro ? parseFloat(routeFormData.delivery_fee_gastro) : 0;
-    const deliveryFeeWholesale = routeFormData.delivery_fee_wholesale ? parseFloat(routeFormData.delivery_fee_wholesale) : 0;
-
     const routeData = {
       name: routeFormData.name,
-      delivery_fee: deliveryFeeHome,
-      delivery_fee_home: deliveryFeeHome,
-      delivery_fee_gastro: deliveryFeeGastro,
-      delivery_fee_wholesale: deliveryFeeWholesale,
       customer_ids: editingRoute?.customer_ids || [],
     };
 
@@ -101,9 +90,6 @@ export function RouteManagement() {
   const resetRouteForm = () => {
     setRouteFormData({
       name: '',
-      delivery_fee_home: '',
-      delivery_fee_gastro: '',
-      delivery_fee_wholesale: '',
     });
     setEditingRoute(null);
   };
@@ -112,9 +98,6 @@ export function RouteManagement() {
     setEditingRoute(route);
     setRouteFormData({
       name: route.name,
-      delivery_fee_home: route.delivery_fee_home?.toString() || route.delivery_fee?.toString() || '',
-      delivery_fee_gastro: route.delivery_fee_gastro?.toString() || route.delivery_fee?.toString() || '',
-      delivery_fee_wholesale: route.delivery_fee_wholesale?.toString() || route.delivery_fee?.toString() || '',
     });
     setIsRouteDialogOpen(true);
   };
@@ -283,51 +266,8 @@ export function RouteManagement() {
                   onChange={(e) => setRouteFormData({ ...routeFormData, name: e.target.value })}
                   placeholder="napr. Smer Poprad, Smer Košice..."
                 />
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <Label className="text-sm font-semibold mb-2 block">Poplatky za dopravu (€)</Label>
-                  <p className="text-xs text-muted-foreground mb-3">
-                    Definujte cenu dopravy pre jednotlivé typy zákazníkov
-                  </p>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="deliveryFeeHome" className="text-xs">Domáci</Label>
-                    <Input
-                      id="deliveryFeeHome"
-                      type="number"
-                      step="0.01"
-                      value={routeFormData.delivery_fee_home}
-                      onChange={(e) => setRouteFormData({ ...routeFormData, delivery_fee_home: e.target.value })}
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="deliveryFeeGastro" className="text-xs">Gastro</Label>
-                    <Input
-                      id="deliveryFeeGastro"
-                      type="number"
-                      step="0.01"
-                      value={routeFormData.delivery_fee_gastro}
-                      onChange={(e) => setRouteFormData({ ...routeFormData, delivery_fee_gastro: e.target.value })}
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="deliveryFeeWholesale" className="text-xs">Veľkoobchod</Label>
-                    <Input
-                      id="deliveryFeeWholesale"
-                      type="number"
-                      step="0.01"
-                      value={routeFormData.delivery_fee_wholesale}
-                      onChange={(e) => setRouteFormData({ ...routeFormData, delivery_fee_wholesale: e.target.value })}
-                      placeholder="0.00"
-                    />
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Poplatky sa automaticky pripočítajú podľa typu zákazníka (ak nie je splnená podmienka dopravy zdarma)
+                <p className="text-xs text-muted-foreground mt-2">
+                  Poplatky za dopravu sa nastavujú globálne v Nastaveniach a automaticky sa pripočítavajú podľa typu zákazníka
                 </p>
               </div>
             </div>
