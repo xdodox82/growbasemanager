@@ -385,15 +385,14 @@ export function PackagingMappings() {
                         <SelectContent>
                           <SelectItem value="none">-</SelectItem>
                           {packagings
-                            .filter(p => p.size) // Only show packagings with a size
                             .sort((a, b) => {
-                              const aNum = parseInt(a.size);
-                              const bNum = parseInt(b.size);
+                              const aNum = parseInt(a.size || '0');
+                              const bNum = parseInt(b.size || '0');
                               return aNum - bNum;
                             })
                             .map((packaging) => (
                               <SelectItem key={packaging.id} value={packaging.id}>
-                                {packaging.size}
+                                {packaging.size || packaging.name}
                               </SelectItem>
                             ))}
                         </SelectContent>
@@ -418,7 +417,7 @@ export function PackagingMappings() {
                           key={weight}
                           className="inline-flex items-center px-3 py-2 rounded-md bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-sm font-medium"
                         >
-                          {weight}g → {packaging?.size || 'N/A'}
+                          {weight}g → {packaging?.size || packaging?.name || 'N/A'}
                         </span>
                       );
                     })}
