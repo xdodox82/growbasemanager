@@ -203,79 +203,6 @@ export default function OrdersPage() {
     }
   }, [selectedOrderDetail, deliverySettings, customers]);
 
-  const repairAllOrders = async () => {
-    if (!deliverySettings) {
-      toast({
-        variant: 'destructive',
-        title: 'Chyba',
-        description: 'Delivery settings not loaded. Please wait and try again.'
-      });
-      return;
-    }
-
-    try {
-      let repairedCount = 0;
-      const updates = [];
-
-      for (const order of orders) {
-        if (!order || !order?.charge_delivery) continue;
-
-        const correctFee = getDeliveryFee(order);
-        const currentFee = parseFloat((order?.delivery_price || 0).toString());
-
-        if (Math.abs(correctFee - currentFee) > 0.01) {
-          let subtotal = 0;
-          if (order?.order_items && Array.isArray(order.order_items) && order.order_items.length > 0) {
-            subtotal = order.order_items.reduce((sum, item) => {
-              if (!item) return sum;
-              const qty = parseFloat(item?.quantity?.toString() || '0');
-              const pricePerUnit = parseFloat((item?.price_per_unit?.toString() || '0').replace(',', '.'));
-              return sum + (qty * pricePerUnit);
-            }, 0);
-          }
-
-          const newTotal = subtotal + correctFee;
-
-          console.log(`🔧 Repairing order ${order?.id?.substring(0, 8)}: ${currentFee}€ → ${correctFee}€, Total: ${order?.total_price}€ → ${newTotal.toFixed(2)}€`);
-
-          updates.push(
-            supabase
-              .from('orders')
-              .update({
-                delivery_price: correctFee,
-                total_price: newTotal
-              })
-              .eq('id', order?.id)
-          );
-
-          repairedCount++;
-        }
-      }
-
-      if (updates.length > 0) {
-        await Promise.all(updates);
-        await loadData();
-
-        toast({
-          title: 'Úspech',
-          description: `Opravených ${repairedCount} objednávok.`
-        });
-      } else {
-        toast({
-          title: 'Info',
-          description: 'Všetky objednávky sú správne.'
-        });
-      }
-    } catch (error) {
-      console.error('Error repairing orders:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Chyba',
-        description: 'Nepodarilo sa opraviť objednávky.'
-      });
-    }
-  };
-
   const loadData = async () => {
     try {
       setLoading(true);
@@ -353,7 +280,7 @@ export default function OrdersPage() {
     return true;
   });
 
-  const getDeliveryFee = (order: Order, settings?: any): number => {
+  const getDeliveryFee = (order: Order): number => {
     try {
       if (!order) {
         console.log('[getDeliveryFee] No order provided');
@@ -374,15 +301,18 @@ export default function OrdersPage() {
         return 0;
       }
 
-      const customerType = customer?.customer_type;
-      if (!customerType) {
-        console.warn('[getDeliveryFee] Customer type not found for customer:', customer.name);
+      const customerType = customer?.customer_type || 'home';
+
+      // CRITICAL: Find the delivery route assigned to this customer
+      const customerRouteId = customer?.delivery_route_id;
+      if (!customerRouteId) {
+        console.warn('[getDeliveryFee] Customer has no delivery route assigned:', customer.name);
         return 0;
       }
 
-      const settingsToUse = settings || deliverySettings;
-      if (!settingsToUse) {
-        console.warn('[getDeliveryFee] Delivery settings not loaded');
+      const deliveryRoute = routes?.find(r => r.id === customerRouteId);
+      if (!deliveryRoute) {
+        console.warn('[getDeliveryFee] Delivery route not found for customer:', customer.name, customerRouteId);
         return 0;
       }
 
@@ -402,12 +332,22 @@ export default function OrdersPage() {
         orderSubtotal = totalPrice - deliveryPrice;
       }
 
-      const feeByType = settingsToUse?.fees_by_customer_type || {};
-      const minFreeByType = settingsToUse?.min_free_by_customer_type || {};
-      const deliveryFee = parseFloat((feeByType?.[customerType] || settingsToUse?.default_fee || 0).toString());
-      const minFreeThreshold = parseFloat((minFreeByType?.[customerType] || 0).toString());
+      // Get fee and threshold from route based on customer type
+      let deliveryFee = 0;
+      let minFreeThreshold = 0;
 
-      console.log(`[getDeliveryFee] Order ${order.id?.substring(0, 8)}: Customer ${customer.name} (${customerType}), Subtotal: ${orderSubtotal.toFixed(2)}€, Threshold: ${minFreeThreshold.toFixed(2)}€, Fee: ${deliveryFee.toFixed(2)}€`);
+      if (customerType === 'home') {
+        deliveryFee = parseFloat((deliveryRoute?.delivery_fee_home || 0).toString());
+        minFreeThreshold = parseFloat((deliveryRoute?.home_min_free_delivery || 0).toString());
+      } else if (customerType === 'gastro') {
+        deliveryFee = parseFloat((deliveryRoute?.delivery_fee_gastro || 0).toString());
+        minFreeThreshold = parseFloat((deliveryRoute?.gastro_min_free_delivery || 0).toString());
+      } else if (customerType === 'wholesale') {
+        deliveryFee = parseFloat((deliveryRoute?.delivery_fee_wholesale || 0).toString());
+        minFreeThreshold = parseFloat((deliveryRoute?.wholesale_min_free_delivery || 0).toString());
+      }
+
+      console.log(`[getDeliveryFee] Order ${order.id?.substring(0, 8)}: Customer ${customer.name} (${customerType}), Route: ${deliveryRoute.name}, Subtotal: ${orderSubtotal.toFixed(2)}€, Threshold: ${minFreeThreshold.toFixed(2)}€, Fee: ${deliveryFee.toFixed(2)}€`);
 
       // STRICT RULE: If orderSubtotal < minFreeThreshold, charge delivery fee
       if (minFreeThreshold > 0 && orderSubtotal >= minFreeThreshold) {
@@ -712,36 +652,55 @@ export default function OrdersPage() {
         return sum + (quantity * price);
       }, 0);
 
-      // Calculate delivery fee automatically based on customer type and order total using global settings
+      // Calculate delivery fee automatically based on customer's assigned route settings
       let deliveryPrice = 0;
 
       if (chargeDelivery && customer) {
         const custType = customer.customer_type || 'home';
 
-        if (deliverySettings) {
-          const feeByType = deliverySettings?.fees_by_customer_type || {};
-          const minFreeByType = deliverySettings?.min_free_by_customer_type || {};
-          const deliveryFee = feeByType[custType] || deliverySettings?.default_fee || 0;
-          const minFreeDelivery = minFreeByType[custType] || 0;
+        // Check if customer has free delivery exception
+        if (customer.free_delivery) {
+          deliveryPrice = 0;
+        } else {
+          // Find customer's assigned delivery route
+          const customerRouteId = customer?.delivery_route_id;
+          const deliveryRoute = routes?.find(r => r.id === customerRouteId);
 
-          // Check if customer has free delivery exception
-          if (customer.free_delivery) {
-            deliveryPrice = 0;
-          } else if (minFreeDelivery > 0 && totalPrice >= minFreeDelivery) {
-            // Free delivery threshold met
-            deliveryPrice = 0;
+          if (deliveryRoute) {
+            let deliveryFee = 0;
+            let minFreeDelivery = 0;
+
+            // Get fee and threshold from route based on customer type
+            if (custType === 'home') {
+              deliveryFee = parseFloat((deliveryRoute?.delivery_fee_home || 0).toString());
+              minFreeDelivery = parseFloat((deliveryRoute?.home_min_free_delivery || 0).toString());
+            } else if (custType === 'gastro') {
+              deliveryFee = parseFloat((deliveryRoute?.delivery_fee_gastro || 0).toString());
+              minFreeDelivery = parseFloat((deliveryRoute?.gastro_min_free_delivery || 0).toString());
+            } else if (custType === 'wholesale') {
+              deliveryFee = parseFloat((deliveryRoute?.delivery_fee_wholesale || 0).toString());
+              minFreeDelivery = parseFloat((deliveryRoute?.wholesale_min_free_delivery || 0).toString());
+            }
+
+            // Check if free delivery threshold met
+            if (minFreeDelivery > 0 && totalPrice >= minFreeDelivery) {
+              deliveryPrice = 0;
+            } else {
+              deliveryPrice = deliveryFee;
+            }
+
+            console.log('💶 Auto-calculated delivery price from route:', {
+              routeName: deliveryRoute.name,
+              customerType: custType,
+              orderSubtotal: totalPrice,
+              deliveryFee,
+              minFreeDelivery,
+              finalDeliveryPrice: deliveryPrice,
+              freeDeliveryException: customer.free_delivery
+            });
           } else {
-            deliveryPrice = deliveryFee;
+            console.warn('⚠️ No delivery route found for customer:', customer.name);
           }
-
-          console.log('💶 Auto-calculated delivery price:', {
-            customerType: custType,
-            orderTotal: totalPrice,
-            deliveryFee,
-            minFreeDelivery,
-            finalDeliveryPrice: deliveryPrice,
-            freeDeliveryException: customer.free_delivery
-          });
         }
       }
 
@@ -1373,7 +1332,7 @@ export default function OrdersPage() {
 
                 <div className="border-t border-gray-200 pt-3 space-y-2">
                   {(() => {
-                    if (!deliverySettings || customers.length === 0) {
+                    if (customers.length === 0 || routes.length === 0) {
                       return null;
                     }
 
@@ -2037,7 +1996,7 @@ export default function OrdersPage() {
                   </span>
                 </div>
                 {(() => {
-                  if (!deliverySettings || customers.length === 0) {
+                  if (customers.length === 0 || routes.length === 0) {
                     return null;
                   }
 
