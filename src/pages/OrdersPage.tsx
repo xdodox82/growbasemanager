@@ -540,7 +540,7 @@ export default function OrdersPage() {
     setWeekCount(1);
     setRoute('');
     setOrderNotes('');
-    setChargeDelivery(false);
+    setFreeDelivery(false); // Default: OFF = calculate delivery
     setOrderItems([]);
     setCurrentItem({
       crop_name: '',
@@ -572,7 +572,8 @@ export default function OrdersPage() {
     setWeekCount(order.recurring_weeks || 1);
     setRoute(order.route || '');
     setOrderNotes(order.notes || '');
-    setChargeDelivery(order.charge_delivery || false);
+    // Invert logic: DB stores charge_delivery (true=charge), UI uses freeDelivery (true=free)
+    setFreeDelivery(!(order.charge_delivery ?? true));
     setOrderItems(order.order_items || []);
     setIsDialogOpen(true);
   };
