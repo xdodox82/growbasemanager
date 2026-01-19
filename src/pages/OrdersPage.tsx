@@ -159,6 +159,7 @@ export default function OrdersPage() {
   const [route, setRoute] = useState('');
   const [orderNotes, setOrderNotes] = useState('');
   const [freeDelivery, setFreeDelivery] = useState(false); // Default OFF - auto-calculate delivery, ON = force free
+  const [manualDeliveryAmount, setManualDeliveryAmount] = useState(''); // Manual override amount
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -541,6 +542,7 @@ export default function OrdersPage() {
     setRoute('');
     setOrderNotes('');
     setFreeDelivery(false); // Default: OFF = calculate delivery
+    setManualDeliveryAmount(''); // Clear manual amount
     setOrderItems([]);
     setCurrentItem({
       crop_name: '',
@@ -573,7 +575,14 @@ export default function OrdersPage() {
     setRoute(order.route || '');
     setOrderNotes(order.notes || '');
     // Invert logic: DB stores charge_delivery (true=charge), UI uses freeDelivery (true=free)
-    setFreeDelivery(!(order.charge_delivery ?? true));
+    const shouldBeFree = !(order.charge_delivery ?? true);
+    setFreeDelivery(shouldBeFree);
+    // Load manual amount if delivery was charged and has a value
+    if (!shouldBeFree && order.delivery_price && order.delivery_price > 0) {
+      setManualDeliveryAmount(order.delivery_price.toString());
+    } else {
+      setManualDeliveryAmount('');
+    }
     setOrderItems(order.order_items || []);
     setIsDialogOpen(true);
   };
@@ -722,16 +731,21 @@ export default function OrdersPage() {
         return sum + (quantity * price);
       }, 0);
 
-      // Calculate delivery fee automatically based on customer's assigned route settings
+      // Calculate delivery fee with priority: Manual Amount > Free Toggle > Auto-calculation
       let deliveryPrice = 0;
 
-      // LOGIC: freeDelivery = false (default) → calculate automatically
-      //        freeDelivery = true → force free (0€)
+      // PRIORITY 1: Free Delivery Toggle (forces 0€)
       if (freeDelivery) {
-        // Manual override: force free delivery
         deliveryPrice = 0;
-        console.log('💶 Manual override: Free delivery forced');
-      } else if (customer) {
+        console.log('💶 Manual override: Free delivery toggle ON');
+      }
+      // PRIORITY 2: Manual Delivery Amount (specific amount entered)
+      else if (manualDeliveryAmount && manualDeliveryAmount.trim() !== '') {
+        deliveryPrice = parseFloat(manualDeliveryAmount) || 0;
+        console.log('💶 Manual override: Delivery amount set to', deliveryPrice);
+      }
+      // PRIORITY 3: Auto-calculate from route settings
+      else if (customer) {
         // Auto-calculate delivery from route settings
         const custType = customer.customer_type || 'home';
 
@@ -759,10 +773,14 @@ export default function OrdersPage() {
               minFreeDelivery = parseFloat((deliveryRoute?.wholesale_min_free_delivery || 0).toString());
             }
 
-            // Check if free delivery threshold met
-            if (minFreeDelivery > 0 && totalPrice >= minFreeDelivery) {
+            // SMIŽANY RULE: If min_free_delivery is 0, delivery is automatically free
+            if (minFreeDelivery === 0) {
+              deliveryPrice = 0;
+            } else if (totalPrice >= minFreeDelivery) {
+              // Threshold met: free delivery
               deliveryPrice = 0;
             } else {
+              // Below threshold: charge delivery fee
               deliveryPrice = deliveryFee;
             }
 
@@ -1641,15 +1659,40 @@ export default function OrdersPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 py-2">
-                      <Switch
-                        id="free-delivery"
-                        checked={freeDelivery}
-                        onCheckedChange={setFreeDelivery}
-                      />
-                      <Label htmlFor="free-delivery" className="text-sm font-medium cursor-pointer">
-                        Doprava zdarma
-                      </Label>
+                    <div className="border rounded-lg p-3 space-y-3 bg-gray-50">
+                      <div className="flex items-center gap-3">
+                        <Switch
+                          id="free-delivery"
+                          checked={freeDelivery}
+                          onCheckedChange={(checked) => {
+                            setFreeDelivery(checked);
+                            if (checked) {
+                              setManualDeliveryAmount(''); // Clear manual amount when free delivery is ON
+                            }
+                          }}
+                        />
+                        <Label htmlFor="free-delivery" className="text-sm font-medium cursor-pointer">
+                          Doprava zdarma
+                        </Label>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-sm">Manuálna suma dopravy (€)</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="Auto-výpočet z trasy"
+                          value={manualDeliveryAmount}
+                          onChange={(e) => setManualDeliveryAmount(e.target.value)}
+                          disabled={freeDelivery}
+                          className="h-10 text-sm"
+                        />
+                        <p className="text-xs text-gray-500">
+                          {freeDelivery
+                            ? 'Doprava zdarma je zapnutá - manuálna suma je deaktivovaná'
+                            : 'Nechajte prázdne pre automatický výpočet podľa trasy'}
+                        </p>
+                      </div>
                     </div>
 
                     <div className="border-t pt-2.5 mt-2.5">
