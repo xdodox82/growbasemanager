@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { VATInput, calculateVAT } from '@/components/forms/VATInput';
 
 type FuelCost = {
   id: string;
@@ -47,6 +48,8 @@ function FuelCostsPage() {
   const [pricePerLiter, setPricePerLiter] = useState('');
   const [tripKm, setTripKm] = useState('');
   const [notes, setNotes] = useState('');
+  const [priceIncludesVAT, setPriceIncludesVAT] = useState(false);
+  const [vatRate, setVATRate] = useState('20');
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -76,6 +79,8 @@ function FuelCostsPage() {
     setPricePerLiter('');
     setTripKm('');
     setNotes('');
+    setPriceIncludesVAT(false);
+    setVATRate('20');
     setEditingCost(null);
   };
 
@@ -222,6 +227,14 @@ function FuelCostsPage() {
               <div className="space-y-1.5">
                 <Label className="text-sm">Poznámky</Label>
                 <Textarea className="text-sm" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Voliteľné" />
+              </div>
+              <div className="border-t pt-3">
+                <VATInput
+                  priceIncludesVAT={priceIncludesVAT}
+                  onPriceIncludesVATChange={setPriceIncludesVAT}
+                  vatRate={vatRate}
+                  onVATRateChange={setVATRate}
+                />
               </div>
               <div className="flex gap-2">
                 <Button onClick={handleSubmit} className="flex-1 h-10 text-sm">{editingCost ? 'Uložiť' : 'ULOŽIŤ'}</Button>

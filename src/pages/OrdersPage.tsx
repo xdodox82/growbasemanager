@@ -9,10 +9,13 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { OrderSearchBar } from '@/components/orders/OrderSearchBar';
 import { SearchableCustomerSelect } from '@/components/orders/SearchableCustomerSelect';
 import { CategoryFilter } from '@/components/orders/CategoryFilter';
 import { CustomerTypeFilter } from '@/components/filters/CustomerTypeFilter';
+import { useDeliveryDays } from '@/hooks/useDeliveryDays';
 import {
   ShoppingCart,
   Plus,
@@ -35,8 +38,9 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, getDay } from 'date-fns';
 import { sk } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 interface OrderItem {
   id?: string;
@@ -122,6 +126,7 @@ interface Packaging {
 export default function OrdersPage() {
   console.log('[OrdersPage] Component rendering started');
   const { toast } = useToast();
+  const { getDeliveryDaysArray } = useDeliveryDays();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -1536,12 +1541,46 @@ export default function OrdersPage() {
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <Label className="text-sm">Dátum *</Label>
-                        <Input
-                          type="date"
-                          value={deliveryDate || ''}
-                          onChange={(e) => setDeliveryDate(e.target.value)}
-                          className="mt-1"
-                        />
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal mt-1",
+                                !deliveryDate && "text-muted-foreground"
+                              )}
+                            >
+                              <Calendar className="mr-2 h-4 w-4" />
+                              {deliveryDate ? format(new Date(deliveryDate), 'dd. MMMM yyyy', { locale: sk }) : "Vyberte dátum"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <CalendarComponent
+                              mode="single"
+                              selected={deliveryDate ? new Date(deliveryDate) : undefined}
+                              onSelect={(date) => {
+                                if (date) {
+                                  setDeliveryDate(format(date, 'yyyy-MM-dd'));
+                                }
+                              }}
+                              locale={sk}
+                              modifiers={{
+                                deliveryDay: (date) => {
+                                  const deliveryDays = getDeliveryDaysArray();
+                                  return deliveryDays.includes(getDay(date));
+                                }
+                              }}
+                              modifiersStyles={{
+                                deliveryDay: {
+                                  backgroundColor: '#d1fae5',
+                                  color: '#065f46',
+                                  fontWeight: 'bold'
+                                }
+                              }}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
                         {deliveryDayHint && (
                           <p className="text-xs text-gray-500 mt-1">{deliveryDayHint}</p>
                         )}

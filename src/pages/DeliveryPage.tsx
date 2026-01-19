@@ -38,6 +38,7 @@ import { useInventoryConsumption } from '@/hooks/useInventoryConsumption';
 import { cn } from '@/lib/utils';
 import * as XLSX from 'xlsx';
 import { RouteManagement } from '@/components/delivery/RouteManagement';
+import { DeliveryDaysSettings } from '@/components/delivery/DeliveryDaysSettings';
 import { CustomerTypeFilter } from '@/components/filters/CustomerTypeFilter';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -1529,6 +1530,7 @@ function DeliveryPage() {
         </TabsContent>
 
         <TabsContent value="routes" className="space-y-6">
+          <DeliveryDaysSettings />
           <RouteManagement />
         </TabsContent>
       </Tabs>
