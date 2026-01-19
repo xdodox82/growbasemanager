@@ -26,6 +26,8 @@ type WaterCost = {
   total_price: number | null;
   notes: string | null;
   created_at: string;
+  price_includes_vat?: boolean;
+  vat_rate?: number;
 };
 
 function WaterCostsPage() {
@@ -40,6 +42,14 @@ function WaterCostsPage() {
   const [meterEnd, setMeterEnd] = useState('');
   const [pricePerM3, setPricePerM3] = useState('');
   const [notes, setNotes] = useState('');
+  const [priceIncludesVAT, setPriceIncludesVAT] = useState(() => {
+    const saved = localStorage.getItem('water_costs_price_includes_vat');
+    return saved === 'true';
+  });
+  const [vatRate, setVATRate] = useState(() => {
+    const saved = localStorage.getItem('water_costs_vat_rate');
+    return saved || '20';
+  });
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -68,6 +78,7 @@ function WaterCostsPage() {
     setMeterEnd('');
     setPricePerM3('');
     setNotes('');
+    // Don't reset VAT settings - they persist
     setEditingCost(null);
   };
 
@@ -83,6 +94,10 @@ function WaterCostsPage() {
       return;
     }
 
+    // Save VAT settings to localStorage
+    localStorage.setItem('water_costs_price_includes_vat', priceIncludesVAT.toString());
+    localStorage.setItem('water_costs_vat_rate', vatRate);
+
     const formData = {
       month: `${month}-01`,
       meter_start: parseFloat(meterStart),
@@ -91,6 +106,8 @@ function WaterCostsPage() {
       price_per_m3: pricePerM3 ? parseFloat(pricePerM3) : null,
       total_price: pricePerM3 ? consumption * parseFloat(pricePerM3) : null,
       notes: notes || null,
+      price_includes_vat: priceIncludesVAT,
+      vat_rate: parseFloat(vatRate),
     };
 
     if (editingCost) {
@@ -124,6 +141,14 @@ function WaterCostsPage() {
     setMeterEnd(cost.meter_end.toString());
     setPricePerM3(cost.price_per_m3?.toString() || '');
     setNotes(cost.notes || '');
+
+    // Load VAT settings from record (if they exist)
+    if (cost.price_includes_vat !== undefined) {
+      setPriceIncludesVAT(cost.price_includes_vat);
+    }
+    if (cost.vat_rate !== undefined) {
+      setVATRate(cost.vat_rate.toString());
+    }
   };
 
   const handleDelete = async () => {
@@ -187,7 +212,42 @@ function WaterCostsPage() {
                 <Label className="text-sm">Poznámky</Label>
                 <Textarea className="text-sm" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Voliteľné" />
               </div>
-              <div className="flex gap-2">
+              <div className="border-t pt-3 space-y-3">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="price-includes-vat-water"
+                    checked={priceIncludesVAT}
+                    onChange={(e) => {
+                      setPriceIncludesVAT(e.target.checked);
+                      localStorage.setItem('water_costs_price_includes_vat', e.target.checked.toString());
+                    }}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                  <Label htmlFor="price-includes-vat-water" className="text-sm font-medium cursor-pointer">
+                    Cena je s DPH
+                  </Label>
+                </div>
+                {priceIncludesVAT && (
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">Sadzba DPH (%)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={vatRate}
+                      onChange={(e) => {
+                        setVATRate(e.target.value);
+                        localStorage.setItem('water_costs_vat_rate', e.target.value);
+                      }}
+                      className="h-10 text-sm"
+                      placeholder="20"
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2 mt-4">
                 <Button onClick={handleSubmit} className="flex-1 h-10 text-sm">{editingCost ? 'Uložiť' : 'ULOŽIŤ'}</Button>
                 {editingCost && <Button variant="outline" className="h-10 text-sm" onClick={resetForm}>Zrušiť</Button>}
               </div>

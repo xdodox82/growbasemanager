@@ -26,6 +26,8 @@ type AdblueCost = {
   price_per_liter: number;
   total_price: number;
   notes: string | null;
+  price_includes_vat?: boolean;
+  vat_rate?: number;
   created_at: string;
 };
 
@@ -40,6 +42,14 @@ function AdblueCostsPage() {
   const [liters, setLiters] = useState('');
   const [pricePerLiter, setPricePerLiter] = useState('');
   const [notes, setNotes] = useState('');
+  const [priceIncludesVAT, setPriceIncludesVAT] = useState(() => {
+    const saved = localStorage.getItem('adblue_costs_price_includes_vat');
+    return saved === 'true';
+  });
+  const [vatRate, setVATRate] = useState(() => {
+    const saved = localStorage.getItem('adblue_costs_vat_rate');
+    return saved || '20';
+  });
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -68,6 +78,7 @@ function AdblueCostsPage() {
     setPricePerLiter('');
     setNotes('');
     setEditingCost(null);
+    // Don't reset VAT settings - they persist
   };
 
   const handleSubmit = async () => {
@@ -77,12 +88,19 @@ function AdblueCostsPage() {
     }
 
     const totalPrice = parseFloat(liters) * parseFloat(pricePerLiter);
+
+    // Save VAT settings to localStorage
+    localStorage.setItem('adblue_costs_price_includes_vat', priceIncludesVAT.toString());
+    localStorage.setItem('adblue_costs_vat_rate', vatRate);
+
     const formData = {
       date: format(date, 'yyyy-MM-dd'),
       liters: parseFloat(liters),
       price_per_liter: parseFloat(pricePerLiter),
       total_price: totalPrice,
       notes: notes || null,
+      price_includes_vat: priceIncludesVAT,
+      vat_rate: parseFloat(vatRate),
     };
 
     if (editingCost) {
@@ -115,6 +133,13 @@ function AdblueCostsPage() {
     setLiters(cost.liters.toString());
     setPricePerLiter(cost.price_per_liter.toString());
     setNotes(cost.notes || '');
+    // Load VAT settings from record (if they exist)
+    if (cost.price_includes_vat !== undefined) {
+      setPriceIncludesVAT(cost.price_includes_vat);
+    }
+    if (cost.vat_rate !== undefined) {
+      setVATRate(cost.vat_rate.toString());
+    }
   };
 
   const handleDelete = async () => {
@@ -176,6 +201,41 @@ function AdblueCostsPage() {
               <div className="space-y-1.5">
                 <Label className="text-sm">Poznámky</Label>
                 <Textarea className="text-sm" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Voliteľné" />
+              </div>
+              <div className="border-t pt-3 space-y-3">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="price-includes-vat-adblue_costs"
+                    checked={priceIncludesVAT}
+                    onChange={(e) => {
+                      setPriceIncludesVAT(e.target.checked);
+                      localStorage.setItem('adblue_costs_price_includes_vat', e.target.checked.toString());
+                    }}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                  <Label htmlFor="price-includes-vat-adblue_costs" className="text-sm font-medium cursor-pointer">
+                    Cena je s DPH
+                  </Label>
+                </div>
+                {priceIncludesVAT && (
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">Sadzba DPH (%)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={vatRate}
+                      onChange={(e) => {
+                        setVATRate(e.target.value);
+                        localStorage.setItem('adblue_costs_vat_rate', e.target.value);
+                      }}
+                      className="h-10 text-sm"
+                      placeholder="20"
+                    />
+                  </div>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button onClick={handleSubmit} className="flex-1 h-10 text-sm">{editingCost ? 'Uložiť' : 'ULOŽIŤ'}</Button>

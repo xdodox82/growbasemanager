@@ -26,6 +26,8 @@ type CarServiceCost = {
   km_state: number | null;
   price: number;
   notes: string | null;
+  price_includes_vat?: boolean;
+  vat_rate?: number;
   created_at: string;
 };
 
@@ -41,6 +43,14 @@ function CarServiceCostsPage() {
   const [kmState, setKmState] = useState('');
   const [price, setPrice] = useState('');
   const [notes, setNotes] = useState('');
+  const [priceIncludesVAT, setPriceIncludesVAT] = useState(() => {
+    const saved = localStorage.getItem('car_service_costs_price_includes_vat');
+    return saved === 'true';
+  });
+  const [vatRate, setVATRate] = useState(() => {
+    const saved = localStorage.getItem('car_service_costs_vat_rate');
+    return saved || '20';
+  });
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -70,6 +80,7 @@ function CarServiceCostsPage() {
     setPrice('');
     setNotes('');
     setEditingCost(null);
+    // Don't reset VAT settings - they persist
   };
 
   const handleSubmit = async () => {
@@ -86,12 +97,18 @@ function CarServiceCostsPage() {
       return;
     }
 
+    // Save VAT settings to localStorage
+    localStorage.setItem('car_service_costs_price_includes_vat', priceIncludesVAT.toString());
+    localStorage.setItem('car_service_costs_vat_rate', vatRate);
+
     const costData = {
       date: format(date, 'yyyy-MM-dd'),
       description,
       km_state: kmStateNum,
       price: priceNum,
       notes: notes || null,
+      price_includes_vat: priceIncludesVAT,
+      vat_rate: parseFloat(vatRate),
     };
 
     if (editingCost) {
@@ -129,6 +146,13 @@ function CarServiceCostsPage() {
     setKmState(cost.km_state?.toString() || '');
     setPrice(cost.price.toString());
     setNotes(cost.notes || '');
+    // Load VAT settings from record (if they exist)
+    if (cost.price_includes_vat !== undefined) {
+      setPriceIncludesVAT(cost.price_includes_vat);
+    }
+    if (cost.vat_rate !== undefined) {
+      setVATRate(cost.vat_rate.toString());
+    }
   };
 
   const handleDelete = async () => {
@@ -219,6 +243,41 @@ function CarServiceCostsPage() {
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Doplňujúce informácie"
                 />
+              </div>
+              <div className="border-t pt-3 space-y-3">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="price-includes-vat-car_service_costs"
+                    checked={priceIncludesVAT}
+                    onChange={(e) => {
+                      setPriceIncludesVAT(e.target.checked);
+                      localStorage.setItem('car_service_costs_price_includes_vat', e.target.checked.toString());
+                    }}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                  <Label htmlFor="price-includes-vat-car_service_costs" className="text-sm font-medium cursor-pointer">
+                    Cena je s DPH
+                  </Label>
+                </div>
+                {priceIncludesVAT && (
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">Sadzba DPH (%)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={vatRate}
+                      onChange={(e) => {
+                        setVATRate(e.target.value);
+                        localStorage.setItem('car_service_costs_vat_rate', e.target.value);
+                      }}
+                      className="h-10 text-sm"
+                      placeholder="20"
+                    />
+                  </div>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button onClick={handleSubmit} className="flex-1 h-10 text-sm">{editingCost ? 'Uložiť' : 'ULOŽIŤ'}</Button>

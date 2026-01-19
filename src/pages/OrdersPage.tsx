@@ -158,7 +158,7 @@ export default function OrdersPage() {
   const [weekCount, setWeekCount] = useState(1);
   const [route, setRoute] = useState('');
   const [orderNotes, setOrderNotes] = useState('');
-  const [chargeDelivery, setChargeDelivery] = useState(true); // Default ON - auto-calculate delivery
+  const [freeDelivery, setFreeDelivery] = useState(false); // Default OFF - auto-calculate delivery, ON = force free
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -724,7 +724,14 @@ export default function OrdersPage() {
       // Calculate delivery fee automatically based on customer's assigned route settings
       let deliveryPrice = 0;
 
-      if (chargeDelivery && customer) {
+      // LOGIC: freeDelivery = false (default) → calculate automatically
+      //        freeDelivery = true → force free (0€)
+      if (freeDelivery) {
+        // Manual override: force free delivery
+        deliveryPrice = 0;
+        console.log('💶 Manual override: Free delivery forced');
+      } else if (customer) {
+        // Auto-calculate delivery from route settings
         const custType = customer.customer_type || 'home';
 
         // Check if customer has free delivery exception
@@ -783,7 +790,7 @@ export default function OrdersPage() {
         status: status,
         total_price: parseFloat(finalTotalPrice.toFixed(2)),
         delivery_price: parseFloat(deliveryPrice.toFixed(2)),
-        charge_delivery: chargeDelivery,
+        charge_delivery: !freeDelivery, // Store: true = charge, false = free
         route: route || null,
         notes: orderNotes || null,
         is_recurring: orderType === 'tyzdenne' || orderType === 'dvojtyzdenne',
@@ -1635,12 +1642,12 @@ export default function OrdersPage() {
 
                     <div className="flex items-center gap-3 py-2">
                       <Switch
-                        id="charge-delivery"
-                        checked={chargeDelivery}
-                        onCheckedChange={setChargeDelivery}
+                        id="free-delivery"
+                        checked={freeDelivery}
+                        onCheckedChange={setFreeDelivery}
                       />
-                      <Label htmlFor="charge-delivery" className="text-sm font-medium cursor-pointer">
-                        Počítať dopravu
+                      <Label htmlFor="free-delivery" className="text-sm font-medium cursor-pointer">
+                        Doprava zdarma
                       </Label>
                     </div>
 
