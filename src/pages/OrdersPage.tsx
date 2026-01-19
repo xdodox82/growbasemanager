@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -9,6 +9,9 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { OrderSearchBar } from '@/components/orders/OrderSearchBar';
+import { SearchableCustomerSelect } from '@/components/orders/SearchableCustomerSelect';
+import { CategoryFilter } from '@/components/orders/CategoryFilter';
 import {
   ShoppingCart,
   Plus,
@@ -134,6 +137,8 @@ export default function OrdersPage() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterCustomerType, setFilterCustomerType] = useState<string>('all');
   const [filterCrop, setFilterCrop] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
@@ -264,27 +269,43 @@ export default function OrdersPage() {
       const hasCrop = order?.order_items?.some(item => item?.crop_name === filterCrop);
       if (!hasCrop) return false;
     }
+
+    if (searchQuery) {
+      const customer = customers?.find(c => c.id === order.customer_id);
+      const searchLower = searchQuery.toLowerCase();
+      const customerName = (customer?.name || '').toLowerCase();
+      const companyName = (customer?.company_name || '').toLowerCase();
+      if (!customerName.includes(searchLower) && !companyName.includes(searchLower)) {
+        return false;
+      }
+    }
+
     return true;
   });
 
+  const filteredCropsByCategory = useMemo(() => {
+    if (!categoryFilter) return crops;
+
+    const categoryMap: { [key: string]: string } = {
+      'Mikrozelenina': 'microgreens',
+      'Mikrobylinky': 'microherbs',
+      'Jedlé kvety': 'edible_flowers'
+    };
+
+    const categoryKey = categoryMap[categoryFilter];
+    if (!categoryKey) return crops;
+
+    return crops.filter(crop => crop.category === categoryKey);
+  }, [crops, categoryFilter]);
+
   const getDeliveryFee = (order: Order): number => {
     try {
-      if (!order) {
-        console.log('[getDeliveryFee] No order provided');
-        return 0;
-      }
-      if (!order.charge_delivery) {
-        console.log('[getDeliveryFee] Order does not charge delivery');
+      if (!order || !order.charge_delivery) {
         return 0;
       }
 
       const customer = customers?.find(c => c.id === order.customer_id);
-      if (!customer) {
-        console.warn('[getDeliveryFee] Customer not found for order:', order.id);
-        return 0;
-      }
-      if (customer?.free_delivery) {
-        console.log('[getDeliveryFee] Customer has free delivery enabled');
+      if (!customer || customer?.free_delivery) {
         return 0;
       }
 
@@ -293,13 +314,11 @@ export default function OrdersPage() {
       // CRITICAL: Find the delivery route assigned to this customer
       const customerRouteId = customer?.delivery_route_id;
       if (!customerRouteId) {
-        console.warn('[getDeliveryFee] Customer has no delivery route assigned:', customer.name);
         return 0;
       }
 
       const deliveryRoute = routes?.find(r => r.id === customerRouteId);
       if (!deliveryRoute) {
-        console.warn('[getDeliveryFee] Delivery route not found for customer:', customer.name, customerRouteId);
         return 0;
       }
 
@@ -1016,7 +1035,13 @@ export default function OrdersPage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-3 items-center">
+          <OrderSearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Hľadať podľa mena zákazníka..."
+          />
+
           <Select value={filterPeriod} onValueChange={setFilterPeriod}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Všetky týždne" />
@@ -1447,18 +1472,15 @@ export default function OrdersPage() {
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <Label className="text-sm">Zákazník *</Label>
-                        <select
-                          value={customerId || ''}
-                          onChange={(e) => setCustomerId(e.target.value)}
-                          className="mt-0.5 w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                        >
-                          <option value="">Vyberte zákazníka</option>
-                          {(customers?.filter(c => c?.customer_type === customerType) || []).map(customer => (
-                            <option key={customer?.id} value={customer?.id}>
-                              {customer?.company_name || customer?.name}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="mt-0.5">
+                          <SearchableCustomerSelect
+                            customers={customers}
+                            value={customerId || ''}
+                            onChange={setCustomerId}
+                            filterByType={customerType}
+                            placeholder="Vyberte zákazníka"
+                          />
+                        </div>
                       </div>
 
                       <div>
@@ -1564,6 +1586,13 @@ export default function OrdersPage() {
 
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-3">
+                          {!currentItem?.is_special_item && (
+                            <CategoryFilter
+                              value={categoryFilter}
+                              onChange={setCategoryFilter}
+                            />
+                          )}
+
                           <div>
                             <Label className="text-sm">Plodina *</Label>
                             {currentItem?.is_special_item ? (
@@ -1596,7 +1625,7 @@ export default function OrdersPage() {
                                 className="mt-1 w-full px-3 h-10 border border-gray-300 rounded-md text-sm"
                               >
                                 <option value="">Vyberte produkt</option>
-                                {(crops || []).map(crop => (
+                                {(filteredCropsByCategory || []).map(crop => (
                                   <option key={crop?.id} value={crop?.id}>{crop?.name}</option>
                                 ))}
                               </select>

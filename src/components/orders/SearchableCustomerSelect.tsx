@@ -1,0 +1,105 @@
+import { useState, useMemo } from 'react';
+import { Check, ChevronsUpDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from '@/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+
+interface Customer {
+  id: string;
+  name?: string;
+  company_name?: string;
+  customer_type?: string;
+}
+
+interface SearchableCustomerSelectProps {
+  customers: Customer[];
+  value: string;
+  onChange: (value: string) => void;
+  filterByType?: string;
+  placeholder?: string;
+}
+
+export function SearchableCustomerSelect({
+  customers,
+  value,
+  onChange,
+  filterByType,
+  placeholder = 'Vyberte zákazníka'
+}: SearchableCustomerSelectProps) {
+  const [open, setOpen] = useState(false);
+
+  const filteredCustomers = useMemo(() => {
+    if (!filterByType || filterByType === 'all') {
+      return customers;
+    }
+    return customers.filter(c => c.customer_type === filterByType);
+  }, [customers, filterByType]);
+
+  const selectedCustomer = customers.find(c => c.id === value);
+  const displayName = selectedCustomer?.company_name || selectedCustomer?.name || placeholder;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between font-normal"
+        >
+          <span className={cn(!value && 'text-gray-500')}>
+            {displayName}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-full p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Hľadať zákazníka..." />
+          <CommandEmpty>Žiadny zákazník nebol nájdený.</CommandEmpty>
+          <CommandGroup className="max-h-64 overflow-auto">
+            {filteredCustomers.map((customer) => (
+              <CommandItem
+                key={customer.id}
+                value={`${customer.name} ${customer.company_name} ${customer.customer_type}`}
+                onSelect={() => {
+                  onChange(customer.id);
+                  setOpen(false);
+                }}
+              >
+                <Check
+                  className={cn(
+                    'mr-2 h-4 w-4',
+                    value === customer.id ? 'opacity-100' : 'opacity-0'
+                  )}
+                />
+                <div className="flex flex-col">
+                  <span className="font-medium">
+                    {customer.company_name || customer.name}
+                  </span>
+                  {customer.customer_type && (
+                    <span className="text-xs text-gray-500">
+                      {customer.customer_type === 'home' ? 'Domáci' :
+                       customer.customer_type === 'gastro' ? 'Gastro' : 'Veľkoobchod'}
+                    </span>
+                  )}
+                </div>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}

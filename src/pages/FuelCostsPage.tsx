@@ -131,6 +131,10 @@ function FuelCostsPage() {
     setPricePerLiter(cost.price_per_liter.toString());
     setTripKm(cost.trip_km?.toString() || '');
     setNotes(cost.notes || '');
+
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 100);
   };
 
   const handleDelete = async () => {
