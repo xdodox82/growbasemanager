@@ -163,6 +163,7 @@ export default function OrdersPage() {
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedOrderDetail, setSelectedOrderDetail] = useState<Order | null>(null);
+  const [datePopoverOpen, setDatePopoverOpen] = useState(false);
 
   const [currentItem, setCurrentItem] = useState<OrderItem>({
     crop_name: '',
@@ -1541,7 +1542,7 @@ export default function OrdersPage() {
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <Label className="text-sm">Dátum *</Label>
-                        <Popover>
+                        <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
                           <PopoverTrigger asChild>
                             <Button
                               variant="outline"
@@ -1561,6 +1562,7 @@ export default function OrdersPage() {
                               onSelect={(date) => {
                                 if (date) {
                                   setDeliveryDate(format(date, 'yyyy-MM-dd'));
+                                  setDatePopoverOpen(false);
                                 }
                               }}
                               locale={sk}

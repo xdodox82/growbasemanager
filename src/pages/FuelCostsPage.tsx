@@ -20,7 +20,6 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
-import { VATInput, calculateVAT } from '@/components/forms/VATInput';
 
 type FuelCost = {
   id: string;
@@ -48,8 +47,7 @@ function FuelCostsPage() {
   const [pricePerLiter, setPricePerLiter] = useState('');
   const [tripKm, setTripKm] = useState('');
   const [notes, setNotes] = useState('');
-  const [priceIncludesVAT, setPriceIncludesVAT] = useState(false);
-  const [vatRate, setVATRate] = useState('20');
+  const [datePopoverOpen, setDatePopoverOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -79,8 +77,6 @@ function FuelCostsPage() {
     setPricePerLiter('');
     setTripKm('');
     setNotes('');
-    setPriceIncludesVAT(false);
-    setVATRate('20');
     setEditingCost(null);
   };
 
@@ -179,14 +175,24 @@ function FuelCostsPage() {
             <div className="space-y-3">
               <div className="space-y-1.5">
                 <Label className="text-sm">Dátum *</Label>
-                <Popover>
+                <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className={cn("w-full h-10 justify-start text-left font-normal text-sm", !date && "text-muted-foreground")}>
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {date ? format(date, 'd.M.yyyy', { locale: sk }) : 'Vyberte dátum'}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={date} onSelect={setDate} locale={sk} /></PopoverContent>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={date}
+                      onSelect={(selectedDate) => {
+                        setDate(selectedDate);
+                        setDatePopoverOpen(false);
+                      }}
+                      locale={sk}
+                    />
+                  </PopoverContent>
                 </Popover>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -228,15 +234,7 @@ function FuelCostsPage() {
                 <Label className="text-sm">Poznámky</Label>
                 <Textarea className="text-sm" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Voliteľné" />
               </div>
-              <div className="border-t pt-3">
-                <VATInput
-                  priceIncludesVAT={priceIncludesVAT}
-                  onPriceIncludesVATChange={setPriceIncludesVAT}
-                  vatRate={vatRate}
-                  onVATRateChange={setVATRate}
-                />
-              </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 mt-4">
                 <Button onClick={handleSubmit} className="flex-1 h-10 text-sm">{editingCost ? 'Uložiť' : 'ULOŽIŤ'}</Button>
                 {editingCost && <Button variant="outline" className="h-10 text-sm" onClick={resetForm}>Zrušiť</Button>}
               </div>

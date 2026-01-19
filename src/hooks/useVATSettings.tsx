@@ -19,7 +19,10 @@ export function useVATSettings() {
   const { toast } = useToast();
 
   const fetchSettings = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     const { data, error } = await supabase
@@ -30,14 +33,18 @@ export function useVATSettings() {
 
     if (error) {
       console.error('Error fetching VAT settings:', error);
-      toast({
-        title: 'Chyba',
-        description: 'Nepodarilo sa načítať nastavenia DPH',
-        variant: 'destructive'
-      });
-    } else {
-      setSettings(data);
+      // Only show error if it's a real database error, not just missing data
+      if (error.code !== 'PGRST116') {
+        toast({
+          title: 'Chyba',
+          description: 'Nepodarilo sa načítať nastavenia DPH',
+          variant: 'destructive'
+        });
+      }
     }
+
+    // Set data even if null (no settings yet)
+    setSettings(data);
     setLoading(false);
   }, [user, toast]);
 
