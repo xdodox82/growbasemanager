@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { OrderSearchBar } from '@/components/orders/OrderSearchBar';
 import { SearchableCustomerSelect } from '@/components/orders/SearchableCustomerSelect';
 import { CategoryFilter } from '@/components/orders/CategoryFilter';
@@ -160,6 +161,7 @@ export default function OrdersPage() {
   const [orderNotes, setOrderNotes] = useState('');
   const [freeDelivery, setFreeDelivery] = useState(false); // Default OFF - auto-calculate delivery, ON = force free
   const [manualDeliveryAmount, setManualDeliveryAmount] = useState(''); // Manual override amount
+  const [calculatedDeliveryPrice, setCalculatedDeliveryPrice] = useState(0); // Display-only calculated delivery
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -216,6 +218,84 @@ export default function OrdersPage() {
       }
     }
   }, [selectedOrderDetail, deliverySettings, customers]);
+
+  // REACTIVE DELIVERY CALCULATION: Recalculate whenever customer, items, or delivery settings change
+  useEffect(() => {
+    const calculateDelivery = () => {
+      // PRIORITY 1: Free Delivery Toggle
+      if (freeDelivery) {
+        setCalculatedDeliveryPrice(0);
+        return;
+      }
+
+      // PRIORITY 2: Manual Amount
+      if (manualDeliveryAmount && manualDeliveryAmount.trim() !== '') {
+        const manual = parseFloat(manualDeliveryAmount) || 0;
+        setCalculatedDeliveryPrice(manual);
+        return;
+      }
+
+      // PRIORITY 3: Auto-calculate from route
+      if (!customerId || !customers || !routes) {
+        setCalculatedDeliveryPrice(0);
+        return;
+      }
+
+      const customer = customers.find(c => c.id === customerId);
+      if (!customer) {
+        setCalculatedDeliveryPrice(0);
+        return;
+      }
+
+      // Check customer free delivery exception
+      if (customer.free_delivery) {
+        setCalculatedDeliveryPrice(0);
+        return;
+      }
+
+      const custType = customer.customer_type || 'home';
+      const customerRouteId = customer.delivery_route_id;
+      const deliveryRoute = routes.find(r => r.id === customerRouteId);
+
+      if (!deliveryRoute) {
+        setCalculatedDeliveryPrice(0);
+        return;
+      }
+
+      // Calculate subtotal from order items
+      const totalPrice = (orderItems || []).reduce((sum, item) => {
+        const quantity = parseFloat(item.quantity) || 0;
+        const price = parseFloat(item.price_per_unit.toString().replace(',', '.')) || 0;
+        return sum + (quantity * price);
+      }, 0);
+
+      let deliveryFee = 0;
+      let minFreeDelivery = 0;
+
+      // Get fee and threshold from route based on customer type
+      if (custType === 'home') {
+        deliveryFee = parseFloat((deliveryRoute?.delivery_fee_home || 0).toString());
+        minFreeDelivery = parseFloat((deliveryRoute?.home_min_free_delivery || 0).toString());
+      } else if (custType === 'gastro') {
+        deliveryFee = parseFloat((deliveryRoute?.delivery_fee_gastro || 0).toString());
+        minFreeDelivery = parseFloat((deliveryRoute?.gastro_min_free_delivery || 0).toString());
+      } else if (custType === 'wholesale') {
+        deliveryFee = parseFloat((deliveryRoute?.delivery_fee_wholesale || 0).toString());
+        minFreeDelivery = parseFloat((deliveryRoute?.wholesale_min_free_delivery || 0).toString());
+      }
+
+      // SMIŽANY RULE: If min_free_delivery is 0, delivery is automatically free
+      if (minFreeDelivery === 0) {
+        setCalculatedDeliveryPrice(0);
+      } else if (totalPrice >= minFreeDelivery) {
+        setCalculatedDeliveryPrice(0);
+      } else {
+        setCalculatedDeliveryPrice(deliveryFee);
+      }
+    };
+
+    calculateDelivery();
+  }, [customerId, customers, routes, orderItems, freeDelivery, manualDeliveryAmount]);
 
   const loadData = async () => {
     try {
@@ -1693,6 +1773,10 @@ export default function OrdersPage() {
                             : 'Nechajte prázdne pre automatický výpočet podľa trasy'}
                         </p>
                       </div>
+                      <div className="flex items-center justify-between pt-2 border-t">
+                        <span className="text-sm font-medium">Vypočítaná doprava:</span>
+                        <span className="text-lg font-bold text-green-600">{calculatedDeliveryPrice.toFixed(2)} €</span>
+                      </div>
                     </div>
 
                     <div className="border-t pt-2.5 mt-2.5">
@@ -1762,65 +1846,73 @@ export default function OrdersPage() {
 
                         <div>
                           <Label className="text-sm">Váha</Label>
-                          <Input
-                            list="weight-options"
-                            type="text"
-                            value={currentItem?.packaging_size || ''}
-                            onChange={async (e) => {
-                              let value = e.target.value.trim();
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                className="w-full justify-between mt-1 h-10 font-normal"
+                              >
+                                {currentItem?.packaging_size || 'Vyberte alebo zadajte váhu...'}
+                                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" className="ml-2 h-4 w-4 shrink-0 opacity-50"><path d="M4.93179 5.43179C4.75605 5.60753 4.75605 5.89245 4.93179 6.06819C5.10753 6.24392 5.39245 6.24392 5.56819 6.06819L7.49999 4.13638L9.43179 6.06819C9.60753 6.24392 9.89245 6.24392 10.0682 6.06819C10.2439 5.89245 10.2439 5.60753 10.0682 5.43179L7.81819 3.18179C7.73379 3.0974 7.61933 3.04999 7.49999 3.04999C7.38064 3.04999 7.26618 3.0974 7.18179 3.18179L4.93179 5.43179ZM10.0682 9.56819C10.2439 9.39245 10.2439 9.10753 10.0682 8.93179C9.89245 8.75606 9.60753 8.75606 9.43179 8.93179L7.49999 10.8636L5.56819 8.93179C5.39245 8.75606 5.10753 8.75606 4.93179 8.93179C4.75605 9.10753 4.75605 9.39245 4.93179 9.56819L7.18179 11.8182C7.26618 11.9026 7.38064 11.95 7.49999 11.95C7.61933 11.95 7.73379 11.9026 7.81819 11.8182L10.0682 9.56819Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path></svg>
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[200px] p-0">
+                              <Command>
+                                <CommandInput
+                                  placeholder="Hľadať váhu..."
+                                  value={currentItem?.packaging_size || ''}
+                                  onValueChange={async (value) => {
+                                    setCurrentItem({ ...currentItem, packaging_size: value });
 
-                              setCurrentItem({ ...currentItem, packaging_size: value });
+                                    if (value && value.includes('g') && currentItem?.crop_id && customerType) {
+                                      const [autoPrice, autoPackaging] = await Promise.all([
+                                        autoFetchPrice(currentItem.crop_id, value, customerType),
+                                        autoFetchPackaging(currentItem.crop_id, value)
+                                      ]);
 
-                              if (value && value.includes('g') && currentItem?.crop_id && customerType) {
-                                const [autoPrice, autoPackaging] = await Promise.all([
-                                  autoFetchPrice(currentItem.crop_id, value, customerType),
-                                  autoFetchPackaging(currentItem.crop_id, value)
-                                ]);
+                                      setCurrentItem({
+                                        ...currentItem,
+                                        packaging_size: value,
+                                        price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
+                                        ...(autoPackaging || {})
+                                      });
+                                    }
+                                  }}
+                                />
+                                <CommandList>
+                                  <CommandEmpty>Žiadne výsledky. Zadajte vlastnú váhu.</CommandEmpty>
+                                  <CommandGroup>
+                                    {['25g', '50g', '60g', '70g', '100g', '120g', '150g'].map((weight) => (
+                                      <CommandItem
+                                        key={weight}
+                                        value={weight}
+                                        onSelect={async (value) => {
+                                          if (currentItem?.crop_id && customerType) {
+                                            const [autoPrice, autoPackaging] = await Promise.all([
+                                              autoFetchPrice(currentItem.crop_id, value, customerType),
+                                              autoFetchPackaging(currentItem.crop_id, value)
+                                            ]);
 
-                                setCurrentItem({
-                                  ...currentItem,
-                                  packaging_size: value,
-                                  price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
-                                  ...(autoPackaging || {})
-                                });
-                              }
-                            }}
-                            onBlur={async (e) => {
-                              let value = e.target.value.trim();
-                              if (!value) return;
-
-                              if (/^\d+$/.test(value)) {
-                                value = value + 'g';
-
-                                if (currentItem?.crop_id && customerType) {
-                                  const [autoPrice, autoPackaging] = await Promise.all([
-                                    autoFetchPrice(currentItem.crop_id, value, customerType),
-                                    autoFetchPackaging(currentItem.crop_id, value)
-                                  ]);
-
-                                  setCurrentItem({
-                                    ...currentItem,
-                                    packaging_size: value,
-                                    price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
-                                    ...(autoPackaging || {})
-                                  });
-                                } else {
-                                  setCurrentItem({ ...currentItem, packaging_size: value });
-                                }
-                              }
-                            }}
-                            className="mt-1 h-10"
-                            placeholder="Vyberte alebo zadajte (napr. 8g, 50g, 100g)"
-                          />
-                          <datalist id="weight-options">
-                            <option value="25g" />
-                            <option value="50g" />
-                            <option value="60g" />
-                            <option value="70g" />
-                            <option value="100g" />
-                            <option value="120g" />
-                            <option value="150g" />
-                          </datalist>
+                                            setCurrentItem({
+                                              ...currentItem,
+                                              packaging_size: value,
+                                              price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
+                                              ...(autoPackaging || {})
+                                            });
+                                          } else {
+                                            setCurrentItem({ ...currentItem, packaging_size: value });
+                                          }
+                                        }}
+                                      >
+                                        {weight}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
                         </div>
 
                         <div>
