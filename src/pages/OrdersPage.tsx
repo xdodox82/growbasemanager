@@ -158,7 +158,7 @@ export default function OrdersPage() {
   const [weekCount, setWeekCount] = useState(1);
   const [route, setRoute] = useState('');
   const [orderNotes, setOrderNotes] = useState('');
-  const [chargeDelivery, setChargeDelivery] = useState(false);
+  const [chargeDelivery, setChargeDelivery] = useState(true); // Default ON - auto-calculate delivery
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
