@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { OrderSearchBar } from '@/components/orders/OrderSearchBar';
 import { SearchableCustomerSelect } from '@/components/orders/SearchableCustomerSelect';
 import { CategoryFilter } from '@/components/orders/CategoryFilter';
+import { CustomerTypeFilter } from '@/components/filters/CustomerTypeFilter';
 import {
   ShoppingCart,
   Plus,
@@ -139,6 +140,7 @@ export default function OrdersPage() {
   const [filterCrop, setFilterCrop] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [showArchive, setShowArchive] = useState(false);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
@@ -277,6 +279,61 @@ export default function OrdersPage() {
       const companyName = (customer?.company_name || '').toLowerCase();
       if (!customerName.includes(searchLower) && !companyName.includes(searchLower)) {
         return false;
+      }
+    }
+
+    // Archive filter: if showArchive is false, only show active orders (not completed)
+    if (!showArchive && order?.status === 'dorucena') {
+      return false;
+    }
+
+    // Period filter
+    if (filterPeriod !== 'all' && order?.delivery_date) {
+      const orderDate = new Date(order.delivery_date);
+      const today = new Date();
+      const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const startOfWeek = new Date(startOfToday);
+      startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay() + 1);
+
+      switch (filterPeriod) {
+        case 'this_week': {
+          const endOfWeek = new Date(startOfWeek);
+          endOfWeek.setDate(startOfWeek.getDate() + 7);
+          if (orderDate < startOfWeek || orderDate >= endOfWeek) return false;
+          break;
+        }
+        case 'next_week': {
+          const nextWeekStart = new Date(startOfWeek);
+          nextWeekStart.setDate(startOfWeek.getDate() + 7);
+          const nextWeekEnd = new Date(nextWeekStart);
+          nextWeekEnd.setDate(nextWeekStart.getDate() + 7);
+          if (orderDate < nextWeekStart || orderDate >= nextWeekEnd) return false;
+          break;
+        }
+        case 'last_week': {
+          const lastWeekStart = new Date(startOfWeek);
+          lastWeekStart.setDate(startOfWeek.getDate() - 7);
+          const lastWeekEnd = new Date(lastWeekStart);
+          lastWeekEnd.setDate(lastWeekStart.getDate() + 7);
+          if (orderDate < lastWeekStart || orderDate >= lastWeekEnd) return false;
+          break;
+        }
+        case 'last_2_weeks': {
+          const twoWeeksAgoStart = new Date(startOfWeek);
+          twoWeeksAgoStart.setDate(startOfWeek.getDate() - 14);
+          const twoWeeksAgoEnd = new Date(twoWeeksAgoStart);
+          twoWeeksAgoEnd.setDate(twoWeeksAgoStart.getDate() + 7);
+          if (orderDate < twoWeeksAgoStart || orderDate >= twoWeeksAgoEnd) return false;
+          break;
+        }
+        case 'last_month': {
+          const lastMonth = new Date(today);
+          lastMonth.setMonth(today.getMonth() - 1);
+          const startOfLastMonth = new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1);
+          const endOfLastMonth = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0);
+          if (orderDate < startOfLastMonth || orderDate > endOfLastMonth) return false;
+          break;
+        }
       }
     }
 
@@ -1042,23 +1099,12 @@ export default function OrdersPage() {
             placeholder="Hľadať podľa mena zákazníka..."
           />
 
-          <Select value={filterPeriod} onValueChange={setFilterPeriod}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Všetky týždne" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Všetky týždne</SelectItem>
-              <SelectItem value="this_week">Tento týždeň</SelectItem>
-              <SelectItem value="next_week">Budúci týždeň</SelectItem>
-            </SelectContent>
-          </Select>
-
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Všetky" />
+              <SelectValue placeholder="Všetky stavy" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Všetky</SelectItem>
+              <SelectItem value="all">Všetky stavy</SelectItem>
               <SelectItem value="cakajuca">Čakajúca</SelectItem>
               <SelectItem value="potvrdena">Potvrdená</SelectItem>
               <SelectItem value="pripravena">Pripravená</SelectItem>
@@ -1066,46 +1112,10 @@ export default function OrdersPage() {
             </SelectContent>
           </Select>
 
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600 font-medium">Typ:</span>
-            <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-              <Button
-                variant={filterCustomerType === 'all' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setFilterCustomerType('all')}
-                className={filterCustomerType === 'all' ? 'h-8 bg-[#10b981] hover:bg-[#059669]' : 'h-8'}
-              >
-                Všetci
-              </Button>
-              <Button
-                variant={filterCustomerType === 'home' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setFilterCustomerType('home')}
-                className={filterCustomerType === 'home' ? 'h-8 bg-[#10b981] hover:bg-[#059669]' : 'h-8'}
-              >
-                <Home className="h-4 w-4 mr-1" />
-                Domáci
-              </Button>
-              <Button
-                variant={filterCustomerType === 'gastro' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setFilterCustomerType('gastro')}
-                className={filterCustomerType === 'gastro' ? 'h-8 bg-[#10b981] hover:bg-[#059669]' : 'h-8'}
-              >
-                <Utensils className="h-4 w-4 mr-1" />
-                Gastro
-              </Button>
-              <Button
-                variant={filterCustomerType === 'wholesale' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setFilterCustomerType('wholesale')}
-                className={filterCustomerType === 'wholesale' ? 'h-8 bg-[#10b981] hover:bg-[#059669]' : 'h-8'}
-              >
-                <Store className="h-4 w-4 mr-1" />
-                VO
-              </Button>
-            </div>
-          </div>
+          <CustomerTypeFilter
+            value={filterCustomerType}
+            onChange={setFilterCustomerType}
+          />
 
           <Select value={filterCrop} onValueChange={setFilterCrop}>
             <SelectTrigger className="w-[180px]">
@@ -1118,6 +1128,31 @@ export default function OrdersPage() {
               ))}
             </SelectContent>
           </Select>
+
+          <Select value={filterPeriod} onValueChange={setFilterPeriod}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Všetky týždne" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Všetky týždne</SelectItem>
+              <SelectItem value="this_week">Tento týždeň</SelectItem>
+              <SelectItem value="next_week">Budúci týždeň</SelectItem>
+              <SelectItem value="last_week">Minulý týždeň</SelectItem>
+              <SelectItem value="last_2_weeks">Pred 2 týždňami</SelectItem>
+              <SelectItem value="last_month">Minulý mesiac</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <div className="flex items-center gap-2">
+            <Switch
+              id="archive-toggle"
+              checked={showArchive}
+              onCheckedChange={setShowArchive}
+            />
+            <Label htmlFor="archive-toggle" className="text-sm font-medium cursor-pointer">
+              Zobraziť archív
+            </Label>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
@@ -1584,124 +1619,182 @@ export default function OrdersPage() {
                         </Label>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-3">
-                          {!currentItem?.is_special_item && (
-                            <CategoryFilter
-                              value={categoryFilter}
-                              onChange={setCategoryFilter}
-                            />
-                          )}
+                      {!currentItem?.is_special_item && (
+                        <CategoryFilter
+                          value={categoryFilter}
+                          onChange={setCategoryFilter}
+                        />
+                      )}
 
-                          <div>
-                            <Label className="text-sm">Plodina *</Label>
-                            {currentItem?.is_special_item ? (
-                              <Input
-                                type="text"
-                                value={currentItem?.custom_crop_name || ''}
-                                onChange={(e) => setCurrentItem({ ...currentItem, custom_crop_name: e.target.value, crop_name: e.target.value })}
-                                className="mt-1"
-                                placeholder="Názov produktu"
-                              />
-                            ) : (
-                              <select
-                                value={currentItem?.crop_id || ''}
-                                onChange={async (e) => {
-                                  const cropId = e.target.value;
-                                  const crop = crops?.find(c => c.id === cropId);
-                                  if (crop) {
-                                    const packagingSize = currentItem?.packaging_size || '';
-                                    const autoPackaging = packagingSize ? await autoFetchPackaging(crop.id, packagingSize) : null;
-
-                                    setCurrentItem({
-                                      ...currentItem,
-                                      crop_id: crop.id,
-                                      crop_name: crop.name,
-                                      price_per_unit: '',
-                                      ...(autoPackaging || {})
-                                    });
-                                  }
-                                }}
-                                className="mt-1 w-full px-3 h-10 border border-gray-300 rounded-md text-sm"
-                              >
-                                <option value="">Vyberte produkt</option>
-                                {(filteredCropsByCategory || []).map(crop => (
-                                  <option key={crop?.id} value={crop?.id}>{crop?.name}</option>
-                                ))}
-                              </select>
-                            )}
-                          </div>
-
-                          <div>
-                            <Label className="text-sm">Forma</Label>
-                            <select
-                              value={currentItem?.delivery_form || 'rezana'}
-                              onChange={(e) => setCurrentItem({ ...currentItem, delivery_form: e.target.value })}
-                              className="mt-1 w-full px-3 h-10 border border-gray-300 rounded-md text-sm"
-                            >
-                              <option value="rezana">Zrezaná</option>
-                              <option value="ziva">Živá</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <Label className="text-sm">Cena (€)</Label>
+                      <div className="grid grid-cols-2 gap-4 mt-3">
+                        <div>
+                          <Label className="text-sm">Množstvo a Jednotka</Label>
+                          <div className="flex gap-2 mt-1">
                             <Input
-                              type="text"
-                              inputMode="decimal"
-                              placeholder="0.00"
-                              value={currentItem.price_per_unit || ''}
+                              type="number"
+                              min="1"
+                              step="1"
+                              placeholder="1"
+                              value={currentItem?.quantity || 1}
                               onChange={(e) => {
-                                setCurrentItem({ ...currentItem, price_per_unit: e.target.value });
+                                const value = parseInt(e.target.value) || 1;
+                                setCurrentItem({ ...currentItem, quantity: value });
                               }}
-                              className="mt-1 h-10"
+                              className="flex-1 h-10"
                             />
+                            <select
+                              value={currentItem?.unit || 'ks'}
+                              onChange={(e) => setCurrentItem({ ...currentItem, unit: e.target.value })}
+                              className="w-20 px-2 py-2 border border-gray-300 rounded-md text-sm h-10"
+                            >
+                              <option value="ks">ks</option>
+                              <option value="g">g</option>
+                              <option value="kg">kg</option>
+                            </select>
                           </div>
                         </div>
 
-                        <div className="space-y-3">
-                          <div>
-                            <Label className="text-sm">Množstvo a Jednotka</Label>
-                            <div className="flex gap-2 mt-1">
-                              <Input
-                                type="number"
-                                min="1"
-                                step="1"
-                                placeholder="1"
-                                value={currentItem?.quantity || 1}
-                                onChange={(e) => {
-                                  const value = parseInt(e.target.value) || 1;
-                                  setCurrentItem({ ...currentItem, quantity: value });
-                                }}
-                                className="flex-1 h-10"
-                              />
-                              <select
-                                value={currentItem?.unit || 'ks'}
-                                onChange={(e) => setCurrentItem({ ...currentItem, unit: e.target.value })}
-                                className="w-20 px-2 py-2 border border-gray-300 rounded-md text-sm h-10"
-                              >
-                                <option value="ks">ks</option>
-                                <option value="g">g</option>
-                                <option value="kg">kg</option>
-                              </select>
-                            </div>
-                          </div>
-
-                          <div>
-                            <Label className="text-sm">Váha</Label>
+                        <div>
+                          <Label className="text-sm">Plodina *</Label>
+                          {currentItem?.is_special_item ? (
                             <Input
-                              list="weight-options"
                               type="text"
-                              value={currentItem?.packaging_size || ''}
+                              value={currentItem?.custom_crop_name || ''}
+                              onChange={(e) => setCurrentItem({ ...currentItem, custom_crop_name: e.target.value, crop_name: e.target.value })}
+                              className="mt-1"
+                              placeholder="Názov produktu"
+                            />
+                          ) : (
+                            <select
+                              value={currentItem?.crop_id || ''}
                               onChange={async (e) => {
-                                let value = e.target.value.trim();
+                                const cropId = e.target.value;
+                                const crop = crops?.find(c => c.id === cropId);
+                                if (crop) {
+                                  const packagingSize = currentItem?.packaging_size || '';
+                                  const autoPackaging = packagingSize ? await autoFetchPackaging(crop.id, packagingSize) : null;
 
-                                // Update immediately
-                                setCurrentItem({ ...currentItem, packaging_size: value });
+                                  setCurrentItem({
+                                    ...currentItem,
+                                    crop_id: crop.id,
+                                    crop_name: crop.name,
+                                    price_per_unit: '',
+                                    ...(autoPackaging || {})
+                                  });
+                                }
+                              }}
+                              className="mt-1 w-full px-3 h-10 border border-gray-300 rounded-md text-sm"
+                            >
+                              <option value="">Vyberte produkt</option>
+                              {(filteredCropsByCategory || []).map(crop => (
+                                <option key={crop?.id} value={crop?.id}>{crop?.name}</option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
 
-                                // If user types just a number, wait for blur to append 'g'
-                                // But if user selects from datalist (includes 'g'), process immediately
-                                if (value && value.includes('g') && currentItem?.crop_id && customerType) {
+                        <div>
+                          <Label className="text-sm">Forma</Label>
+                          <select
+                            value={currentItem?.delivery_form || 'rezana'}
+                            onChange={(e) => setCurrentItem({ ...currentItem, delivery_form: e.target.value })}
+                            className="mt-1 w-full px-3 h-10 border border-gray-300 rounded-md text-sm"
+                          >
+                            <option value="rezana">Zrezaná</option>
+                            <option value="ziva">Živá</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <Label className="text-sm">Cena (€)</Label>
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="0.00"
+                            value={currentItem.price_per_unit || ''}
+                            onChange={(e) => {
+                              setCurrentItem({ ...currentItem, price_per_unit: e.target.value });
+                            }}
+                            className="mt-1 h-10"
+                          />
+                        </div>
+
+                        <div>
+                          <Label className="text-sm">Veľkosť krabičky (ml)</Label>
+                          <select
+                            value={currentItem?.packaging_volume_ml || 250}
+                            onChange={(e) => {
+                              const volumeVal = parseInt(e.target.value) || 250;
+                              const selectedPkg = (packagings || []).find(p => p?.size && p.size.includes(volumeVal.toString()));
+                              setCurrentItem({
+                                ...currentItem,
+                                packaging_volume_ml: volumeVal,
+                                packaging_id: selectedPkg?.id || currentItem?.packaging_id
+                              });
+                            }}
+                            className="mt-1 w-full px-3 h-10 border border-gray-300 rounded-md text-sm"
+                          >
+                            <option value="250">250ml</option>
+                            <option value="500">500ml</option>
+                            <option value="750">750ml</option>
+                            <option value="1000">1000ml</option>
+                            <option value="1200">1200ml</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <Label className="text-sm">Typ obalu</Label>
+                          <select
+                            value={currentItem?.packaging_material || 'rPET'}
+                            onChange={(e) => setCurrentItem({ ...currentItem, packaging_material: e.target.value })}
+                            className="mt-1 w-full px-3 h-10 border border-gray-300 rounded-md text-sm"
+                          >
+                            <option value="PET">PET</option>
+                            <option value="rPET">rPET</option>
+                            <option value="EKO">EKO</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4 mt-3">
+                        <div>
+                          <Label className="text-sm">Váha</Label>
+                          <Input
+                            list="weight-options"
+                            type="text"
+                            value={currentItem?.packaging_size || ''}
+                            onChange={async (e) => {
+                              let value = e.target.value.trim();
+
+                              // Update immediately
+                              setCurrentItem({ ...currentItem, packaging_size: value });
+
+                              // If user types just a number, wait for blur to append 'g'
+                              // But if user selects from datalist (includes 'g'), process immediately
+                              if (value && value.includes('g') && currentItem?.crop_id && customerType) {
+                                const [autoPrice, autoPackaging] = await Promise.all([
+                                  autoFetchPrice(currentItem.crop_id, value, customerType),
+                                  autoFetchPackaging(currentItem.crop_id, value)
+                                ]);
+
+                                setCurrentItem({
+                                  ...currentItem,
+                                  packaging_size: value,
+                                  price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
+                                  ...(autoPackaging || {})
+                                });
+                              }
+                            }}
+                            onBlur={async (e) => {
+                              let value = e.target.value.trim();
+                              if (!value) return;
+
+                              // Auto-append 'g' if user enters just a number
+                              if (/^\d+$/.test(value)) {
+                                value = value + 'g';
+
+                                // Update with 'g' appended
+                                if (currentItem?.crop_id && customerType) {
                                   const [autoPrice, autoPackaging] = await Promise.all([
                                     autoFetchPrice(currentItem.crop_id, value, customerType),
                                     autoFetchPackaging(currentItem.crop_id, value)
@@ -1713,85 +1806,27 @@ export default function OrdersPage() {
                                     price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
                                     ...(autoPackaging || {})
                                   });
+                                } else {
+                                  setCurrentItem({ ...currentItem, packaging_size: value });
                                 }
-                              }}
-                              onBlur={async (e) => {
-                                let value = e.target.value.trim();
-                                if (!value) return;
+                              }
+                            }}
+                            className="mt-1 h-10"
+                            placeholder="Vyberte alebo zadajte (napr. 8g, 50g, 100g)"
+                          />
+                          <datalist id="weight-options">
+                            <option value="25g" />
+                            <option value="50g" />
+                            <option value="60g" />
+                            <option value="70g" />
+                            <option value="100g" />
+                            <option value="120g" />
+                            <option value="150g" />
+                          </datalist>
+                        </div>
 
-                                // Auto-append 'g' if user enters just a number
-                                if (/^\d+$/.test(value)) {
-                                  value = value + 'g';
-
-                                  // Update with 'g' appended
-                                  if (currentItem?.crop_id && customerType) {
-                                    const [autoPrice, autoPackaging] = await Promise.all([
-                                      autoFetchPrice(currentItem.crop_id, value, customerType),
-                                      autoFetchPackaging(currentItem.crop_id, value)
-                                    ]);
-
-                                    setCurrentItem({
-                                      ...currentItem,
-                                      packaging_size: value,
-                                      price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
-                                      ...(autoPackaging || {})
-                                    });
-                                  } else {
-                                    setCurrentItem({ ...currentItem, packaging_size: value });
-                                  }
-                                }
-                              }}
-                              className="mt-1 h-10"
-                              placeholder="Vyberte alebo zadajte (napr. 8g, 50g, 100g)"
-                            />
-                            <datalist id="weight-options">
-                              <option value="25g" />
-                              <option value="50g" />
-                              <option value="60g" />
-                              <option value="70g" />
-                              <option value="100g" />
-                              <option value="120g" />
-                              <option value="150g" />
-                            </datalist>
-                          </div>
-
-                          <div>
-                            <Label className="text-sm">Typ obalu</Label>
-                            <select
-                              value={currentItem?.packaging_material || 'rPET'}
-                              onChange={(e) => setCurrentItem({ ...currentItem, packaging_material: e.target.value })}
-                              className="mt-1 w-full px-3 h-10 border border-gray-300 rounded-md text-sm"
-                            >
-                              <option value="PET">PET</option>
-                              <option value="rPET">rPET</option>
-                              <option value="EKO">EKO</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <Label className="text-sm">Veľkosť krabičky (ml)</Label>
-                            <select
-                              value={currentItem?.packaging_volume_ml || 250}
-                              onChange={(e) => {
-                                const volumeVal = parseInt(e.target.value) || 250;
-                                const selectedPkg = (packagings || []).find(p => p?.size && p.size.includes(volumeVal.toString()));
-                                setCurrentItem({
-                                  ...currentItem,
-                                  packaging_volume_ml: volumeVal,
-                                  packaging_id: selectedPkg?.id || currentItem?.packaging_id
-                                });
-                              }}
-                              className="mt-1 w-full px-3 h-10 border border-gray-300 rounded-md text-sm"
-                            >
-                              <option value="250">250ml</option>
-                              <option value="500">500ml</option>
-                              <option value="750">750ml</option>
-                              <option value="1000">1000ml</option>
-                              <option value="1200">1200ml</option>
-                            </select>
-                          </div>
-
-                          <div className="flex items-center space-x-2">
+                        <div className="flex items-center h-full">
+                          <div className="flex items-center space-x-2 mt-6">
                             <input
                               type="checkbox"
                               id="has_label"

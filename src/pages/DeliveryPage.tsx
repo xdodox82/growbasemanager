@@ -38,6 +38,9 @@ import { useInventoryConsumption } from '@/hooks/useInventoryConsumption';
 import { cn } from '@/lib/utils';
 import * as XLSX from 'xlsx';
 import { RouteManagement } from '@/components/delivery/RouteManagement';
+import { CustomerTypeFilter } from '@/components/filters/CustomerTypeFilter';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 // Format price with Slovak decimal separator (comma) and remove trailing zeros
 const formatPrice = (value: number): string => {
@@ -269,6 +272,7 @@ function DeliveryPage() {
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [routeFilter, setRouteFilter] = useState<string>('all');
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
+  const [showArchive, setShowArchive] = useState(true);
 
   const handleDateChange = (date: Date | undefined) => {
     if (!date) return;
@@ -278,11 +282,17 @@ function DeliveryPage() {
   };
 
   // Get orders for delivery on the selected date
-  let ordersForDate = orders.filter(order =>
-    order.delivery_date &&
-    isSameDay(startOfDay(new Date(order.delivery_date)), startOfDay(selectedDate)) &&
-    (order.status === 'ready' || order.status === 'delivered')
-  );
+  let ordersForDate = orders.filter(order => {
+    if (!order.delivery_date) return false;
+    if (!isSameDay(startOfDay(new Date(order.delivery_date)), startOfDay(selectedDate))) return false;
+
+    // Filter by status based on archive setting
+    if (showArchive) {
+      return order.status === 'ready' || order.status === 'delivered';
+    } else {
+      return order.status === 'ready';
+    }
+  });
 
   // Filter by customer type if selected
   if (selectedCustomerType !== 'all') {
@@ -1061,18 +1071,11 @@ function DeliveryPage() {
 
           <div className="flex-1">
             <label className="text-sm font-medium mb-2 block">Typ zákazníka</label>
-            <Select value={selectedCustomerType} onValueChange={setSelectedCustomerType}>
-              <SelectTrigger className="w-full">
-                <Filter className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Typ zákazníka" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Všetci zákazníci</SelectItem>
-                <SelectItem value="home">Domáci zákazníci</SelectItem>
-                <SelectItem value="gastro">Gastro</SelectItem>
-                <SelectItem value="wholesale">Veľkoobchod</SelectItem>
-              </SelectContent>
-            </Select>
+            <CustomerTypeFilter
+              value={selectedCustomerType}
+              onChange={setSelectedCustomerType}
+              showLabel={false}
+            />
           </div>
 
           <div className="flex-1">
@@ -1106,6 +1109,19 @@ function DeliveryPage() {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="flex-1 flex items-end">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="delivery-archive-toggle"
+                checked={showArchive}
+                onCheckedChange={setShowArchive}
+              />
+              <Label htmlFor="delivery-archive-toggle" className="text-sm font-medium cursor-pointer">
+                Zobraziť doručené
+              </Label>
+            </div>
           </div>
         </div>
       </Card>

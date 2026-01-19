@@ -46,6 +46,7 @@ import { Users, Plus, Pencil, Trash2, Mail, Phone, MapPin, Navigation, Loader2, 
 import * as XLSX from 'xlsx';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { CustomerTypeFilter } from '@/components/filters/CustomerTypeFilter';
 
 const FILTER_STORAGE_KEY = 'customers_default_filters';
 
@@ -340,17 +341,11 @@ const CustomersPage = () => {
             </Button>
           </DialogTrigger>
         <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} />
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-full sm:w-44">
-            <SelectValue placeholder="Typ zákazníka" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Všetky typy</SelectItem>
-            <SelectItem value="home">Domáci zákazník</SelectItem>
-            <SelectItem value="gastro">Gastro</SelectItem>
-            <SelectItem value="wholesale">Veľkoobchod</SelectItem>
-          </SelectContent>
-        </Select>
+        <CustomerTypeFilter
+          value={typeFilter}
+          onChange={setTypeFilter}
+          showLabel={false}
+        />
         <div className="relative w-full sm:w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
