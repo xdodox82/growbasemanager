@@ -39,6 +39,7 @@ import { cn } from '@/lib/utils';
 import * as XLSX from 'xlsx';
 import { RouteManagement } from '@/components/delivery/RouteManagement';
 import { DeliveryDaysSettings } from '@/components/delivery/DeliveryDaysSettings';
+import { DeliveryDaysCompact } from '@/components/delivery/DeliveryDaysCompact';
 import { CustomerTypeFilter } from '@/components/filters/CustomerTypeFilter';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -1019,16 +1020,20 @@ function DeliveryPage() {
       </PageHeader>
 
       <Tabs defaultValue="delivery" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2 mb-6">
-          <TabsTrigger value="delivery">
-            <Truck className="h-4 w-4 mr-2" />
-            Rozvoz
-          </TabsTrigger>
-          <TabsTrigger value="routes">
-            <Settings className="h-4 w-4 mr-2" />
-            Správa trás
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between mb-6">
+          <TabsList className="grid grid-cols-2">
+            <TabsTrigger value="delivery">
+              <Truck className="h-4 w-4 mr-2" />
+              Rozvoz
+            </TabsTrigger>
+            <TabsTrigger value="routes">
+              <Settings className="h-4 w-4 mr-2" />
+              Správa trás
+            </TabsTrigger>
+          </TabsList>
+
+          <DeliveryDaysCompact />
+        </div>
 
         <TabsContent value="delivery" className="space-y-6">
       {/* Filters */}
@@ -1530,7 +1535,6 @@ function DeliveryPage() {
         </TabsContent>
 
         <TabsContent value="routes" className="space-y-6">
-          <DeliveryDaysSettings />
           <RouteManagement />
         </TabsContent>
       </Tabs>

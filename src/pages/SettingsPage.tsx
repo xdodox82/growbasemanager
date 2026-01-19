@@ -10,6 +10,7 @@ import { LoginHistory } from '@/components/auth/LoginHistory';
 import { WorkerPermissionsSettings } from '@/components/settings/WorkerPermissionsSettings';
 import { SidebarManagement } from '@/components/settings/SidebarManagement';
 import { DeliverySettings } from '@/components/settings/DeliverySettings';
+import { VATSettings } from '@/components/settings/VATSettings';
 import { Globe, Moon, Sun } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -51,6 +52,9 @@ const SettingsPage = () => {
 
         {/* Sidebar Management */}
         <SidebarManagement />
+
+        {/* VAT Settings */}
+        <VATSettings />
 
         {/* Delivery Settings */}
         <DeliverySettings />

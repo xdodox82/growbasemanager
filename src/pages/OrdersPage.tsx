@@ -1658,39 +1658,14 @@ export default function OrdersPage() {
                         </Label>
                       </div>
 
-                      {!currentItem?.is_special_item && (
-                        <CategoryFilter
-                          value={categoryFilter}
-                          onChange={setCategoryFilter}
-                        />
-                      )}
-
                       <div className="grid grid-cols-2 gap-4 mt-3">
                         <div>
-                          <Label className="text-sm">Množstvo a Jednotka</Label>
-                          <div className="flex gap-2 mt-1">
-                            <Input
-                              type="number"
-                              min="1"
-                              step="1"
-                              placeholder="1"
-                              value={currentItem?.quantity || 1}
-                              onChange={(e) => {
-                                const value = parseInt(e.target.value) || 1;
-                                setCurrentItem({ ...currentItem, quantity: value });
-                              }}
-                              className="flex-1 h-10"
+                          {!currentItem?.is_special_item && (
+                            <CategoryFilter
+                              value={categoryFilter}
+                              onChange={setCategoryFilter}
                             />
-                            <select
-                              value={currentItem?.unit || 'ks'}
-                              onChange={(e) => setCurrentItem({ ...currentItem, unit: e.target.value })}
-                              className="w-20 px-2 py-2 border border-gray-300 rounded-md text-sm h-10"
-                            >
-                              <option value="ks">ks</option>
-                              <option value="g">g</option>
-                              <option value="kg">kg</option>
-                            </select>
-                          </div>
+                          )}
                         </div>
 
                         <div>
@@ -1730,6 +1705,96 @@ export default function OrdersPage() {
                               ))}
                             </select>
                           )}
+                        </div>
+
+                        <div>
+                          <Label className="text-sm">Váha</Label>
+                          <Input
+                            list="weight-options"
+                            type="text"
+                            value={currentItem?.packaging_size || ''}
+                            onChange={async (e) => {
+                              let value = e.target.value.trim();
+
+                              setCurrentItem({ ...currentItem, packaging_size: value });
+
+                              if (value && value.includes('g') && currentItem?.crop_id && customerType) {
+                                const [autoPrice, autoPackaging] = await Promise.all([
+                                  autoFetchPrice(currentItem.crop_id, value, customerType),
+                                  autoFetchPackaging(currentItem.crop_id, value)
+                                ]);
+
+                                setCurrentItem({
+                                  ...currentItem,
+                                  packaging_size: value,
+                                  price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
+                                  ...(autoPackaging || {})
+                                });
+                              }
+                            }}
+                            onBlur={async (e) => {
+                              let value = e.target.value.trim();
+                              if (!value) return;
+
+                              if (/^\d+$/.test(value)) {
+                                value = value + 'g';
+
+                                if (currentItem?.crop_id && customerType) {
+                                  const [autoPrice, autoPackaging] = await Promise.all([
+                                    autoFetchPrice(currentItem.crop_id, value, customerType),
+                                    autoFetchPackaging(currentItem.crop_id, value)
+                                  ]);
+
+                                  setCurrentItem({
+                                    ...currentItem,
+                                    packaging_size: value,
+                                    price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
+                                    ...(autoPackaging || {})
+                                  });
+                                } else {
+                                  setCurrentItem({ ...currentItem, packaging_size: value });
+                                }
+                              }
+                            }}
+                            className="mt-1 h-10"
+                            placeholder="Vyberte alebo zadajte (napr. 8g, 50g, 100g)"
+                          />
+                          <datalist id="weight-options">
+                            <option value="25g" />
+                            <option value="50g" />
+                            <option value="60g" />
+                            <option value="70g" />
+                            <option value="100g" />
+                            <option value="120g" />
+                            <option value="150g" />
+                          </datalist>
+                        </div>
+
+                        <div>
+                          <Label className="text-sm">Množstvo a Jednotka</Label>
+                          <div className="flex gap-2 mt-1">
+                            <Input
+                              type="number"
+                              min="1"
+                              step="1"
+                              placeholder="1"
+                              value={currentItem?.quantity || 1}
+                              onChange={(e) => {
+                                const value = parseInt(e.target.value) || 1;
+                                setCurrentItem({ ...currentItem, quantity: value });
+                              }}
+                              className="flex-1 h-10"
+                            />
+                            <select
+                              value={currentItem?.unit || 'ks'}
+                              onChange={(e) => setCurrentItem({ ...currentItem, unit: e.target.value })}
+                              className="w-20 px-2 py-2 border border-gray-300 rounded-md text-sm h-10"
+                            >
+                              <option value="ks">ks</option>
+                              <option value="g">g</option>
+                              <option value="kg">kg</option>
+                            </select>
+                          </div>
                         </div>
 
                         <div>
@@ -1795,87 +1860,15 @@ export default function OrdersPage() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4 mt-3">
-                        <div>
-                          <Label className="text-sm">Váha</Label>
-                          <Input
-                            list="weight-options"
-                            type="text"
-                            value={currentItem?.packaging_size || ''}
-                            onChange={async (e) => {
-                              let value = e.target.value.trim();
-
-                              // Update immediately
-                              setCurrentItem({ ...currentItem, packaging_size: value });
-
-                              // If user types just a number, wait for blur to append 'g'
-                              // But if user selects from datalist (includes 'g'), process immediately
-                              if (value && value.includes('g') && currentItem?.crop_id && customerType) {
-                                const [autoPrice, autoPackaging] = await Promise.all([
-                                  autoFetchPrice(currentItem.crop_id, value, customerType),
-                                  autoFetchPackaging(currentItem.crop_id, value)
-                                ]);
-
-                                setCurrentItem({
-                                  ...currentItem,
-                                  packaging_size: value,
-                                  price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
-                                  ...(autoPackaging || {})
-                                });
-                              }
-                            }}
-                            onBlur={async (e) => {
-                              let value = e.target.value.trim();
-                              if (!value) return;
-
-                              // Auto-append 'g' if user enters just a number
-                              if (/^\d+$/.test(value)) {
-                                value = value + 'g';
-
-                                // Update with 'g' appended
-                                if (currentItem?.crop_id && customerType) {
-                                  const [autoPrice, autoPackaging] = await Promise.all([
-                                    autoFetchPrice(currentItem.crop_id, value, customerType),
-                                    autoFetchPackaging(currentItem.crop_id, value)
-                                  ]);
-
-                                  setCurrentItem({
-                                    ...currentItem,
-                                    packaging_size: value,
-                                    price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
-                                    ...(autoPackaging || {})
-                                  });
-                                } else {
-                                  setCurrentItem({ ...currentItem, packaging_size: value });
-                                }
-                              }
-                            }}
-                            className="mt-1 h-10"
-                            placeholder="Vyberte alebo zadajte (napr. 8g, 50g, 100g)"
-                          />
-                          <datalist id="weight-options">
-                            <option value="25g" />
-                            <option value="50g" />
-                            <option value="60g" />
-                            <option value="70g" />
-                            <option value="100g" />
-                            <option value="120g" />
-                            <option value="150g" />
-                          </datalist>
-                        </div>
-
-                        <div className="flex items-center h-full">
-                          <div className="flex items-center space-x-2 mt-6">
-                            <input
-                              type="checkbox"
-                              id="has_label"
-                              checked={currentItem?.has_label || false}
-                              onChange={(e) => setCurrentItem({ ...currentItem, has_label: e.target.checked })}
-                              className="w-4 h-4 rounded border-gray-300"
-                            />
-                            <Label htmlFor="has_label" className="text-sm font-normal cursor-pointer">Etiketa</Label>
-                          </div>
-                        </div>
+                      <div className="flex items-center space-x-2 mt-3">
+                        <input
+                          type="checkbox"
+                          id="has_label"
+                          checked={currentItem?.has_label || false}
+                          onChange={(e) => setCurrentItem({ ...currentItem, has_label: e.target.checked })}
+                          className="w-4 h-4 rounded border-gray-300"
+                        />
+                        <Label htmlFor="has_label" className="text-sm font-normal cursor-pointer">Etiketa</Label>
                       </div>
 
                       <div className="mt-3">

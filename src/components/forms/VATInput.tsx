@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useVATSettings } from '@/hooks/useVATSettings';
 
 interface VATInputProps {
   priceIncludesVAT: boolean;
@@ -15,6 +17,25 @@ export function VATInput({
   vatRate,
   onVATRateChange
 }: VATInputProps) {
+  const { isVATPayer, defaultVATRate, loading } = useVATSettings();
+
+  // Auto-set default VAT rate when component mounts
+  useEffect(() => {
+    if (!loading && isVATPayer && !vatRate) {
+      onVATRateChange(defaultVATRate.toString());
+    }
+  }, [loading, isVATPayer, defaultVATRate, vatRate, onVATRateChange]);
+
+  // Don't show VAT fields if user is not a VAT payer
+  if (!loading && !isVATPayer) {
+    return null;
+  }
+
+  // Show loading state
+  if (loading) {
+    return null;
+  }
+
   return (
     <div className="space-y-3">
       <div className="flex items-center space-x-2">
@@ -44,7 +65,7 @@ export function VATInput({
             value={vatRate}
             onChange={(e) => onVATRateChange(e.target.value)}
             className="mt-1"
-            placeholder="20"
+            placeholder={defaultVATRate.toString()}
           />
           <p className="text-xs text-gray-500 mt-1">
             Výška DPH v percentách
