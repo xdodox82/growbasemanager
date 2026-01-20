@@ -13,6 +13,7 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { OrderSearchBar } from '@/components/orders/OrderSearchBar';
 import { SearchableCustomerSelect } from '@/components/orders/SearchableCustomerSelect';
+import { CategoryFilter } from '@/components/orders/CategoryFilter';
 import { CustomerTypeFilter } from '@/components/filters/CustomerTypeFilter';
 import { useDeliveryDays } from '@/hooks/useDeliveryDays';
 import {
@@ -179,6 +180,7 @@ export default function OrdersPage() {
   const [filterCustomerType, setFilterCustomerType] = useState<string>('all');
   const [filterCrop, setFilterCrop] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [showArchive, setShowArchive] = useState(false);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -481,6 +483,58 @@ export default function OrdersPage() {
 
     return true;
   });
+
+  // HARDCODED CATEGORY MAPPING (Frontend-only since DB lacks category column)
+  const PRODUCT_CATEGORY_MAP: Record<string, string> = useMemo(() => {
+    // Map product names to categories
+    // Mikrozelenina, Mikrobylinky, Jedlé kvety
+    const mapping: Record<string, string> = {};
+
+    products.forEach(product => {
+      const name = product.name.toLowerCase();
+
+      // Mikrozelenina (microgreens)
+      if (name.includes('rukola') || name.includes('hrášok') || name.includes('redkvička') ||
+          name.includes('slnečnica') || name.includes('brokolica') || name.includes('kapusta') ||
+          name.includes('reďkovka') || name.includes('ředkev') || name.includes('hořčice') ||
+          name.includes('koriander') || name.includes('čína') || name.includes('amarant')) {
+        mapping[product.id] = 'Mikrozelenina';
+      }
+      // Mikrobylinky (microherbs)
+      else if (name.includes('bazalka') || name.includes('petržlen') || name.includes('kôpor') ||
+               name.includes('mäta') || name.includes('saturejka') || name.includes('oregano') ||
+               name.includes('tymián') || name.includes('majorán') || name.includes('šalvia')) {
+        mapping[product.id] = 'Mikrobylinky';
+      }
+      // Jedlé kvety (edible flowers)
+      else if (name.includes('kvet') || name.includes('flower') || name.includes('nevädza') ||
+               name.includes('sedmokráska') || name.includes('viola') || name.includes('begónia')) {
+        mapping[product.id] = 'Jedlé kvety';
+      }
+      // Default to Mikrozelenina if no match
+      else {
+        mapping[product.id] = 'Mikrozelenina';
+      }
+    });
+
+    return mapping;
+  }, [products]);
+
+  // Filter products by selected category
+  const filteredCropsByCategory = useMemo(() => {
+    if (!categoryFilter) return products;
+
+    const categoryMap: { [key: string]: string } = {
+      'Mikrozelenina': 'Mikrozelenina',
+      'Mikrobylinky': 'Mikrobylinky',
+      'Jedlé kvety': 'Jedlé kvety'
+    };
+
+    const categoryKey = categoryMap[categoryFilter];
+    if (!categoryKey) return products;
+
+    return products.filter(product => PRODUCT_CATEGORY_MAP[product.id] === categoryKey);
+  }, [products, categoryFilter, PRODUCT_CATEGORY_MAP]);
 
   const getDeliveryFee = (order: Order): number => {
     try {
@@ -1820,35 +1874,44 @@ export default function OrdersPage() {
                           />
                         </div>
                       ) : (
-                        // STANDARD ITEM: Show product dropdown
-                        <div className="grid grid-cols-2 gap-4 mt-3">
-                          <div>
-                            <Label className="text-sm">Plodina *</Label>
-                            <select
-                              value={currentItem?.crop_id || ''}
-                              onChange={async (e) => {
-                                const cropId = e.target.value;
-                                const product = products?.find(p => p.id === cropId);
-                                if (product) {
-                                  const packagingSize = currentItem?.packaging_size || '';
-                                  const autoPackaging = packagingSize ? await autoFetchPackaging(product.id, packagingSize) : null;
+                        // STANDARD ITEM: Show category filter and product dropdown
+                        <div>
+                          <div className="mt-3">
+                            <CategoryFilter
+                              value={categoryFilter}
+                              onChange={setCategoryFilter}
+                            />
+                          </div>
 
-                                  setCurrentItem({
-                                    ...currentItem,
-                                    crop_id: product.id,
-                                    crop_name: product.name,
-                                    price_per_unit: '',
-                                    ...(autoPackaging || {})
-                                  });
-                                }
-                              }}
-                              className="mt-1 w-full px-3 h-10 border border-gray-300 rounded-md text-sm"
-                            >
-                              <option value="">Vyberte produkt</option>
-                              {(products || []).map(product => (
-                                <option key={product?.id} value={product?.id}>{product?.name}</option>
-                              ))}
-                            </select>
+                          <div className="grid grid-cols-2 gap-4 mt-3">
+                            <div>
+                              <Label className="text-sm">Plodina *</Label>
+                              <select
+                                value={currentItem?.crop_id || ''}
+                                onChange={async (e) => {
+                                  const cropId = e.target.value;
+                                  const product = products?.find(p => p.id === cropId);
+                                  if (product) {
+                                    const packagingSize = currentItem?.packaging_size || '';
+                                    const autoPackaging = packagingSize ? await autoFetchPackaging(product.id, packagingSize) : null;
+
+                                    setCurrentItem({
+                                      ...currentItem,
+                                      crop_id: product.id,
+                                      crop_name: product.name,
+                                      price_per_unit: '',
+                                      ...(autoPackaging || {})
+                                    });
+                                  }
+                                }}
+                                className="mt-1 w-full px-3 h-10 border border-gray-300 rounded-md text-sm"
+                              >
+                                <option value="">Vyberte produkt</option>
+                                {(filteredCropsByCategory || []).map(product => (
+                                  <option key={product?.id} value={product?.id}>{product?.name}</option>
+                                ))}
+                              </select>
+                            </div>
                           </div>
                         </div>
                       )}
