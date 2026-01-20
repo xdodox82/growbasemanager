@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { OrderSearchBar } from '@/components/orders/OrderSearchBar';
 import { SearchableCustomerSelect } from '@/components/orders/SearchableCustomerSelect';
 import { CategoryFilter } from '@/components/orders/CategoryFilter';
@@ -254,8 +253,16 @@ export default function OrdersPage() {
       }
 
       const custType = customer.customer_type || 'home';
-      const customerRouteId = customer.delivery_route_id;
-      const deliveryRoute = routes.find(r => r.id === customerRouteId);
+
+      // CRITICAL: Use selected route from dropdown, NOT customer's assigned route
+      // If no route selected or "Žiadna trasa", delivery is 0
+      if (!route || route === '' || route === 'Žiadna trasa') {
+        setCalculatedDeliveryPrice(0);
+        return;
+      }
+
+      // Find route by NAME (not ID) from the route dropdown selection
+      const deliveryRoute = routes.find(r => r.name === route);
 
       if (!deliveryRoute) {
         setCalculatedDeliveryPrice(0);
@@ -295,7 +302,7 @@ export default function OrdersPage() {
     };
 
     calculateDelivery();
-  }, [customerId, customers, routes, orderItems, freeDelivery, manualDeliveryAmount]);
+  }, [customerId, customers, routes, route, orderItems, freeDelivery, manualDeliveryAmount]);
 
   const loadData = async () => {
     try {
@@ -833,9 +840,13 @@ export default function OrdersPage() {
         if (customer.free_delivery) {
           deliveryPrice = 0;
         } else {
-          // Find customer's assigned delivery route
-          const customerRouteId = customer?.delivery_route_id;
-          const deliveryRoute = routes?.find(r => r.id === customerRouteId);
+          // CRITICAL: Use selected route from dropdown, NOT customer's assigned route
+          let deliveryRoute = null;
+
+          if (route && route !== '' && route !== 'Žiadna trasa') {
+            // Find route by NAME from the route dropdown selection
+            deliveryRoute = routes?.find(r => r.name === route);
+          }
 
           if (deliveryRoute) {
             let deliveryFee = 0;
@@ -874,7 +885,7 @@ export default function OrdersPage() {
               freeDeliveryException: customer.free_delivery
             });
           } else {
-            console.warn('⚠️ No delivery route found for customer:', customer.name);
+            console.warn('⚠️ No delivery route selected or invalid route');
           }
         }
       }
@@ -1846,26 +1857,78 @@ export default function OrdersPage() {
 
                         <div>
                           <Label className="text-sm">Váha</Label>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                role="combobox"
-                                className="w-full justify-between mt-1 h-10 font-normal"
-                              >
-                                {currentItem?.packaging_size || 'Vyberte alebo zadajte váhu...'}
-                                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" className="ml-2 h-4 w-4 shrink-0 opacity-50"><path d="M4.93179 5.43179C4.75605 5.60753 4.75605 5.89245 4.93179 6.06819C5.10753 6.24392 5.39245 6.24392 5.56819 6.06819L7.49999 4.13638L9.43179 6.06819C9.60753 6.24392 9.89245 6.24392 10.0682 6.06819C10.2439 5.89245 10.2439 5.60753 10.0682 5.43179L7.81819 3.18179C7.73379 3.0974 7.61933 3.04999 7.49999 3.04999C7.38064 3.04999 7.26618 3.0974 7.18179 3.18179L4.93179 5.43179ZM10.0682 9.56819C10.2439 9.39245 10.2439 9.10753 10.0682 8.93179C9.89245 8.75606 9.60753 8.75606 9.43179 8.93179L7.49999 10.8636L5.56819 8.93179C5.39245 8.75606 5.10753 8.75606 4.93179 8.93179C4.75605 9.10753 4.75605 9.39245 4.93179 9.56819L7.18179 11.8182C7.26618 11.9026 7.38064 11.95 7.49999 11.95C7.61933 11.95 7.73379 11.9026 7.81819 11.8182L10.0682 9.56819Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path></svg>
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[200px] p-0">
-                              <Command>
-                                <CommandInput
-                                  placeholder="Hľadať váhu..."
-                                  value={currentItem?.packaging_size || ''}
-                                  onValueChange={async (value) => {
-                                    setCurrentItem({ ...currentItem, packaging_size: value });
+                          <div className="flex gap-2 mt-1">
+                            <Select
+                              value={currentItem?.packaging_size || ''}
+                              onValueChange={async (value) => {
+                                if (value === 'custom') {
+                                  // Allow custom input - just clear the value
+                                  setCurrentItem({ ...currentItem, packaging_size: '' });
+                                  return;
+                                }
 
-                                    if (value && value.includes('g') && currentItem?.crop_id && customerType) {
+                                if (currentItem?.crop_id && customerType) {
+                                  const [autoPrice, autoPackaging] = await Promise.all([
+                                    autoFetchPrice(currentItem.crop_id, value, customerType),
+                                    autoFetchPackaging(currentItem.crop_id, value)
+                                  ]);
+
+                                  setCurrentItem({
+                                    ...currentItem,
+                                    packaging_size: value,
+                                    price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
+                                    ...(autoPackaging || {})
+                                  });
+                                } else {
+                                  setCurrentItem({ ...currentItem, packaging_size: value });
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="flex-1 h-10">
+                                <SelectValue placeholder="Vyberte váhu..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="25g">25g</SelectItem>
+                                <SelectItem value="50g">50g</SelectItem>
+                                <SelectItem value="60g">60g</SelectItem>
+                                <SelectItem value="70g">70g</SelectItem>
+                                <SelectItem value="100g">100g</SelectItem>
+                                <SelectItem value="120g">120g</SelectItem>
+                                <SelectItem value="150g">150g</SelectItem>
+                                <SelectItem value="custom">Iná váha...</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            {(!currentItem?.packaging_size || !['25g', '50g', '60g', '70g', '100g', '120g', '150g'].includes(currentItem?.packaging_size)) && (
+                              <Input
+                                type="text"
+                                placeholder="napr. 8g"
+                                value={currentItem?.packaging_size || ''}
+                                onChange={async (e) => {
+                                  const value = e.target.value.trim();
+                                  setCurrentItem({ ...currentItem, packaging_size: value });
+
+                                  if (value && value.includes('g') && currentItem?.crop_id && customerType) {
+                                    const [autoPrice, autoPackaging] = await Promise.all([
+                                      autoFetchPrice(currentItem.crop_id, value, customerType),
+                                      autoFetchPackaging(currentItem.crop_id, value)
+                                    ]);
+
+                                    setCurrentItem({
+                                      ...currentItem,
+                                      packaging_size: value,
+                                      price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
+                                      ...(autoPackaging || {})
+                                    });
+                                  }
+                                }}
+                                onBlur={async (e) => {
+                                  let value = e.target.value.trim();
+                                  if (!value) return;
+
+                                  if (/^\d+$/.test(value)) {
+                                    value = value + 'g';
+
+                                    if (currentItem?.crop_id && customerType) {
                                       const [autoPrice, autoPackaging] = await Promise.all([
                                         autoFetchPrice(currentItem.crop_id, value, customerType),
                                         autoFetchPackaging(currentItem.crop_id, value)
@@ -1877,42 +1940,15 @@ export default function OrdersPage() {
                                         price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
                                         ...(autoPackaging || {})
                                       });
+                                    } else {
+                                      setCurrentItem({ ...currentItem, packaging_size: value });
                                     }
-                                  }}
-                                />
-                                <CommandList>
-                                  <CommandEmpty>Žiadne výsledky. Zadajte vlastnú váhu.</CommandEmpty>
-                                  <CommandGroup>
-                                    {['25g', '50g', '60g', '70g', '100g', '120g', '150g'].map((weight) => (
-                                      <CommandItem
-                                        key={weight}
-                                        value={weight}
-                                        onSelect={async (value) => {
-                                          if (currentItem?.crop_id && customerType) {
-                                            const [autoPrice, autoPackaging] = await Promise.all([
-                                              autoFetchPrice(currentItem.crop_id, value, customerType),
-                                              autoFetchPackaging(currentItem.crop_id, value)
-                                            ]);
-
-                                            setCurrentItem({
-                                              ...currentItem,
-                                              packaging_size: value,
-                                              price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
-                                              ...(autoPackaging || {})
-                                            });
-                                          } else {
-                                            setCurrentItem({ ...currentItem, packaging_size: value });
-                                          }
-                                        }}
-                                      >
-                                        {weight}
-                                      </CommandItem>
-                                    ))}
-                                  </CommandGroup>
-                                </CommandList>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
+                                  }
+                                }}
+                                className="w-32 h-10"
+                              />
+                            )}
+                          </div>
                         </div>
 
                         <div>
