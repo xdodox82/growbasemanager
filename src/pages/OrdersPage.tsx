@@ -1,0 +1,2391 @@
+import { useState, useEffect, useMemo } from 'react';
+import { MainLayout } from '@/components/layout/MainLayout';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { OrderSearchBar } from '@/components/orders/OrderSearchBar';
+import { SearchableCustomerSelect } from '@/components/orders/SearchableCustomerSelect';
+import { CustomerTypeFilter } from '@/components/filters/CustomerTypeFilter';
+import { useDeliveryDays } from '@/hooks/useDeliveryDays';
+import {
+  ShoppingCart,
+  Plus,
+  Grid3x3,
+  List,
+  FileSpreadsheet,
+  FileText,
+  Edit,
+  Copy,
+  Trash2,
+  Calendar,
+  Package,
+  Truck,
+  Home,
+  Utensils,
+  Store,
+  Scissors,
+  X,
+  MapPin
+} from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { format, parseISO, getDay } from 'date-fns';
+import { sk } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
+
+// LOCAL TYPE INTERFACES - Defined here since types.ts may not match database
+interface OrderItem {
+  id?: string;
+  crop_id?: string;
+  crop_name?: string;
+  custom_crop_name?: string;
+  blend_id?: string;
+  quantity: number;
+  unit: string;
+  packaging_size: string;
+  delivery_form: string;
+  packaging_type?: string;
+  packaging_material?: string;
+  packaging_volume_ml?: number;
+  packaging_id?: string;
+  has_label?: boolean;
+  notes?: string;
+  special_requirements?: string;
+  price_per_unit?: number | string;
+  total_price?: number;
+  is_special_item?: boolean;
+}
+
+interface Order {
+  id: string;
+  customer_id: string;
+  customer_name: string;
+  customer_type: string;
+  delivery_date: string;
+  status: string;
+  order_type: string;
+  recurrence_pattern?: string;
+  recurring_weeks?: number;
+  route?: string;
+  week_count?: number;
+  total_price?: number;
+  delivery_price?: number;
+  charge_delivery?: boolean;
+  notes?: string;
+  created_at: string;
+  order_items?: OrderItem[];
+}
+
+interface Customer {
+  id: string;
+  name: string;
+  company_name?: string;
+  customer_type: string;
+  free_delivery?: boolean;
+  delivery_route_id?: string;
+}
+
+interface Product {
+  id: string;
+  name: string;
+  packaging_id?: string | null;
+  growth_days?: number | null;
+}
+
+interface Crop extends Product {
+  // Alias for Product - database uses 'products' table
+}
+
+interface Blend {
+  id: string;
+  name: string;
+  crop_ids?: string[];
+}
+
+interface Route {
+  id: string;
+  name: string;
+  delivery_day_id?: string;
+  delivery_fee?: number;
+  delivery_fee_home?: number;
+  delivery_fee_gastro?: number;
+  delivery_fee_wholesale?: number;
+  home_min_free_delivery?: number;
+  gastro_min_free_delivery?: number;
+  wholesale_min_free_delivery?: number;
+}
+
+interface DeliveryDay {
+  id: string;
+  name: string;
+  day_of_week: number;
+}
+
+interface Price {
+  id: string;
+  crop_id?: string;
+  blend_id?: string;
+  packaging_size: string;
+  unit_price: number;
+  customer_type: string;
+}
+
+interface Packaging {
+  id: string;
+  name: string;
+  type?: string;
+  size?: string;
+  quantity?: number;
+  packaging_id?: string;
+  packaging_type?: string;
+  packaging_material?: string;
+  packaging_volume_ml?: number;
+}
+
+interface PackagingMapping {
+  id: string;
+  crop_id: string;
+  weight_g: number;
+  packaging_id: string;
+  packagings?: Packaging;
+}
+
+export default function OrdersPage() {
+  console.log('[OrdersPage] Component rendering started');
+  const { toast } = useToast();
+  const { getDeliveryDaysArray } = useDeliveryDays();
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [blends, setBlends] = useState<Blend[]>([]);
+  const [routes, setRoutes] = useState<Route[]>([]);
+  const [prices, setPrices] = useState<Price[]>([]);
+  const [packagings, setPackagings] = useState<Packaging[]>([]);
+  const [deliveryDays, setDeliveryDays] = useState<DeliveryDay[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dataLoaded, setDataLoaded] = useState(false);
+
+  const [filterPeriod, setFilterPeriod] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterCustomerType, setFilterCustomerType] = useState<string>('all');
+  const [filterCrop, setFilterCrop] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showArchive, setShowArchive] = useState(false);
+
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+
+  const [customerType, setCustomerType] = useState('home');
+  const [customerId, setCustomerId] = useState('');
+  const [deliveryDate, setDeliveryDate] = useState('');
+  const [status, setStatus] = useState('cakajuca');
+  const [orderType, setOrderType] = useState('jednorazova');
+  const [weekCount, setWeekCount] = useState(1);
+  const [route, setRoute] = useState('');
+  const [orderNotes, setOrderNotes] = useState('');
+  const [freeDelivery, setFreeDelivery] = useState(false); // Default OFF - auto-calculate delivery, ON = force free
+  const [manualDeliveryAmount, setManualDeliveryAmount] = useState(''); // Manual override amount
+  const [calculatedDeliveryPrice, setCalculatedDeliveryPrice] = useState(0); // Display-only calculated delivery
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedOrderDetail, setSelectedOrderDetail] = useState<Order | null>(null);
+  const [datePopoverOpen, setDatePopoverOpen] = useState(false);
+
+  const [currentItem, setCurrentItem] = useState<OrderItem>({
+    crop_name: '',
+    quantity: 1,
+    unit: 'ks',
+    packaging_size: '',
+    delivery_form: 'rezana',
+    packaging_type: '',
+    packaging_material: 'rPET',
+    packaging_volume_ml: 250,
+    has_label: false,
+    notes: '',
+    special_requirements: '',
+    price_per_unit: '',
+    is_special_item: false,
+    custom_crop_name: ''
+  });
+  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [deliverySettings, setDeliverySettings] = useState<any>(null);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  useEffect(() => {
+    const fetchPriceAutomatically = async () => {
+      if (!currentItem.is_special_item && currentItem.crop_id && currentItem.packaging_size && customerType) {
+        const autoPrice = await autoFetchPrice(currentItem.crop_id, currentItem.packaging_size, customerType);
+        if (autoPrice > 0) {
+          setCurrentItem(prev => ({ ...prev, price_per_unit: autoPrice.toString() }));
+        }
+      }
+    };
+
+    fetchPriceAutomatically();
+  }, [currentItem.crop_id, currentItem.packaging_size, customerType, currentItem.is_special_item]);
+
+  useEffect(() => {
+    if (selectedOrderDetail && deliverySettings && customers?.length > 0) {
+      try {
+        const recalculatedFee = getDeliveryFee(selectedOrderDetail);
+        const currentStoredFee = parseFloat((selectedOrderDetail?.delivery_price || 0).toString());
+
+        if (Math.abs(recalculatedFee - currentStoredFee) > 0.01) {
+          console.warn(`⚠️ Order ${selectedOrderDetail?.id?.substring(0, 8)} has incorrect delivery fee. Stored: ${currentStoredFee}€, Should be: ${recalculatedFee}€`);
+        }
+      } catch (error) {
+        console.error('[OrdersPage] Error validating order delivery fee:', error);
+      }
+    }
+  }, [selectedOrderDetail, deliverySettings, customers]);
+
+  // REACTIVE DELIVERY CALCULATION: Recalculate whenever customer, items, or delivery settings change
+  useEffect(() => {
+    const calculateDelivery = () => {
+      // PRIORITY 1: Free Delivery Toggle
+      if (freeDelivery) {
+        setCalculatedDeliveryPrice(0);
+        return;
+      }
+
+      // PRIORITY 2: Manual Amount
+      if (manualDeliveryAmount && manualDeliveryAmount.trim() !== '') {
+        const manual = parseFloat(manualDeliveryAmount) || 0;
+        setCalculatedDeliveryPrice(manual);
+        return;
+      }
+
+      // PRIORITY 3: Auto-calculate from route
+      if (!customerId || !customers || !routes) {
+        setCalculatedDeliveryPrice(0);
+        return;
+      }
+
+      const customer = customers.find(c => c.id === customerId);
+      if (!customer) {
+        setCalculatedDeliveryPrice(0);
+        return;
+      }
+
+      // Check customer free delivery exception
+      if (customer.free_delivery) {
+        setCalculatedDeliveryPrice(0);
+        return;
+      }
+
+      const custType = customer.customer_type || 'home';
+
+      // CRITICAL: Use selected route from dropdown, NOT customer's assigned route
+      // If no route selected or "Žiadna trasa", delivery is 0
+      if (!route || route === '' || route === 'Žiadna trasa') {
+        setCalculatedDeliveryPrice(0);
+        return;
+      }
+
+      // SMIŽANY HARDCODED OVERRIDE: Always free delivery for Smižany
+      if (route === 'Smižany') {
+        console.log('✅ Smižany override - Free delivery');
+        setCalculatedDeliveryPrice(0);
+        return;
+      }
+
+      // Find route by NAME (not ID) from the route dropdown selection
+      const deliveryRoute = routes.find(r => r.name === route);
+
+      if (!deliveryRoute) {
+        setCalculatedDeliveryPrice(0);
+        return;
+      }
+
+      // Calculate subtotal from order items
+      const totalPrice = (orderItems || []).reduce((sum, item) => {
+        const quantity = parseFloat(item.quantity) || 0;
+        const price = parseFloat(item.price_per_unit.toString().replace(',', '.')) || 0;
+        return sum + (quantity * price);
+      }, 0);
+
+      console.log('💰 Delivery calculation - Order total:', totalPrice, '€, Items:', orderItems?.length);
+
+      let deliveryFee = 0;
+      let minFreeDelivery = 0;
+
+      // Get fee and threshold from route based on customer type
+      if (custType === 'home') {
+        deliveryFee = parseFloat((deliveryRoute?.delivery_fee_home || 0).toString());
+        minFreeDelivery = parseFloat((deliveryRoute?.home_min_free_delivery || 0).toString());
+      } else if (custType === 'gastro') {
+        deliveryFee = parseFloat((deliveryRoute?.delivery_fee_gastro || 0).toString());
+        minFreeDelivery = parseFloat((deliveryRoute?.gastro_min_free_delivery || 0).toString());
+      } else if (custType === 'wholesale') {
+        deliveryFee = parseFloat((deliveryRoute?.delivery_fee_wholesale || 0).toString());
+        minFreeDelivery = parseFloat((deliveryRoute?.wholesale_min_free_delivery || 0).toString());
+      }
+
+      console.log('🚚 Route:', route, 'Customer type:', custType, 'Fee:', deliveryFee, '€, Threshold:', minFreeDelivery, '€');
+
+      // SMIŽANY RULE: If min_free_delivery is 0, delivery is automatically free
+      if (minFreeDelivery === 0) {
+        console.log('✅ Free delivery (Smižany rule - threshold is 0)');
+        setCalculatedDeliveryPrice(0);
+      } else if (totalPrice >= minFreeDelivery) {
+        console.log('✅ Free delivery (order total', totalPrice, '€ >= threshold', minFreeDelivery, '€)');
+        setCalculatedDeliveryPrice(0);
+      } else {
+        console.log('💳 Charging delivery:', deliveryFee, '€ (order total', totalPrice, '€ < threshold', minFreeDelivery, '€)');
+        setCalculatedDeliveryPrice(deliveryFee);
+      }
+    };
+
+    calculateDelivery();
+  }, [customerId, customers, routes, route, orderItems, freeDelivery, manualDeliveryAmount]);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setDataLoaded(false);
+      const [ordersRes, customersRes, productsRes, blendsRes, routesRes, pricesRes, packagingsRes, deliveryDaysRes, profileRes] = await Promise.all([
+        supabase.from('orders').select('*, order_items(*)').order('created_at', { ascending: false }),
+        supabase.from('customers').select('*').order('name'),
+        supabase.from('products').select('id, name, packaging_id').order('name'),
+        supabase.from('blends').select('*').order('name'),
+        supabase.from('delivery_routes').select('*').order('name'),
+        supabase.from('prices').select('*'),
+        supabase.from('packagings').select('*').order('name'),
+        supabase.from('delivery_days').select('*').order('day_of_week'),
+        supabase.from('profiles').select('delivery_settings').maybeSingle(),
+      ]);
+
+      if (ordersRes.data) setOrders(ordersRes.data as Order[]);
+      if (customersRes.data) setCustomers(customersRes.data);
+      if (productsRes.data) setProducts(productsRes.data);
+      if (blendsRes.data) setBlends(blendsRes.data);
+      if (routesRes.data) setRoutes(routesRes.data);
+      if (pricesRes.data) setPrices(pricesRes.data);
+      if (packagingsRes.data) setPackagings(packagingsRes.data);
+      if (deliveryDaysRes.data) setDeliveryDays(deliveryDaysRes.data);
+      if (profileRes.data?.delivery_settings) {
+        console.log('✅ Delivery settings loaded:', profileRes.data.delivery_settings);
+        setDeliverySettings(profileRes.data.delivery_settings);
+      } else {
+        console.warn('⚠️ No delivery settings found in profile');
+        setDeliverySettings(null);
+      }
+
+      setDataLoaded(true);
+    } catch (error) {
+      console.error('Error loading data:', error);
+      toast({ title: 'Chyba', description: 'Nepodarilo sa načítať dáta', variant: 'destructive' });
+      setOrders([]);
+      setCustomers([]);
+      setProducts([]);
+      setBlends([]);
+      setRoutes([]);
+      setPrices([]);
+      setPackagings([]);
+      setDeliveryDays([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredOrders = (orders || []).filter(order => {
+    if (filterStatus !== 'all' && order?.status !== filterStatus) return false;
+
+    if (filterCustomerType !== 'all') {
+      const customer = customers?.find(c => c.id === order.customer_id);
+      if (customer?.customer_type !== filterCustomerType) return false;
+    }
+
+    if (filterCrop !== 'all') {
+      const hasCrop = order?.order_items?.some(item => item?.crop_name === filterCrop);
+      if (!hasCrop) return false;
+    }
+
+    if (searchQuery) {
+      const customer = customers?.find(c => c.id === order.customer_id);
+      const searchLower = searchQuery.toLowerCase();
+      const customerName = (customer?.name || '').toLowerCase();
+      const companyName = (customer?.company_name || '').toLowerCase();
+      if (!customerName.includes(searchLower) && !companyName.includes(searchLower)) {
+        return false;
+      }
+    }
+
+    // Archive filter: if showArchive is false, only show active orders (not completed)
+    if (!showArchive && order?.status === 'dorucena') {
+      return false;
+    }
+
+    // Period filter
+    if (filterPeriod !== 'all' && order?.delivery_date) {
+      const orderDate = new Date(order.delivery_date);
+      const today = new Date();
+      const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const startOfWeek = new Date(startOfToday);
+      startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay() + 1);
+
+      switch (filterPeriod) {
+        case 'this_week': {
+          const endOfWeek = new Date(startOfWeek);
+          endOfWeek.setDate(startOfWeek.getDate() + 7);
+          if (orderDate < startOfWeek || orderDate >= endOfWeek) return false;
+          break;
+        }
+        case 'next_week': {
+          const nextWeekStart = new Date(startOfWeek);
+          nextWeekStart.setDate(startOfWeek.getDate() + 7);
+          const nextWeekEnd = new Date(nextWeekStart);
+          nextWeekEnd.setDate(nextWeekStart.getDate() + 7);
+          if (orderDate < nextWeekStart || orderDate >= nextWeekEnd) return false;
+          break;
+        }
+        case 'last_week': {
+          const lastWeekStart = new Date(startOfWeek);
+          lastWeekStart.setDate(startOfWeek.getDate() - 7);
+          const lastWeekEnd = new Date(lastWeekStart);
+          lastWeekEnd.setDate(lastWeekStart.getDate() + 7);
+          if (orderDate < lastWeekStart || orderDate >= lastWeekEnd) return false;
+          break;
+        }
+        case 'last_2_weeks': {
+          const twoWeeksAgoStart = new Date(startOfWeek);
+          twoWeeksAgoStart.setDate(startOfWeek.getDate() - 14);
+          const twoWeeksAgoEnd = new Date(twoWeeksAgoStart);
+          twoWeeksAgoEnd.setDate(twoWeeksAgoStart.getDate() + 7);
+          if (orderDate < twoWeeksAgoStart || orderDate >= twoWeeksAgoEnd) return false;
+          break;
+        }
+        case 'last_month': {
+          const lastMonth = new Date(today);
+          lastMonth.setMonth(today.getMonth() - 1);
+          const startOfLastMonth = new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1);
+          const endOfLastMonth = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0);
+          if (orderDate < startOfLastMonth || orderDate > endOfLastMonth) return false;
+          break;
+        }
+      }
+    }
+
+    return true;
+  });
+
+  const getDeliveryFee = (order: Order): number => {
+    try {
+      if (!order || !order.charge_delivery) {
+        return 0;
+      }
+
+      const customer = customers?.find(c => c.id === order.customer_id);
+      if (!customer || customer?.free_delivery) {
+        return 0;
+      }
+
+      const customerType = customer?.customer_type || 'home';
+
+      // CRITICAL: Use the SELECTED route from the order, NOT customer's default route
+      // This ensures orders display the delivery fee based on the route selected during creation
+      if (!order.route || order.route === '' || order.route === 'Žiadna trasa') {
+        return 0;
+      }
+
+      // Find route by NAME from the order's stored route field
+      const deliveryRoute = routes?.find(r => r.name === order.route);
+      if (!deliveryRoute) {
+        return 0;
+      }
+
+      // CRITICAL: Calculate order SUBTOTAL from items, not total_price
+      let orderSubtotal = 0;
+      if (order?.order_items && Array.isArray(order.order_items) && order.order_items.length > 0) {
+        orderSubtotal = order.order_items.reduce((sum, item) => {
+          if (!item) return sum;
+          const qty = parseFloat(item?.quantity?.toString() || '0');
+          const pricePerUnit = parseFloat((item?.price_per_unit?.toString() || '0').replace(',', '.'));
+          const itemTotal = qty * pricePerUnit;
+          return sum + itemTotal;
+        }, 0);
+      } else {
+        const totalPrice = parseFloat((order?.total_price || 0).toString());
+        const deliveryPrice = parseFloat((order?.delivery_price || 0).toString());
+        orderSubtotal = totalPrice - deliveryPrice;
+      }
+
+      // Get fee and threshold from route based on customer type
+      let deliveryFee = 0;
+      let minFreeThreshold = 0;
+
+      if (customerType === 'home') {
+        deliveryFee = parseFloat((deliveryRoute?.delivery_fee_home || 0).toString());
+        minFreeThreshold = parseFloat((deliveryRoute?.home_min_free_delivery || 0).toString());
+      } else if (customerType === 'gastro') {
+        deliveryFee = parseFloat((deliveryRoute?.delivery_fee_gastro || 0).toString());
+        minFreeThreshold = parseFloat((deliveryRoute?.gastro_min_free_delivery || 0).toString());
+      } else if (customerType === 'wholesale') {
+        deliveryFee = parseFloat((deliveryRoute?.delivery_fee_wholesale || 0).toString());
+        minFreeThreshold = parseFloat((deliveryRoute?.wholesale_min_free_delivery || 0).toString());
+      }
+
+      console.log(`[getDeliveryFee] Order ${order.id?.substring(0, 8)}: Customer ${customer.name} (${customerType}), Route: ${deliveryRoute.name}, Subtotal: ${orderSubtotal.toFixed(2)}€, Threshold: ${minFreeThreshold.toFixed(2)}€, Fee: ${deliveryFee.toFixed(2)}€`);
+
+      // SMIŽANY RULE: If min_free_delivery is 0, delivery is automatically free
+      if (minFreeThreshold === 0) {
+        console.log(`[getDeliveryFee] Free delivery (Smižany rule: threshold is 0)`);
+        return 0;
+      }
+
+      // STRICT RULE: If orderSubtotal >= minFreeThreshold, free delivery
+      if (orderSubtotal >= minFreeThreshold) {
+        console.log(`[getDeliveryFee] Free delivery (threshold met)`);
+        return 0;
+      }
+
+      console.log(`[getDeliveryFee] Charging delivery fee: ${deliveryFee.toFixed(2)}€`);
+      return deliveryFee;
+    } catch (error) {
+      console.error('[OrdersPage] Error calculating delivery fee:', error);
+      return 0;
+    }
+  };
+
+  const getOrderTotal = (order: Order): number => {
+    try {
+      if (!order) return 0;
+
+      let itemsSubtotal = 0;
+      if (order.order_items && Array.isArray(order.order_items)) {
+        itemsSubtotal = order.order_items.reduce((sum, item) => {
+          if (!item) return sum;
+          const qty = parseFloat(item.quantity?.toString() || '0');
+          const pricePerUnit = parseFloat(item.price_per_unit?.toString().replace(',', '.') || '0');
+          return sum + (qty * pricePerUnit);
+        }, 0);
+      } else {
+        itemsSubtotal = order?.total_price || 0;
+      }
+
+      const deliveryFee = getDeliveryFee({ ...order, total_price: itemsSubtotal } as Order);
+      return itemsSubtotal + deliveryFee;
+    } catch (error) {
+      console.error('[OrdersPage] Error calculating order total:', error);
+      return 0;
+    }
+  };
+
+  const totalRevenue = (() => {
+    try {
+      return (filteredOrders || []).reduce((sum, order) => {
+        if (!order) return sum;
+        return sum + getOrderTotal(order);
+      }, 0);
+    } catch (error) {
+      console.error('[OrdersPage] Error calculating total revenue:', error);
+      return 0;
+    }
+  })();
+
+  const domaciRevenue = (() => {
+    try {
+      return (filteredOrders || [])
+        .filter(o => {
+          if (!o) return false;
+          const customer = customers?.find(c => c.id === o.customer_id);
+          return customer?.customer_type === 'home';
+        })
+        .reduce((sum, order) => {
+          if (!order) return sum;
+          return sum + getOrderTotal(order);
+        }, 0);
+    } catch (error) {
+      console.error('[OrdersPage] Error calculating domaci revenue:', error);
+      return 0;
+    }
+  })();
+
+  const gastroRevenue = (() => {
+    try {
+      return (filteredOrders || [])
+        .filter(o => {
+          if (!o) return false;
+          const customer = customers?.find(c => c.id === o.customer_id);
+          return customer?.customer_type === 'gastro';
+        })
+        .reduce((sum, order) => {
+          if (!order) return sum;
+          return sum + getOrderTotal(order);
+        }, 0);
+    } catch (error) {
+      console.error('[OrdersPage] Error calculating gastro revenue:', error);
+      return 0;
+    }
+  })();
+
+  const wholesaleRevenue = (() => {
+    try {
+      return (filteredOrders || [])
+        .filter(o => {
+          if (!o) return false;
+          const customer = customers?.find(c => c.id === o.customer_id);
+          return customer?.customer_type === 'wholesale';
+        })
+        .reduce((sum, order) => {
+          if (!order) return sum;
+          return sum + getOrderTotal(order);
+        }, 0);
+    } catch (error) {
+      console.error('[OrdersPage] Error calculating wholesale revenue:', error);
+      return 0;
+    }
+  })();
+
+  const selectedRoute = routes?.find(r => r.name === route);
+  const selectedRouteDeliveryDay = deliveryDays?.find(d => d.id === selectedRoute?.delivery_day_id);
+  const deliveryDayHint = selectedRouteDeliveryDay
+    ? `Dostupný deň rozvozu: ${selectedRouteDeliveryDay.name}`
+    : deliveryDays.length > 0
+    ? `Dostupné dni rozvozu: ${deliveryDays.map(d => d.name).join(', ')}`
+    : '';
+
+  const openNew = () => {
+    setEditingOrder(null);
+    setCustomerType('home');
+    setCustomerId('');
+    setDeliveryDate('');
+    setStatus('cakajuca');
+    setOrderType('jednorazova');
+    setWeekCount(1);
+    setRoute('');
+    setOrderNotes('');
+    setFreeDelivery(false); // Default: OFF = calculate delivery
+    setManualDeliveryAmount(''); // Clear manual amount
+    setOrderItems([]);
+    setCurrentItem({
+      crop_name: '',
+      quantity: 1,
+      unit: 'ks',
+      packaging_size: '',
+      delivery_form: 'rezana',
+      packaging_type: '',
+      packaging_material: 'rPET',
+      packaging_volume_ml: 250,
+      has_label: false,
+      notes: '',
+      special_requirements: '',
+      price_per_unit: '',
+      is_special_item: false,
+      custom_crop_name: ''
+    });
+    setIsDialogOpen(true);
+  };
+
+  const openEdit = (order: Order) => {
+    setEditingOrder(order);
+    setCustomerType(order.customer_type || 'home');
+    setCustomerId(order.customer_id);
+    setDeliveryDate(order.delivery_date);
+    setStatus(order.status);
+    const recurrenceType = order.recurrence_pattern || 'jednorazova';
+    setOrderType(recurrenceType);
+    setWeekCount(order.recurring_weeks || 1);
+    setRoute(order.route || '');
+    setOrderNotes(order.notes || '');
+    // Invert logic: DB stores charge_delivery (true=charge), UI uses freeDelivery (true=free)
+    const shouldBeFree = !(order.charge_delivery ?? true);
+    setFreeDelivery(shouldBeFree);
+    // Load manual amount if delivery was charged and has a value
+    if (!shouldBeFree && order.delivery_price && order.delivery_price > 0) {
+      setManualDeliveryAmount(order.delivery_price.toString());
+    } else {
+      setManualDeliveryAmount('');
+    }
+    setOrderItems(order.order_items || []);
+    setIsDialogOpen(true);
+  };
+
+  const autoFetchPrice = async (cropId: string, packagingSize: string, customerType: string) => {
+    try {
+      const { data: priceData } = await supabase
+        .from('prices')
+        .select('*')
+        .eq('crop_id', cropId)
+        .eq('packaging_size', packagingSize)
+        .eq('customer_type', customerType)
+        .maybeSingle();
+
+      return priceData?.unit_price || 0;
+    } catch (error) {
+      console.error('Error fetching price:', error);
+      return 0;
+    }
+  };
+
+  const autoFetchPackaging = async (cropId: string, packagingSize: string) => {
+    try {
+      const weightG = parseInt(packagingSize.replace(/[^0-9]/g, ''));
+      if (!weightG) return null;
+
+      console.log(`📦 Auto-fetching packaging for weight ${weightG}g (packaging_mappings removed)`);
+
+      // SIMPLIFIED: Try to get a packaging from packagings table by size
+      // If not found, use default fallback
+      const { data: packaging } = await supabase
+        .from('packagings')
+        .select('*')
+        .eq('size', packagingSize)
+        .maybeSingle();
+
+      if (packaging) {
+        const volumeMatch = packaging.size?.match(/(\d+)/);
+        const volumeMl = volumeMatch ? parseInt(volumeMatch[1]) : 250;
+
+        const result = {
+          packaging_id: packaging.id,
+          packaging_type: packaging.type || 'rPET',
+          packaging_material: packaging.type || 'rPET',
+          packaging_volume_ml: volumeMl
+        };
+
+        console.log('✅ Auto-selected packaging from packagings table:', result);
+        return result;
+      }
+
+      // FALLBACK: No packaging found, use default 250ml rPET
+      console.log('⚠️ No packaging found, using default fallback');
+      return null;
+    } catch (error) {
+      console.error('❌ Error fetching packaging:', error);
+      return null;
+    }
+  };
+
+  const addItemToList = async () => {
+    if (!currentItem.is_special_item && !currentItem?.crop_name) {
+      toast({ title: 'Chyba', description: 'Vyberte plodinu alebo zmes', variant: 'destructive' });
+      return;
+    }
+
+    if (currentItem.is_special_item && !currentItem.custom_crop_name) {
+      toast({ title: 'Chyba', description: 'Zadajte názov špeciálnej položky', variant: 'destructive' });
+      return;
+    }
+
+    const autoPrice = currentItem.crop_id && customerType && !currentItem.is_special_item
+      ? await autoFetchPrice(currentItem.crop_id, currentItem.packaging_size, customerType)
+      : 0;
+
+    const finalCropName = currentItem.is_special_item
+      ? currentItem.custom_crop_name
+      : currentItem.crop_name;
+
+    const priceValue = autoPrice > 0
+      ? autoPrice
+      : parseFloat(currentItem.price_per_unit.toString().replace(',', '.')) || 0;
+
+    const itemToAdd = {
+      ...currentItem,
+      crop_id: currentItem.is_special_item ? null : currentItem.crop_id,
+      crop_name: finalCropName,
+      quantity: parseFloat(currentItem.quantity) || 1,
+      price_per_unit: priceValue,
+      is_special_item: currentItem.is_special_item || false,
+      custom_crop_name: currentItem.is_special_item ? currentItem.custom_crop_name : null
+    };
+
+    setOrderItems([...(orderItems || []), itemToAdd]);
+    setCurrentItem({
+      crop_name: '',
+      quantity: 1,
+      unit: 'ks',
+      packaging_size: '',
+      delivery_form: 'rezana',
+      packaging_type: '',
+      packaging_material: 'rPET',
+      packaging_volume_ml: 250,
+      has_label: false,
+      notes: '',
+      special_requirements: '',
+      price_per_unit: '',
+      is_special_item: false,
+      custom_crop_name: ''
+    });
+  };
+
+  const removeItem = (index: number) => {
+    setOrderItems((orderItems || []).filter((_, i) => i !== index));
+  };
+
+  const saveOrder = async () => {
+    if (!customerId) {
+      toast({ title: 'Chyba', description: 'Vyberte zákazníka', variant: 'destructive' });
+      return;
+    }
+
+    if (!deliveryDate) {
+      toast({ title: 'Chyba', description: 'Vyberte dátum dodania', variant: 'destructive' });
+      return;
+    }
+
+    if (!orderItems || orderItems.length === 0) {
+      toast({ title: 'Chyba', description: 'Pridajte aspoň jednu položku', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: 'Chyba',
+          description: 'Nie ste prihlásený',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const customer = customers?.find(c => c.id === customerId);
+      const totalPrice = (orderItems || []).reduce((sum, item) => {
+        const quantity = parseFloat(item.quantity) || 0;
+        const price = parseFloat(item.price_per_unit.toString().replace(',', '.')) || 0;
+        return sum + (quantity * price);
+      }, 0);
+
+      // Calculate delivery fee with priority: Manual Amount > Free Toggle > Auto-calculation
+      let deliveryPrice = 0;
+
+      // PRIORITY 1: Free Delivery Toggle (forces 0€)
+      if (freeDelivery) {
+        deliveryPrice = 0;
+        console.log('💶 Manual override: Free delivery toggle ON');
+      }
+      // PRIORITY 2: Manual Delivery Amount (specific amount entered)
+      else if (manualDeliveryAmount && manualDeliveryAmount.trim() !== '') {
+        deliveryPrice = parseFloat(manualDeliveryAmount) || 0;
+        console.log('💶 Manual override: Delivery amount set to', deliveryPrice);
+      }
+      // PRIORITY 3: Auto-calculate from route settings
+      else if (customer) {
+        // Auto-calculate delivery from route settings
+        const custType = customer.customer_type || 'home';
+
+        // Check if customer has free delivery exception
+        if (customer.free_delivery) {
+          deliveryPrice = 0;
+        } else {
+          // CRITICAL: Use selected route from dropdown, NOT customer's assigned route
+          let deliveryRoute = null;
+
+          if (route && route !== '' && route !== 'Žiadna trasa') {
+            // Find route by NAME from the route dropdown selection
+            deliveryRoute = routes?.find(r => r.name === route);
+          }
+
+          if (deliveryRoute) {
+            let deliveryFee = 0;
+            let minFreeDelivery = 0;
+
+            // Get fee and threshold from route based on customer type
+            if (custType === 'home') {
+              deliveryFee = parseFloat((deliveryRoute?.delivery_fee_home || 0).toString());
+              minFreeDelivery = parseFloat((deliveryRoute?.home_min_free_delivery || 0).toString());
+            } else if (custType === 'gastro') {
+              deliveryFee = parseFloat((deliveryRoute?.delivery_fee_gastro || 0).toString());
+              minFreeDelivery = parseFloat((deliveryRoute?.gastro_min_free_delivery || 0).toString());
+            } else if (custType === 'wholesale') {
+              deliveryFee = parseFloat((deliveryRoute?.delivery_fee_wholesale || 0).toString());
+              minFreeDelivery = parseFloat((deliveryRoute?.wholesale_min_free_delivery || 0).toString());
+            }
+
+            // SMIŽANY RULE: If min_free_delivery is 0, delivery is automatically free
+            if (minFreeDelivery === 0) {
+              deliveryPrice = 0;
+            } else if (totalPrice >= minFreeDelivery) {
+              // Threshold met: free delivery
+              deliveryPrice = 0;
+            } else {
+              // Below threshold: charge delivery fee
+              deliveryPrice = deliveryFee;
+            }
+
+            console.log('💶 Auto-calculated delivery price from route:', {
+              routeName: deliveryRoute.name,
+              customerType: custType,
+              orderSubtotal: totalPrice,
+              deliveryFee,
+              minFreeDelivery,
+              finalDeliveryPrice: deliveryPrice,
+              freeDeliveryException: customer.free_delivery
+            });
+          } else {
+            console.warn('⚠️ No delivery route selected or invalid route');
+          }
+        }
+      }
+
+      const finalTotalPrice = totalPrice + deliveryPrice;
+
+      const orderData = {
+        customer_id: customerId,
+        customer_name: customer?.company_name || customer?.name || '',
+        customer_type: customer?.customer_type || 'home',
+        delivery_date: deliveryDate,
+        status: status,
+        total_price: parseFloat(finalTotalPrice.toFixed(2)),
+        delivery_price: parseFloat(deliveryPrice.toFixed(2)),
+        charge_delivery: !freeDelivery, // Store: true = charge, false = free
+        route: route || null,
+        notes: orderNotes || null,
+        is_recurring: orderType === 'tyzdenne' || orderType === 'dvojtyzdenne',
+        recurrence_pattern: orderType !== 'jednorazova' ? orderType : null,
+        recurring_weeks: orderType !== 'jednorazova' ? parseInt(weekCount) || 1 : null,
+        user_id: user.id
+      };
+
+      if (editingOrder) {
+        const { error } = await supabase.from('orders').update(orderData).eq('id', editingOrder.id);
+        if (error) throw error;
+
+        await supabase.from('order_items').delete().eq('order_id', editingOrder.id);
+
+        const items = (orderItems || []).map(item => {
+          const product = products?.find(p => p.id === item.crop_id);
+          const blend = blends?.find(b => b.id === item.blend_id);
+          const cropName = item.is_special_item
+            ? item.custom_crop_name
+            : (product ? product.name : (blend ? `${blend.name} (Mix)` : ''));
+
+          const weightValue = item.packaging_size?.toString().replace(/[^0-9.]/g, '') || '0';
+          const quantity = parseFloat(item.quantity) || 0;
+          const price = parseFloat(item.price_per_unit.toString().replace(',', '.')) || 0;
+
+          return {
+            order_id: editingOrder.id,
+            crop_id: item.is_special_item ? null : (item.crop_id || null),
+            blend_id: item.blend_id || null,
+            crop_name: cropName,
+            quantity: quantity,
+            unit: item.unit,
+            packaging_size: weightValue,
+            delivery_form: item.delivery_form,
+            has_label: item.has_label,
+            notes: item.notes || null,
+            packaging_material: item.packaging_material || 'PET',
+            packaging_volume_ml: item.packaging_volume_ml || null,
+            packaging_id: item.packaging_id || null,
+            special_requirements: item.special_requirements || null,
+            price_per_unit: price,
+            total_price: parseFloat((quantity * price).toFixed(2)),
+            is_special_item: item.is_special_item || false,
+            custom_crop_name: item.is_special_item ? item.custom_crop_name : null,
+            user_id: user.id
+          };
+        });
+        const { error: itemsError } = await supabase.from('order_items').insert(items);
+        if (itemsError) throw itemsError;
+
+        for (const item of orderItems || []) {
+          if (item?.packaging_id && item?.quantity) {
+            try {
+              await supabase.rpc('decrement_packaging_stock', {
+                packaging_id: item.packaging_id,
+                amount: item.quantity
+              });
+            } catch (pkgError) {
+              console.error('[OrdersPage] Error decrementing packaging stock:', pkgError);
+            }
+          }
+        }
+
+        toast({ title: 'Úspech', description: 'Objednávka upravená' });
+        setIsDialogOpen(false);
+        await loadData();
+      } else {
+        const { data: newOrder, error } = await supabase
+          .from('orders')
+          .insert(orderData)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        const items = (orderItems || []).map(item => {
+          const product = products?.find(p => p.id === item.crop_id);
+          const blend = blends?.find(b => b.id === item.blend_id);
+          const cropName = item.is_special_item
+            ? item.custom_crop_name
+            : (product ? product.name : (blend ? `${blend.name} (Mix)` : ''));
+
+          const weightValue = item.packaging_size?.toString().replace(/[^0-9.]/g, '') || '0';
+          const quantity = parseFloat(item.quantity) || 0;
+          const price = parseFloat(item.price_per_unit.toString().replace(',', '.')) || 0;
+
+          return {
+            order_id: newOrder.id,
+            crop_id: item.is_special_item ? null : (item.crop_id || null),
+            blend_id: item.blend_id || null,
+            crop_name: cropName,
+            quantity: quantity,
+            unit: item.unit,
+            packaging_size: weightValue,
+            delivery_form: item.delivery_form,
+            has_label: item.has_label,
+            notes: item.notes || null,
+            packaging_material: item.packaging_material || 'PET',
+            packaging_volume_ml: item.packaging_volume_ml || null,
+            packaging_id: item.packaging_id || null,
+            special_requirements: item.special_requirements || null,
+            price_per_unit: price,
+            total_price: parseFloat((quantity * price).toFixed(2)),
+            is_special_item: item.is_special_item || false,
+            custom_crop_name: item.is_special_item ? item.custom_crop_name : null,
+            user_id: user.id
+          };
+        });
+        const { error: itemsError } = await supabase.from('order_items').insert(items);
+        if (itemsError) throw itemsError;
+
+        for (const item of orderItems || []) {
+          if (item?.packaging_id && item?.quantity) {
+            try {
+              await supabase.rpc('decrement_packaging_stock', {
+                packaging_id: item.packaging_id,
+                amount: item.quantity
+              });
+            } catch (pkgError) {
+              console.error('[OrdersPage] Error decrementing packaging stock:', pkgError);
+            }
+          }
+        }
+
+        toast({ title: 'Úspech', description: 'Objednávka vytvorená' });
+        setIsDialogOpen(false);
+        await loadData();
+      }
+    } catch (error: any) {
+      console.error('=== SAVE ORDER ERROR ===');
+      console.error('Error object:', error);
+      console.error('Error message:', error?.message);
+      console.error('Error details:', error?.details);
+      console.error('Error hint:', error?.hint);
+      console.error('Error code:', error?.code);
+      console.error('Order data:', {
+        customer_id: customerId,
+        customer_type: customerType,
+        delivery_date: deliveryDate,
+        status: status,
+        order_type: orderType,
+        items_count: orderItems?.length
+      });
+      console.error('Order items:', orderItems);
+      console.error('========================');
+
+      const errorMsg = error?.message || error?.details || 'Nepodarilo sa uložiť objednávku';
+      toast({
+        title: 'Chyba pri ukladaní',
+        description: errorMsg,
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const openDeleteDialog = (orderId: string) => {
+    setOrderToDelete(orderId);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteOrder = async () => {
+    if (!orderToDelete) return;
+
+    try {
+      const { error } = await supabase.from('orders').delete().eq('id', orderToDelete);
+      if (error) throw error;
+
+      toast({ title: 'Úspech', description: 'Objednávka odstránená' });
+      setDeleteDialogOpen(false);
+      setOrderToDelete(null);
+      await loadData();
+    } catch (error) {
+      console.error('Error deleting order:', error);
+      toast({ title: 'Chyba', description: 'Nepodarilo sa odstrániť objednávku', variant: 'destructive' });
+    }
+  };
+
+  const duplicateOrder = (order: Order) => {
+    // Open modal with pre-filled data from the original order EXCEPT the date
+    setEditingOrder(null); // Not editing, creating new
+    setCustomerType(order.customer_type || 'home');
+    setCustomerId(order.customer_id);
+    setDeliveryDate(''); // CRITICAL: Empty date to force user selection
+    setStatus('cakajuca');
+    const recurrenceType = order.recurrence_pattern || 'jednorazova';
+    setOrderType(recurrenceType);
+    setWeekCount(order.recurring_weeks || 1);
+    setRoute(order.route || '');
+    setOrderNotes(order.notes || '');
+
+    // Copy delivery settings
+    const shouldBeFree = !(order.charge_delivery ?? true);
+    setFreeDelivery(shouldBeFree);
+    if (!shouldBeFree && order.delivery_price && order.delivery_price > 0) {
+      setManualDeliveryAmount(order.delivery_price.toString());
+    } else {
+      setManualDeliveryAmount('');
+    }
+
+    // CRITICAL: Map order items with prices
+    const duplicatedItems = (order.order_items || []).map(item => ({
+      ...item,
+      price_per_unit: item.price_per_unit || 0, // Ensure price is copied
+      total_price: item.total_price || 0 // Ensure total is copied
+    }));
+
+    setOrderItems(duplicatedItems);
+    setIsDialogOpen(true);
+
+    toast({
+      title: 'Duplicitná objednávka',
+      description: 'Vyberte nový dátum doručenia a uložte objednávku',
+      variant: 'default'
+    });
+  };
+
+  const getStatusBadgeClass = (status: string) => {
+    switch (status) {
+      case 'cakajuca':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      case 'potvrdena':
+        return 'bg-green-100 text-green-800 border-green-300';
+      case 'pripravena':
+        return 'bg-orange-100 text-orange-800 border-orange-300';
+      case 'dorucena':
+        return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'zrusena':
+        return 'bg-red-100 text-red-800 border-red-300';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-300';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'cakajuca': return 'Čakajúca';
+      case 'potvrdena': return 'Potvrdená';
+      case 'pripravena': return 'Pripravená';
+      case 'dorucena': return 'Doručená';
+      case 'zrusena': return 'Zrušená';
+      default: return status;
+    }
+  };
+
+  const formatDeliveryDate = (dateString: string) => {
+    try {
+      if (!dateString) return '-';
+      const date = parseISO(dateString);
+      return format(date, 'dd.MM.yyyy');
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return dateString || '-';
+    }
+  };
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#10b981] mb-4"></div>
+            <div className="text-lg font-semibold text-gray-700">Načítavam dáta...</div>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  return (
+    <MainLayout>
+      <div className="p-6 space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Objednávky</h1>
+          <p className="text-sm text-gray-500 mt-1">Spravujte objednávky od zákazníkov</p>
+        </div>
+
+        <div className="flex flex-wrap gap-3 items-center justify-between">
+          <div className="flex gap-2 flex-1">
+            <Button onClick={openNew} className="bg-[#10b981] hover:bg-[#059669] text-white">
+              <Plus className="h-4 w-4 mr-2" />
+              Nová objednávka
+            </Button>
+            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+              <Button
+                variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setViewMode('grid')}
+              >
+                <Grid3x3 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setViewMode('list')}
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline">
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Export do Excelu
+            </Button>
+            <Button variant="outline">
+              <FileText className="h-4 w-4 mr-2" />
+              PDF
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-3 items-center">
+          <OrderSearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Hľadať podľa mena zákazníka..."
+          />
+
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Všetky stavy" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Všetky stavy</SelectItem>
+              <SelectItem value="cakajuca">Čakajúca</SelectItem>
+              <SelectItem value="potvrdena">Potvrdená</SelectItem>
+              <SelectItem value="pripravena">Pripravená</SelectItem>
+              <SelectItem value="dorucena">Doručená</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <CustomerTypeFilter
+            value={filterCustomerType}
+            onChange={setFilterCustomerType}
+          />
+
+          <Select value={filterCrop} onValueChange={setFilterCrop}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Všetky plodiny" />
+            </SelectTrigger>
+            <SelectContent className="max-h-[300px] overflow-y-auto z-[100]">
+              <SelectItem value="all">Všetky plodiny</SelectItem>
+              {(products || []).map(product => (
+                <SelectItem key={product?.id} value={product?.name || ''}>{product?.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={filterPeriod} onValueChange={setFilterPeriod}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Všetky týždne" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Všetky týždne</SelectItem>
+              <SelectItem value="this_week">Tento týždeň</SelectItem>
+              <SelectItem value="next_week">Budúci týždeň</SelectItem>
+              <SelectItem value="last_week">Minulý týždeň</SelectItem>
+              <SelectItem value="last_2_weeks">Pred 2 týždňami</SelectItem>
+              <SelectItem value="last_month">Minulý mesiac</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <div className="flex items-center gap-2">
+            <Switch
+              id="archive-toggle"
+              checked={showArchive}
+              onCheckedChange={setShowArchive}
+            />
+            <Label htmlFor="archive-toggle" className="text-sm font-medium cursor-pointer">
+              Zobraziť archív
+            </Label>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+          <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-3 border border-[#10b981]/20 hover:border-[#10b981]/40 transition-all">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-[#10b981] flex items-center justify-center">
+                  <Home className="h-4 w-4 text-white" />
+                </div>
+                <span className="text-xs font-semibold text-gray-700 uppercase">Domáci</span>
+              </div>
+              <div className="text-right">
+                <div className="text-xl font-bold text-[#10b981]">{domaciRevenue.toFixed(2)} €</div>
+                <p className="text-[10px] text-gray-500">
+                  {(filteredOrders || []).filter(o => {
+                    const customer = customers?.find(c => c.id === o?.customer_id);
+                    return customer?.customer_type === 'home';
+                  }).length} obj.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-blue-50 to-sky-50 rounded-lg p-3 border border-blue-500/20 hover:border-blue-500/40 transition-all">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center">
+                  <Utensils className="h-4 w-4 text-white" />
+                </div>
+                <span className="text-xs font-semibold text-gray-700 uppercase">Gastro</span>
+              </div>
+              <div className="text-right">
+                <div className="text-xl font-bold text-blue-600">{gastroRevenue.toFixed(2)} €</div>
+                <p className="text-[10px] text-gray-500">
+                  {(filteredOrders || []).filter(o => {
+                    const customer = customers?.find(c => c.id === o?.customer_id);
+                    return customer?.customer_type === 'gastro';
+                  }).length} obj.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg p-3 border border-orange-500/20 hover:border-orange-500/40 transition-all">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center">
+                  <Store className="h-4 w-4 text-white" />
+                </div>
+                <span className="text-xs font-semibold text-gray-700 uppercase">Veľkoobchod</span>
+              </div>
+              <div className="text-right">
+                <div className="text-xl font-bold text-orange-600">{wholesaleRevenue.toFixed(2)} €</div>
+                <p className="text-[10px] text-gray-500">
+                  {(filteredOrders || []).filter(o => {
+                    const customer = customers?.find(c => c.id === o?.customer_id);
+                    return customer?.customer_type === 'wholesale';
+                  }).length} obj.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {viewMode === 'list' ? (
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Zákazník</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Dátum dodania</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Trasa</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Celková cena</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Akcie</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredOrders.map((order) => (
+                    <tr
+                      key={order.id}
+                      className="hover:bg-gray-50 cursor-pointer transition-colors"
+                      onClick={() => {
+                        setSelectedOrderDetail(order);
+                        setDetailModalOpen(true);
+                      }}
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-[#10b981] flex items-center justify-center text-white">
+                            <ShoppingCart className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-sm text-gray-900">{order.customer_name || 'Bez názvu'}</div>
+                            {order.order_items && order.order_items.length > 0 && (
+                              <div className="text-xs text-gray-500">
+                                {(order.order_items || []).reduce((sum, item) => sum + (item?.quantity || 0), 0)} položiek
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {formatDeliveryDate(order.delivery_date)}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        {order.route || '-'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge className={`border ${getStatusBadgeClass(order.status)} text-xs font-semibold px-2 py-0.5`}>
+                          {getStatusLabel(order.status)}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="text-base font-bold text-[#10b981]">
+                          {(getOrderTotal(order) || 0).toFixed(2)} €
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex gap-1 justify-end">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 hover:bg-gray-100"
+                            onClick={() => duplicateOrder(order)}
+                          >
+                            <Copy className="h-4 w-4 text-gray-500" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 hover:bg-gray-100"
+                            onClick={() => openEdit(order)}
+                          >
+                            <Edit className="h-4 w-4 text-gray-500" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 hover:bg-red-50"
+                            onClick={() => openDeleteDialog(order.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredOrders.map((order) => (
+              <Card key={order.id} className="p-5 hover:shadow-xl transition-all bg-white rounded-xl border border-gray-200 cursor-pointer" onClick={() => {
+                setSelectedOrderDetail(order);
+                setDetailModalOpen(true);
+              }}>
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <div className="w-12 h-12 rounded-full bg-[#10b981] flex items-center justify-center text-white shadow-md">
+                        <ShoppingCart className="h-5 w-5" />
+                      </div>
+                      {order.order_items && order.order_items.length > 0 && (
+                        <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-white border-2 border-[#10b981] flex items-center justify-center shadow">
+                          <span className="text-xs font-bold text-[#10b981]">
+                            {(order.order_items || []).reduce((sum, item) => sum + (item?.quantity || 0), 0)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-base text-gray-900">{order.customer_name || 'Bez názvu'}</h3>
+                      <Badge className={`mt-1.5 border ${getStatusBadgeClass(order.status)} text-xs font-semibold px-2.5 py-0.5`}>
+                        {getStatusLabel(order.status)}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 hover:bg-gray-100"
+                      onClick={() => duplicateOrder(order)}
+                    >
+                      <Copy className="h-4 w-4 text-gray-500" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 hover:bg-gray-100"
+                      onClick={() => openEdit(order)}
+                    >
+                      <Edit className="h-4 w-4 text-gray-500" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 hover:bg-red-50"
+                      onClick={() => openDeleteDialog(order.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-2.5 text-sm text-gray-600 mb-4">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-gray-400" />
+                    <span className="text-sm">
+                      Dodanie: {formatDeliveryDate(order.delivery_date)}
+                    </span>
+                  </div>
+                  {order.route && (
+                    <div className="flex items-center gap-2">
+                      <Truck className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm">Trasa: {order.route}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-gray-200 pt-3 space-y-2">
+                  {(() => {
+                    if (customers.length === 0 || routes.length === 0) {
+                      return null;
+                    }
+
+                    if (!order.charge_delivery) {
+                      return null;
+                    }
+
+                    const deliveryFee = getDeliveryFee(order);
+                    if (deliveryFee > 0) {
+                      return (
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-gray-600">Doprava:</span>
+                          <span className="font-semibold text-gray-900">{deliveryFee.toFixed(2)} €</span>
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-[#10b981] font-medium">Doprava zdarma</span>
+                        </div>
+                      );
+                    }
+                  })()}
+                  <div className="flex justify-between items-center">
+                    <span className="text-base text-gray-700 font-semibold">Celkom:</span>
+                    <span className="text-2xl font-bold text-[#10b981]">
+                      {(getOrderTotal(order) || 0).toFixed(2)} €
+                    </span>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {filteredOrders.length === 0 && (
+          <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+            <ShoppingCart className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500 text-lg font-medium">Žiadne objednávky</p>
+            <p className="text-gray-400 text-sm mt-1">Začnite pridaním novej objednávky</p>
+          </div>
+        )}
+      </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto z-[60]">
+          {(() => {
+            try {
+              return (
+                <>
+                  <DialogHeader>
+                    <DialogTitle>{editingOrder ? 'Upraviť objednávku' : 'Nová objednávka'}</DialogTitle>
+                  </DialogHeader>
+
+                  <div className="space-y-2.5 py-3">
+                    <div>
+                      <Label className="text-sm font-medium mb-1.5 block">Typ zákazníka</Label>
+                      <div className="grid grid-cols-3 gap-2">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            setCustomerType('home');
+                            setCustomerId('');
+                            if (currentItem?.crop_id && currentItem?.packaging_size) {
+                              const autoPrice = await autoFetchPrice(currentItem.crop_id, currentItem.packaging_size, 'home');
+                              setCurrentItem({ ...currentItem, price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || '') });
+                            }
+                          }}
+                          className={`p-1.5 rounded-lg border-2 transition-all ${
+                            customerType === 'home'
+                              ? 'border-green-500 bg-green-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <Home className={`h-4 w-4 mx-auto mb-0.5 ${
+                            customerType === 'home' ? 'text-green-500' : 'text-gray-400'
+                          }`} />
+                          <div className="text-xs font-medium">Domáci</div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            setCustomerType('gastro');
+                            setCustomerId('');
+                            if (currentItem?.crop_id && currentItem?.packaging_size) {
+                              const autoPrice = await autoFetchPrice(currentItem.crop_id, currentItem.packaging_size, 'gastro');
+                              setCurrentItem({ ...currentItem, price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || '') });
+                            }
+                          }}
+                          className={`p-1.5 rounded-lg border-2 transition-all ${
+                            customerType === 'gastro'
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <Utensils className={`h-4 w-4 mx-auto mb-0.5 ${
+                            customerType === 'gastro' ? 'text-blue-500' : 'text-gray-400'
+                          }`} />
+                          <div className="text-xs font-medium">Gastro</div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            setCustomerType('wholesale');
+                            setCustomerId('');
+                            if (currentItem?.crop_id && currentItem?.packaging_size) {
+                              const autoPrice = await autoFetchPrice(currentItem.crop_id, currentItem.packaging_size, 'wholesale');
+                              setCurrentItem({ ...currentItem, price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || '') });
+                            }
+                          }}
+                          className={`p-1.5 rounded-lg border-2 transition-all ${
+                            customerType === 'wholesale'
+                              ? 'border-orange-500 bg-orange-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <Store className={`h-4 w-4 mx-auto mb-0.5 ${
+                            customerType === 'wholesale' ? 'text-orange-500' : 'text-gray-400'
+                          }`} />
+                          <div className="text-xs font-medium">VO</div>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-sm">Zákazník *</Label>
+                        <div className="mt-0.5">
+                          <SearchableCustomerSelect
+                            customers={customers}
+                            value={customerId || ''}
+                            onChange={setCustomerId}
+                            filterByType={customerType}
+                            placeholder="Vyberte zákazníka"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label className="text-sm">Trasa</Label>
+                        <select
+                          value={route || ''}
+                          onChange={(e) => setRoute(e.target.value)}
+                          className="mt-0.5 w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        >
+                          <option value="">Žiadna trasa</option>
+                          {(routes || []).map(r => (
+                            <option key={r?.id} value={r?.name}>{r?.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-sm">Dátum *</Label>
+                        <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal mt-1",
+                                !deliveryDate && "text-muted-foreground"
+                              )}
+                            >
+                              <Calendar className="mr-2 h-4 w-4" />
+                              {deliveryDate ? format(new Date(deliveryDate), 'dd. MMMM yyyy', { locale: sk }) : "Vyberte dátum"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <CalendarComponent
+                              mode="single"
+                              selected={deliveryDate ? new Date(deliveryDate) : undefined}
+                              onSelect={(date) => {
+                                if (date) {
+                                  setDeliveryDate(format(date, 'yyyy-MM-dd'));
+                                  setDatePopoverOpen(false);
+                                }
+                              }}
+                              locale={sk}
+                              modifiers={{
+                                deliveryDay: (date) => {
+                                  const deliveryDays = getDeliveryDaysArray();
+                                  return deliveryDays.includes(getDay(date));
+                                }
+                              }}
+                              modifiersStyles={{
+                                deliveryDay: {
+                                  backgroundColor: '#d1fae5',
+                                  color: '#065f46',
+                                  fontWeight: 'bold'
+                                }
+                              }}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        {deliveryDayHint && (
+                          <p className="text-xs text-gray-500 mt-1">{deliveryDayHint}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label className="text-sm">Stav</Label>
+                        <select
+                          value={status || 'cakajuca'}
+                          onChange={(e) => setStatus(e.target.value)}
+                          className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        >
+                          <option value="cakajuca">Čakajúca</option>
+                          <option value="potvrdena">Potvrdená</option>
+                          <option value="pripravena">Pripravená</option>
+                          <option value="dorucena">Doručená</option>
+                          <option value="zrusena">Zrušená</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-sm">Typ</Label>
+                        <select
+                          value={orderType || 'jednorazova'}
+                          onChange={(e) => setOrderType(e.target.value)}
+                          className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        >
+                          <option value="jednorazova">Jednorazová</option>
+                          <option value="tyzdenne">Týždenne</option>
+                          <option value="dvojtyzdenne">Dvojtýždenne</option>
+                        </select>
+                      </div>
+                      <div>
+                        <Label className="text-sm">Počet týždňov</Label>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="1"
+                          value={weekCount === 1 ? '' : weekCount}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/[^0-9]/g, '');
+                            setWeekCount(value === '' ? 1 : parseInt(value) || 1);
+                          }}
+                          className="mt-1"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Počet týždňov na opakovanie</p>
+                      </div>
+                    </div>
+
+                    <div className="border-t pt-2.5 mt-2.5">
+                      <h3 className="font-medium text-sm mb-2.5">Pridať produkt</h3>
+
+                      <div className="flex items-center space-x-2 mb-3">
+                        <input
+                          type="checkbox"
+                          id="special-item-modal"
+                          checked={currentItem?.is_special_item || false}
+                          onChange={(e) => setCurrentItem({ ...currentItem, is_special_item: e.target.checked })}
+                          className="h-4 w-4"
+                        />
+                        <Label htmlFor="special-item-modal" className="text-sm cursor-pointer">
+                          Špeciálna položka (manuálne zadanie)
+                        </Label>
+                      </div>
+
+                      {currentItem?.is_special_item ? (
+                        // SPECIAL ITEM: Only show product name input
+                        <div className="mt-3">
+                          <Label className="text-sm">Názov produktu *</Label>
+                          <Input
+                            type="text"
+                            value={currentItem?.custom_crop_name || ''}
+                            onChange={(e) => setCurrentItem({ ...currentItem, custom_crop_name: e.target.value, crop_name: e.target.value })}
+                            className="mt-1"
+                            placeholder="Zadajte názov produktu"
+                          />
+                        </div>
+                      ) : (
+                        // STANDARD ITEM: Show product dropdown
+                        <div className="grid grid-cols-2 gap-4 mt-3">
+                          <div>
+                            <Label className="text-sm">Plodina *</Label>
+                            <select
+                              value={currentItem?.crop_id || ''}
+                              onChange={async (e) => {
+                                const cropId = e.target.value;
+                                const product = products?.find(p => p.id === cropId);
+                                if (product) {
+                                  const packagingSize = currentItem?.packaging_size || '';
+                                  const autoPackaging = packagingSize ? await autoFetchPackaging(product.id, packagingSize) : null;
+
+                                  setCurrentItem({
+                                    ...currentItem,
+                                    crop_id: product.id,
+                                    crop_name: product.name,
+                                    price_per_unit: '',
+                                    ...(autoPackaging || {})
+                                  });
+                                }
+                              }}
+                              className="mt-1 w-full px-3 h-10 border border-gray-300 rounded-md text-sm"
+                            >
+                              <option value="">Vyberte produkt</option>
+                              {(products || []).map(product => (
+                                <option key={product?.id} value={product?.id}>{product?.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-2 gap-4 mt-3">
+                        <div>
+                          <Label className="text-sm">Váha</Label>
+                          <div className="flex gap-2 mt-1">
+                            {currentItem?.is_special_item ? (
+                              // SPECIAL ITEM: Manual text input with auto-append 'g' and packaging fetch
+                              <Input
+                                type="text"
+                                placeholder="napr. 8g"
+                                value={currentItem?.packaging_size || ''}
+                                onChange={(e) => {
+                                  const value = e.target.value.trim();
+                                  setCurrentItem({ ...currentItem, packaging_size: value });
+                                }}
+                                onBlur={async (e) => {
+                                  let value = e.target.value.trim();
+                                  if (!value) return;
+
+                                  console.log('🔤 Special item weight blur, value:', value);
+
+                                  // Auto-append 'g' if user types only numbers
+                                  if (/^\d+$/.test(value)) {
+                                    value = value + 'g';
+                                    console.log('✏️ Auto-appended g, new value:', value);
+                                  }
+
+                                  // Try to fetch packaging for standard weights even in special items
+                                  if (currentItem?.crop_id && value) {
+                                    console.log('📦 Fetching packaging for special item, crop:', currentItem.crop_id, 'weight:', value);
+                                    const autoPackaging = await autoFetchPackaging(currentItem.crop_id, value);
+                                    console.log('✅ Packaging result:', autoPackaging);
+
+                                    setCurrentItem({
+                                      ...currentItem,
+                                      packaging_size: value,
+                                      packaging_id: autoPackaging?.packaging_id || currentItem?.packaging_id,
+                                      packaging_type: autoPackaging?.packaging_type || currentItem?.packaging_type,
+                                      packaging_material: autoPackaging?.packaging_material || currentItem?.packaging_material,
+                                      packaging_volume_ml: autoPackaging?.packaging_volume_ml || currentItem?.packaging_volume_ml
+                                    });
+                                  } else {
+                                    console.log('⚠️ No crop_id for special item, skipping packaging fetch');
+                                    setCurrentItem({ ...currentItem, packaging_size: value });
+                                  }
+                                }}
+                                className="flex-1 h-10"
+                              />
+                            ) : (
+                              // STANDARD ITEM: Simplified weight selector with debug alerts
+                              <Select
+                                key={currentItem?.crop_id || 'no-crop'}
+                                value={currentItem?.packaging_size || ''}
+                                onValueChange={async (value) => {
+                                  // DEBUG ALERT
+                                  window.alert('Weight changed to: ' + value);
+                                  console.log('🎯 Weight selected:', value);
+
+                                  // Always update state immediately
+                                  setCurrentItem({
+                                    ...currentItem,
+                                    packaging_size: value,
+                                    packaging_type: 'rPET',
+                                    packaging_material: 'rPET',
+                                    packaging_volume_ml: 250
+                                  });
+
+                                  // Try to fetch price if product selected
+                                  if (currentItem?.crop_id && customerType) {
+                                    try {
+                                      console.log('📦 Fetching price for product:', currentItem.crop_id, 'weight:', value);
+                                      const autoPrice = await autoFetchPrice(currentItem.crop_id, value, customerType);
+                                      console.log('✅ Price fetched:', autoPrice);
+
+                                      if (autoPrice > 0) {
+                                        setCurrentItem(prev => ({
+                                          ...prev,
+                                          price_per_unit: autoPrice.toString()
+                                        }));
+                                      }
+                                    } catch (error) {
+                                      console.error('❌ Price fetch failed:', error);
+                                      // Continue without error - use default 250ml rPET
+                                    }
+
+                                    // Try to fetch packaging (non-blocking)
+                                    try {
+                                      const autoPackaging = await autoFetchPackaging(currentItem.crop_id, value);
+                                      if (autoPackaging) {
+                                        console.log('✅ Packaging fetched:', autoPackaging);
+                                        setCurrentItem(prev => ({
+                                          ...prev,
+                                          packaging_id: autoPackaging.packaging_id,
+                                          packaging_type: autoPackaging.packaging_type,
+                                          packaging_material: autoPackaging.packaging_material,
+                                          packaging_volume_ml: autoPackaging.packaging_volume_ml
+                                        }));
+                                      }
+                                    } catch (error) {
+                                      console.error('❌ Packaging fetch failed:', error);
+                                      // Continue - use default 250ml rPET
+                                    }
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="w-full h-10">
+                                  <SelectValue placeholder="Vyberte váhu..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="25g">25g</SelectItem>
+                                  <SelectItem value="50g">50g</SelectItem>
+                                  <SelectItem value="60g">60g</SelectItem>
+                                  <SelectItem value="70g">70g</SelectItem>
+                                  <SelectItem value="100g">100g</SelectItem>
+                                  <SelectItem value="120g">120g</SelectItem>
+                                  <SelectItem value="150g">150g</SelectItem>
+                                  <SelectItem value="250g">250g</SelectItem>
+                                  <SelectItem value="500g">500g</SelectItem>
+                                  <SelectItem value="1kg">1kg</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <Label className="text-sm">Množstvo a Jednotka</Label>
+                          <div className="flex gap-2 mt-1">
+                            <Input
+                              type="number"
+                              min="1"
+                              step="1"
+                              placeholder="1"
+                              value={currentItem?.quantity || 1}
+                              onChange={(e) => {
+                                const value = parseInt(e.target.value) || 1;
+                                setCurrentItem({ ...currentItem, quantity: value });
+                              }}
+                              className="flex-1 h-10"
+                            />
+                            <select
+                              value={currentItem?.unit || 'ks'}
+                              onChange={(e) => setCurrentItem({ ...currentItem, unit: e.target.value })}
+                              className="w-20 px-2 py-2 border border-gray-300 rounded-md text-sm h-10"
+                            >
+                              <option value="ks">ks</option>
+                              <option value="g">g</option>
+                              <option value="kg">kg</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div>
+                          <Label className="text-sm">Forma</Label>
+                          <select
+                            value={currentItem?.delivery_form || 'rezana'}
+                            onChange={(e) => setCurrentItem({ ...currentItem, delivery_form: e.target.value })}
+                            className="mt-1 w-full px-3 h-10 border border-gray-300 rounded-md text-sm"
+                          >
+                            <option value="rezana">Zrezaná</option>
+                            <option value="ziva">Živá</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <Label className="text-sm">Cena (€)</Label>
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="0.00"
+                            value={currentItem.price_per_unit || ''}
+                            onChange={(e) => {
+                              setCurrentItem({ ...currentItem, price_per_unit: e.target.value });
+                            }}
+                            className="mt-1 h-10"
+                          />
+                        </div>
+
+                        <div>
+                          <Label className="text-sm">Veľkosť krabičky (ml)</Label>
+                          <select
+                            value={currentItem?.packaging_volume_ml || 250}
+                            onChange={(e) => {
+                              const volumeVal = parseInt(e.target.value) || 250;
+                              const selectedPkg = (packagings || []).find(p => p?.size && p.size.includes(volumeVal.toString()));
+                              setCurrentItem({
+                                ...currentItem,
+                                packaging_volume_ml: volumeVal,
+                                packaging_id: selectedPkg?.id || currentItem?.packaging_id
+                              });
+                            }}
+                            className="mt-1 w-full px-3 h-10 border border-gray-300 rounded-md text-sm"
+                          >
+                            <option value="250">250ml</option>
+                            <option value="500">500ml</option>
+                            <option value="750">750ml</option>
+                            <option value="1000">1000ml</option>
+                            <option value="1200">1200ml</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <Label className="text-sm">Typ obalu</Label>
+                          <select
+                            value={currentItem?.packaging_material || 'rPET'}
+                            onChange={(e) => setCurrentItem({ ...currentItem, packaging_material: e.target.value })}
+                            className="mt-1 w-full px-3 h-10 border border-gray-300 rounded-md text-sm"
+                          >
+                            <option value="PET">PET</option>
+                            <option value="rPET">rPET</option>
+                            <option value="EKO">EKO</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2 mt-3">
+                        <input
+                          type="checkbox"
+                          id="has_label"
+                          checked={currentItem?.has_label || false}
+                          onChange={(e) => setCurrentItem({ ...currentItem, has_label: e.target.checked })}
+                          className="w-4 h-4 rounded border-gray-300"
+                        />
+                        <Label htmlFor="has_label" className="text-sm font-normal cursor-pointer">Etiketa</Label>
+                      </div>
+
+                      <div className="mt-3">
+                        <Label className="text-sm">Poznámky / Špeciálne požiadavky</Label>
+                        <textarea
+                          value={currentItem?.special_requirements || ''}
+                          onChange={(e) => setCurrentItem({ ...currentItem, special_requirements: e.target.value })}
+                          placeholder="Napríklad: bez koreňov, extra rezané, balenie oddelene..."
+                          className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md text-sm min-h-[60px] resize-y"
+                        />
+                      </div>
+
+                      <button
+                        onClick={addItemToList}
+                        className="mt-3 w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Pridať položku do zoznamu
+                      </button>
+                    </div>
+
+                    {(orderItems || []).length > 0 && (
+                      <div className="bg-green-50 border-2 border-green-300 rounded-lg p-4 mt-3">
+                        <h3 className="font-semibold text-sm mb-3 text-green-800 uppercase tracking-wide">Pridané položky</h3>
+                        <div className="space-y-2.5">
+                          {(orderItems || []).map((item, index) => {
+                            if (!item) return null;
+                            const itemPrice = (item?.quantity || 0) * (parseFloat(item?.price_per_unit?.toString().replace(',', '.')) || 0);
+                            const formLabel = item?.delivery_form === 'rezana' ? 'Zrezaná' : 'Živá';
+                            return (
+                              <div key={index} className="bg-white p-3 rounded-lg border border-green-200 shadow-sm">
+                                <div className="flex justify-between items-center">
+                                  <div className="flex-1">
+                                    <div className="text-sm text-gray-900 flex items-center gap-1 flex-wrap">
+                                      <span className="font-semibold">{item?.quantity || 0}ks</span>
+                                      <span>•</span>
+                                      <span className="font-medium">{item?.crop_name || '-'}</span>
+                                      <span>•</span>
+                                      <span className="text-gray-600">{item?.packaging_size ? (item.packaging_size.includes('g') || item.packaging_size.includes('kg') ? item.packaging_size : `${item.packaging_size}g`) : '-'}</span>
+                                      <span className="text-gray-500">({formLabel})</span>
+                                      {item?.has_label && (
+                                        <Badge variant="outline" className="text-xs px-1.5 py-0.5">
+                                          🏷️ Etiketa
+                                        </Badge>
+                                      )}
+                                      <span className="font-bold text-[#10b981]">--- {itemPrice.toFixed(2)} €</span>
+                                    </div>
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      • Obal: {item?.packaging_material || 'rPET'} • {item?.packaging_volume_ml || 250}ml
+                                      {item?.special_requirements && (
+                                        <span className="text-orange-600 font-medium"> • {item.special_requirements}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-1">
+                                    <Button variant="ghost" size="sm" onClick={() => {
+                                      setCurrentItem(item);
+                                      removeItem(index);
+                                    }} className="ml-2">
+                                      <Edit className="h-4 w-4 text-blue-500" />
+                                    </Button>
+                                    <Button variant="ghost" size="sm" onClick={() => removeItem(index)}>
+                                      <Trash2 className="h-4 w-4 text-red-500" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t">
+                    <Label className="text-sm font-medium">Poznámky k objednávke</Label>
+                    <textarea
+                      value={orderNotes || ''}
+                      onChange={(e) => setOrderNotes(e.target.value)}
+                      placeholder="Poznámky alebo špeciálne pokyny pre objednávku..."
+                      className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md text-sm min-h-[80px] resize-y"
+                    />
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t border rounded-lg p-3 space-y-3 bg-gray-50">
+                    <div className="flex items-center gap-3">
+                      <Switch
+                        id="free-delivery"
+                        checked={freeDelivery}
+                        onCheckedChange={(checked) => {
+                          setFreeDelivery(checked);
+                          if (checked) {
+                            setManualDeliveryAmount('');
+                          }
+                        }}
+                      />
+                      <Label htmlFor="free-delivery" className="text-sm font-medium cursor-pointer">
+                        Doprava zdarma
+                      </Label>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm">Manuálna suma dopravy (€)</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Auto-výpočet z trasy"
+                        value={manualDeliveryAmount}
+                        onChange={(e) => setManualDeliveryAmount(e.target.value)}
+                        disabled={freeDelivery}
+                        className="h-10 text-sm"
+                      />
+                      <p className="text-xs text-gray-500">
+                        {freeDelivery
+                          ? 'Doprava zdarma je zapnutá - manuálna suma je deaktivovaná'
+                          : 'Nechajte prázdne pre automatický výpočet podľa trasy'}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <span className="text-sm font-medium">Vypočítaná doprava:</span>
+                      <span className="text-lg font-bold text-green-600">{calculatedDeliveryPrice.toFixed(2)} €</span>
+                    </div>
+                  </div>
+
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                      Zrušiť
+                    </Button>
+                    <Button onClick={saveOrder} className="bg-[#10b981] hover:bg-[#059669]">
+                      {editingOrder ? 'Uložiť zmeny' : 'Vytvoriť objednávku'}
+                    </Button>
+                  </DialogFooter>
+                </>
+              );
+            } catch (error) {
+              console.error('Modal rendering error:', error);
+              return <div className="p-4 text-red-600">Error loading form</div>;
+            }
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Odstrániť objednávku</AlertDialogTitle>
+            <AlertDialogDescription>
+              Naozaj chcete odstrániť túto objednávku? Táto akcia sa nedá vrátiť späť.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteDialogOpen(false)}>
+              Zrušiť
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteOrder}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Odstrániť
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Detail objednávky</DialogTitle>
+          </DialogHeader>
+          {selectedOrderDetail && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <div className="text-sm text-gray-600">Zákazník</div>
+                  <div className="font-semibold text-gray-900">{selectedOrderDetail.customer_name || 'Bez názvu'}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600">Dátum dodania</div>
+                  <div className="font-semibold text-gray-900">{formatDeliveryDate(selectedOrderDetail.delivery_date)}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600">Trasa</div>
+                  <div className="font-semibold text-gray-900">{selectedOrderDetail.route || '-'}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600">Status</div>
+                  <Badge className={`border ${getStatusBadgeClass(selectedOrderDetail.status)} text-xs font-semibold px-2 py-0.5 w-fit`}>
+                    {getStatusLabel(selectedOrderDetail.status)}
+                  </Badge>
+                </div>
+              </div>
+
+              {selectedOrderDetail.notes && (
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="text-sm font-semibold text-blue-900 mb-1">Poznámky:</div>
+                  <div className="text-sm text-blue-800">{selectedOrderDetail.notes}</div>
+                </div>
+              )}
+
+              <div className="border-t pt-4">
+                <h3 className="font-semibold text-base mb-3">Položky objednávky:</h3>
+                <div className="space-y-2">
+                  {(selectedOrderDetail.order_items || []).map((item, idx) => {
+                    if (!item) return null;
+                    const itemPrice = (item?.quantity || 0) * (parseFloat(item?.price_per_unit?.toString().replace(',', '.')) || 0);
+                    const formLabel = item?.delivery_form === 'rezana' ? 'Zrezaná' : 'Živá';
+                    const weightDisplay = item?.packaging_size ? (item.packaging_size.includes('g') || item.packaging_size.includes('kg') ? item.packaging_size : `${item.packaging_size}g`) : '-';
+                    return (
+                      <div key={idx} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="flex-1">
+                          <div className="font-semibold text-gray-900">
+                            {item?.quantity || 0}ks • {item?.crop_name || '-'}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            {weightDisplay} • {formLabel}
+                            {item?.packaging_material && ` • ${item.packaging_material}`}
+                            {item?.packaging_volume_ml && ` • ${item.packaging_volume_ml}ml`}
+                          </div>
+                          {item?.notes && (
+                            <div className="text-xs text-gray-500 mt-1 italic">{item.notes}</div>
+                          )}
+                        </div>
+                        <div className="font-bold text-[#10b981] text-lg ml-4">
+                          {itemPrice.toFixed(2)} €
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="border-t pt-4 space-y-2">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-600">Medzisúčet:</span>
+                  <span className="font-semibold text-gray-900">
+                    {(() => {
+                      if (selectedOrderDetail.order_items && Array.isArray(selectedOrderDetail.order_items)) {
+                        const subtotal = selectedOrderDetail.order_items.reduce((sum, item) => {
+                          if (!item) return sum;
+                          const qty = parseFloat(item.quantity?.toString() || '0');
+                          const pricePerUnit = parseFloat(item.price_per_unit?.toString().replace(',', '.') || '0');
+                          return sum + (qty * pricePerUnit);
+                        }, 0);
+                        return subtotal.toFixed(2);
+                      }
+                      return (selectedOrderDetail?.total_price || 0).toFixed(2);
+                    })()}€
+                  </span>
+                </div>
+                {(() => {
+                  if (customers.length === 0 || routes.length === 0) {
+                    return null;
+                  }
+
+                  if (!selectedOrderDetail.charge_delivery) {
+                    return null;
+                  }
+
+                  const deliveryFee = getDeliveryFee(selectedOrderDetail);
+                  if (deliveryFee > 0) {
+                    return (
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-gray-600 flex items-center gap-1">
+                          <Truck className="h-3 w-3" />
+                          Doprava:
+                        </span>
+                        <span className="font-semibold text-gray-900">
+                          {deliveryFee.toFixed(2)} €
+                        </span>
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-[#10b981] flex items-center gap-1 font-medium">
+                          <Truck className="h-3 w-3" />
+                          Doprava zdarma
+                        </span>
+                      </div>
+                    );
+                  }
+                })()}
+                <div className="flex justify-between items-center pt-2 border-t border-gray-300">
+                  <span className="text-lg text-gray-700 font-semibold">Celkom:</span>
+                  <span className="text-3xl font-bold text-[#10b981]">
+                    {(getOrderTotal(selectedOrderDetail) || 0).toFixed(2)} €
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button variant="outline" onClick={() => setDetailModalOpen(false)}>
+                  Zatvoriť
+                </Button>
+                <Button
+                  variant="default"
+                  className="bg-[#10b981] hover:bg-[#059669]"
+                  onClick={() => {
+                    setDetailModalOpen(false);
+                    openEdit(selectedOrderDetail);
+                  }}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Upraviť
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </MainLayout>
+  );
+}
