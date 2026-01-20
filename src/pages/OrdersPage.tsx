@@ -462,13 +462,14 @@ export default function OrdersPage() {
 
       const customerType = customer?.customer_type || 'home';
 
-      // CRITICAL: Find the delivery route assigned to this customer
-      const customerRouteId = customer?.delivery_route_id;
-      if (!customerRouteId) {
+      // CRITICAL: Use the SELECTED route from the order, NOT customer's default route
+      // This ensures orders display the delivery fee based on the route selected during creation
+      if (!order.route || order.route === '' || order.route === 'Žiadna trasa') {
         return 0;
       }
 
-      const deliveryRoute = routes?.find(r => r.id === customerRouteId);
+      // Find route by NAME from the order's stored route field
+      const deliveryRoute = routes?.find(r => r.name === order.route);
       if (!deliveryRoute) {
         return 0;
       }
@@ -506,8 +507,14 @@ export default function OrdersPage() {
 
       console.log(`[getDeliveryFee] Order ${order.id?.substring(0, 8)}: Customer ${customer.name} (${customerType}), Route: ${deliveryRoute.name}, Subtotal: ${orderSubtotal.toFixed(2)}€, Threshold: ${minFreeThreshold.toFixed(2)}€, Fee: ${deliveryFee.toFixed(2)}€`);
 
-      // STRICT RULE: If orderSubtotal < minFreeThreshold, charge delivery fee
-      if (minFreeThreshold > 0 && orderSubtotal >= minFreeThreshold) {
+      // SMIŽANY RULE: If min_free_delivery is 0, delivery is automatically free
+      if (minFreeThreshold === 0) {
+        console.log(`[getDeliveryFee] Free delivery (Smižany rule: threshold is 0)`);
+        return 0;
+      }
+
+      // STRICT RULE: If orderSubtotal >= minFreeThreshold, free delivery
+      if (orderSubtotal >= minFreeThreshold) {
         console.log(`[getDeliveryFee] Free delivery (threshold met)`);
         return 0;
       }
@@ -1858,56 +1865,16 @@ export default function OrdersPage() {
                         <div>
                           <Label className="text-sm">Váha</Label>
                           <div className="flex gap-2 mt-1">
-                            <Select
-                              value={currentItem?.packaging_size || ''}
-                              onValueChange={async (value) => {
-                                if (value === 'custom') {
-                                  // Allow custom input - just clear the value
-                                  setCurrentItem({ ...currentItem, packaging_size: '' });
-                                  return;
-                                }
-
-                                if (currentItem?.crop_id && customerType) {
-                                  const [autoPrice, autoPackaging] = await Promise.all([
-                                    autoFetchPrice(currentItem.crop_id, value, customerType),
-                                    autoFetchPackaging(currentItem.crop_id, value)
-                                  ]);
-
-                                  setCurrentItem({
-                                    ...currentItem,
-                                    packaging_size: value,
-                                    price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
-                                    ...(autoPackaging || {})
-                                  });
-                                } else {
-                                  setCurrentItem({ ...currentItem, packaging_size: value });
-                                }
-                              }}
-                            >
-                              <SelectTrigger className="flex-1 h-10">
-                                <SelectValue placeholder="Vyberte váhu..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="25g">25g</SelectItem>
-                                <SelectItem value="50g">50g</SelectItem>
-                                <SelectItem value="60g">60g</SelectItem>
-                                <SelectItem value="70g">70g</SelectItem>
-                                <SelectItem value="100g">100g</SelectItem>
-                                <SelectItem value="120g">120g</SelectItem>
-                                <SelectItem value="150g">150g</SelectItem>
-                                <SelectItem value="custom">Iná váha...</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            {(!currentItem?.packaging_size || !['25g', '50g', '60g', '70g', '100g', '120g', '150g'].includes(currentItem?.packaging_size)) && (
-                              <Input
-                                type="text"
-                                placeholder="napr. 8g"
+                            {['25g', '50g', '60g', '70g', '100g', '120g', '150g'].includes(currentItem?.packaging_size || '') ? (
+                              <Select
                                 value={currentItem?.packaging_size || ''}
-                                onChange={async (e) => {
-                                  const value = e.target.value.trim();
-                                  setCurrentItem({ ...currentItem, packaging_size: value });
+                                onValueChange={async (value) => {
+                                  if (value === 'custom') {
+                                    setCurrentItem({ ...currentItem, packaging_size: '' });
+                                    return;
+                                  }
 
-                                  if (value && value.includes('g') && currentItem?.crop_id && customerType) {
+                                  if (currentItem?.crop_id && customerType) {
                                     const [autoPrice, autoPackaging] = await Promise.all([
                                       autoFetchPrice(currentItem.crop_id, value, customerType),
                                       autoFetchPackaging(currentItem.crop_id, value)
@@ -1919,16 +1886,36 @@ export default function OrdersPage() {
                                       price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
                                       ...(autoPackaging || {})
                                     });
+                                  } else {
+                                    setCurrentItem({ ...currentItem, packaging_size: value });
                                   }
                                 }}
-                                onBlur={async (e) => {
-                                  let value = e.target.value.trim();
-                                  if (!value) return;
+                              >
+                                <SelectTrigger className="w-full h-10">
+                                  <SelectValue placeholder="Vyberte váhu..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="25g">25g</SelectItem>
+                                  <SelectItem value="50g">50g</SelectItem>
+                                  <SelectItem value="60g">60g</SelectItem>
+                                  <SelectItem value="70g">70g</SelectItem>
+                                  <SelectItem value="100g">100g</SelectItem>
+                                  <SelectItem value="120g">120g</SelectItem>
+                                  <SelectItem value="150g">150g</SelectItem>
+                                  <SelectItem value="custom">Iná váha...</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <>
+                                <Input
+                                  type="text"
+                                  placeholder="napr. 25g, 50g, 8g..."
+                                  value={currentItem?.packaging_size || ''}
+                                  onChange={async (e) => {
+                                    const value = e.target.value.trim();
+                                    setCurrentItem({ ...currentItem, packaging_size: value });
 
-                                  if (/^\d+$/.test(value)) {
-                                    value = value + 'g';
-
-                                    if (currentItem?.crop_id && customerType) {
+                                    if (value && value.includes('g') && currentItem?.crop_id && customerType) {
                                       const [autoPrice, autoPackaging] = await Promise.all([
                                         autoFetchPrice(currentItem.crop_id, value, customerType),
                                         autoFetchPackaging(currentItem.crop_id, value)
@@ -1940,13 +1927,46 @@ export default function OrdersPage() {
                                         price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
                                         ...(autoPackaging || {})
                                       });
-                                    } else {
-                                      setCurrentItem({ ...currentItem, packaging_size: value });
                                     }
-                                  }
-                                }}
-                                className="w-32 h-10"
-                              />
+                                  }}
+                                  onBlur={async (e) => {
+                                    let value = e.target.value.trim();
+                                    if (!value) return;
+
+                                    if (/^\d+$/.test(value)) {
+                                      value = value + 'g';
+
+                                      if (currentItem?.crop_id && customerType) {
+                                        const [autoPrice, autoPackaging] = await Promise.all([
+                                          autoFetchPrice(currentItem.crop_id, value, customerType),
+                                          autoFetchPackaging(currentItem.crop_id, value)
+                                        ]);
+
+                                        setCurrentItem({
+                                          ...currentItem,
+                                          packaging_size: value,
+                                          price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
+                                          ...(autoPackaging || {})
+                                        });
+                                      } else {
+                                        setCurrentItem({ ...currentItem, packaging_size: value });
+                                      }
+                                    }
+                                  }}
+                                  className="flex-1 h-10"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setCurrentItem({ ...currentItem, packaging_size: '50g' });
+                                  }}
+                                  className="h-10 px-3"
+                                >
+                                  Štandardné
+                                </Button>
+                              </>
                             )}
                           </div>
                         </div>
