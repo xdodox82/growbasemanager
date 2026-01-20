@@ -102,7 +102,7 @@ interface Product {
 }
 
 interface Crop extends Product {
-  // Alias for Product - database uses 'crops' table
+  // Alias for Product - database uses 'products' table
 }
 
 interface Blend {
@@ -166,7 +166,7 @@ export default function OrdersPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [crops, setCrops] = useState<Crop[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [blends, setBlends] = useState<Blend[]>([]);
   const [routes, setRoutes] = useState<Route[]>([]);
   const [prices, setPrices] = useState<Price[]>([]);
@@ -358,10 +358,10 @@ export default function OrdersPage() {
     try {
       setLoading(true);
       setDataLoaded(false);
-      const [ordersRes, customersRes, cropsRes, blendsRes, routesRes, pricesRes, packagingsRes, deliveryDaysRes, profileRes] = await Promise.all([
+      const [ordersRes, customersRes, productsRes, blendsRes, routesRes, pricesRes, packagingsRes, deliveryDaysRes, profileRes] = await Promise.all([
         supabase.from('orders').select('*, order_items(*)').order('created_at', { ascending: false }),
         supabase.from('customers').select('*').order('name'),
-        supabase.from('crops').select('*').order('name'),
+        supabase.from('products').select('*').order('name'),
         supabase.from('blends').select('*').order('name'),
         supabase.from('delivery_routes').select('*').order('name'),
         supabase.from('prices').select('*'),
@@ -372,7 +372,7 @@ export default function OrdersPage() {
 
       if (ordersRes.data) setOrders(ordersRes.data as Order[]);
       if (customersRes.data) setCustomers(customersRes.data);
-      if (cropsRes.data) setCrops(cropsRes.data);
+      if (productsRes.data) setProducts(productsRes.data);
       if (blendsRes.data) setBlends(blendsRes.data);
       if (routesRes.data) setRoutes(routesRes.data);
       if (pricesRes.data) setPrices(pricesRes.data);
@@ -392,7 +392,7 @@ export default function OrdersPage() {
       toast({ title: 'Chyba', description: 'Nepodarilo sa načítať dáta', variant: 'destructive' });
       setOrders([]);
       setCustomers([]);
-      setCrops([]);
+      setProducts([]);
       setBlends([]);
       setRoutes([]);
       setPrices([]);
@@ -485,7 +485,7 @@ export default function OrdersPage() {
   });
 
   const filteredCropsByCategory = useMemo(() => {
-    if (!categoryFilter) return crops;
+    if (!categoryFilter) return products;
 
     const categoryMap: { [key: string]: string } = {
       'Mikrozelenina': 'microgreens',
@@ -494,10 +494,10 @@ export default function OrdersPage() {
     };
 
     const categoryKey = categoryMap[categoryFilter];
-    if (!categoryKey) return crops;
+    if (!categoryKey) return products;
 
-    return crops.filter(crop => crop.category === categoryKey);
-  }, [crops, categoryFilter]);
+    return products.filter(product => product.category === categoryKey);
+  }, [products, categoryFilter]);
 
   const getDeliveryFee = (order: Order): number => {
     try {
@@ -753,35 +753,36 @@ export default function OrdersPage() {
       const weightG = parseInt(packagingSize.replace(/[^0-9]/g, ''));
       if (!weightG) return null;
 
-      console.log(`📦 Auto-fetching packaging for crop ${cropId}, weight ${weightG}g`);
+      console.log(`📦 Auto-fetching packaging for weight ${weightG}g (packaging_mappings removed)`);
 
-      const { data: mapping } = await supabase
-        .from('packaging_mappings')
-        .select('packaging_id, packagings(type, size)')
-        .eq('crop_id', cropId)
-        .eq('weight_g', weightG)
+      // SIMPLIFIED: Try to get a packaging from packagings table by size
+      // If not found, use default fallback
+      const { data: packaging } = await supabase
+        .from('packagings')
+        .select('*')
+        .eq('size', packagingSize)
         .maybeSingle();
 
-      if (mapping && mapping.packagings) {
-        const pkg: any = mapping.packagings;
-        const volumeMatch = pkg.size?.match(/(\d+)/);
+      if (packaging) {
+        const volumeMatch = packaging.size?.match(/(\d+)/);
         const volumeMl = volumeMatch ? parseInt(volumeMatch[1]) : 250;
 
         const result = {
-          packaging_id: mapping.packaging_id,
-          packaging_type: pkg.type || 'rPET',  // Set packaging_type
-          packaging_material: pkg.type || 'rPET',  // Set packaging_material (same value)
+          packaging_id: packaging.id,
+          packaging_type: packaging.type || 'rPET',
+          packaging_material: packaging.type || 'rPET',
           packaging_volume_ml: volumeMl
         };
 
-        console.log('✅ Auto-selected packaging:', result);
+        console.log('✅ Auto-selected packaging from packagings table:', result);
         return result;
       }
 
-      console.log('⚠️ No packaging mapping found for this crop and weight');
+      // FALLBACK: No packaging found, use default 250ml rPET
+      console.log('⚠️ No packaging found, using default fallback');
       return null;
     } catch (error) {
-      console.error('❌ Error fetching packaging mapping:', error);
+      console.error('❌ Error fetching packaging:', error);
       return null;
     }
   };
@@ -974,11 +975,11 @@ export default function OrdersPage() {
         await supabase.from('order_items').delete().eq('order_id', editingOrder.id);
 
         const items = (orderItems || []).map(item => {
-          const crop = crops?.find(c => c.id === item.crop_id);
+          const product = products?.find(p => p.id === item.crop_id);
           const blend = blends?.find(b => b.id === item.blend_id);
           const cropName = item.is_special_item
             ? item.custom_crop_name
-            : (crop ? crop.name : (blend ? `${blend.name} (Mix)` : ''));
+            : (product ? product.name : (blend ? `${blend.name} (Mix)` : ''));
 
           const weightValue = item.packaging_size?.toString().replace(/[^0-9.]/g, '') || '0';
           const quantity = parseFloat(item.quantity) || 0;
@@ -1035,11 +1036,11 @@ export default function OrdersPage() {
         if (error) throw error;
 
         const items = (orderItems || []).map(item => {
-          const crop = crops?.find(c => c.id === item.crop_id);
+          const product = products?.find(p => p.id === item.crop_id);
           const blend = blends?.find(b => b.id === item.blend_id);
           const cropName = item.is_special_item
             ? item.custom_crop_name
-            : (crop ? crop.name : (blend ? `${blend.name} (Mix)` : ''));
+            : (product ? product.name : (blend ? `${blend.name} (Mix)` : ''));
 
           const weightValue = item.packaging_size?.toString().replace(/[^0-9.]/g, '') || '0';
           const quantity = parseFloat(item.quantity) || 0;
@@ -1303,8 +1304,8 @@ export default function OrdersPage() {
             </SelectTrigger>
             <SelectContent className="max-h-[300px] overflow-y-auto z-[100]">
               <SelectItem value="all">Všetky plodiny</SelectItem>
-              {(crops || []).map(crop => (
-                <SelectItem key={crop?.id} value={crop?.name || ''}>{crop?.name}</SelectItem>
+              {(products || []).map(product => (
+                <SelectItem key={product?.id} value={product?.name || ''}>{product?.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -1851,15 +1852,15 @@ export default function OrdersPage() {
                               value={currentItem?.crop_id || ''}
                               onChange={async (e) => {
                                 const cropId = e.target.value;
-                                const crop = crops?.find(c => c.id === cropId);
-                                if (crop) {
+                                const product = products?.find(p => p.id === cropId);
+                                if (product) {
                                   const packagingSize = currentItem?.packaging_size || '';
-                                  const autoPackaging = packagingSize ? await autoFetchPackaging(crop.id, packagingSize) : null;
+                                  const autoPackaging = packagingSize ? await autoFetchPackaging(product.id, packagingSize) : null;
 
                                   setCurrentItem({
                                     ...currentItem,
-                                    crop_id: crop.id,
-                                    crop_name: crop.name,
+                                    crop_id: product.id,
+                                    crop_name: product.name,
                                     price_per_unit: '',
                                     ...(autoPackaging || {})
                                   });
@@ -1924,48 +1925,60 @@ export default function OrdersPage() {
                                 className="flex-1 h-10"
                               />
                             ) : (
-                              // STANDARD ITEM: Fixed Select dropdown with ONLY 7 standard options
+                              // STANDARD ITEM: Simplified weight selector with debug alerts
                               <Select
+                                key={currentItem?.crop_id || 'no-crop'}
                                 value={currentItem?.packaging_size || ''}
                                 onValueChange={async (value) => {
+                                  // DEBUG ALERT
+                                  window.alert('Weight changed to: ' + value);
                                   console.log('🎯 Weight selected:', value);
 
-                                  if (!currentItem?.crop_id || !customerType) {
-                                    console.log('⚠️ No crop or customer type, skipping auto-fetch');
-                                    setCurrentItem({ ...currentItem, packaging_size: value });
-                                    return;
-                                  }
-
-                                  console.log('📦 Auto-fetching price and packaging for crop:', currentItem.crop_id, 'weight:', value);
-
-                                  // Auto-fetch price and packaging for standard items
-                                  const [autoPrice, autoPackaging] = await Promise.all([
-                                    autoFetchPrice(currentItem.crop_id, value, customerType),
-                                    autoFetchPackaging(currentItem.crop_id, value)
-                                  ]);
-
-                                  console.log('✅ Auto-fetch complete. Price:', autoPrice, 'Packaging:', autoPackaging);
-
-                                  // DEFAULT PACKAGING: If no mapping found, use 250ml rPET as default
-                                  const finalPackaging = autoPackaging || {
-                                    packaging_type: 'rPET',
-                                    packaging_material: 'rPET',
-                                    packaging_volume_ml: 250
-                                  };
-
-                                  if (!autoPackaging) {
-                                    console.log('⚠️ No packaging mapping found, using defaults: 250ml rPET');
-                                  }
-
+                                  // Always update state immediately
                                   setCurrentItem({
                                     ...currentItem,
                                     packaging_size: value,
-                                    price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
-                                    packaging_id: finalPackaging.packaging_id,
-                                    packaging_type: finalPackaging.packaging_type,
-                                    packaging_material: finalPackaging.packaging_material,
-                                    packaging_volume_ml: finalPackaging.packaging_volume_ml
+                                    packaging_type: 'rPET',
+                                    packaging_material: 'rPET',
+                                    packaging_volume_ml: 250
                                   });
+
+                                  // Try to fetch price if product selected
+                                  if (currentItem?.crop_id && customerType) {
+                                    try {
+                                      console.log('📦 Fetching price for product:', currentItem.crop_id, 'weight:', value);
+                                      const autoPrice = await autoFetchPrice(currentItem.crop_id, value, customerType);
+                                      console.log('✅ Price fetched:', autoPrice);
+
+                                      if (autoPrice > 0) {
+                                        setCurrentItem(prev => ({
+                                          ...prev,
+                                          price_per_unit: autoPrice.toString()
+                                        }));
+                                      }
+                                    } catch (error) {
+                                      console.error('❌ Price fetch failed:', error);
+                                      // Continue without error - use default 250ml rPET
+                                    }
+
+                                    // Try to fetch packaging (non-blocking)
+                                    try {
+                                      const autoPackaging = await autoFetchPackaging(currentItem.crop_id, value);
+                                      if (autoPackaging) {
+                                        console.log('✅ Packaging fetched:', autoPackaging);
+                                        setCurrentItem(prev => ({
+                                          ...prev,
+                                          packaging_id: autoPackaging.packaging_id,
+                                          packaging_type: autoPackaging.packaging_type,
+                                          packaging_material: autoPackaging.packaging_material,
+                                          packaging_volume_ml: autoPackaging.packaging_volume_ml
+                                        }));
+                                      }
+                                    } catch (error) {
+                                      console.error('❌ Packaging fetch failed:', error);
+                                      // Continue - use default 250ml rPET
+                                    }
+                                  }
                                 }}
                               >
                                 <SelectTrigger className="w-full h-10">
