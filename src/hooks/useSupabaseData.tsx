@@ -10,23 +10,9 @@ type Tables = Database['public']['Tables'];
 export interface DbCrop {
   id: string;
   name: string;
-  variety: string | null;
-  category: string | null;
-  days_to_harvest: number;
-  days_to_germination: number | null;
-  germination_type: string | null;
-  needs_weight: boolean | null;
-  days_in_darkness: number | null;
-  days_on_light: number | null;
-  seed_density: number | null;
-  expected_yield: number | null;
-  seed_soaking: boolean | null;
-  can_be_cut: boolean | null;
-  can_be_live: boolean | null;
-  color: string | null;
-  notes: string | null;
+  packaging_id: string | null;
+  growth_days: number | null;
   created_at: string;
-  updated_at: string;
 }
 
 export interface DbCustomer {
