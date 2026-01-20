@@ -21,13 +21,13 @@ export function usePackagingMappings() {
     try {
       setIsLoading(true);
       const { data, error } = await supabase
-        .from('packaging_mappings')
-        .select('*, packagings(id, name, type, size)');
+        .from('packagings')
+        .select('*');
 
       if (error) throw error;
       setMappings(data || []);
     } catch (error: any) {
-      console.error('Error loading packaging mappings:', error);
+      console.error('Error loading packagings:', error);
       toast({
         title: 'Chyba',
         description: 'Nepodarilo sa načítať mapovanie obalov',
@@ -41,7 +41,7 @@ export function usePackagingMappings() {
   const loadMappingsByCrop = async (cropId: string) => {
     try {
       const { data, error } = await supabase
-        .from('packaging_mappings')
+        .from('packagings')
         .select('*, packagings(id, name, type, size)')
         .eq('crop_id', cropId);
 
@@ -56,7 +56,7 @@ export function usePackagingMappings() {
   const upsertMapping = async (mapping: Omit<DbPackagingMapping, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       const { error: deleteError } = await supabase
-        .from('packaging_mappings')
+        .from('packagings')
         .delete()
         .eq('crop_id', mapping.crop_id)
         .eq('weight_g', mapping.weight_g);
@@ -64,7 +64,7 @@ export function usePackagingMappings() {
       if (deleteError) throw deleteError;
 
       const { data, error } = await supabase
-        .from('packaging_mappings')
+        .from('packagings')
         .insert({
           crop_id: mapping.crop_id,
           packaging_id: mapping.packaging_id,
@@ -94,14 +94,14 @@ export function usePackagingMappings() {
       const cropId = mappingsToSave[0].crop_id;
 
       const { error: deleteError } = await supabase
-        .from('packaging_mappings')
+        .from('packagings')
         .delete()
         .eq('crop_id', cropId);
 
       if (deleteError) throw deleteError;
 
       const { data, error } = await supabase
-        .from('packaging_mappings')
+        .from('packagings')
         .insert(
           mappingsToSave.map(m => ({
             crop_id: m.crop_id,
@@ -127,7 +127,7 @@ export function usePackagingMappings() {
   const deleteMapping = async (cropId: string, weightG: number) => {
     try {
       const { error } = await supabase
-        .from('packaging_mappings')
+        .from('packagings')
         .delete()
         .eq('crop_id', cropId)
         .eq('weight_g', weightG);
@@ -148,7 +148,7 @@ export function usePackagingMappings() {
   const deleteMappingsByCrop = async (cropId: string) => {
     try {
       const { error } = await supabase
-        .from('packaging_mappings')
+        .from('packagings')
         .delete()
         .eq('crop_id', cropId);
 
@@ -163,7 +163,7 @@ export function usePackagingMappings() {
   const getCropsWithMappings = async () => {
     try {
       const { data, error } = await supabase
-        .from('packaging_mappings')
+        .from('packagings')
         .select('crop_id');
 
       if (error) throw error;

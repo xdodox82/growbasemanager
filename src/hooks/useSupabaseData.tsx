@@ -230,14 +230,14 @@ export function useCrops() {
 
     try {
       const { data: result, error } = await supabase
-        .from('crops')
+        .from('products')
         .select('*')
         .order('name');
 
       if (error) throw error;
       setData(result || []);
     } catch (error) {
-      console.error('Error fetching crops:', error);
+      console.error('Error fetching products:', error);
     } finally {
       setLoading(false);
     }
@@ -250,7 +250,7 @@ export function useCrops() {
   const add = async (item: Omit<DbCrop, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       const { data: result, error } = await supabase
-        .from('crops')
+        .from('products')
         .insert(item)
         .select()
         .single();
@@ -259,7 +259,7 @@ export function useCrops() {
       setData((prev) => [...prev, result]);
       return { data: result, error: null };
     } catch (error: any) {
-      console.error('Error adding crop:', error);
+      console.error('Error adding product:', error);
       toast({ variant: 'destructive', title: 'Chyba', description: 'Nepodarilo sa pridať plodinu.' });
       return { data: null, error };
     }
@@ -268,7 +268,7 @@ export function useCrops() {
   const update = async (id: string, updates: Partial<DbCrop>) => {
     try {
       const { data: result, error } = await supabase
-        .from('crops')
+        .from('products')
         .update(updates)
         .eq('id', id)
         .select()
@@ -278,7 +278,7 @@ export function useCrops() {
       setData((prev) => prev.map((item) => (item.id === id ? result : item)));
       return { data: result, error: null };
     } catch (error: any) {
-      console.error('Error updating crop:', error);
+      console.error('Error updating product:', error);
       toast({ variant: 'destructive', title: 'Chyba', description: 'Nepodarilo sa aktualizovať plodinu.' });
       return { data: null, error };
     }
@@ -286,12 +286,12 @@ export function useCrops() {
 
   const remove = async (id: string) => {
     try {
-      const { error } = await supabase.from('crops').delete().eq('id', id);
+      const { error } = await supabase.from('products').delete().eq('id', id);
       if (error) throw error;
       setData((prev) => prev.filter((item) => item.id !== id));
       return { error: null };
     } catch (error: any) {
-      console.error('Error deleting crop:', error);
+      console.error('Error deleting product:', error);
       toast({ variant: 'destructive', title: 'Chyba', description: 'Nepodarilo sa odstrániť plodinu.' });
       return { error };
     }
