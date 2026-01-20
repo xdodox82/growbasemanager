@@ -276,6 +276,8 @@ export default function OrdersPage() {
         return sum + (quantity * price);
       }, 0);
 
+      console.log('💰 Delivery calculation - Order total:', totalPrice, '€, Items:', orderItems?.length);
+
       let deliveryFee = 0;
       let minFreeDelivery = 0;
 
@@ -291,12 +293,17 @@ export default function OrdersPage() {
         minFreeDelivery = parseFloat((deliveryRoute?.wholesale_min_free_delivery || 0).toString());
       }
 
+      console.log('🚚 Route:', route, 'Customer type:', custType, 'Fee:', deliveryFee, '€, Threshold:', minFreeDelivery, '€');
+
       // SMIŽANY RULE: If min_free_delivery is 0, delivery is automatically free
       if (minFreeDelivery === 0) {
+        console.log('✅ Free delivery (Smižany rule - threshold is 0)');
         setCalculatedDeliveryPrice(0);
       } else if (totalPrice >= minFreeDelivery) {
+        console.log('✅ Free delivery (order total', totalPrice, '€ >= threshold', minFreeDelivery, '€)');
         setCalculatedDeliveryPrice(0);
       } else {
+        console.log('💳 Charging delivery:', deliveryFee, '€ (order total', totalPrice, '€ < threshold', minFreeDelivery, '€)');
         setCalculatedDeliveryPrice(deliveryFee);
       }
     };
@@ -1837,20 +1844,30 @@ export default function OrdersPage() {
                                   let value = e.target.value.trim();
                                   if (!value) return;
 
+                                  console.log('🔤 Special item weight blur, value:', value);
+
                                   // Auto-append 'g' if user types only numbers
                                   if (/^\d+$/.test(value)) {
                                     value = value + 'g';
+                                    console.log('✏️ Auto-appended g, new value:', value);
                                   }
 
                                   // Try to fetch packaging for standard weights even in special items
                                   if (currentItem?.crop_id && value) {
+                                    console.log('📦 Fetching packaging for special item, crop:', currentItem.crop_id, 'weight:', value);
                                     const autoPackaging = await autoFetchPackaging(currentItem.crop_id, value);
+                                    console.log('✅ Packaging result:', autoPackaging);
+
                                     setCurrentItem({
                                       ...currentItem,
                                       packaging_size: value,
-                                      ...(autoPackaging || {})
+                                      packaging_id: autoPackaging?.packaging_id || currentItem?.packaging_id,
+                                      packaging_type: autoPackaging?.packaging_type || currentItem?.packaging_type,
+                                      packaging_material: autoPackaging?.packaging_material || currentItem?.packaging_material,
+                                      packaging_volume_ml: autoPackaging?.packaging_volume_ml || currentItem?.packaging_volume_ml
                                     });
                                   } else {
+                                    console.log('⚠️ No crop_id for special item, skipping packaging fetch');
                                     setCurrentItem({ ...currentItem, packaging_size: value });
                                   }
                                 }}
@@ -1861,10 +1878,15 @@ export default function OrdersPage() {
                               <Select
                                 value={currentItem?.packaging_size || ''}
                                 onValueChange={async (value) => {
+                                  console.log('🎯 Weight selected:', value);
+
                                   if (!currentItem?.crop_id || !customerType) {
+                                    console.log('⚠️ No crop or customer type, skipping auto-fetch');
                                     setCurrentItem({ ...currentItem, packaging_size: value });
                                     return;
                                   }
+
+                                  console.log('📦 Auto-fetching price and packaging for crop:', currentItem.crop_id, 'weight:', value);
 
                                   // Auto-fetch price and packaging for standard items
                                   const [autoPrice, autoPackaging] = await Promise.all([
@@ -1872,11 +1894,16 @@ export default function OrdersPage() {
                                     autoFetchPackaging(currentItem.crop_id, value)
                                   ]);
 
+                                  console.log('✅ Auto-fetch complete. Price:', autoPrice, 'Packaging:', autoPackaging);
+
                                   setCurrentItem({
                                     ...currentItem,
                                     packaging_size: value,
                                     price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
-                                    ...(autoPackaging || {})
+                                    packaging_id: autoPackaging?.packaging_id,
+                                    packaging_type: autoPackaging?.packaging_type,
+                                    packaging_material: autoPackaging?.packaging_material,
+                                    packaging_volume_ml: autoPackaging?.packaging_volume_ml || currentItem?.packaging_volume_ml
                                   });
                                 }}
                               >
