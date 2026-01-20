@@ -42,24 +42,27 @@ import { format, parseISO, getDay } from 'date-fns';
 import { sk } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
+// LOCAL TYPE INTERFACES - Defined here since types.ts may not match database
 interface OrderItem {
   id?: string;
   crop_id?: string;
-  crop_name: string;
+  crop_name?: string;
+  custom_crop_name?: string;
   blend_id?: string;
   quantity: number;
   unit: string;
   packaging_size: string;
   delivery_form: string;
-  packaging_type: string;
-  packaging_material: string;
-  packaging_volume_ml: number;
+  packaging_type?: string;
+  packaging_material?: string;
+  packaging_volume_ml?: number;
   packaging_id?: string;
-  has_label: boolean;
+  has_label?: boolean;
   notes?: string;
   special_requirements?: string;
   price_per_unit?: number | string;
   total_price?: number;
+  is_special_item?: boolean;
 }
 
 interface Order {
@@ -70,11 +73,14 @@ interface Order {
   delivery_date: string;
   status: string;
   order_type: string;
+  recurrence_pattern?: string;
+  recurring_weeks?: number;
   route?: string;
   week_count?: number;
   total_price?: number;
   delivery_price?: number;
   charge_delivery?: boolean;
+  notes?: string;
   created_at: string;
   order_items?: OrderItem[];
 }
@@ -82,25 +88,40 @@ interface Order {
 interface Customer {
   id: string;
   name: string;
-  company_name: string;
+  company_name?: string;
   customer_type: string;
   free_delivery?: boolean;
+  delivery_route_id?: string;
 }
 
-interface Crop {
+interface Product {
   id: string;
   name: string;
+  category?: string;
+  variety?: string;
+}
+
+interface Crop extends Product {
+  // Alias for Product - database uses 'crops' table
 }
 
 interface Blend {
   id: string;
   name: string;
+  crop_ids?: string[];
 }
 
 interface Route {
   id: string;
   name: string;
   delivery_day_id?: string;
+  delivery_fee?: number;
+  delivery_fee_home?: number;
+  delivery_fee_gastro?: number;
+  delivery_fee_wholesale?: number;
+  home_min_free_delivery?: number;
+  gastro_min_free_delivery?: number;
+  wholesale_min_free_delivery?: number;
 }
 
 interface DeliveryDay {
@@ -121,7 +142,21 @@ interface Price {
 interface Packaging {
   id: string;
   name: string;
-  type: string;
+  type?: string;
+  size?: string;
+  quantity?: number;
+  packaging_id?: string;
+  packaging_type?: string;
+  packaging_material?: string;
+  packaging_volume_ml?: number;
+}
+
+interface PackagingMapping {
+  id: string;
+  crop_id: string;
+  weight_g: number;
+  packaging_id: string;
+  packagings?: Packaging;
 }
 
 export default function OrdersPage() {
