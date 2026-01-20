@@ -73,6 +73,7 @@ interface Order {
   route?: string;
   week_count?: number;
   total_price?: number;
+  delivery_price?: number;
   charge_delivery?: boolean;
   created_at: string;
   order_items?: OrderItem[];
@@ -257,6 +258,13 @@ export default function OrdersPage() {
       // CRITICAL: Use selected route from dropdown, NOT customer's assigned route
       // If no route selected or "Žiadna trasa", delivery is 0
       if (!route || route === '' || route === 'Žiadna trasa') {
+        setCalculatedDeliveryPrice(0);
+        return;
+      }
+
+      // SMIŽANY HARDCODED OVERRIDE: Always free delivery for Smižany
+      if (route === 'Smižany') {
+        console.log('✅ Smižany override - Free delivery');
         setCalculatedDeliveryPrice(0);
         return;
       }
@@ -1780,25 +1788,30 @@ export default function OrdersPage() {
                         </Label>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4 mt-3">
-                        <div>
-                          <CategoryFilter
-                            value={categoryFilter}
-                            onChange={setCategoryFilter}
+                      {currentItem?.is_special_item ? (
+                        // SPECIAL ITEM: Only show product name input
+                        <div className="mt-3">
+                          <Label className="text-sm">Názov produktu *</Label>
+                          <Input
+                            type="text"
+                            value={currentItem?.custom_crop_name || ''}
+                            onChange={(e) => setCurrentItem({ ...currentItem, custom_crop_name: e.target.value, crop_name: e.target.value })}
+                            className="mt-1"
+                            placeholder="Zadajte názov produktu"
                           />
                         </div>
-
-                        <div>
-                          <Label className="text-sm">Plodina *</Label>
-                          {currentItem?.is_special_item ? (
-                            <Input
-                              type="text"
-                              value={currentItem?.custom_crop_name || ''}
-                              onChange={(e) => setCurrentItem({ ...currentItem, custom_crop_name: e.target.value, crop_name: e.target.value })}
-                              className="mt-1"
-                              placeholder="Názov produktu"
+                      ) : (
+                        // STANDARD ITEM: Show category filter and crop dropdown
+                        <div className="grid grid-cols-2 gap-4 mt-3">
+                          <div>
+                            <CategoryFilter
+                              value={categoryFilter}
+                              onChange={setCategoryFilter}
                             />
-                          ) : (
+                          </div>
+
+                          <div>
+                            <Label className="text-sm">Plodina *</Label>
                             <select
                               value={currentItem?.crop_id || ''}
                               onChange={async (e) => {
@@ -1824,9 +1837,11 @@ export default function OrdersPage() {
                                 <option key={crop?.id} value={crop?.id}>{crop?.name}</option>
                               ))}
                             </select>
-                          )}
+                          </div>
                         </div>
+                      )}
 
+                      <div className="grid grid-cols-2 gap-4 mt-3">
                         <div>
                           <Label className="text-sm">Váha</Label>
                           <div className="flex gap-2 mt-1">
@@ -1896,14 +1911,25 @@ export default function OrdersPage() {
 
                                   console.log('✅ Auto-fetch complete. Price:', autoPrice, 'Packaging:', autoPackaging);
 
+                                  // DEFAULT PACKAGING: If no mapping found, use 250ml rPET as default
+                                  const finalPackaging = autoPackaging || {
+                                    packaging_type: 'rPET',
+                                    packaging_material: 'rPET',
+                                    packaging_volume_ml: 250
+                                  };
+
+                                  if (!autoPackaging) {
+                                    console.log('⚠️ No packaging mapping found, using defaults: 250ml rPET');
+                                  }
+
                                   setCurrentItem({
                                     ...currentItem,
                                     packaging_size: value,
                                     price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
-                                    packaging_id: autoPackaging?.packaging_id,
-                                    packaging_type: autoPackaging?.packaging_type,
-                                    packaging_material: autoPackaging?.packaging_material,
-                                    packaging_volume_ml: autoPackaging?.packaging_volume_ml || currentItem?.packaging_volume_ml
+                                    packaging_id: finalPackaging.packaging_id,
+                                    packaging_type: finalPackaging.packaging_type,
+                                    packaging_material: finalPackaging.packaging_material,
+                                    packaging_volume_ml: finalPackaging.packaging_volume_ml
                                   });
                                 }}
                               >
@@ -1918,6 +1944,9 @@ export default function OrdersPage() {
                                   <SelectItem value="100g">100g</SelectItem>
                                   <SelectItem value="120g">120g</SelectItem>
                                   <SelectItem value="150g">150g</SelectItem>
+                                  <SelectItem value="250g">250g</SelectItem>
+                                  <SelectItem value="500g">500g</SelectItem>
+                                  <SelectItem value="1kg">1kg</SelectItem>
                                 </SelectContent>
                               </Select>
                             )}
