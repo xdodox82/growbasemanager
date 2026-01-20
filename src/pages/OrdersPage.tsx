@@ -1085,44 +1085,43 @@ export default function OrdersPage() {
     }
   };
 
-  const duplicateOrder = async (order: Order) => {
-    try {
-      const orderData = {
-        customer_id: order.customer_id,
-        customer_name: order.customer_name,
-        delivery_date: order.delivery_date,
-        status: 'cakajuca'
-      };
+  const duplicateOrder = (order: Order) => {
+    // Open modal with pre-filled data from the original order EXCEPT the date
+    setEditingOrder(null); // Not editing, creating new
+    setCustomerType(order.customer_type || 'home');
+    setCustomerId(order.customer_id);
+    setDeliveryDate(''); // CRITICAL: Empty date to force user selection
+    setStatus('cakajuca');
+    const recurrenceType = order.recurrence_pattern || 'jednorazova';
+    setOrderType(recurrenceType);
+    setWeekCount(order.recurring_weeks || 1);
+    setRoute(order.route || '');
+    setOrderNotes(order.notes || '');
 
-      const { data: newOrder, error } = await supabase
-        .from('orders')
-        .insert(orderData)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      if (order.order_items && order.order_items.length > 0) {
-        const items = order.order_items.map(item => ({
-          order_id: newOrder.id,
-          crop_id: item.crop_id,
-          blend_id: item.blend_id,
-          quantity: item.quantity,
-          unit: item.unit,
-          packaging_size: item.packaging_size,
-          delivery_form: item.delivery_form,
-          has_label: item.has_label,
-          notes: item.notes
-        }));
-        await supabase.from('order_items').insert(items);
-      }
-
-      toast({ title: 'Úspech', description: 'Objednávka zduplikovaná' });
-      await loadData();
-    } catch (error) {
-      console.error('Error duplicating order:', error);
-      toast({ title: 'Chyba', description: 'Nepodarilo sa zduplikovať objednávku', variant: 'destructive' });
+    // Copy delivery settings
+    const shouldBeFree = !(order.charge_delivery ?? true);
+    setFreeDelivery(shouldBeFree);
+    if (!shouldBeFree && order.delivery_price && order.delivery_price > 0) {
+      setManualDeliveryAmount(order.delivery_price.toString());
+    } else {
+      setManualDeliveryAmount('');
     }
+
+    // CRITICAL: Map order items with prices
+    const duplicatedItems = (order.order_items || []).map(item => ({
+      ...item,
+      price_per_unit: item.price_per_unit || 0, // Ensure price is copied
+      total_price: item.total_price || 0 // Ensure total is copied
+    }));
+
+    setOrderItems(duplicatedItems);
+    setIsDialogOpen(true);
+
+    toast({
+      title: 'Duplicitná objednávka',
+      description: 'Vyberte nový dátum doručenia a uložte objednávku',
+      variant: 'default'
+    });
   };
 
   const getStatusBadgeClass = (status: string) => {
@@ -1815,12 +1814,10 @@ export default function OrdersPage() {
 
                       <div className="grid grid-cols-2 gap-4 mt-3">
                         <div>
-                          {!currentItem?.is_special_item && (
-                            <CategoryFilter
-                              value={categoryFilter}
-                              onChange={setCategoryFilter}
-                            />
-                          )}
+                          <CategoryFilter
+                            value={categoryFilter}
+                            onChange={setCategoryFilter}
+                          />
                         </div>
 
                         <div>
@@ -1865,30 +1862,50 @@ export default function OrdersPage() {
                         <div>
                           <Label className="text-sm">Váha</Label>
                           <div className="flex gap-2 mt-1">
-                            {['25g', '50g', '60g', '70g', '100g', '120g', '150g'].includes(currentItem?.packaging_size || '') ? (
+                            {currentItem?.is_special_item ? (
+                              // SPECIAL ITEM: Manual text input with auto-append 'g'
+                              <Input
+                                type="text"
+                                placeholder="napr. 8g"
+                                value={currentItem?.packaging_size || ''}
+                                onChange={(e) => {
+                                  const value = e.target.value.trim();
+                                  setCurrentItem({ ...currentItem, packaging_size: value });
+                                }}
+                                onBlur={(e) => {
+                                  let value = e.target.value.trim();
+                                  if (!value) return;
+
+                                  // Auto-append 'g' if user types only numbers
+                                  if (/^\d+$/.test(value)) {
+                                    value = value + 'g';
+                                    setCurrentItem({ ...currentItem, packaging_size: value });
+                                  }
+                                }}
+                                className="flex-1 h-10"
+                              />
+                            ) : (
+                              // STANDARD ITEM: Fixed Select dropdown with ONLY 7 standard options
                               <Select
                                 value={currentItem?.packaging_size || ''}
                                 onValueChange={async (value) => {
-                                  if (value === 'custom') {
-                                    setCurrentItem({ ...currentItem, packaging_size: '' });
+                                  if (!currentItem?.crop_id || !customerType) {
+                                    setCurrentItem({ ...currentItem, packaging_size: value });
                                     return;
                                   }
 
-                                  if (currentItem?.crop_id && customerType) {
-                                    const [autoPrice, autoPackaging] = await Promise.all([
-                                      autoFetchPrice(currentItem.crop_id, value, customerType),
-                                      autoFetchPackaging(currentItem.crop_id, value)
-                                    ]);
+                                  // Auto-fetch price and packaging for standard items
+                                  const [autoPrice, autoPackaging] = await Promise.all([
+                                    autoFetchPrice(currentItem.crop_id, value, customerType),
+                                    autoFetchPackaging(currentItem.crop_id, value)
+                                  ]);
 
-                                    setCurrentItem({
-                                      ...currentItem,
-                                      packaging_size: value,
-                                      price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
-                                      ...(autoPackaging || {})
-                                    });
-                                  } else {
-                                    setCurrentItem({ ...currentItem, packaging_size: value });
-                                  }
+                                  setCurrentItem({
+                                    ...currentItem,
+                                    packaging_size: value,
+                                    price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
+                                    ...(autoPackaging || {})
+                                  });
                                 }}
                               >
                                 <SelectTrigger className="w-full h-10">
@@ -1902,71 +1919,8 @@ export default function OrdersPage() {
                                   <SelectItem value="100g">100g</SelectItem>
                                   <SelectItem value="120g">120g</SelectItem>
                                   <SelectItem value="150g">150g</SelectItem>
-                                  <SelectItem value="custom">Iná váha...</SelectItem>
                                 </SelectContent>
                               </Select>
-                            ) : (
-                              <>
-                                <Input
-                                  type="text"
-                                  placeholder="napr. 25g, 50g, 8g..."
-                                  value={currentItem?.packaging_size || ''}
-                                  onChange={async (e) => {
-                                    const value = e.target.value.trim();
-                                    setCurrentItem({ ...currentItem, packaging_size: value });
-
-                                    if (value && value.includes('g') && currentItem?.crop_id && customerType) {
-                                      const [autoPrice, autoPackaging] = await Promise.all([
-                                        autoFetchPrice(currentItem.crop_id, value, customerType),
-                                        autoFetchPackaging(currentItem.crop_id, value)
-                                      ]);
-
-                                      setCurrentItem({
-                                        ...currentItem,
-                                        packaging_size: value,
-                                        price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
-                                        ...(autoPackaging || {})
-                                      });
-                                    }
-                                  }}
-                                  onBlur={async (e) => {
-                                    let value = e.target.value.trim();
-                                    if (!value) return;
-
-                                    if (/^\d+$/.test(value)) {
-                                      value = value + 'g';
-
-                                      if (currentItem?.crop_id && customerType) {
-                                        const [autoPrice, autoPackaging] = await Promise.all([
-                                          autoFetchPrice(currentItem.crop_id, value, customerType),
-                                          autoFetchPackaging(currentItem.crop_id, value)
-                                        ]);
-
-                                        setCurrentItem({
-                                          ...currentItem,
-                                          packaging_size: value,
-                                          price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
-                                          ...(autoPackaging || {})
-                                        });
-                                      } else {
-                                        setCurrentItem({ ...currentItem, packaging_size: value });
-                                      }
-                                    }
-                                  }}
-                                  className="flex-1 h-10"
-                                />
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    setCurrentItem({ ...currentItem, packaging_size: '50g' });
-                                  }}
-                                  className="h-10 px-3"
-                                >
-                                  Štandardné
-                                </Button>
-                              </>
                             )}
                           </div>
                         </div>
