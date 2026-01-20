@@ -48,30 +48,30 @@ export function PackagingMappings() {
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const [productsRes, packagingsRes] = await Promise.all([
-        supabase.from('products').select('id, name').order('name'),
+      const [cropsRes, packagingsRes] = await Promise.all([
+        supabase.from('crops').select('id, name').order('name'),
         supabase.from('packagings').select('id, name, type, size').order('name'),
       ]);
 
       console.log('📦 Loaded packagings:', packagingsRes.data);
 
-      if (productsRes.data) {
-        // Load mappings for all products
-        const productsWithMappings = await Promise.all(
-          productsRes.data.map(async (product) => {
-            const mappings = await loadMappingsByCrop(product.id);
-            console.log(`📋 Mappings for ${product.name}:`, mappings);
+      if (cropsRes.data) {
+        // Load mappings for all crops
+        const cropsWithMappings = await Promise.all(
+          cropsRes.data.map(async (crop) => {
+            const mappings = await loadMappingsByCrop(crop.id);
+            console.log(`📋 Mappings for ${crop.name}:`, mappings);
             const formattedMappings = mappings.map((m: any) => ({
               weight_g: m.weight_g,
               volume: m.packagings?.size || ''
             }));
             return {
-              ...product,
+              ...crop,
               mappings: formattedMappings
             };
           })
         );
-        setCrops(productsWithMappings);
+        setCrops(cropsWithMappings);
       }
 
       if (packagingsRes.data) {
@@ -157,9 +157,9 @@ export function PackagingMappings() {
 
       if (mappingsToInsert.length === 0) {
         console.log('⚠️ No mappings to save (empty array)');
-        // If no mappings, delete all for this product
+        // If no mappings, delete all for this crop
         const { error: deleteError } = await supabase
-          .from('packagings')
+          .from('packaging_mappings')
           .delete()
           .eq('crop_id', editingCrop.id);
 
