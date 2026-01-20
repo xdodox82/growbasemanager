@@ -10,9 +10,23 @@ type Tables = Database['public']['Tables'];
 export interface DbCrop {
   id: string;
   name: string;
-  packaging_id: string | null;
-  growth_days: number | null;
+  variety: string | null;
+  category: string | null;
+  days_to_harvest: number;
+  days_to_germination: number | null;
+  germination_type: string | null;
+  needs_weight: boolean | null;
+  days_in_darkness: number | null;
+  days_on_light: number | null;
+  seed_density: number | null;
+  expected_yield: number | null;
+  seed_soaking: boolean | null;
+  can_be_cut: boolean | null;
+  can_be_live: boolean | null;
+  color: string | null;
+  notes: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 export interface DbCustomer {
@@ -216,14 +230,14 @@ export function useCrops() {
 
     try {
       const { data: result, error } = await supabase
-        .from('products')
+        .from('crops')
         .select('*')
         .order('name');
 
       if (error) throw error;
       setData(result || []);
     } catch (error) {
-      console.error('Error fetching products:', error);
+      console.error('Error fetching crops:', error);
     } finally {
       setLoading(false);
     }
@@ -236,7 +250,7 @@ export function useCrops() {
   const add = async (item: Omit<DbCrop, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       const { data: result, error } = await supabase
-        .from('products')
+        .from('crops')
         .insert(item)
         .select()
         .single();
@@ -245,7 +259,7 @@ export function useCrops() {
       setData((prev) => [...prev, result]);
       return { data: result, error: null };
     } catch (error: any) {
-      console.error('Error adding product:', error);
+      console.error('Error adding crop:', error);
       toast({ variant: 'destructive', title: 'Chyba', description: 'Nepodarilo sa pridať plodinu.' });
       return { data: null, error };
     }
@@ -254,7 +268,7 @@ export function useCrops() {
   const update = async (id: string, updates: Partial<DbCrop>) => {
     try {
       const { data: result, error } = await supabase
-        .from('products')
+        .from('crops')
         .update(updates)
         .eq('id', id)
         .select()
@@ -264,7 +278,7 @@ export function useCrops() {
       setData((prev) => prev.map((item) => (item.id === id ? result : item)));
       return { data: result, error: null };
     } catch (error: any) {
-      console.error('Error updating product:', error);
+      console.error('Error updating crop:', error);
       toast({ variant: 'destructive', title: 'Chyba', description: 'Nepodarilo sa aktualizovať plodinu.' });
       return { data: null, error };
     }
@@ -272,12 +286,12 @@ export function useCrops() {
 
   const remove = async (id: string) => {
     try {
-      const { error } = await supabase.from('products').delete().eq('id', id);
+      const { error } = await supabase.from('crops').delete().eq('id', id);
       if (error) throw error;
       setData((prev) => prev.filter((item) => item.id !== id));
       return { error: null };
     } catch (error: any) {
-      console.error('Error deleting product:', error);
+      console.error('Error deleting crop:', error);
       toast({ variant: 'destructive', title: 'Chyba', description: 'Nepodarilo sa odstrániť plodinu.' });
       return { error };
     }
