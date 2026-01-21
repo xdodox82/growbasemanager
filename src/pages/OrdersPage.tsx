@@ -1087,30 +1087,40 @@ export default function OrdersPage() {
 
   const duplicateOrder = async (order: Order) => {
     try {
-      // Sanitize and ensure proper data types - strip all IDs and timestamps
-      const sanitizeNumber = (val: any): number | null => {
-        if (val === null || val === undefined || val === '') return null;
-        const num = typeof val === 'string' ? parseFloat(val) : val;
-        return isNaN(num) ? null : num;
+      console.log('=== STARTING ORDER DUPLICATION ===');
+      console.log('Original order:', order);
+
+      // Sanitize and ensure proper data types - convert everything to valid numbers or 0
+      const sanitizeNumber = (val: any, defaultValue = 0): number => {
+        if (val === null || val === undefined || val === '') return defaultValue;
+        const num = typeof val === 'string' ? parseFloat(val) : Number(val);
+        return isNaN(num) ? defaultValue : num;
       };
 
-      // Create a clean order object without id, created_at, updated_at
+      // Create a completely clean order object - ONLY include fields that exist in DB
+      // Strip: id, created_at, updated_at, and any metadata
       const orderData: any = {
         customer_id: order.customer_id,
-        customer_name: order.customer_name,
-        customer_type: order.customer_type,
+        customer_name: order.customer_name || '',
+        customer_type: order.customer_type || '',
         delivery_date: null, // Reset date - user must select new date
-        status: order.status,
-        order_type: order.order_type,
-        charge_delivery: order.charge_delivery ?? false
+        status: order.status || 'cakajuca',
+        order_type: order.order_type || '',
+        charge_delivery: Boolean(order.charge_delivery)
       };
 
-      // Only add optional fields if they have valid values
-      if (order.route) orderData.route = order.route;
-      if (order.week_count) orderData.week_count = sanitizeNumber(order.week_count);
-      if (order.total_price !== null && order.total_price !== undefined) {
-        orderData.total_price = sanitizeNumber(order.total_price);
+      // Add optional fields with proper types
+      if (order.route) {
+        orderData.route = order.route;
       }
+      if (order.week_count !== null && order.week_count !== undefined) {
+        orderData.week_count = sanitizeNumber(order.week_count);
+      }
+
+      // Critical: total_price must be a valid number, never null or string
+      orderData.total_price = sanitizeNumber(order.total_price, 0);
+
+      console.log('Sanitized order data for insert:', orderData);
 
       const { data: newOrder, error } = await supabase
         .from('orders')
@@ -1119,26 +1129,36 @@ export default function OrdersPage() {
         .single();
 
       if (error) {
-        console.error('Order insert error:', error);
+        console.error('❌ ORDER INSERT FAILED');
+        console.error('Error object:', JSON.stringify(error, null, 2));
+        console.error('Error message:', error.message);
+        console.error('Error details:', error.details);
+        console.error('Error hint:', error.hint);
+        console.error('Data that was sent:', JSON.stringify(orderData, null, 2));
         throw error;
       }
 
-      // Copy all order items with sanitized data - strip id, created_at, updated_at
+      console.log('✅ Order created successfully:', newOrder);
+
+      // Copy all order items with completely sanitized data
       if (order.order_items && order.order_items.length > 0) {
-        const items = order.order_items.map(item => {
+        console.log('Processing', order.order_items.length, 'order items...');
+
+        const items = order.order_items.map((item, index) => {
+          // Create completely clean item - strip id, created_at, updated_at, order_id (old)
           const cleanItem: any = {
-            order_id: newOrder.id,
-            quantity: sanitizeNumber(item.quantity) || 0,
+            order_id: newOrder.id, // NEW order id
+            quantity: sanitizeNumber(item.quantity, 0),
             unit: item.unit || 'g',
             packaging_size: item.packaging_size || '',
             delivery_form: item.delivery_form || '',
             packaging_type: item.packaging_type || '',
             packaging_material: item.packaging_material || '',
-            packaging_volume_ml: sanitizeNumber(item.packaging_volume_ml) || 0,
-            has_label: item.has_label ?? false
+            packaging_volume_ml: sanitizeNumber(item.packaging_volume_ml, 0),
+            has_label: Boolean(item.has_label)
           };
 
-          // Only add optional fields if they exist
+          // Add optional fields only if they exist
           if (item.crop_id) cleanItem.crop_id = item.crop_id;
           if (item.crop_name) cleanItem.crop_name = item.crop_name;
           if (item.blend_id) cleanItem.blend_id = item.blend_id;
@@ -1146,28 +1166,35 @@ export default function OrdersPage() {
           if (item.notes) cleanItem.notes = item.notes;
           if (item.special_requirements) cleanItem.special_requirements = item.special_requirements;
 
-          // Sanitize price fields
-          if (item.price_per_unit !== null && item.price_per_unit !== undefined) {
-            cleanItem.price_per_unit = sanitizeNumber(item.price_per_unit);
-          }
-          if (item.total_price !== null && item.total_price !== undefined) {
-            cleanItem.total_price = sanitizeNumber(item.total_price);
-          }
+          // Critical: Price fields must be valid numbers, never null
+          cleanItem.price_per_unit = sanitizeNumber(item.price_per_unit, 0);
+          cleanItem.total_price = sanitizeNumber(item.total_price, 0);
 
+          console.log(`Item ${index + 1} sanitized:`, cleanItem);
           return cleanItem;
         });
 
+        console.log('Inserting items:', items);
+
         const { error: itemsError } = await supabase.from('order_items').insert(items);
+
         if (itemsError) {
-          console.error('Order items insert error:', itemsError);
+          console.error('❌ ORDER ITEMS INSERT FAILED');
+          console.error('Error object:', JSON.stringify(itemsError, null, 2));
+          console.error('Error message:', itemsError.message);
+          console.error('Error details:', itemsError.details);
+          console.error('Error hint:', itemsError.hint);
+          console.error('Items that were sent:', JSON.stringify(items, null, 2));
           throw itemsError;
         }
+
+        console.log('✅ Order items created successfully');
       }
 
-      // Reload data and automatically open the new order in edit mode
+      // Reload data
       await loadData();
 
-      // Find the newly created order in the loaded data and open it for editing
+      // Find and open the new order for editing
       const allOrdersQuery = await supabase
         .from('orders')
         .select('*, order_items(*)')
@@ -1175,15 +1202,22 @@ export default function OrdersPage() {
         .single();
 
       if (allOrdersQuery.data) {
+        console.log('Opening edit dialog for new order');
         openEdit(allOrdersQuery.data);
       }
 
+      console.log('=== DUPLICATION COMPLETED SUCCESSFULLY ===');
       toast({ title: 'Úspech', description: 'Objednávka zduplikovaná - prosím vyberte nový dátum dodania' });
-    } catch (error) {
-      console.error('Error duplicating order:', error);
+    } catch (error: any) {
+      console.error('=== DUPLICATION FAILED ===');
+      console.error('Full error object:', error);
+      console.error('Error message:', error?.message);
+      console.error('Error code:', error?.code);
+      console.error('Error details:', error?.details);
+
       toast({
         title: 'Chyba',
-        description: 'Nepodarilo sa zduplikovať objednávku. Skontrolujte konzolu pre viac detailov.',
+        description: `Nepodarilo sa zduplikovať objednávku: ${error?.message || 'Neznáma chyba'}. Skontrolujte konzolu pre detaily.`,
         variant: 'destructive'
       });
     }
