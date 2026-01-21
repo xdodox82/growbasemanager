@@ -1775,12 +1775,10 @@ export default function OrdersPage() {
 
                       <div className="grid grid-cols-2 gap-4 mt-3">
                         <div>
-                          {!currentItem?.is_special_item && (
-                            <CategoryFilter
-                              value={categoryFilter}
-                              onChange={setCategoryFilter}
-                            />
-                          )}
+                          <CategoryFilter
+                            value={categoryFilter}
+                            onChange={setCategoryFilter}
+                          />
                         </div>
 
                         <div>
@@ -1831,11 +1829,14 @@ export default function OrdersPage() {
                                 placeholder="napr. 30, 45, 120..."
                                 value={currentItem?.packaging_size || ''}
                                 onChange={(e) => {
+                                  setCurrentItem({ ...currentItem, packaging_size: e.target.value });
+                                }}
+                                onBlur={(e) => {
                                   let value = e.target.value.trim();
-                                  if (/^\d+$/.test(value)) {
+                                  if (value && /^\d+$/.test(value) && !value.endsWith('g')) {
                                     value = value + 'g';
+                                    setCurrentItem({ ...currentItem, packaging_size: value });
                                   }
-                                  setCurrentItem({ ...currentItem, packaging_size: value });
                                 }}
                                 className="flex-1 h-10"
                               />
@@ -1859,7 +1860,6 @@ export default function OrdersPage() {
                                     });
                                   }
                                 }}
-                                disabled={!currentItem?.crop_id}
                               >
                                 <SelectTrigger className="w-full h-10">
                                   <SelectValue placeholder="Vyberte váhu..." />
