@@ -1513,22 +1513,23 @@ export default function OrdersPage() {
                       return null;
                     }
 
-                    if (!order.charge_delivery) {
-                      return null;
+                    const deliveryFee = getDeliveryFee(order);
+
+                    // If charge_delivery is false or deliveryFee is 0, show free shipping
+                    if (!order.charge_delivery || deliveryFee === 0) {
+                      return (
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-[#10b981] font-medium">Doprava: Zdarma</span>
+                        </div>
+                      );
                     }
 
-                    const deliveryFee = getDeliveryFee(order);
+                    // Show delivery fee if it's greater than 0
                     if (deliveryFee > 0) {
                       return (
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-gray-600">Doprava:</span>
                           <span className="font-semibold text-gray-900">{deliveryFee.toFixed(2)} €</span>
-                        </div>
-                      );
-                    } else {
-                      return (
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="text-[#10b981] font-medium">Doprava zdarma</span>
                         </div>
                       );
                     }
@@ -1671,7 +1672,7 @@ export default function OrdersPage() {
                             <Button
                               variant="outline"
                               className={cn(
-                                "w-full justify-start text-left font-normal mt-1",
+                                "w-full h-10 justify-start text-left font-normal mt-1 border-slate-200",
                                 !deliveryDate && "text-muted-foreground"
                               )}
                             >
@@ -2211,11 +2212,21 @@ export default function OrdersPage() {
                     return null;
                   }
 
-                  if (!selectedOrderDetail.charge_delivery) {
-                    return null;
+                  const deliveryFee = getDeliveryFee(selectedOrderDetail);
+
+                  // If charge_delivery is false or deliveryFee is 0, show free shipping
+                  if (!selectedOrderDetail.charge_delivery || deliveryFee === 0) {
+                    return (
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-[#10b981] flex items-center gap-1 font-medium">
+                          <Truck className="h-3 w-3" />
+                          Doprava: Zdarma
+                        </span>
+                      </div>
+                    );
                   }
 
-                  const deliveryFee = getDeliveryFee(selectedOrderDetail);
+                  // Show delivery fee if it's greater than 0
                   if (deliveryFee > 0) {
                     return (
                       <div className="flex justify-between items-center text-sm">
@@ -2225,15 +2236,6 @@ export default function OrdersPage() {
                         </span>
                         <span className="font-semibold text-gray-900">
                           {deliveryFee.toFixed(2)} €
-                        </span>
-                      </div>
-                    );
-                  } else {
-                    return (
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-[#10b981] flex items-center gap-1 font-medium">
-                          <Truck className="h-3 w-3" />
-                          Doprava zdarma
                         </span>
                       </div>
                     );

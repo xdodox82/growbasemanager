@@ -266,21 +266,21 @@ const SuppliersPage = () => {
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="name">Meno / Kontaktná osoba *</Label>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="napr. Ján Novák"
-                    />
-                  </div>
-                  <div className="grid gap-2">
                     <Label htmlFor="companyName">Obchodný názov</Label>
                     <Input
                       id="companyName"
                       value={formData.company_name}
                       onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
                       placeholder="napr. Semená s.r.o."
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="name">Meno / Kontaktná osoba *</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="napr. Ján Novák"
                     />
                   </div>
                 </div>

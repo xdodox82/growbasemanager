@@ -56,7 +56,7 @@ export function SearchableCustomerSelect({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between font-normal"
+          className="w-full h-10 justify-between font-normal border-slate-200"
         >
           <span className={cn(!value && 'text-gray-500')}>
             {displayName}
