@@ -858,10 +858,7 @@ const CustomersPage = () => {
                     <MobileTableRow
                       key={customer.id}
                       className="cursor-pointer hover:bg-gray-50"
-                      onClick={() => {
-                        setSelectedCustomerDetail(customer);
-                        setDetailModalOpen(true);
-                      }}
+                      onClick={() => openEditDialog(customer)}
                       expandedContent={
                         <>
                           <ExpandedDetail label="Typ" value={customer.customer_type ? CUSTOMER_TYPES[customer.customer_type] : '-'} />

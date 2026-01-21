@@ -734,10 +734,7 @@ const CropsPage = () => {
                     <MobileTableRow
                       key={crop.id}
                       className="cursor-pointer hover:bg-gray-50"
-                      onClick={() => {
-                        setSelectedCropDetail(crop);
-                        setDetailModalOpen(true);
-                      }}
+                      onClick={() => openEditDialog(crop)}
                       expandedContent={
                         <>
                           <ExpandedDetail label="Dni do zberu" value={`${crop.days_to_harvest} dní`} />

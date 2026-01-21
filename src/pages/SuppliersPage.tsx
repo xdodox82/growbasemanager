@@ -548,10 +548,7 @@ const SuppliersPage = () => {
                   <TableRow
                     key={supplier.id}
                     className="cursor-pointer hover:bg-gray-50"
-                    onClick={() => {
-                      setSelectedSupplierDetail(supplier);
-                      setDetailModalOpen(true);
-                    }}
+                    onClick={() => openEditDialog(supplier)}
                   >
                     <TableCell className="font-medium">{supplier.name}</TableCell>
                     <TableCell className="hidden sm:table-cell">{supplier.company_name || '-'}</TableCell>

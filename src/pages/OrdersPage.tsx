@@ -1105,15 +1105,16 @@ export default function OrdersPage() {
         customer_name: order.customer_name || '',
         customer_type: order.customer_type || '',
         delivery_date: null, // Reset date - user MUST select new date
-        status: order.status || 'cakajuca',
+        status: 'pending', // Force pending status for new duplicate
         charge_delivery: Boolean(order.charge_delivery),
         // Default to single order (not recurring)
         is_recurring: false,
         recurrence_pattern: null,
         recurring_weeks: null,
-        // Critical: total_price and delivery_price must be valid numbers
-        total_price: sanitizeNumber(order.total_price, 0),
-        delivery_price: sanitizeNumber(order.delivery_price, 0)
+        recurring_type: null,
+        // Critical: Convert ALL numeric strings to Number
+        total_price: Number(order.total_price) || 0,
+        delivery_price: Number(order.delivery_price) || 0
       };
 
       // Add optional fields with proper snake_case database column mapping
@@ -1180,21 +1181,21 @@ export default function OrdersPage() {
 
         const items = order.order_items.map((item, index) => {
           // Create completely clean item with SNAKE_CASE database columns
-          // Strip: id, created_at, updated_at, order_id (old)
+          // CRITICAL: order_items table does NOT have packaging_type column!
+          // packaging_type only exists in orders table, not order_items
           const cleanItem: any = {
             order_id: newOrder.id, // NEW order id
-            quantity: sanitizeNumber(item.quantity, 0),
+            quantity: Number(item.quantity) || 0, // Convert to Number
             unit: item.unit || 'g',
-            // CRITICAL: All fields use snake_case for database columns
+            // Fields that exist in order_items table (verified against schema)
             packaging_size: item.packaging_size || '',
             delivery_form: item.delivery_form || '',
-            packaging_type: item.packaging_type || '', // snake_case, NOT packagingType
             packaging_material: item.packaging_material || '',
-            packaging_volume_ml: sanitizeNumber(item.packaging_volume_ml, 0), // snake_case
-            has_label: Boolean(item.has_label), // snake_case, NOT hasLabel
-            // Price fields must be valid numbers
-            price_per_unit: sanitizeNumber(item.price_per_unit, 0), // snake_case
-            total_price: sanitizeNumber(item.total_price, 0), // snake_case
+            packaging_volume_ml: Number(item.packaging_volume_ml) || 0, // integer type
+            has_label: Boolean(item.has_label),
+            // Price fields - convert to Number
+            price_per_unit: Number(item.price_per_unit) || 0,
+            total_price: Number(item.total_price) || 0,
             // Add user_id for consistency
             user_id: user.id
           };
@@ -1208,6 +1209,7 @@ export default function OrdersPage() {
           if (item.special_requirements) cleanItem.special_requirements = item.special_requirements;
           if (item.is_special_item !== undefined) cleanItem.is_special_item = Boolean(item.is_special_item);
           if (item.custom_crop_name) cleanItem.custom_crop_name = item.custom_crop_name;
+          if (item.pieces !== undefined && item.pieces !== null) cleanItem.pieces = Number(item.pieces) || 0;
 
           console.log(`Item ${index + 1} sanitized:`, cleanItem);
           return cleanItem;
