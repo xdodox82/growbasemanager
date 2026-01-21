@@ -1776,7 +1776,6 @@ export default function OrdersPage() {
 {/* SEKCIA: VÝBER PLODINY A KATEGÓRIE */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-p-4 bg-slate-50 p-4 rounded-lg">
                         <div className="space-y-2">
-                          <Label>Kategória</Label>
                           <CategoryFilter
                             value={categoryFilter}
                             onChange={setCategoryFilter}
@@ -1785,41 +1784,26 @@ export default function OrdersPage() {
 
                         <div className="space-y-2">
                           <Label>Plodina *</Label>
-                          <div className="flex flex-col gap-2">
-                            <Select
-                              value={currentItem?.crop_id || ""}
-                              onValueChange={(value) => {
-                                const selectedCrop = crops?.find(c => c.id === value);
-                                setCurrentItem(prev => ({
-                                  ...prev,
-                                  crop_id: value,
-                                  crop_name: selectedCrop?.name || ""
-                                }));
-                              }}
-                            >
-                              <SelectTrigger className="w-full bg-white border-slate-300">
-                                <SelectValue placeholder="Vyberte plodinu" />
-                              </SelectTrigger>
-                              <SelectContent className="bg-white z-[9999]">
-                                {(filteredCropsByCategory || []).map((crop) => (
-                                  <SelectItem key={crop.id} value={crop.id}>{crop.name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-
-                            {currentItem?.is_special_item && (
-                              <Input
-                                placeholder="Vlastný názov špeciálnej položky"
-                                value={currentItem?.custom_crop_name || ""}
-                                onChange={(e) => setCurrentItem(prev => ({
-                                  ...prev,
-                                  custom_crop_name: e.target.value,
-                                  crop_name: e.target.value
-                                }))}
-                                className="bg-white border-blue-200 focus:ring-blue-500"
-                              />
-                            )}
-                          </div>
+                          <Select
+                            value={currentItem?.crop_id || ""}
+                            onValueChange={(value) => {
+                              const selectedCrop = crops?.find(c => c.id === value);
+                              setCurrentItem(prev => ({
+                                ...prev,
+                                crop_id: value,
+                                crop_name: selectedCrop?.name || ""
+                              }));
+                            }}
+                          >
+                            <SelectTrigger className="w-full bg-white border-slate-300">
+                              <SelectValue placeholder="Vyberte plodinu" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white z-[9999]">
+                              {(filteredCropsByCategory || []).map((crop) => (
+                                <SelectItem key={crop.id} value={crop.id}>{crop.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
 
@@ -1856,7 +1840,7 @@ export default function OrdersPage() {
                                   ]);
                                   setCurrentItem(prev => ({
                                     ...prev,
-                                    price_per_unit: price > 0 ? price.toString() : prev.price_per_unit || '',
+                                    price_per_unit: price > 0 ? price.toString() : '0.00',
                                     packaging_volume_ml: pkg?.packaging_volume_ml || prev.packaging_volume_ml,
                                     packaging_id: pkg?.packaging_id || prev.packaging_id
                                   }));
@@ -1879,8 +1863,19 @@ export default function OrdersPage() {
                           <Label>Množstvo (ks)</Label>
                           <Input
                             type="number"
-                            value={currentItem?.quantity || 1}
-                            onChange={(e) => setCurrentItem(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
+                            value={currentItem?.quantity || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setCurrentItem(prev => ({
+                                ...prev,
+                                quantity: val === '' ? '' : (parseInt(val) || 1)
+                              }));
+                            }}
+                            onBlur={(e) => {
+                              if (e.target.value === '' || parseInt(e.target.value) < 1) {
+                                setCurrentItem(prev => ({ ...prev, quantity: 1 }));
+                              }
+                            }}
                             className="bg-white border-slate-300"
                           />
                         </div>
