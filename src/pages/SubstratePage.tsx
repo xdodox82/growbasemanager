@@ -236,13 +236,17 @@ export default function SubstratePage() {
         </TableHeader>
         <TableBody>
           {substrates.map((substrate) => (
-            <TableRow key={substrate.id}>
+            <TableRow
+              key={substrate.id}
+              className="cursor-pointer hover:bg-gray-50"
+              onClick={() => handleEdit(substrate)}
+            >
               <TableCell className="font-medium">{substrate.name}</TableCell>
               <TableCell>{getTypeName(substrate.type)}</TableCell>
               <TableCell className="hidden sm:table-cell">{getSupplierName(substrate.supplier_id)}</TableCell>
               <TableCell>{substrate.quantity} {substrate.unit}</TableCell>
               <TableCell className="hidden md:table-cell max-w-[200px] truncate">{substrate.notes || '-'}</TableCell>
-              <TableCell className="text-right">
+              <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                 <div className="flex justify-end gap-2">
                   <Button variant="ghost" size="icon" onClick={() => handleEdit(substrate)}>
                     <Edit className="h-4 w-4" />

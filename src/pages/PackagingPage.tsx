@@ -231,14 +231,18 @@ export default function PackagingPage() {
         </TableHeader>
         <TableBody>
           {packagings.map((packaging) => (
-            <TableRow key={packaging.id}>
+            <TableRow
+              key={packaging.id}
+              className="cursor-pointer hover:bg-gray-50"
+              onClick={() => handleEdit(packaging)}
+            >
               <TableCell className="font-medium">{packaging.name}</TableCell>
               <TableCell>{packaging.type || '-'}</TableCell>
               <TableCell>{packaging.size || '-'}</TableCell>
               <TableCell className="hidden md:table-cell">{getSupplierName(packaging.supplier_id)}</TableCell>
               <TableCell>{packaging.quantity} ks</TableCell>
               <TableCell className="hidden lg:table-cell max-w-[200px] truncate">{packaging.notes || '-'}</TableCell>
-              <TableCell className="text-right">
+              <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                 <div className="flex justify-end gap-2">
                   <Button variant="ghost" size="icon" onClick={() => handleEdit(packaging)}>
                     <Edit className="h-4 w-4" />

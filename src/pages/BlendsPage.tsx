@@ -468,7 +468,7 @@ const BlendsPage = () => {
             )
           }
         />
-      ) : (
+      ) : viewMode === 'grid' ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {blends.map((blend) => {
             const blendCrops = getBlendCrops(blend);
@@ -476,10 +476,7 @@ const BlendsPage = () => {
               <Card
                 key={blend.id}
                 className="p-5 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer"
-                onClick={() => {
-                  setSelectedBlendDetail(blend);
-                  setDetailModalOpen(true);
-                }}
+                onClick={() => openEditDialog(blend)}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
@@ -519,7 +516,7 @@ const BlendsPage = () => {
                       {blendCrop.isBlend ? (
                         <BlendIcon className="h-3 w-3 text-primary flex-shrink-0" />
                       ) : (
-                        <div 
+                        <div
                           className="h-3 w-3 rounded-full flex-shrink-0"
                           style={{ backgroundColor: getCropColor(blendCrop.cropId, blendCrop.isBlend) }}
                         />
@@ -536,10 +533,10 @@ const BlendsPage = () => {
                 {/* Visual percentage bar */}
                 <div className="mt-4 h-2 rounded-full overflow-hidden flex">
                   {blendCrops.map((blendCrop, index) => (
-                    <div 
+                    <div
                       key={index}
                       className="h-full"
-                      style={{ 
+                      style={{
                         width: `${blendCrop.percentage}%`,
                         backgroundColor: getCropColor(blendCrop.cropId, blendCrop.isBlend),
                       }}
@@ -555,6 +552,79 @@ const BlendsPage = () => {
               </Card>
             );
           })}
+        </div>
+      ) : (
+        <div className="rounded-lg border border-border bg-card">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Názov</TableHead>
+                <TableHead>Zloženie</TableHead>
+                <TableHead className="hidden md:table-cell">Položky</TableHead>
+                <TableHead className="text-right">Akcie</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {blends.map((blend) => {
+                const blendCrops = getBlendCrops(blend);
+                return (
+                  <TableRow
+                    key={blend.id}
+                    className="cursor-pointer hover:bg-gray-50"
+                    onClick={() => openEditDialog(blend)}
+                  >
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-gradient-to-br from-success/20 to-info/20">
+                          <BlendIcon className="h-4 w-4 text-success" />
+                        </div>
+                        {blend.name}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 rounded-full overflow-hidden flex w-32">
+                          {blendCrops.map((blendCrop, index) => (
+                            <div
+                              key={index}
+                              className="h-full"
+                              style={{
+                                width: `${blendCrop.percentage}%`,
+                                backgroundColor: getCropColor(blendCrop.cropId, blendCrop.isBlend),
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {blendCrops.length} položiek
+                    </TableCell>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEditDialog(blend)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        {isAdmin && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setDeleteId(blend.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         </div>
       )}
 

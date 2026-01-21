@@ -319,7 +319,11 @@ export default function OtherInventoryPage() {
                 </TableHeader>
                 <TableBody>
                   {inventory.map((item) => (
-                    <TableRow key={item.id}>
+                    <TableRow
+                      key={item.id}
+                      className="cursor-pointer hover:bg-gray-50"
+                      onClick={() => handleEdit(item)}
+                    >
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
                           {item.category === 'etikety' && <Tag className="h-4 w-4 text-primary" />}
@@ -340,11 +344,11 @@ export default function OtherInventoryPage() {
                           {item.quantity} {item.unit || 'ks'}
                         </span>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-1 sm:gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
+                          <Button
+                            variant="outline"
+                            size="sm"
                             className="gap-1"
                             onClick={() => openConsumeDialog(item)}
                           >

@@ -358,7 +358,11 @@ export default function ConsumableInventoryPage() {
                   {categoryItems.map((item) => {
                     const isLowStock = item.min_quantity !== null && item.quantity <= item.min_quantity;
                     return (
-                      <TableRow key={item.id} className={isLowStock ? 'bg-yellow-50 dark:bg-yellow-950/20' : ''}>
+                      <TableRow
+                        key={item.id}
+                        className={`cursor-pointer hover:bg-gray-50 ${isLowStock ? 'bg-yellow-50 dark:bg-yellow-950/20' : ''}`}
+                        onClick={() => handleEdit(item)}
+                      >
                         <TableCell>
                           <div className="flex items-center gap-2">
                             {isLowStock && <AlertTriangle className="w-4 h-4 text-yellow-600" />}
@@ -374,7 +378,7 @@ export default function ConsumableInventoryPage() {
                         <TableCell className="text-right text-muted-foreground">
                           {item.min_quantity ? `${item.min_quantity} ${item.unit}` : '-'}
                         </TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <div className="flex gap-2">
                             <Button size="sm" variant="ghost" onClick={() => handleEdit(item)}>
                               <Edit className="w-4 h-4" />

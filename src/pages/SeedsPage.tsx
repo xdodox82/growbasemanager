@@ -471,8 +471,10 @@ export default function SeedsPage() {
             {filteredSeeds.map((seed) => {
               const extSeed = seed as unknown as ExtendedSeed;
               return (
-                <MobileTableRow 
+                <MobileTableRow
                   key={seed.id}
+                  className="cursor-pointer hover:bg-gray-50"
+                  onClick={() => handleEdit(seed)}
                   expandedContent={
                     <>
                       <ExpandedDetail label="Dodávateľ" value={getSupplierName(seed.supplier_id)} />
@@ -518,7 +520,7 @@ export default function SeedsPage() {
                       </a>
                     ) : '-'}
                   </MobileTableCell>
-                  <MobileTableCell className="text-right">
+                  <MobileTableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-end gap-2">
                       {archiveFilter === 'archived' && (
                         <Button

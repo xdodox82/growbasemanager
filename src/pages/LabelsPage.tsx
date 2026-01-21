@@ -244,7 +244,11 @@ export default function LabelsPage() {
           </TableHeader>
           <TableBody>
             {labels.map((label) => (
-              <TableRow key={label.id}>
+              <TableRow
+                key={label.id}
+                className="cursor-pointer hover:bg-gray-50"
+                onClick={() => openEditDialog(label)}
+              >
                 <TableCell className="font-medium">{label.name}</TableCell>
                 <TableCell>
                   <Badge variant="secondary">
@@ -254,7 +258,7 @@ export default function LabelsPage() {
                 <TableCell className="hidden sm:table-cell">{label.size || '-'}</TableCell>
                 <TableCell>{label.quantity} ks</TableCell>
                 <TableCell className="hidden md:table-cell">{getSupplierName(label.supplier_id)}</TableCell>
-                <TableCell>
+                <TableCell onClick={(e) => e.stopPropagation()}>
                   <div className="flex gap-1">
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(label)}>
                       <Pencil className="h-4 w-4" />
