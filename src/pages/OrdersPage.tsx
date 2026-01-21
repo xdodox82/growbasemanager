@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -190,16 +190,20 @@ export default function OrdersPage() {
 
   useEffect(() => {
     const fetchPriceAutomatically = async () => {
-      if (!currentItem.is_special_item && currentItem.crop_id && currentItem.packaging_size && customerType) {
-        const autoPrice = await autoFetchPrice(currentItem.crop_id, currentItem.packaging_size, customerType);
-        if (autoPrice > 0) {
-          setCurrentItem(prev => ({ ...prev, price_per_unit: autoPrice.toString() }));
+      if (!currentItem.is_special_item && currentItem.packaging_size && customerType) {
+        // Only auto-fetch price for crops (not blends)
+        if (currentItem.crop_id) {
+          const autoPrice = await autoFetchPrice(currentItem.crop_id, currentItem.packaging_size, customerType);
+          if (autoPrice > 0) {
+            setCurrentItem(prev => ({ ...prev, price_per_unit: autoPrice.toString() }));
+          }
         }
+        // For blends, price needs to be entered manually (or calculated from components in the future)
       }
     };
 
     fetchPriceAutomatically();
-  }, [currentItem.crop_id, currentItem.packaging_size, customerType, currentItem.is_special_item]);
+  }, [currentItem.crop_id, currentItem.blend_id, currentItem.packaging_size, customerType, currentItem.is_special_item]);
 
   useEffect(() => {
     if (selectedOrderDetail && deliverySettings && customers?.length > 0) {
@@ -695,19 +699,28 @@ export default function OrdersPage() {
     }
   };
 
-  const autoFetchPackaging = async (cropId: string, packagingSize: string) => {
+  const autoFetchPackaging = async (packagingSize: string, cropId?: string, blendId?: string) => {
     try {
       const weightG = parseInt(packagingSize.replace(/[^0-9]/g, ''));
       if (!weightG) return null;
+      if (!cropId && !blendId) return null;
 
-      console.log(`📦 Auto-fetching packaging for crop ${cropId}, weight ${weightG}g`);
+      const itemType = cropId ? 'crop' : 'blend';
+      const itemId = cropId || blendId;
+      console.log(`📦 Auto-fetching packaging for ${itemType} ${itemId}, weight ${weightG}g`);
 
-      const { data: mapping } = await supabase
+      const query = supabase
         .from('packaging_mappings')
         .select('packaging_id, packagings(type, size)')
-        .eq('crop_id', cropId)
-        .eq('weight_g', weightG)
-        .maybeSingle();
+        .eq('weight_g', weightG);
+
+      if (cropId) {
+        query.eq('crop_id', cropId);
+      } else if (blendId) {
+        query.eq('blend_id', blendId);
+      }
+
+      const { data: mapping } = await query.maybeSingle();
 
       if (mapping && mapping.packagings) {
         const pkg: any = mapping.packagings;
@@ -724,7 +737,7 @@ export default function OrdersPage() {
         return result;
       }
 
-      console.log('⚠️ No packaging mapping found for this crop and weight');
+      console.log('⚠️ No packaging mapping found for this', itemType, 'and weight');
       return null;
     } catch (error) {
       console.error('❌ Error fetching packaging mapping:', error);
@@ -1919,25 +1932,53 @@ export default function OrdersPage() {
                         </div>
 
                         <div className="space-y-2">
-                          <Label>Plodina *</Label>
+                          <Label>Plodina / Mix *</Label>
                           <Select
-                            value={currentItem?.crop_id || ""}
+                            value={
+                              currentItem?.crop_id
+                                ? `crop:${currentItem.crop_id}`
+                                : currentItem?.blend_id
+                                ? `blend:${currentItem.blend_id}`
+                                : ""
+                            }
                             onValueChange={(value) => {
-                              const selectedCrop = crops?.find(c => c.id === value);
-                              setCurrentItem(prev => ({
-                                ...prev,
-                                crop_id: value,
-                                crop_name: selectedCrop?.name || ""
-                              }));
+                              const [type, id] = value.split(':');
+
+                              if (type === 'crop') {
+                                const selectedCrop = crops?.find(c => c.id === id);
+                                setCurrentItem(prev => ({
+                                  ...prev,
+                                  crop_id: id,
+                                  blend_id: undefined,
+                                  crop_name: selectedCrop?.name || ""
+                                }));
+                              } else if (type === 'blend') {
+                                const selectedBlend = blends?.find(b => b.id === id);
+                                setCurrentItem(prev => ({
+                                  ...prev,
+                                  blend_id: id,
+                                  crop_id: undefined,
+                                  crop_name: selectedBlend?.name || ""
+                                }));
+                              }
                             }}
                           >
                             <SelectTrigger className="w-full h-10 bg-white border-slate-200">
-                              <SelectValue placeholder="Vyberte plodinu" />
+                              <SelectValue placeholder="Vyberte plodinu alebo mix" />
                             </SelectTrigger>
                             <SelectContent className="bg-white z-[9999]">
-                              {(filteredCropsByCategory || []).map((crop) => (
-                                <SelectItem key={crop.id} value={crop.id}>{crop.name}</SelectItem>
-                              ))}
+                              <SelectGroup>
+                                <SelectLabel>Samostatné plodiny</SelectLabel>
+                                {(filteredCropsByCategory || []).map((crop) => (
+                                  <SelectItem key={crop.id} value={`crop:${crop.id}`}>{crop.name}</SelectItem>
+                                ))}
+                              </SelectGroup>
+                              <SelectGroup>
+                                <SelectLabel>Mixy</SelectLabel>
+                                {(blends || []).map((blend) => (
+                                  <SelectItem key={blend.id} value={`blend:${blend.id}`}>{blend.name}</SelectItem>
+                                ))}
+                              </SelectGroup>
                             </SelectContent>
                           </Select>
                         </div>
@@ -1969,14 +2010,21 @@ export default function OrdersPage() {
                               onValueChange={async (value) => {
                                 setCurrentItem(prev => ({ ...prev, packaging_size: value }));
                                 // AUTOMATIC FETCHING OF PRICE AND PACKAGING
-                                if (currentItem?.crop_id && customerType) {
-                                  const [price, pkg] = await Promise.all([
-                                    autoFetchPrice(currentItem.crop_id, value, customerType),
-                                    autoFetchPackaging(currentItem.crop_id, value)
-                                  ]);
+                                if ((currentItem?.crop_id || currentItem?.blend_id) && customerType) {
+                                  const promises: [Promise<number>, Promise<any>] = [
+                                    Promise.resolve(0), // Default price for blends (no price table yet)
+                                    autoFetchPackaging(value, currentItem.crop_id, currentItem.blend_id)
+                                  ];
+
+                                  // Only fetch price if it's a crop (not a blend)
+                                  if (currentItem?.crop_id) {
+                                    promises[0] = autoFetchPrice(currentItem.crop_id, value, customerType);
+                                  }
+
+                                  const [price, pkg] = await Promise.all(promises);
                                   setCurrentItem(prev => ({
                                     ...prev,
-                                    price_per_unit: price > 0 ? price.toString() : '0.00',
+                                    price_per_unit: price > 0 ? price.toString() : prev.price_per_unit || '0.00',
                                     packaging_volume_ml: pkg?.packaging_volume_ml || prev.packaging_volume_ml,
                                     packaging_id: pkg?.packaging_id || prev.packaging_id
                                   }));

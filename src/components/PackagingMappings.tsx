@@ -14,6 +14,7 @@ import { usePackagingMappings } from '@/hooks/usePackagingMappings';
 type Crop = {
   id: string;
   name: string;
+  type: 'crop' | 'blend';
   mappings?: { weight_g: number; volume: string }[];
 };
 
@@ -48,31 +49,65 @@ export function PackagingMappings() {
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const [cropsRes, packagingsRes] = await Promise.all([
+      const [cropsRes, blendsRes, packagingsRes] = await Promise.all([
         supabase.from('products').select('id, name').order('name'),
+        supabase.from('blends').select('id, name').order('name'),
         supabase.from('packagings').select('id, name, type, size').order('name'),
       ]);
 
       console.log('📦 Loaded packagings:', packagingsRes.data);
 
+      const allItems: Crop[] = [];
+
+      // Load mappings for all crops
       if (cropsRes.data) {
-        // Load mappings for all crops
         const cropsWithMappings = await Promise.all(
           cropsRes.data.map(async (crop) => {
-            const mappings = await loadMappingsByCrop(crop.id);
+            const { data: mappings } = await supabase
+              .from('packaging_mappings')
+              .select('weight_g, packaging_id, packagings(id, name, size)')
+              .eq('crop_id', crop.id);
+
             console.log(`📋 Mappings for ${crop.name}:`, mappings);
-            const formattedMappings = mappings.map((m: any) => ({
+            const formattedMappings = (mappings || []).map((m: any) => ({
               weight_g: m.weight_g,
               volume: m.packagings?.size || ''
             }));
             return {
               ...crop,
+              type: 'crop' as const,
               mappings: formattedMappings
             };
           })
         );
-        setCrops(cropsWithMappings);
+        allItems.push(...cropsWithMappings);
       }
+
+      // Load mappings for all blends
+      if (blendsRes.data) {
+        const blendsWithMappings = await Promise.all(
+          blendsRes.data.map(async (blend) => {
+            const { data: mappings } = await supabase
+              .from('packaging_mappings')
+              .select('weight_g, packaging_id, packagings(id, name, size)')
+              .eq('blend_id', blend.id);
+
+            console.log(`📋 Mappings for ${blend.name} (Mix):`, mappings);
+            const formattedMappings = (mappings || []).map((m: any) => ({
+              weight_g: m.weight_g,
+              volume: m.packagings?.size || ''
+            }));
+            return {
+              ...blend,
+              type: 'blend' as const,
+              mappings: formattedMappings
+            };
+          })
+        );
+        allItems.push(...blendsWithMappings);
+      }
+
+      setCrops(allItems.sort((a, b) => a.name.localeCompare(b.name)));
 
       if (packagingsRes.data) {
         setPackagings(packagingsRes.data);
@@ -89,17 +124,28 @@ export function PackagingMappings() {
     }
   };
 
-  const openEditDialog = async (crop: Crop) => {
-    setEditingCrop(crop);
+  const openEditDialog = async (item: Crop) => {
+    setEditingCrop(item);
 
-    // Load current mappings for this crop
-    const mappings = await loadMappingsByCrop(crop.id);
-    console.log(`🔧 Opening edit dialog for ${crop.name}, mappings:`, mappings);
+    // Load current mappings for this crop or blend
+    const query = supabase
+      .from('packaging_mappings')
+      .select('weight_g, packaging_id');
+
+    if (item.type === 'crop') {
+      query.eq('crop_id', item.id);
+    } else {
+      query.eq('blend_id', item.id);
+    }
+
+    const { data: mappings } = await query;
+
+    console.log(`🔧 Opening edit dialog for ${item.name} (${item.type}), mappings:`, mappings);
 
     const idMap: Record<number, string> = {};
     const enabledMap: Record<number, boolean> = {};
 
-    mappings.forEach((m: any) => {
+    (mappings || []).forEach((m: any) => {
       if (m?.packaging_id && m?.weight_g) {
         idMap[m.weight_g] = m.packaging_id;
         enabledMap[m.weight_g] = true;
@@ -147,31 +193,56 @@ export function PackagingMappings() {
     try {
       const mappingsToInsert = Object.entries(packagingIdMappings)
         .filter(([weight, packagingId]) => enabledWeights[parseInt(weight)] && packagingId && packagingId !== '')
-        .map(([weight, packagingId]) => ({
-          crop_id: editingCrop.id,
-          weight_g: parseInt(weight),
-          packaging_id: packagingId,
-        }));
+        .map(([weight, packagingId]) => {
+          const baseMapping = {
+            weight_g: parseInt(weight),
+            packaging_id: packagingId,
+          };
 
-      console.log('💾 Saving mappings for', editingCrop.name, ':', mappingsToInsert);
+          // Add either crop_id or blend_id based on the item type
+          if (editingCrop.type === 'crop') {
+            return { ...baseMapping, crop_id: editingCrop.id, blend_id: null };
+          } else {
+            return { ...baseMapping, blend_id: editingCrop.id, crop_id: null };
+          }
+        });
+
+      console.log('💾 Saving mappings for', editingCrop.name, `(${editingCrop.type}):`, mappingsToInsert);
 
       if (mappingsToInsert.length === 0) {
         console.log('⚠️ No mappings to save (empty array)');
-        // If no mappings, delete all for this crop
-        const { error: deleteError } = await supabase
-          .from('packaging_mappings')
-          .delete()
-          .eq('crop_id', editingCrop.id);
+        // If no mappings, delete all for this crop/blend
+        const deleteQuery = supabase.from('packaging_mappings').delete();
 
-        if (deleteError) throw deleteError;
-      } else {
-        const result = await upsertMappings(mappingsToInsert);
-
-        if (!result.success) {
-          throw new Error(result.error?.message || 'Chyba pri ukladaní');
+        if (editingCrop.type === 'crop') {
+          deleteQuery.eq('crop_id', editingCrop.id);
+        } else {
+          deleteQuery.eq('blend_id', editingCrop.id);
         }
 
-        console.log('✅ Mappings saved successfully:', result.data);
+        const { error: deleteError } = await deleteQuery;
+        if (deleteError) throw deleteError;
+      } else {
+        // First delete existing mappings
+        const deleteQuery = supabase.from('packaging_mappings').delete();
+
+        if (editingCrop.type === 'crop') {
+          deleteQuery.eq('crop_id', editingCrop.id);
+        } else {
+          deleteQuery.eq('blend_id', editingCrop.id);
+        }
+
+        const { error: deleteError } = await deleteQuery;
+        if (deleteError) throw deleteError;
+
+        // Then insert new mappings
+        const { error: insertError } = await supabase
+          .from('packaging_mappings')
+          .insert(mappingsToInsert);
+
+        if (insertError) throw insertError;
+
+        console.log('✅ Mappings saved successfully');
       }
 
       toast({
@@ -285,7 +356,7 @@ export function PackagingMappings() {
           <div>
             <h2 className="text-lg font-semibold">Automatické priradenie obalov</h2>
             <p className="text-sm text-muted-foreground">
-              Nastavte predvolený obal pre kombináciu plodiny a hmotnosti (Zrezaná mikrozelenina)
+              Nastavte predvolený obal pre kombináciu plodiny/mixu a hmotnosti (Zrezaná mikrozelenina)
             </p>
           </div>
         </div>
@@ -294,7 +365,8 @@ export function PackagingMappings() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[200px]">Plodina</TableHead>
+                <TableHead className="w-[200px]">Plodina / Mix</TableHead>
+                <TableHead className="w-[100px]">Typ</TableHead>
                 <TableHead>Nastavené balenia</TableHead>
                 <TableHead className="w-[100px] text-right">Akcie</TableHead>
               </TableRow>
@@ -311,6 +383,17 @@ export function PackagingMappings() {
                         <XCircle className="h-4 w-4 text-gray-400" />
                       )}
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${
+                        crop.type === 'blend'
+                          ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                          : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                      }`}
+                    >
+                      {crop.type === 'blend' ? 'Mix' : 'Plodina'}
+                    </span>
                   </TableCell>
                   <TableCell>{formatMappings(crop.mappings)}</TableCell>
                   <TableCell className="text-right">
