@@ -62,6 +62,8 @@ const CustomersPage = () => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [saving, setSaving] = useState(false);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedCustomerDetail, setSelectedCustomerDetail] = useState<DbCustomer | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const saved = localStorage.getItem(FILTER_STORAGE_KEY);
     if (saved) {
@@ -729,7 +731,14 @@ const CustomersPage = () => {
       ) : viewMode === 'grid' ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredCustomers.map((customer) => (
-            <Card key={customer.id} className="p-5 transition-all hover:border-primary/50 hover:shadow-lg">
+            <Card
+              key={customer.id}
+              className="p-5 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer"
+              onClick={() => {
+                setSelectedCustomerDetail(customer);
+                setDetailModalOpen(true);
+              }}
+            >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-info/10 text-info">
@@ -737,8 +746,8 @@ const CustomersPage = () => {
                   </div>
                   <div>
                     <h3 className="font-semibold text-lg">
-                      {(customer.customer_type === 'gastro' || customer.customer_type === 'wholesale') && customer.company_name 
-                        ? customer.company_name 
+                      {(customer.customer_type === 'gastro' || customer.customer_type === 'wholesale') && customer.company_name
+                        ? customer.company_name
                         : customer.name}
                     </h3>
                     {(customer.customer_type === 'gastro' || customer.customer_type === 'wholesale') && customer.company_name && (
@@ -762,7 +771,7 @@ const CustomersPage = () => {
                     </div>
                   </div>
                 </div>
-                <div className="flex gap-1">
+                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                   <Button variant="ghost" size="icon" onClick={() => openEditDialog(customer)}>
                     <Pencil className="h-4 w-4" />
                   </Button>
@@ -846,8 +855,13 @@ const CustomersPage = () => {
                 </TableHeader>
                 <TableBody>
                   {filteredCustomers.map((customer) => (
-                    <MobileTableRow 
+                    <MobileTableRow
                       key={customer.id}
+                      className="cursor-pointer hover:bg-gray-50"
+                      onClick={() => {
+                        setSelectedCustomerDetail(customer);
+                        setDetailModalOpen(true);
+                      }}
                       expandedContent={
                         <>
                           <ExpandedDetail label="Typ" value={customer.customer_type ? CUSTOMER_TYPES[customer.customer_type] : '-'} />
@@ -899,7 +913,7 @@ const CustomersPage = () => {
                       <MobileTableCell hideOnMobile>
                         {getRouteName(customer.delivery_route_id) || '-'}
                       </MobileTableCell>
-                      <MobileTableCell>
+                      <MobileTableCell onClick={(e) => e.stopPropagation()}>
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(customer)}>
                             <Pencil className="h-4 w-4" />
@@ -936,6 +950,141 @@ const CustomersPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Detail Modal */}
+      <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Detail zákazníka</DialogTitle>
+          </DialogHeader>
+          {selectedCustomerDetail && (
+            <div className="space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 rounded-xl flex items-center justify-center bg-info/10 text-info">
+                  <Users className="h-8 w-8" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold">
+                    {(selectedCustomerDetail.customer_type === 'gastro' || selectedCustomerDetail.customer_type === 'wholesale') && selectedCustomerDetail.company_name
+                      ? selectedCustomerDetail.company_name
+                      : selectedCustomerDetail.name}
+                  </h3>
+                  {(selectedCustomerDetail.customer_type === 'gastro' || selectedCustomerDetail.customer_type === 'wholesale') && selectedCustomerDetail.company_name && (
+                    <p className="text-sm text-muted-foreground">{selectedCustomerDetail.contact_name || selectedCustomerDetail.name}</p>
+                  )}
+                  {selectedCustomerDetail.customer_type && (
+                    <Badge variant="secondary" className="mt-1">
+                      {CUSTOMER_TYPES[selectedCustomerDetail.customer_type]}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {selectedCustomerDetail.ico && (
+                  <div className="space-y-1">
+                    <div className="text-sm text-muted-foreground">IČO</div>
+                    <div className="font-medium">{selectedCustomerDetail.ico}</div>
+                  </div>
+                )}
+                {selectedCustomerDetail.dic && (
+                  <div className="space-y-1">
+                    <div className="text-sm text-muted-foreground">DIČ</div>
+                    <div className="font-medium">{selectedCustomerDetail.dic}</div>
+                  </div>
+                )}
+                {selectedCustomerDetail.ic_dph && (
+                  <div className="space-y-1">
+                    <div className="text-sm text-muted-foreground">IČ DPH</div>
+                    <div className="font-medium">{selectedCustomerDetail.ic_dph}</div>
+                  </div>
+                )}
+                {selectedCustomerDetail.email && (
+                  <div className="space-y-1">
+                    <div className="text-sm text-muted-foreground">Email</div>
+                    <div className="font-medium">{selectedCustomerDetail.email}</div>
+                  </div>
+                )}
+                {selectedCustomerDetail.phone && (
+                  <div className="space-y-1">
+                    <div className="text-sm text-muted-foreground">Telefón</div>
+                    <div className="font-medium">{selectedCustomerDetail.phone}</div>
+                  </div>
+                )}
+                {selectedCustomerDetail.payment_method && (
+                  <div className="space-y-1">
+                    <div className="text-sm text-muted-foreground">Spôsob platby</div>
+                    <div className="font-medium">
+                      {selectedCustomerDetail.payment_method === 'cash' && 'Hotovosť'}
+                      {selectedCustomerDetail.payment_method === 'card' && 'Platba kartou'}
+                      {selectedCustomerDetail.payment_method === 'invoice' && 'Faktúra'}
+                    </div>
+                  </div>
+                )}
+                {selectedCustomerDetail.delivery_route_id && (
+                  <div className="space-y-1">
+                    <div className="text-sm text-muted-foreground">Rozvozová trasa</div>
+                    <div className="font-medium">{getRouteName(selectedCustomerDetail.delivery_route_id)}</div>
+                  </div>
+                )}
+                {selectedCustomerDetail.free_delivery !== undefined && (
+                  <div className="space-y-1">
+                    <div className="text-sm text-muted-foreground">Doprava zdarma</div>
+                    <div className="font-medium">{selectedCustomerDetail.free_delivery ? 'Áno' : 'Nie'}</div>
+                  </div>
+                )}
+              </div>
+
+              {selectedCustomerDetail.address && (
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground">Adresa</div>
+                  <div className="text-sm whitespace-pre-wrap">{selectedCustomerDetail.address}</div>
+                </div>
+              )}
+
+              {selectedCustomerDetail.delivery_notes && (
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground">Poznámky k dodaniu</div>
+                  <div className="text-sm whitespace-pre-wrap">{selectedCustomerDetail.delivery_notes}</div>
+                </div>
+              )}
+
+              {selectedCustomerDetail.bank_account && (
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground">Bankové spojenie</div>
+                  <div className="text-sm">{selectedCustomerDetail.bank_account}</div>
+                </div>
+              )}
+
+              <div className="space-y-1 pt-2 border-t">
+                <div className="text-sm text-muted-foreground">Štatistiky</div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>Celkový počet objednávok: <span className="font-semibold">{customerStats[selectedCustomerDetail.id]?.orderCount || 0}</span></div>
+                  <div>Celková suma: <span className="font-semibold">{(customerStats[selectedCustomerDetail.id]?.totalSpent || 0).toFixed(2)} €</span></div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 justify-end pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setDetailModalOpen(false)}
+                >
+                  Zavrieť
+                </Button>
+                <Button
+                  onClick={() => {
+                    setDetailModalOpen(false);
+                    openEditDialog(selectedCustomerDetail);
+                  }}
+                >
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Upraviť
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 };

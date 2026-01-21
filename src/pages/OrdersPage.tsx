@@ -1087,19 +1087,30 @@ export default function OrdersPage() {
 
   const duplicateOrder = async (order: Order) => {
     try {
-      // Create a deep copy of the order with all fields except id and dates
-      const orderData = {
+      // Sanitize and ensure proper data types - strip all IDs and timestamps
+      const sanitizeNumber = (val: any): number | null => {
+        if (val === null || val === undefined || val === '') return null;
+        const num = typeof val === 'string' ? parseFloat(val) : val;
+        return isNaN(num) ? null : num;
+      };
+
+      // Create a clean order object without id, created_at, updated_at
+      const orderData: any = {
         customer_id: order.customer_id,
         customer_name: order.customer_name,
         customer_type: order.customer_type,
         delivery_date: null, // Reset date - user must select new date
-        status: order.status, // Preserve status
+        status: order.status,
         order_type: order.order_type,
-        route: order.route,
-        week_count: order.week_count,
-        total_price: order.total_price,
-        charge_delivery: order.charge_delivery
+        charge_delivery: order.charge_delivery ?? false
       };
+
+      // Only add optional fields if they have valid values
+      if (order.route) orderData.route = order.route;
+      if (order.week_count) orderData.week_count = sanitizeNumber(order.week_count);
+      if (order.total_price !== null && order.total_price !== undefined) {
+        orderData.total_price = sanitizeNumber(order.total_price);
+      }
 
       const { data: newOrder, error } = await supabase
         .from('orders')
@@ -1107,32 +1118,50 @@ export default function OrdersPage() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Order insert error:', error);
+        throw error;
+      }
 
-      // Copy all order items with all their properties
+      // Copy all order items with sanitized data - strip id, created_at, updated_at
       if (order.order_items && order.order_items.length > 0) {
-        const items = order.order_items.map(item => ({
-          order_id: newOrder.id,
-          crop_id: item.crop_id,
-          crop_name: item.crop_name,
-          blend_id: item.blend_id,
-          quantity: item.quantity,
-          unit: item.unit,
-          packaging_size: item.packaging_size,
-          delivery_form: item.delivery_form,
-          packaging_type: item.packaging_type,
-          packaging_material: item.packaging_material,
-          packaging_volume_ml: item.packaging_volume_ml,
-          packaging_id: item.packaging_id,
-          has_label: item.has_label,
-          notes: item.notes,
-          special_requirements: item.special_requirements,
-          price_per_unit: item.price_per_unit,
-          total_price: item.total_price
-        }));
+        const items = order.order_items.map(item => {
+          const cleanItem: any = {
+            order_id: newOrder.id,
+            quantity: sanitizeNumber(item.quantity) || 0,
+            unit: item.unit || 'g',
+            packaging_size: item.packaging_size || '',
+            delivery_form: item.delivery_form || '',
+            packaging_type: item.packaging_type || '',
+            packaging_material: item.packaging_material || '',
+            packaging_volume_ml: sanitizeNumber(item.packaging_volume_ml) || 0,
+            has_label: item.has_label ?? false
+          };
+
+          // Only add optional fields if they exist
+          if (item.crop_id) cleanItem.crop_id = item.crop_id;
+          if (item.crop_name) cleanItem.crop_name = item.crop_name;
+          if (item.blend_id) cleanItem.blend_id = item.blend_id;
+          if (item.packaging_id) cleanItem.packaging_id = item.packaging_id;
+          if (item.notes) cleanItem.notes = item.notes;
+          if (item.special_requirements) cleanItem.special_requirements = item.special_requirements;
+
+          // Sanitize price fields
+          if (item.price_per_unit !== null && item.price_per_unit !== undefined) {
+            cleanItem.price_per_unit = sanitizeNumber(item.price_per_unit);
+          }
+          if (item.total_price !== null && item.total_price !== undefined) {
+            cleanItem.total_price = sanitizeNumber(item.total_price);
+          }
+
+          return cleanItem;
+        });
 
         const { error: itemsError } = await supabase.from('order_items').insert(items);
-        if (itemsError) throw itemsError;
+        if (itemsError) {
+          console.error('Order items insert error:', itemsError);
+          throw itemsError;
+        }
       }
 
       // Reload data and automatically open the new order in edit mode
@@ -1152,7 +1181,11 @@ export default function OrdersPage() {
       toast({ title: 'Úspech', description: 'Objednávka zduplikovaná - prosím vyberte nový dátum dodania' });
     } catch (error) {
       console.error('Error duplicating order:', error);
-      toast({ title: 'Chyba', description: 'Nepodarilo sa zduplikovať objednávku', variant: 'destructive' });
+      toast({
+        title: 'Chyba',
+        description: 'Nepodarilo sa zduplikovať objednávku. Skontrolujte konzolu pre viac detailov.',
+        variant: 'destructive'
+      });
     }
   };
 

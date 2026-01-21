@@ -53,6 +53,8 @@ const SuppliersPage = () => {
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedSupplierDetail, setSelectedSupplierDetail] = useState<DbSupplier | null>(null);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -421,7 +423,14 @@ const SuppliersPage = () => {
       ) : viewMode === 'grid' ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredSuppliers.map((supplier) => (
-            <Card key={supplier.id} className="p-5 transition-all hover:border-primary/50 hover:shadow-lg">
+            <Card
+              key={supplier.id}
+              className="p-5 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer"
+              onClick={() => {
+                setSelectedSupplierDetail(supplier);
+                setDetailModalOpen(true);
+              }}
+            >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-warning/10 text-warning">
@@ -437,7 +446,7 @@ const SuppliersPage = () => {
                     )}
                   </div>
                 </div>
-                <div className="flex gap-1">
+                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -536,12 +545,19 @@ const SuppliersPage = () => {
               </TableHeader>
               <TableBody>
                 {filteredSuppliers.map((supplier) => (
-                  <TableRow key={supplier.id}>
+                  <TableRow
+                    key={supplier.id}
+                    className="cursor-pointer hover:bg-gray-50"
+                    onClick={() => {
+                      setSelectedSupplierDetail(supplier);
+                      setDetailModalOpen(true);
+                    }}
+                  >
                     <TableCell className="font-medium">{supplier.name}</TableCell>
                     <TableCell className="hidden sm:table-cell">{supplier.company_name || '-'}</TableCell>
                     <TableCell className="hidden md:table-cell">{supplier.email || '-'}</TableCell>
                     <TableCell className="hidden lg:table-cell">{supplier.phone || '-'}</TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(supplier)}>
                           <Pencil className="h-4 w-4" />
@@ -575,6 +591,126 @@ const SuppliersPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Detail Modal */}
+      <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Detail dodávateľa</DialogTitle>
+          </DialogHeader>
+          {selectedSupplierDetail && (
+            <div className="space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 rounded-xl flex items-center justify-center bg-warning/10 text-warning">
+                  <Building2 className="h-8 w-8" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold">{selectedSupplierDetail.name}</h3>
+                  {selectedSupplierDetail.company_name && (
+                    <p className="text-sm text-muted-foreground">{selectedSupplierDetail.company_name}</p>
+                  )}
+                  {selectedSupplierDetail.supplier_type && (
+                    <Badge variant="outline" className="mt-1">
+                      {SUPPLIER_TYPES[selectedSupplierDetail.supplier_type]}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {selectedSupplierDetail.contact_name && (
+                  <div className="space-y-1">
+                    <div className="text-sm text-muted-foreground">Kontaktná osoba</div>
+                    <div className="font-medium">{selectedSupplierDetail.contact_name}</div>
+                  </div>
+                )}
+                {selectedSupplierDetail.ico && (
+                  <div className="space-y-1">
+                    <div className="text-sm text-muted-foreground">IČO</div>
+                    <div className="font-medium">{selectedSupplierDetail.ico}</div>
+                  </div>
+                )}
+                {selectedSupplierDetail.dic && (
+                  <div className="space-y-1">
+                    <div className="text-sm text-muted-foreground">DIČ</div>
+                    <div className="font-medium">{selectedSupplierDetail.dic}</div>
+                  </div>
+                )}
+                {selectedSupplierDetail.ic_dph && (
+                  <div className="space-y-1">
+                    <div className="text-sm text-muted-foreground">IČ DPH</div>
+                    <div className="font-medium">{selectedSupplierDetail.ic_dph}</div>
+                  </div>
+                )}
+                {selectedSupplierDetail.email && (
+                  <div className="space-y-1">
+                    <div className="text-sm text-muted-foreground">Email</div>
+                    <div className="font-medium flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <a href={`mailto:${selectedSupplierDetail.email}`} className="hover:text-primary">
+                        {selectedSupplierDetail.email}
+                      </a>
+                    </div>
+                  </div>
+                )}
+                {selectedSupplierDetail.phone && (
+                  <div className="space-y-1">
+                    <div className="text-sm text-muted-foreground">Telefón</div>
+                    <div className="font-medium flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <a href={`tel:${selectedSupplierDetail.phone}`} className="hover:text-primary">
+                        {selectedSupplierDetail.phone}
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {selectedSupplierDetail.address && (
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    Adresa
+                  </div>
+                  <div className="text-sm whitespace-pre-wrap">{selectedSupplierDetail.address}</div>
+                </div>
+              )}
+
+              {selectedSupplierDetail.bank_account && (
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground">Bankové spojenie</div>
+                  <div className="text-sm font-mono">{selectedSupplierDetail.bank_account}</div>
+                </div>
+              )}
+
+              {selectedSupplierDetail.notes && (
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground">Poznámky</div>
+                  <div className="text-sm whitespace-pre-wrap bg-gray-50 p-3 rounded-md">{selectedSupplierDetail.notes}</div>
+                </div>
+              )}
+
+              <div className="flex gap-2 justify-end pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setDetailModalOpen(false)}
+                >
+                  Zavrieť
+                </Button>
+                <Button
+                  onClick={() => {
+                    setDetailModalOpen(false);
+                    openEditDialog(selectedSupplierDetail);
+                  }}
+                >
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Upraviť
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 };
