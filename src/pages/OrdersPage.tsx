@@ -1578,14 +1578,14 @@ export default function OrdersPage() {
                               setCurrentItem({ ...currentItem, price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || '') });
                             }
                           }}
-                          className={`p-1.5 rounded-lg border-2 transition-all ${
+                          className={`h-16 p-2 rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
                             customerType === 'home'
-                              ? 'border-green-500 bg-green-50'
-                              : 'border-gray-200 hover:border-gray-300'
+                              ? 'border-[#10b981] bg-green-50'
+                              : 'border-slate-200 hover:border-slate-300'
                           }`}
                         >
-                          <Home className={`h-4 w-4 mx-auto mb-0.5 ${
-                            customerType === 'home' ? 'text-green-500' : 'text-gray-400'
+                          <Home className={`h-5 w-5 mb-1 ${
+                            customerType === 'home' ? 'text-[#10b981]' : 'text-gray-400'
                           }`} />
                           <div className="text-xs font-medium">Domáci</div>
                         </button>
@@ -1599,13 +1599,13 @@ export default function OrdersPage() {
                               setCurrentItem({ ...currentItem, price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || '') });
                             }
                           }}
-                          className={`p-1.5 rounded-lg border-2 transition-all ${
+                          className={`h-16 p-2 rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
                             customerType === 'gastro'
                               ? 'border-blue-500 bg-blue-50'
-                              : 'border-gray-200 hover:border-gray-300'
+                              : 'border-slate-200 hover:border-slate-300'
                           }`}
                         >
-                          <Utensils className={`h-4 w-4 mx-auto mb-0.5 ${
+                          <Utensils className={`h-5 w-5 mb-1 ${
                             customerType === 'gastro' ? 'text-blue-500' : 'text-gray-400'
                           }`} />
                           <div className="text-xs font-medium">Gastro</div>
@@ -1620,13 +1620,13 @@ export default function OrdersPage() {
                               setCurrentItem({ ...currentItem, price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || '') });
                             }
                           }}
-                          className={`p-1.5 rounded-lg border-2 transition-all ${
+                          className={`h-16 p-2 rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
                             customerType === 'wholesale'
                               ? 'border-orange-500 bg-orange-50'
-                              : 'border-gray-200 hover:border-gray-300'
+                              : 'border-slate-200 hover:border-slate-300'
                           }`}
                         >
-                          <Store className={`h-4 w-4 mx-auto mb-0.5 ${
+                          <Store className={`h-5 w-5 mb-1 ${
                             customerType === 'wholesale' ? 'text-orange-500' : 'text-gray-400'
                           }`} />
                           <div className="text-xs font-medium">VO</div>
@@ -1653,7 +1653,7 @@ export default function OrdersPage() {
                         <select
                           value={route || ''}
                           onChange={(e) => setRoute(e.target.value)}
-                          className="mt-0.5 w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          className="mt-0.5 w-full h-10 px-3 border border-slate-200 rounded-md text-sm bg-white"
                         >
                           <option value="">Žiadna trasa</option>
                           {(routes || []).map(r => (
@@ -1716,7 +1716,7 @@ export default function OrdersPage() {
                         <select
                           value={status || 'cakajuca'}
                           onChange={(e) => setStatus(e.target.value)}
-                          className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          className="mt-1 w-full h-10 px-3 border border-slate-200 rounded-md text-sm bg-white"
                         >
                           <option value="cakajuca">Čakajúca</option>
                           <option value="potvrdena">Potvrdená</option>
@@ -1733,7 +1733,7 @@ export default function OrdersPage() {
                         <select
                           value={orderType || 'jednorazova'}
                           onChange={(e) => setOrderType(e.target.value)}
-                          className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          className="mt-1 w-full h-10 px-3 border border-slate-200 rounded-md text-sm bg-white"
                         >
                           <option value="jednorazova">Jednorazová</option>
                           <option value="tyzdenne">Týždenne</option>
@@ -1751,7 +1751,7 @@ export default function OrdersPage() {
                             const value = e.target.value.replace(/[^0-9]/g, '');
                             setWeekCount(value === '' ? 1 : parseInt(value) || 1);
                           }}
-                          className="mt-1"
+                          className="mt-1 h-10 border-slate-200"
                         />
                         <p className="text-xs text-gray-500 mt-1">Počet týždňov na opakovanie</p>
                       </div>
@@ -1795,7 +1795,7 @@ export default function OrdersPage() {
                               }));
                             }}
                           >
-                            <SelectTrigger className="w-full bg-white border-slate-300">
+                            <SelectTrigger className="w-full h-10 bg-white border-slate-200">
                               <SelectValue placeholder="Vyberte plodinu" />
                             </SelectTrigger>
                             <SelectContent className="bg-white z-[9999]">
@@ -1825,7 +1825,7 @@ export default function OrdersPage() {
                                   setCurrentItem(prev => ({ ...prev, packaging_size: val + 'g' }));
                                 }
                               }}
-                              className="bg-white border-slate-300"
+                              className="h-10 bg-white border-slate-200"
                             />
                           ) : (
                             <Select
@@ -1847,7 +1847,7 @@ export default function OrdersPage() {
                                 }
                               }}
                             >
-                              <SelectTrigger className="w-full bg-white border-slate-300">
+                              <SelectTrigger className="w-full h-10 bg-white border-slate-200">
                                 <SelectValue placeholder="Vyberte gramáž" />
                               </SelectTrigger>
                               <SelectContent className="bg-white z-[9999]">
@@ -1876,7 +1876,7 @@ export default function OrdersPage() {
                                 setCurrentItem(prev => ({ ...prev, quantity: 1 }));
                               }
                             }}
-                            className="bg-white border-slate-300"
+                            className="h-10 bg-white border-slate-200"
                           />
                         </div>
                       </div>
@@ -1887,7 +1887,7 @@ export default function OrdersPage() {
                           <select
                             value={currentItem?.delivery_form || 'rezana'}
                             onChange={(e) => setCurrentItem({ ...currentItem, delivery_form: e.target.value })}
-                            className="mt-1 w-full px-3 h-10 border border-gray-300 rounded-md text-sm"
+                            className="mt-1 w-full px-3 h-10 border border-slate-200 rounded-md text-sm bg-white"
                           >
                             <option value="rezana">Zrezaná</option>
                             <option value="ziva">Živá</option>
@@ -1904,7 +1904,7 @@ export default function OrdersPage() {
                             onChange={(e) => {
                               setCurrentItem({ ...currentItem, price_per_unit: e.target.value });
                             }}
-                            className="mt-1 h-10"
+                            className="mt-1 h-10 border-slate-200"
                           />
                         </div>
 
@@ -1921,7 +1921,7 @@ export default function OrdersPage() {
                                 packaging_id: selectedPkg?.id || currentItem?.packaging_id
                               });
                             }}
-                            className="mt-1 w-full px-3 h-10 border border-gray-300 rounded-md text-sm"
+                            className="mt-1 w-full px-3 h-10 border border-slate-200 rounded-md text-sm bg-white"
                           >
                             <option value="250">250ml</option>
                             <option value="500">500ml</option>
@@ -1936,7 +1936,7 @@ export default function OrdersPage() {
                           <select
                             value={currentItem?.packaging_material || 'rPET'}
                             onChange={(e) => setCurrentItem({ ...currentItem, packaging_material: e.target.value })}
-                            className="mt-1 w-full px-3 h-10 border border-gray-300 rounded-md text-sm"
+                            className="mt-1 w-full px-3 h-10 border border-slate-200 rounded-md text-sm bg-white"
                           >
                             <option value="PET">PET</option>
                             <option value="rPET">rPET</option>

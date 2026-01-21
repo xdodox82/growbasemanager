@@ -40,7 +40,7 @@ import { Euro, Plus, Pencil, Trash2, Percent, Leaf, Blend, X } from 'lucide-reac
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-const PACKAGING_SIZES = ['30g', '40g', '50g', '60g', '70g', '100g', '150g', '200g', '250g', '500g', '1kg'];
+const PACKAGING_SIZES = ['25g', '50g', '60g', '70g', '100g', '120g', '150g'];
 
 const CUSTOMER_TYPES = [
   { value: 'all', label: 'Všetci zákazníci' },
