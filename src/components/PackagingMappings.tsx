@@ -49,7 +49,7 @@ export function PackagingMappings() {
     try {
       setIsLoading(true);
       const [cropsRes, packagingsRes] = await Promise.all([
-        supabase.from('crops').select('id, name').order('name'),
+        supabase.from('products').select('id, name').order('name'),
         supabase.from('packagings').select('id, name, type, size').order('name'),
       ]);
 

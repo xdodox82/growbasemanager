@@ -309,7 +309,7 @@ export default function OrdersPage() {
       const [ordersRes, customersRes, cropsRes, blendsRes, routesRes, pricesRes, packagingsRes, deliveryDaysRes, profileRes] = await Promise.all([
         supabase.from('orders').select('*, order_items(*)').order('created_at', { ascending: false }),
         supabase.from('customers').select('*').order('name'),
-        supabase.from('crops').select('*').order('name'),
+        supabase.from('products').select('*').order('name'),
         supabase.from('blends').select('*').order('name'),
         supabase.from('delivery_routes').select('*').order('name'),
         supabase.from('prices').select('*'),

@@ -230,7 +230,7 @@ export function useCrops() {
 
     try {
       const { data: result, error } = await supabase
-        .from('crops')
+        .from('products')
         .select('*')
         .order('name');
 
@@ -250,7 +250,7 @@ export function useCrops() {
   const add = async (item: Omit<DbCrop, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       const { data: result, error } = await supabase
-        .from('crops')
+        .from('products')
         .insert(item)
         .select()
         .single();
@@ -268,7 +268,7 @@ export function useCrops() {
   const update = async (id: string, updates: Partial<DbCrop>) => {
     try {
       const { data: result, error } = await supabase
-        .from('crops')
+        .from('products')
         .update(updates)
         .eq('id', id)
         .select()
@@ -286,7 +286,7 @@ export function useCrops() {
 
   const remove = async (id: string) => {
     try {
-      const { error } = await supabase.from('crops').delete().eq('id', id);
+      const { error } = await supabase.from('products').delete().eq('id', id);
       if (error) throw error;
       setData((prev) => prev.filter((item) => item.id !== id));
       return { error: null };
