@@ -1757,46 +1757,6 @@ export default function OrdersPage() {
                       </div>
                     </div>
 
-                    <div className="border rounded-lg p-3 space-y-3 bg-gray-50">
-                      <div className="flex items-center gap-3">
-                        <Switch
-                          id="free-delivery"
-                          checked={freeDelivery}
-                          onCheckedChange={(checked) => {
-                            setFreeDelivery(checked);
-                            if (checked) {
-                              setManualDeliveryAmount(''); // Clear manual amount when free delivery is ON
-                            }
-                          }}
-                        />
-                        <Label htmlFor="free-delivery" className="text-sm font-medium cursor-pointer">
-                          Doprava zdarma
-                        </Label>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-sm">Manuálna suma dopravy (€)</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder="Auto-výpočet z trasy"
-                          value={manualDeliveryAmount}
-                          onChange={(e) => setManualDeliveryAmount(e.target.value)}
-                          disabled={freeDelivery}
-                          className="h-10 text-sm"
-                        />
-                        <p className="text-xs text-gray-500">
-                          {freeDelivery
-                            ? 'Doprava zdarma je zapnutá - manuálna suma je deaktivovaná'
-                            : 'Nechajte prázdne pre automatický výpočet podľa trasy'}
-                        </p>
-                      </div>
-                      <div className="flex items-center justify-between pt-2 border-t">
-                        <span className="text-sm font-medium">Vypočítaná doprava:</span>
-                        <span className="text-lg font-bold text-green-600">{calculatedDeliveryPrice.toFixed(2)} €</span>
-                      </div>
-                    </div>
-
                     <div className="border-t pt-2.5 mt-2.5">
                       <h3 className="font-medium text-sm mb-2.5">Pridať produkt</h3>
 
@@ -1865,14 +1825,25 @@ export default function OrdersPage() {
                         <div>
                           <Label className="text-sm">Váha</Label>
                           <div className="flex gap-2 mt-1">
-                            {['25g', '50g', '60g', '70g', '100g', '120g', '150g'].includes(currentItem?.packaging_size || '') ? (
+                            {currentItem?.is_special_item ? (
+                              <Input
+                                type="text"
+                                placeholder="napr. 30, 45, 120..."
+                                value={currentItem?.packaging_size || ''}
+                                onChange={(e) => {
+                                  let value = e.target.value.trim();
+                                  if (/^\d+$/.test(value)) {
+                                    value = value + 'g';
+                                  }
+                                  setCurrentItem({ ...currentItem, packaging_size: value });
+                                }}
+                                className="flex-1 h-10"
+                              />
+                            ) : (
                               <Select
                                 value={currentItem?.packaging_size || ''}
                                 onValueChange={async (value) => {
-                                  if (value === 'custom') {
-                                    setCurrentItem({ ...currentItem, packaging_size: '' });
-                                    return;
-                                  }
+                                  setCurrentItem({ ...currentItem, packaging_size: value });
 
                                   if (currentItem?.crop_id && customerType) {
                                     const [autoPrice, autoPackaging] = await Promise.all([
@@ -1886,10 +1857,9 @@ export default function OrdersPage() {
                                       price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
                                       ...(autoPackaging || {})
                                     });
-                                  } else {
-                                    setCurrentItem({ ...currentItem, packaging_size: value });
                                   }
                                 }}
+                                disabled={!currentItem?.crop_id}
                               >
                                 <SelectTrigger className="w-full h-10">
                                   <SelectValue placeholder="Vyberte váhu..." />
@@ -1902,71 +1872,8 @@ export default function OrdersPage() {
                                   <SelectItem value="100g">100g</SelectItem>
                                   <SelectItem value="120g">120g</SelectItem>
                                   <SelectItem value="150g">150g</SelectItem>
-                                  <SelectItem value="custom">Iná váha...</SelectItem>
                                 </SelectContent>
                               </Select>
-                            ) : (
-                              <>
-                                <Input
-                                  type="text"
-                                  placeholder="napr. 25g, 50g, 8g..."
-                                  value={currentItem?.packaging_size || ''}
-                                  onChange={async (e) => {
-                                    const value = e.target.value.trim();
-                                    setCurrentItem({ ...currentItem, packaging_size: value });
-
-                                    if (value && value.includes('g') && currentItem?.crop_id && customerType) {
-                                      const [autoPrice, autoPackaging] = await Promise.all([
-                                        autoFetchPrice(currentItem.crop_id, value, customerType),
-                                        autoFetchPackaging(currentItem.crop_id, value)
-                                      ]);
-
-                                      setCurrentItem({
-                                        ...currentItem,
-                                        packaging_size: value,
-                                        price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
-                                        ...(autoPackaging || {})
-                                      });
-                                    }
-                                  }}
-                                  onBlur={async (e) => {
-                                    let value = e.target.value.trim();
-                                    if (!value) return;
-
-                                    if (/^\d+$/.test(value)) {
-                                      value = value + 'g';
-
-                                      if (currentItem?.crop_id && customerType) {
-                                        const [autoPrice, autoPackaging] = await Promise.all([
-                                          autoFetchPrice(currentItem.crop_id, value, customerType),
-                                          autoFetchPackaging(currentItem.crop_id, value)
-                                        ]);
-
-                                        setCurrentItem({
-                                          ...currentItem,
-                                          packaging_size: value,
-                                          price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
-                                          ...(autoPackaging || {})
-                                        });
-                                      } else {
-                                        setCurrentItem({ ...currentItem, packaging_size: value });
-                                      }
-                                    }
-                                  }}
-                                  className="flex-1 h-10"
-                                />
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    setCurrentItem({ ...currentItem, packaging_size: '50g' });
-                                  }}
-                                  className="h-10 px-3"
-                                >
-                                  Štandardné
-                                </Button>
-                              </>
                             )}
                           </div>
                         </div>
@@ -2152,6 +2059,49 @@ export default function OrdersPage() {
                       placeholder="Poznámky alebo špeciálne pokyny pre objednávku..."
                       className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md text-sm min-h-[80px] resize-y"
                     />
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t">
+                    <h3 className="font-medium text-sm mb-3">Nastavenia dopravy</h3>
+                    <div className="border rounded-lg p-3 space-y-3 bg-gray-50">
+                      <div className="flex items-center gap-3">
+                        <Switch
+                          id="free-delivery"
+                          checked={freeDelivery}
+                          onCheckedChange={(checked) => {
+                            setFreeDelivery(checked);
+                            if (checked) {
+                              setManualDeliveryAmount('');
+                            }
+                          }}
+                        />
+                        <Label htmlFor="free-delivery" className="text-sm font-medium cursor-pointer">
+                          Doprava zdarma
+                        </Label>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-sm">Manuálna suma dopravy (€)</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="Auto-výpočet z trasy"
+                          value={manualDeliveryAmount}
+                          onChange={(e) => setManualDeliveryAmount(e.target.value)}
+                          disabled={freeDelivery}
+                          className="h-10 text-sm"
+                        />
+                        <p className="text-xs text-gray-500">
+                          {freeDelivery
+                            ? 'Doprava zdarma je zapnutá - manuálna suma je deaktivovaná'
+                            : 'Nechajte prázdne pre automatický výpočet podľa trasy'}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-between pt-2 border-t">
+                        <span className="text-sm font-medium">Vypočítaná doprava:</span>
+                        <span className="text-lg font-bold text-green-600">{calculatedDeliveryPrice.toFixed(2)} €</span>
+                      </div>
+                    </div>
                   </div>
 
                   <DialogFooter>
