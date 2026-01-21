@@ -1773,137 +1773,120 @@ export default function OrdersPage() {
                         </Label>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4 mt-3">
-                        <div>
+{/* SEKCIA: VÝBER PLODINY A KATEGÓRIE */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-p-4 bg-slate-50 p-4 rounded-lg">
+                        <div className="space-y-2">
+                          <Label>Kategória</Label>
                           <CategoryFilter
                             value={categoryFilter}
                             onChange={setCategoryFilter}
                           />
                         </div>
 
-                        <div>
-                          <Label className="text-sm">Plodina *</Label>
-                          <select
-                            value={currentItem?.crop_id || ''}
-                            onChange={async (e) => {
-                              const cropId = e.target.value;
-                              const crop = crops?.find(c => c.id === cropId);
-                              if (crop) {
-                                const packagingSize = currentItem?.packaging_size || '';
-                                const autoPackaging = packagingSize ? await autoFetchPackaging(crop.id, packagingSize) : null;
+                        <div className="space-y-2">
+                          <Label>Plodina *</Label>
+                          <div className="flex flex-col gap-2">
+                            <Select
+                              value={currentItem?.crop_id || ""}
+                              onValueChange={(value) => {
+                                const selectedCrop = crops?.find(c => c.id === value);
+                                setCurrentItem(prev => ({
+                                  ...prev,
+                                  crop_id: value,
+                                  crop_name: selectedCrop?.name || ""
+                                }));
+                              }}
+                            >
+                              <SelectTrigger className="w-full bg-white border-slate-300">
+                                <SelectValue placeholder="Vyberte plodinu" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-white z-[9999]">
+                                {(filteredCropsByCategory || []).map((crop) => (
+                                  <SelectItem key={crop.id} value={crop.id}>{crop.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
 
-                                setCurrentItem({
-                                  ...currentItem,
-                                  crop_id: crop.id,
-                                  crop_name: crop.name,
-                                  price_per_unit: '',
-                                  ...(autoPackaging || {})
-                                });
-                              }
-                            }}
-                            className="mt-1 w-full px-3 h-10 border border-gray-300 rounded-md text-sm"
-                          >
-                            <option value="">Vyberte produkt</option>
-                            {(filteredCropsByCategory || []).map(crop => (
-                              <option key={crop?.id} value={crop?.id}>{crop?.name}</option>
-                            ))}
-                          </select>
-                          {currentItem?.is_special_item && (
-                            <Input
-                              type="text"
-                              value={currentItem?.custom_crop_name || ''}
-                              onChange={(e) => setCurrentItem({ ...currentItem, custom_crop_name: e.target.value, crop_name: e.target.value })}
-                              className="mt-2"
-                              placeholder="Vlastný názov (voliteľné)"
-                            />
-                          )}
-                        </div>
-
-                        <div>
-                          <Label className="text-sm">Váha</Label>
-                          <div className="flex gap-2 mt-1">
-                            {currentItem?.is_special_item ? (
+                            {currentItem?.is_special_item && (
                               <Input
-                                type="text"
-                                placeholder="napr. 30, 45, 120..."
-                                value={currentItem?.packaging_size || ''}
-                                onChange={(e) => {
-                                  setCurrentItem({ ...currentItem, packaging_size: e.target.value });
-                                }}
-                                onBlur={(e) => {
-                                  let value = e.target.value.trim();
-                                  if (value && /^\d+$/.test(value) && !value.endsWith('g')) {
-                                    value = value + 'g';
-                                    setCurrentItem({ ...currentItem, packaging_size: value });
-                                  }
-                                }}
-                                className="flex-1 h-10"
+                                placeholder="Vlastný názov špeciálnej položky"
+                                value={currentItem?.custom_crop_name || ""}
+                                onChange={(e) => setCurrentItem(prev => ({
+                                  ...prev,
+                                  custom_crop_name: e.target.value,
+                                  crop_name: e.target.value
+                                }))}
+                                className="bg-white border-blue-200 focus:ring-blue-500"
                               />
-                            ) : (
-                              <Select
-                                value={currentItem?.packaging_size || ''}
-                                onValueChange={async (value) => {
-                                  setCurrentItem({ ...currentItem, packaging_size: value });
-
-                                  if (currentItem?.crop_id && customerType) {
-                                    const [autoPrice, autoPackaging] = await Promise.all([
-                                      autoFetchPrice(currentItem.crop_id, value, customerType),
-                                      autoFetchPackaging(currentItem.crop_id, value)
-                                    ]);
-
-                                    setCurrentItem({
-                                      ...currentItem,
-                                      packaging_size: value,
-                                      price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || ''),
-                                      ...(autoPackaging || {})
-                                    });
-                                  }
-                                }}
-                              >
-                                <SelectTrigger className="w-full h-10">
-                                  <SelectValue placeholder="Vyberte váhu..." />
-                                </SelectTrigger>
-                                <SelectContent className="bg-white">
-                                  <SelectItem value="25g">25g</SelectItem>
-                                  <SelectItem value="50g">50g</SelectItem>
-                                  <SelectItem value="60g">60g</SelectItem>
-                                  <SelectItem value="70g">70g</SelectItem>
-                                  <SelectItem value="100g">100g</SelectItem>
-                                  <SelectItem value="120g">120g</SelectItem>
-                                  <SelectItem value="150g">150g</SelectItem>
-                                </SelectContent>
-                              </Select>
                             )}
                           </div>
                         </div>
+                      </div>
 
-                        <div>
-                          <Label className="text-sm">Množstvo a Jednotka</Label>
-                          <div className="flex gap-2 mt-1">
+                      {/* SEKCIA: VÁHA A MNOŽSTVO */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg mt-2">
+                        <div className="space-y-2">
+                          <Label>Váha</Label>
+                          {currentItem?.is_special_item ? (
                             <Input
-                              type="number"
-                              min="1"
-                              step="1"
-                              placeholder="1"
-                              value={currentItem?.quantity || 1}
+                              placeholder="Zadajte váhu (napr. 30)"
+                              value={currentItem?.packaging_size || ''}
                               onChange={(e) => {
-                                const value = parseInt(e.target.value) || 1;
-                                setCurrentItem({ ...currentItem, quantity: value });
+                                const val = e.target.value;
+                                setCurrentItem(prev => ({ ...prev, packaging_size: val }));
                               }}
-                              className="flex-1 h-10"
+                              onBlur={(e) => {
+                                const val = e.target.value;
+                                if (val && !val.endsWith('g') && !isNaN(Number(val))) {
+                                  setCurrentItem(prev => ({ ...prev, packaging_size: val + 'g' }));
+                                }
+                              }}
+                              className="bg-white border-slate-300"
                             />
-                            <select
-                              value={currentItem?.unit || 'ks'}
-                              onChange={(e) => setCurrentItem({ ...currentItem, unit: e.target.value })}
-                              className="w-20 px-2 py-2 border border-gray-300 rounded-md text-sm h-10"
+                          ) : (
+                            <Select
+                              value={currentItem?.packaging_size || ''}
+                              onValueChange={async (value) => {
+                                setCurrentItem(prev => ({ ...prev, packaging_size: value }));
+                                // AUTOMATIC FETCHING OF PRICE AND PACKAGING
+                                if (currentItem?.crop_id && customerType) {
+                                  const [price, pkg] = await Promise.all([
+                                    autoFetchPrice(currentItem.crop_id, value, customerType),
+                                    autoFetchPackaging(currentItem.crop_id, value)
+                                  ]);
+                                  setCurrentItem(prev => ({
+                                    ...prev,
+                                    price_per_unit: price > 0 ? price.toString() : prev.price_per_unit || '',
+                                    packaging_volume_ml: pkg?.packaging_volume_ml || prev.packaging_volume_ml,
+                                    packaging_id: pkg?.packaging_id || prev.packaging_id
+                                  }));
+                                }
+                              }}
                             >
-                              <option value="ks">ks</option>
-                              <option value="g">g</option>
-                              <option value="kg">kg</option>
-                            </select>
-                          </div>
+                              <SelectTrigger className="w-full bg-white border-slate-300">
+                                <SelectValue placeholder="Vyberte gramáž" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-white z-[9999]">
+                                {['25g', '50g', '60g', '70g', '100g', '120g', '150g'].map((w) => (
+                                  <SelectItem key={w} value={w}>{w}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
                         </div>
 
+                        <div className="space-y-2">
+                          <Label>Množstvo (ks)</Label>
+                          <Input
+                            type="number"
+                            value={currentItem?.quantity || 1}
+                            onChange={(e) => setCurrentItem(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
+                            className="bg-white border-slate-300"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4 mt-3">
                         <div>
                           <Label className="text-sm">Forma</Label>
                           <select
