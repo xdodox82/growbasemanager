@@ -1783,40 +1783,39 @@ export default function OrdersPage() {
 
                         <div>
                           <Label className="text-sm">Plodina *</Label>
-                          {currentItem?.is_special_item ? (
+                          <select
+                            value={currentItem?.crop_id || ''}
+                            onChange={async (e) => {
+                              const cropId = e.target.value;
+                              const crop = crops?.find(c => c.id === cropId);
+                              if (crop) {
+                                const packagingSize = currentItem?.packaging_size || '';
+                                const autoPackaging = packagingSize ? await autoFetchPackaging(crop.id, packagingSize) : null;
+
+                                setCurrentItem({
+                                  ...currentItem,
+                                  crop_id: crop.id,
+                                  crop_name: crop.name,
+                                  price_per_unit: '',
+                                  ...(autoPackaging || {})
+                                });
+                              }
+                            }}
+                            className="mt-1 w-full px-3 h-10 border border-gray-300 rounded-md text-sm"
+                          >
+                            <option value="">Vyberte produkt</option>
+                            {(filteredCropsByCategory || []).map(crop => (
+                              <option key={crop?.id} value={crop?.id}>{crop?.name}</option>
+                            ))}
+                          </select>
+                          {currentItem?.is_special_item && (
                             <Input
                               type="text"
                               value={currentItem?.custom_crop_name || ''}
                               onChange={(e) => setCurrentItem({ ...currentItem, custom_crop_name: e.target.value, crop_name: e.target.value })}
-                              className="mt-1"
-                              placeholder="Názov produktu"
+                              className="mt-2"
+                              placeholder="Vlastný názov (voliteľné)"
                             />
-                          ) : (
-                            <select
-                              value={currentItem?.crop_id || ''}
-                              onChange={async (e) => {
-                                const cropId = e.target.value;
-                                const crop = crops?.find(c => c.id === cropId);
-                                if (crop) {
-                                  const packagingSize = currentItem?.packaging_size || '';
-                                  const autoPackaging = packagingSize ? await autoFetchPackaging(crop.id, packagingSize) : null;
-
-                                  setCurrentItem({
-                                    ...currentItem,
-                                    crop_id: crop.id,
-                                    crop_name: crop.name,
-                                    price_per_unit: '',
-                                    ...(autoPackaging || {})
-                                  });
-                                }
-                              }}
-                              className="mt-1 w-full px-3 h-10 border border-gray-300 rounded-md text-sm"
-                            >
-                              <option value="">Vyberte produkt</option>
-                              {(filteredCropsByCategory || []).map(crop => (
-                                <option key={crop?.id} value={crop?.id}>{crop?.name}</option>
-                              ))}
-                            </select>
                           )}
                         </div>
 
@@ -1864,7 +1863,7 @@ export default function OrdersPage() {
                                 <SelectTrigger className="w-full h-10">
                                   <SelectValue placeholder="Vyberte váhu..." />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="bg-white">
                                   <SelectItem value="25g">25g</SelectItem>
                                   <SelectItem value="50g">50g</SelectItem>
                                   <SelectItem value="60g">60g</SelectItem>
