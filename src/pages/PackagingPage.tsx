@@ -262,7 +262,6 @@ export default function PackagingPage() {
   return (
     <MainLayout>
       <PageHeader title="Obaly" description="Správa zásob obalov">
-        <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} />
         <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>
             <Button className="gap-2">
@@ -458,6 +457,7 @@ export default function PackagingPage() {
             </div>
           </DialogContent>
         </Dialog>
+        <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} />
       </PageHeader>
 
       {/* Summary cards */}

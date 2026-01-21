@@ -796,13 +796,13 @@ export default function SeedsPage() {
             </div>
           </DialogContent>
         </Dialog>
+        <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} />
         <Tabs value={archiveFilter} onValueChange={(v) => setArchiveFilter(v as 'current' | 'archived')}>
           <TabsList>
             <TabsTrigger value="current">Aktuálne zásoby</TabsTrigger>
             <TabsTrigger value="archived">Archív</TabsTrigger>
           </TabsList>
         </Tabs>
-        <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} />
         <Select value={cropFilter} onValueChange={setCropFilter}>
           <SelectTrigger className="w-40">
             <SelectValue placeholder="Filter podľa druhu" />

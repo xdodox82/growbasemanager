@@ -620,7 +620,6 @@ const PricesPage = () => {
                 <Select
                   value={formData.cropId}
                   onValueChange={(value) => setFormData({ ...formData, cropId: value })}
-                  disabled={priceEntries.some(e => e.price)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Vyberte plodinu" />
@@ -640,7 +639,6 @@ const PricesPage = () => {
                 <Select
                   value={formData.blendId}
                   onValueChange={(value) => setFormData({ ...formData, blendId: value })}
-                  disabled={priceEntries.some(e => e.price)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Vyberte zmes" />
