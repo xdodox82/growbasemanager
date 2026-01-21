@@ -42,7 +42,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Users, Plus, Pencil, Trash2, Mail, Phone, MapPin, Navigation, Loader2, Route, Download, ShoppingCart, Package, FileSpreadsheet, Search, Save } from 'lucide-react';
+import { Users, Plus, Pencil, Trash2, Mail, Phone, MapPin, Navigation, Loader2, Route, Download, ShoppingCart, Package, FileSpreadsheet, Search, Save, Home, Utensils, Store } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -114,7 +114,7 @@ const CustomersPage = () => {
     delivery_notes: '',
     delivery_route_id: '' as string | null,
     customer_type: '' as string | null,
-    payment_method: 'cash' as 'cash' | 'invoice',
+    payment_method: 'cash' as 'cash' | 'card' | 'invoice',
     free_delivery: false,
     // Business fields for gastro/wholesale
     company_name: '',
@@ -389,22 +389,52 @@ const CustomersPage = () => {
               
               <div className="grid gap-4 py-4">
                 {/* Customer Type - FIRST */}
-                <div className="grid gap-2">
-                  <Label>Typ zákazníka *</Label>
-                  <Select 
-                    value={formData.customer_type || 'none'} 
-                    onValueChange={(value) => setFormData({ ...formData, customer_type: value === 'none' ? null : value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Vyberte typ zákazníka" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nevybraný</SelectItem>
-                      <SelectItem value="home">Domáci zákazník</SelectItem>
-                      <SelectItem value="gastro">Gastro</SelectItem>
-                      <SelectItem value="wholesale">Veľkoobchod</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">Typ zákazníka *</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, customer_type: 'home' })}
+                      className={`h-16 p-2 rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
+                        formData.customer_type === 'home'
+                          ? 'border-[#10b981] bg-green-50'
+                          : 'border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <Home className={`h-5 w-5 mb-1 ${
+                        formData.customer_type === 'home' ? 'text-[#10b981]' : 'text-gray-400'
+                      }`} />
+                      <div className="text-xs font-medium">Domáci</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, customer_type: 'gastro' })}
+                      className={`h-16 p-2 rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
+                        formData.customer_type === 'gastro'
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <Utensils className={`h-5 w-5 mb-1 ${
+                        formData.customer_type === 'gastro' ? 'text-blue-500' : 'text-gray-400'
+                      }`} />
+                      <div className="text-xs font-medium">Gastro</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, customer_type: 'wholesale' })}
+                      className={`h-16 p-2 rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
+                        formData.customer_type === 'wholesale'
+                          ? 'border-orange-500 bg-orange-50'
+                          : 'border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <Store className={`h-5 w-5 mb-1 ${
+                        formData.customer_type === 'wholesale' ? 'text-orange-500' : 'text-gray-400'
+                      }`} />
+                      <div className="text-xs font-medium">VO</div>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Payment Method */}
@@ -412,13 +442,14 @@ const CustomersPage = () => {
                   <Label>Spôsob platby</Label>
                   <Select
                     value={formData.payment_method}
-                    onValueChange={(value: 'cash' | 'invoice') => setFormData({ ...formData, payment_method: value })}
+                    onValueChange={(value: 'cash' | 'card' | 'invoice') => setFormData({ ...formData, payment_method: value })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-10 border-slate-200">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-white z-[9999]">
                       <SelectItem value="cash">Hotovosť</SelectItem>
+                      <SelectItem value="card">Platba kartou</SelectItem>
                       <SelectItem value="invoice">Faktúra</SelectItem>
                     </SelectContent>
                   </Select>
@@ -454,6 +485,7 @@ const CustomersPage = () => {
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         placeholder="napr. Ján Novák"
+                        className="h-10 border-slate-200"
                       />
                     </div>
 
@@ -465,6 +497,7 @@ const CustomersPage = () => {
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         placeholder="info@example.sk"
+                        className="h-10 border-slate-200"
                       />
                     </div>
 
@@ -475,6 +508,7 @@ const CustomersPage = () => {
                         value={formData.phone}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                         placeholder="+421 900 123 456"
+                        className="h-10 border-slate-200"
                       />
                     </div>
 
@@ -506,10 +540,10 @@ const CustomersPage = () => {
                         value={formData.delivery_route_id || 'none'} 
                         onValueChange={(value) => setFormData({ ...formData, delivery_route_id: value === 'none' ? null : value })}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="h-10 border-slate-200">
                           <SelectValue placeholder="Vyberte trasu" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-white z-[9999]">
                           <SelectItem value="none">Žiadna trasa</SelectItem>
                           {deliveryRoutes.map(route => (
                             <SelectItem key={route.id} value={route.id}>
@@ -533,6 +567,7 @@ const CustomersPage = () => {
                           value={formData.name}
                           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                           placeholder="napr. Ján Novák"
+                          className="h-10 border-slate-200"
                         />
                       </div>
                       <div className="grid gap-2">
@@ -542,6 +577,7 @@ const CustomersPage = () => {
                           value={formData.company_name}
                           onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
                           placeholder="napr. Reštaurácia s.r.o."
+                          className="h-10 border-slate-200"
                         />
                       </div>
                     </div>
@@ -554,6 +590,7 @@ const CustomersPage = () => {
                           value={formData.ico}
                           onChange={(e) => setFormData({ ...formData, ico: e.target.value })}
                           placeholder="12345678"
+                          className="h-10 border-slate-200"
                         />
                       </div>
                       <div className="grid gap-2">
@@ -563,6 +600,7 @@ const CustomersPage = () => {
                           value={formData.dic}
                           onChange={(e) => setFormData({ ...formData, dic: e.target.value })}
                           placeholder="2012345678"
+                          className="h-10 border-slate-200"
                         />
                       </div>
                       <div className="grid gap-2">
@@ -572,6 +610,7 @@ const CustomersPage = () => {
                           value={formData.ic_dph}
                           onChange={(e) => setFormData({ ...formData, ic_dph: e.target.value })}
                           placeholder="SK2012345678"
+                          className="h-10 border-slate-200"
                         />
                       </div>
                     </div>
@@ -585,6 +624,7 @@ const CustomersPage = () => {
                           value={formData.email}
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                           placeholder="info@example.sk"
+                          className="h-10 border-slate-200"
                         />
                       </div>
                       <div className="grid gap-2">
@@ -594,6 +634,7 @@ const CustomersPage = () => {
                           value={formData.phone}
                           onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                           placeholder="+421 900 123 456"
+                          className="h-10 border-slate-200"
                         />
                       </div>
                     </div>
@@ -625,10 +666,10 @@ const CustomersPage = () => {
                         value={formData.delivery_route_id || 'none'} 
                         onValueChange={(value) => setFormData({ ...formData, delivery_route_id: value === 'none' ? null : value })}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="h-10 border-slate-200">
                           <SelectValue placeholder="Vyberte trasu" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-white z-[9999]">
                           <SelectItem value="none">Žiadna trasa</SelectItem>
                           {deliveryRoutes.map(route => (
                             <SelectItem key={route.id} value={route.id}>
