@@ -51,7 +51,6 @@ interface OrderItem {
   unit: string;
   packaging_size: string;
   delivery_form: string;
-  packaging_type: string;
   packaging_material: string;
   packaging_volume_ml: number;
   packaging_id?: string;
@@ -173,7 +172,6 @@ export default function OrdersPage() {
     unit: 'ks',
     packaging_size: '',
     delivery_form: 'rezana',
-    packaging_type: '',
     packaging_material: 'rPET',
     packaging_volume_ml: 250,
     has_label: false,
@@ -644,7 +642,6 @@ export default function OrdersPage() {
       unit: 'ks',
       packaging_size: '',
       delivery_form: 'rezana',
-      packaging_type: '',
       packaging_material: 'rPET',
       packaging_volume_ml: 250,
       has_label: false,
@@ -775,7 +772,6 @@ export default function OrdersPage() {
       unit: 'ks',
       packaging_size: '',
       delivery_form: 'rezana',
-      packaging_type: '',
       packaging_material: 'rPET',
       packaging_volume_ml: 250,
       has_label: false,

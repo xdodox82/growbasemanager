@@ -258,8 +258,8 @@ const BlendsPage = () => {
 
   return (
     <MainLayout>
-      <PageHeader 
-        title="Mixy" 
+      <PageHeader
+        title="Mixy"
         description="Vytvárajte kombinácie mikrozelenín"
       >
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -272,7 +272,6 @@ const BlendsPage = () => {
               Nový mix
             </Button>
           </DialogTrigger>
-        <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} />
           <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
             <form onSubmit={handleSubmit}>
               <DialogHeader>
@@ -448,6 +447,7 @@ const BlendsPage = () => {
             </form>
           </DialogContent>
         </Dialog>
+        <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} />
       </PageHeader>
 
       {blends.length === 0 ? (
