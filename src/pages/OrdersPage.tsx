@@ -1097,8 +1097,9 @@ export default function OrdersPage() {
         return isNaN(num) ? defaultValue : num;
       };
 
-      // Create a completely clean order object - ONLY include fields that exist in DB
-      // Strip: id, created_at, updated_at, and any metadata
+      // Create a completely clean order object with SNAKE_CASE database columns
+      // CRITICAL: Database uses snake_case column names, NOT camelCase
+      // Strip: id, created_at, updated_at, user_id (auto-populated by trigger)
       const orderData: any = {
         customer_id: order.customer_id,
         customer_name: order.customer_name || '',
@@ -1109,22 +1110,50 @@ export default function OrdersPage() {
         // Default to single order (not recurring)
         is_recurring: false,
         recurrence_pattern: null,
-        recurring_weeks: null
+        recurring_weeks: null,
+        // Critical: total_price and delivery_price must be valid numbers
+        total_price: sanitizeNumber(order.total_price, 0),
+        delivery_price: sanitizeNumber(order.delivery_price, 0)
       };
 
-      // Add optional fields with proper types
+      // Add optional fields with proper snake_case database column mapping
       if (order.route) {
         orderData.route = order.route;
       }
       if (order.notes) {
         orderData.notes = order.notes;
       }
-
-      // Critical: total_price and delivery_price must be valid numbers, never null or string
-      orderData.total_price = sanitizeNumber(order.total_price, 0);
-      orderData.delivery_price = sanitizeNumber(order.delivery_price, 0);
+      // packaging_type (snake_case) - NOT packagingType (camelCase)
+      if (order.packaging_type) {
+        orderData.packaging_type = order.packaging_type;
+      }
+      // has_label (snake_case) - NOT hasLabel (camelCase)
+      if (order.has_label !== undefined && order.has_label !== null) {
+        orderData.has_label = Boolean(order.has_label);
+      }
+      // delivery_route_id (snake_case) - NOT deliveryRouteId (camelCase)
+      if (order.delivery_route_id) {
+        orderData.delivery_route_id = order.delivery_route_id;
+      }
+      // delivery_type - if exists
+      if (order.delivery_type) {
+        orderData.delivery_type = order.delivery_type;
+      }
+      // delivery_order - if exists
+      if (order.delivery_order !== undefined && order.delivery_order !== null) {
+        orderData.delivery_order = order.delivery_order;
+      }
 
       console.log('Sanitized order data for insert:', orderData);
+
+      // Get current user for user_id
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('No authenticated user found');
+      }
+
+      // Add user_id for consistency (even though trigger should auto-populate)
+      orderData.user_id = user.id;
 
       const { data: newOrder, error } = await supabase
         .from('orders')
@@ -1138,6 +1167,7 @@ export default function OrdersPage() {
         console.error('Error message:', error.message);
         console.error('Error details:', error.details);
         console.error('Error hint:', error.hint);
+        console.error('Error code:', error.code);
         console.error('Data that was sent:', JSON.stringify(orderData, null, 2));
         throw error;
       }
@@ -1149,30 +1179,35 @@ export default function OrdersPage() {
         console.log('Processing', order.order_items.length, 'order items...');
 
         const items = order.order_items.map((item, index) => {
-          // Create completely clean item - strip id, created_at, updated_at, order_id (old)
+          // Create completely clean item with SNAKE_CASE database columns
+          // Strip: id, created_at, updated_at, order_id (old)
           const cleanItem: any = {
             order_id: newOrder.id, // NEW order id
             quantity: sanitizeNumber(item.quantity, 0),
             unit: item.unit || 'g',
+            // CRITICAL: All fields use snake_case for database columns
             packaging_size: item.packaging_size || '',
             delivery_form: item.delivery_form || '',
-            packaging_type: item.packaging_type || '',
+            packaging_type: item.packaging_type || '', // snake_case, NOT packagingType
             packaging_material: item.packaging_material || '',
-            packaging_volume_ml: sanitizeNumber(item.packaging_volume_ml, 0),
-            has_label: Boolean(item.has_label)
+            packaging_volume_ml: sanitizeNumber(item.packaging_volume_ml, 0), // snake_case
+            has_label: Boolean(item.has_label), // snake_case, NOT hasLabel
+            // Price fields must be valid numbers
+            price_per_unit: sanitizeNumber(item.price_per_unit, 0), // snake_case
+            total_price: sanitizeNumber(item.total_price, 0), // snake_case
+            // Add user_id for consistency
+            user_id: user.id
           };
 
-          // Add optional fields only if they exist
+          // Add optional fields only if they exist (all snake_case)
           if (item.crop_id) cleanItem.crop_id = item.crop_id;
           if (item.crop_name) cleanItem.crop_name = item.crop_name;
           if (item.blend_id) cleanItem.blend_id = item.blend_id;
           if (item.packaging_id) cleanItem.packaging_id = item.packaging_id;
           if (item.notes) cleanItem.notes = item.notes;
           if (item.special_requirements) cleanItem.special_requirements = item.special_requirements;
-
-          // Critical: Price fields must be valid numbers, never null
-          cleanItem.price_per_unit = sanitizeNumber(item.price_per_unit, 0);
-          cleanItem.total_price = sanitizeNumber(item.total_price, 0);
+          if (item.is_special_item !== undefined) cleanItem.is_special_item = Boolean(item.is_special_item);
+          if (item.custom_crop_name) cleanItem.custom_crop_name = item.custom_crop_name;
 
           console.log(`Item ${index + 1} sanitized:`, cleanItem);
           return cleanItem;
