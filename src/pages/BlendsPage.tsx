@@ -51,6 +51,8 @@ const BlendsPage = () => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedBlendDetail, setSelectedBlendDetail] = useState<DbBlend | null>(null);
 
   const [formData, setFormData] = useState<{
     name: string;
@@ -471,7 +473,14 @@ const BlendsPage = () => {
           {blends.map((blend) => {
             const blendCrops = getBlendCrops(blend);
             return (
-              <Card key={blend.id} className="p-5 transition-all hover:border-primary/50 hover:shadow-lg">
+              <Card
+                key={blend.id}
+                className="p-5 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer"
+                onClick={() => {
+                  setSelectedBlendDetail(blend);
+                  setDetailModalOpen(true);
+                }}
+              >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-gradient-to-br from-success/20 to-info/20">
@@ -484,7 +493,7 @@ const BlendsPage = () => {
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -548,6 +557,90 @@ const BlendsPage = () => {
           })}
         </div>
       )}
+
+      {/* Detail Modal */}
+      <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Detail mixu</DialogTitle>
+          </DialogHeader>
+          {selectedBlendDetail && (
+            <div className="space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 rounded-xl flex items-center justify-center bg-gradient-to-br from-success/20 to-info/20">
+                  <BlendIcon className="h-8 w-8 text-success" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold">{selectedBlendDetail.name}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {getBlendCrops(selectedBlendDetail).length} položiek
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="text-sm font-medium">Zloženie mixu:</div>
+                {getBlendCrops(selectedBlendDetail).map((blendCrop, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="h-4 w-4 rounded"
+                        style={{ backgroundColor: getCropColor(blendCrop.cropId, blendCrop.isBlend) }}
+                      />
+                      <span className="font-medium">{getCropName(blendCrop.cropId, blendCrop.isBlend)}</span>
+                      {blendCrop.isBlend && (
+                        <Badge variant="outline" className="text-xs">Mix</Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 text-sm font-semibold">
+                      <Percent className="h-3 w-3" />
+                      {blendCrop.percentage}%
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="h-4 bg-gray-100 rounded-full overflow-hidden flex">
+                {getBlendCrops(selectedBlendDetail).map((blendCrop, index) => (
+                  <div
+                    key={index}
+                    className="h-full"
+                    style={{
+                      width: `${blendCrop.percentage}%`,
+                      backgroundColor: getCropColor(blendCrop.cropId, blendCrop.isBlend),
+                    }}
+                  />
+                ))}
+              </div>
+
+              {(selectedBlendDetail as any).notes && (
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground">Poznámky</div>
+                  <div className="text-sm whitespace-pre-wrap">{(selectedBlendDetail as any).notes}</div>
+                </div>
+              )}
+
+              <div className="flex gap-2 justify-end pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setDetailModalOpen(false)}
+                >
+                  Zavrieť
+                </Button>
+                <Button
+                  onClick={() => {
+                    setDetailModalOpen(false);
+                    openEditDialog(selectedBlendDetail);
+                  }}
+                >
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Upraviť
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>

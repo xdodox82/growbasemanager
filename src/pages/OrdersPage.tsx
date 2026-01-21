@@ -1087,11 +1087,18 @@ export default function OrdersPage() {
 
   const duplicateOrder = async (order: Order) => {
     try {
+      // Create a deep copy of the order with all fields except id and dates
       const orderData = {
         customer_id: order.customer_id,
         customer_name: order.customer_name,
-        delivery_date: order.delivery_date,
-        status: 'cakajuca'
+        customer_type: order.customer_type,
+        delivery_date: null, // Reset date - user must select new date
+        status: order.status, // Preserve status
+        order_type: order.order_type,
+        route: order.route,
+        week_count: order.week_count,
+        total_price: order.total_price,
+        charge_delivery: order.charge_delivery
       };
 
       const { data: newOrder, error } = await supabase
@@ -1102,23 +1109,47 @@ export default function OrdersPage() {
 
       if (error) throw error;
 
+      // Copy all order items with all their properties
       if (order.order_items && order.order_items.length > 0) {
         const items = order.order_items.map(item => ({
           order_id: newOrder.id,
           crop_id: item.crop_id,
+          crop_name: item.crop_name,
           blend_id: item.blend_id,
           quantity: item.quantity,
           unit: item.unit,
           packaging_size: item.packaging_size,
           delivery_form: item.delivery_form,
+          packaging_type: item.packaging_type,
+          packaging_material: item.packaging_material,
+          packaging_volume_ml: item.packaging_volume_ml,
+          packaging_id: item.packaging_id,
           has_label: item.has_label,
-          notes: item.notes
+          notes: item.notes,
+          special_requirements: item.special_requirements,
+          price_per_unit: item.price_per_unit,
+          total_price: item.total_price
         }));
-        await supabase.from('order_items').insert(items);
+
+        const { error: itemsError } = await supabase.from('order_items').insert(items);
+        if (itemsError) throw itemsError;
       }
 
-      toast({ title: 'Úspech', description: 'Objednávka zduplikovaná' });
+      // Reload data and automatically open the new order in edit mode
       await loadData();
+
+      // Find the newly created order in the loaded data and open it for editing
+      const allOrdersQuery = await supabase
+        .from('orders')
+        .select('*, order_items(*)')
+        .eq('id', newOrder.id)
+        .single();
+
+      if (allOrdersQuery.data) {
+        openEdit(allOrdersQuery.data);
+      }
+
+      toast({ title: 'Úspech', description: 'Objednávka zduplikovaná - prosím vyberte nový dátum dodania' });
     } catch (error) {
       console.error('Error duplicating order:', error);
       toast({ title: 'Chyba', description: 'Nepodarilo sa zduplikovať objednávku', variant: 'destructive' });

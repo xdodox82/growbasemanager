@@ -71,7 +71,9 @@ const CropsPage = () => {
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedCropDetail, setSelectedCropDetail] = useState<DbCrop | null>(null);
+
   const handleRefresh = useCallback(async () => {
     await refetch();
   }, [refetch]);
@@ -617,10 +619,17 @@ const CropsPage = () => {
       ) : viewMode === 'grid' ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredCrops.map((crop) => (
-            <Card key={crop.id} className="p-4 transition-all hover:border-primary/50 hover:shadow-lg">
+            <Card
+              key={crop.id}
+              className="p-4 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer"
+              onClick={() => {
+                setSelectedCropDetail(crop);
+                setDetailModalOpen(true);
+              }}
+            >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div 
+                  <div
                     className="h-10 w-10 rounded-lg flex items-center justify-center"
                     style={{ backgroundColor: `${crop.color}20`, color: crop.color || '#22c55e' }}
                   >
@@ -638,7 +647,7 @@ const CropsPage = () => {
                     )}
                   </div>
                 </div>
-                <div className="flex gap-1">
+                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -722,8 +731,13 @@ const CropsPage = () => {
                 </TableHeader>
                 <TableBody>
                   {filteredCrops.map((crop) => (
-                    <MobileTableRow 
+                    <MobileTableRow
                       key={crop.id}
+                      className="cursor-pointer hover:bg-gray-50"
+                      onClick={() => {
+                        setSelectedCropDetail(crop);
+                        setDetailModalOpen(true);
+                      }}
                       expandedContent={
                         <>
                           <ExpandedDetail label="Dni do zberu" value={`${crop.days_to_harvest} dní`} />
@@ -768,7 +782,7 @@ const CropsPage = () => {
                           <span className="text-muted-foreground">Nie</span>
                         )}
                       </MobileTableCell>
-                      <MobileTableCell>
+                      <MobileTableCell onClick={(e) => e.stopPropagation()}>
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(crop)}>
                             <Pencil className="h-4 w-4" />
@@ -805,6 +819,112 @@ const CropsPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Detail Modal */}
+      <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Detail plodiny</DialogTitle>
+          </DialogHeader>
+          {selectedCropDetail && (
+            <div className="space-y-6">
+              <div className="flex items-center gap-4">
+                <div
+                  className="h-16 w-16 rounded-lg flex items-center justify-center"
+                  style={{ backgroundColor: `${selectedCropDetail.color}20`, color: selectedCropDetail.color || '#22c55e' }}
+                >
+                  <Leaf className="h-8 w-8" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold">{selectedCropDetail.name}</h3>
+                  {selectedCropDetail.variety && (
+                    <p className="text-sm text-muted-foreground">{selectedCropDetail.variety}</p>
+                  )}
+                  {selectedCropDetail.category && (
+                    <Badge variant="secondary" className="mt-1">
+                      {CROP_CATEGORIES[selectedCropDetail.category as keyof typeof CROP_CATEGORIES] || selectedCropDetail.category}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground">Dni do zberu</div>
+                  <div className="font-medium">{selectedCropDetail.days_to_harvest} dní</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground">Dni klíčenia</div>
+                  <div className="font-medium">{selectedCropDetail.days_to_germination} dní</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground">Typ klíčenia</div>
+                  <div className="font-medium">
+                    {GERMINATION_TYPES[selectedCropDetail.germination_type as keyof typeof GERMINATION_TYPES] || selectedCropDetail.germination_type}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground">Hustota osiva</div>
+                  <div className="font-medium">{selectedCropDetail.seed_density} g/tác</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground">Očakávaný výnos</div>
+                  <div className="font-medium">{selectedCropDetail.expected_yield || '-'} g</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground">Dni v tme</div>
+                  <div className="font-medium">{selectedCropDetail.days_in_darkness} dní</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground">Dni na svetle</div>
+                  <div className="font-medium">{selectedCropDetail.days_on_light} dní</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground">Namáčanie osiva</div>
+                  <div className="font-medium">{selectedCropDetail.seed_soaking ? 'Áno' : 'Nie'}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground">Zaťaženie</div>
+                  <div className="font-medium">{selectedCropDetail.needs_weight ? 'Áno' : 'Nie'}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground">Rezaná forma</div>
+                  <div className="font-medium">{selectedCropDetail.can_be_cut ? 'Áno' : 'Nie'}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground">Živá forma</div>
+                  <div className="font-medium">{selectedCropDetail.can_be_live ? 'Áno' : 'Nie'}</div>
+                </div>
+              </div>
+
+              {selectedCropDetail.notes && (
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground">Poznámky</div>
+                  <div className="text-sm whitespace-pre-wrap">{selectedCropDetail.notes}</div>
+                </div>
+              )}
+
+              <div className="flex gap-2 justify-end pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setDetailModalOpen(false)}
+                >
+                  Zavrieť
+                </Button>
+                <Button
+                  onClick={() => {
+                    setDetailModalOpen(false);
+                    openEditDialog(selectedCropDetail);
+                  }}
+                >
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Upraviť
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 };
