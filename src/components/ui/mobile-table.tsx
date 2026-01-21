@@ -8,24 +8,29 @@ interface MobileTableRowProps {
   expandedContent?: React.ReactNode;
   className?: string;
   isSelected?: boolean;
+  onClick?: () => void;
 }
 
-export function MobileTableRow({ 
-  children, 
+export function MobileTableRow({
+  children,
   expandedContent,
   className,
-  isSelected 
+  isSelected,
+  onClick
 }: MobileTableRowProps) {
   const [isExpanded, setIsExpanded] = React.useState(false);
   const isMobile = useIsMobile();
 
   if (!isMobile || !expandedContent) {
     return (
-      <tr className={cn(
-        "border-b transition-colors data-[state=selected]:bg-muted hover:bg-muted/50",
-        isSelected && 'bg-primary/5',
-        className
-      )}>
+      <tr
+        className={cn(
+          "border-b transition-colors data-[state=selected]:bg-muted hover:bg-muted/50",
+          isSelected && 'bg-primary/5',
+          className
+        )}
+        onClick={onClick}
+      >
         {children}
       </tr>
     );
@@ -33,18 +38,26 @@ export function MobileTableRow({
 
   return (
     <>
-      <tr 
+      <tr
         className={cn(
           "border-b transition-colors cursor-pointer hover:bg-muted/50",
           isSelected && 'bg-primary/5',
           isExpanded && 'bg-muted/30',
           className
         )}
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={(e) => {
+          // If there's a custom onClick and we're clicking outside action buttons, call it
+          if (onClick && !(e.target as HTMLElement).closest('[data-action-cell]')) {
+            onClick();
+          } else {
+            // Otherwise toggle expansion
+            setIsExpanded(!isExpanded);
+          }
+        }}
       >
         {children}
         <td className="p-2 align-middle">
-          <button 
+          <button
             className="p-1 rounded-md hover:bg-muted"
             onClick={(e) => {
               e.stopPropagation();
@@ -77,13 +90,15 @@ interface MobileTableCellProps {
   className?: string;
   hideOnMobile?: boolean;
   label?: string;
+  onClick?: (e: React.MouseEvent) => void;
 }
 
-export function MobileTableCell({ 
-  children, 
+export function MobileTableCell({
+  children,
   className,
   hideOnMobile,
-  label
+  label,
+  onClick
 }: MobileTableCellProps) {
   const isMobile = useIsMobile();
 
@@ -92,7 +107,11 @@ export function MobileTableCell({
   }
 
   return (
-    <td className={cn("p-4 align-middle [&:has([role=checkbox])]:pr-0", className)}>
+    <td
+      className={cn("p-4 align-middle [&:has([role=checkbox])]:pr-0", className)}
+      onClick={onClick}
+      data-action-cell={onClick ? true : undefined}
+    >
       {label && isMobile && (
         <span className="text-xs text-muted-foreground block mb-0.5">{label}</span>
       )}
