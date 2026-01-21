@@ -905,8 +905,8 @@ export default function OrdersPage() {
         customer_type: customer?.customer_type || 'home',
         delivery_date: deliveryDate,
         status: status,
-        total_price: parseFloat(finalTotalPrice.toFixed(2)),
-        delivery_price: parseFloat(deliveryPrice.toFixed(2)),
+        total_price: Number(parseFloat(finalTotalPrice.toFixed(2))),
+        delivery_price: Number(parseFloat(deliveryPrice.toFixed(2))),
         charge_delivery: !freeDelivery, // Store: true = charge, false = free
         route: route || null,
         notes: orderNotes || null,
@@ -938,7 +938,7 @@ export default function OrdersPage() {
             crop_id: item.is_special_item ? null : (item.crop_id || null),
             blend_id: item.blend_id || null,
             crop_name: cropName,
-            quantity: quantity,
+            quantity: Number(quantity),
             unit: item.unit,
             packaging_size: weightValue,
             delivery_form: item.delivery_form,
@@ -948,8 +948,8 @@ export default function OrdersPage() {
             packaging_volume_ml: item.packaging_volume_ml || null,
             packaging_id: item.packaging_id || null,
             special_requirements: item.special_requirements || null,
-            price_per_unit: price,
-            total_price: parseFloat((quantity * price).toFixed(2)),
+            price_per_unit: Number(price),
+            total_price: Number(parseFloat((quantity * price).toFixed(2))),
             is_special_item: item.is_special_item || false,
             custom_crop_name: item.is_special_item ? item.custom_crop_name : null,
             user_id: user.id
@@ -999,7 +999,7 @@ export default function OrdersPage() {
             crop_id: item.is_special_item ? null : (item.crop_id || null),
             blend_id: item.blend_id || null,
             crop_name: cropName,
-            quantity: quantity,
+            quantity: Number(quantity),
             unit: item.unit,
             packaging_size: weightValue,
             delivery_form: item.delivery_form,
@@ -1009,8 +1009,8 @@ export default function OrdersPage() {
             packaging_volume_ml: item.packaging_volume_ml || null,
             packaging_id: item.packaging_id || null,
             special_requirements: item.special_requirements || null,
-            price_per_unit: price,
-            total_price: parseFloat((quantity * price).toFixed(2)),
+            price_per_unit: Number(price),
+            total_price: Number(parseFloat((quantity * price).toFixed(2))),
             is_special_item: item.is_special_item || false,
             custom_crop_name: item.is_special_item ? item.custom_crop_name : null,
             user_id: user.id
@@ -1103,22 +1103,26 @@ export default function OrdersPage() {
         customer_id: order.customer_id,
         customer_name: order.customer_name || '',
         customer_type: order.customer_type || '',
-        delivery_date: null, // Reset date - user must select new date
+        delivery_date: null, // Reset date - user MUST select new date
         status: order.status || 'cakajuca',
-        order_type: order.order_type || '',
-        charge_delivery: Boolean(order.charge_delivery)
+        charge_delivery: Boolean(order.charge_delivery),
+        // Default to single order (not recurring)
+        is_recurring: false,
+        recurrence_pattern: null,
+        recurring_weeks: null
       };
 
       // Add optional fields with proper types
       if (order.route) {
         orderData.route = order.route;
       }
-      if (order.week_count !== null && order.week_count !== undefined) {
-        orderData.week_count = sanitizeNumber(order.week_count);
+      if (order.notes) {
+        orderData.notes = order.notes;
       }
 
-      // Critical: total_price must be a valid number, never null or string
+      // Critical: total_price and delivery_price must be valid numbers, never null or string
       orderData.total_price = sanitizeNumber(order.total_price, 0);
+      orderData.delivery_price = sanitizeNumber(order.delivery_price, 0);
 
       console.log('Sanitized order data for insert:', orderData);
 
