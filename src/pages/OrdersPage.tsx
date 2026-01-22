@@ -51,7 +51,7 @@ interface OrderItem {
   unit: string;
   packaging_size: string;
   delivery_form: string;
-  packaging_material: string;
+  packaging_type: string;
   packaging_volume_ml: number;
   packaging_id?: string;
   has_label: boolean;
@@ -172,7 +172,7 @@ export default function OrdersPage() {
     unit: 'ks',
     packaging_size: '',
     delivery_form: 'rezana',
-    packaging_material: 'rPET',
+    packaging_type: 'rPET',
     packaging_volume_ml: 250,
     has_label: false,
     notes: '',
@@ -187,6 +187,18 @@ export default function OrdersPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (customerId && customers) {
+      const selectedCustomer = customers.find(c => c.id === customerId);
+      if (selectedCustomer && (selectedCustomer as any).default_packaging_type) {
+        setCurrentItem(prev => ({
+          ...prev,
+          packaging_type: (selectedCustomer as any).default_packaging_type || 'rPET'
+        }));
+      }
+    }
+  }, [customerId, customers]);
 
   useEffect(() => {
     const fetchPriceAutomatically = async () => {
@@ -668,7 +680,7 @@ export default function OrdersPage() {
       unit: 'ks',
       packaging_size: '',
       delivery_form: 'rezana',
-      packaging_material: 'rPET',
+      packaging_type: 'rPET',
       packaging_volume_ml: 250,
       has_label: false,
       notes: '',
@@ -759,7 +771,7 @@ export default function OrdersPage() {
 
         const result = {
           packaging_id: mapping.packaging_id,
-          packaging_material: pkg.type || 'rPET',
+          packaging_type: pkg.type || 'rPET',
           packaging_volume_ml: volumeMl
         };
 
@@ -815,7 +827,7 @@ export default function OrdersPage() {
       unit: 'ks',
       packaging_size: '',
       delivery_form: 'rezana',
-      packaging_material: 'rPET',
+      packaging_type: 'rPET',
       packaging_volume_ml: 250,
       has_label: false,
       notes: '',
@@ -983,7 +995,7 @@ export default function OrdersPage() {
             delivery_form: item.delivery_form,
             has_label: item.has_label,
             notes: item.notes || null,
-            packaging_material: item.packaging_material || 'PET',
+            packaging_type: item.packaging_type || 'PET',
             packaging_volume_ml: item.packaging_volume_ml || null,
             packaging_id: item.packaging_id || null,
             special_requirements: item.special_requirements || null,
@@ -1044,7 +1056,7 @@ export default function OrdersPage() {
             delivery_form: item.delivery_form,
             has_label: item.has_label,
             notes: item.notes || null,
-            packaging_material: item.packaging_material || 'PET',
+            packaging_type: item.packaging_type || 'PET',
             packaging_volume_ml: item.packaging_volume_ml || null,
             packaging_id: item.packaging_id || null,
             special_requirements: item.special_requirements || null,
@@ -1229,7 +1241,7 @@ export default function OrdersPage() {
             // Fields that exist in order_items table (verified against schema)
             packaging_size: item.packaging_size || '',
             delivery_form: item.delivery_form || '',
-            packaging_material: item.packaging_material || '',
+            packaging_type: item.packaging_type || '',
             packaging_volume_ml: Number(item.packaging_volume_ml) || 0, // integer type
             has_label: Boolean(item.has_label),
             // Price fields - convert to Number
@@ -2121,40 +2133,41 @@ export default function OrdersPage() {
                         </div>
 
                         <div>
-                          <Label className="text-sm">Veľkosť krabičky (ml)</Label>
+                          <Label className="text-sm">Typ obalu</Label>
                           <select
-                            value={currentItem?.packaging_volume_ml || 250}
-                            onChange={(e) => {
-                              const volumeVal = parseInt(e.target.value) || 250;
-                              const selectedPkg = (packagings || []).find(p => p?.size && p.size.includes(volumeVal.toString()));
-                              setCurrentItem({
-                                ...currentItem,
-                                packaging_volume_ml: volumeVal,
-                                packaging_id: selectedPkg?.id || currentItem?.packaging_id
-                              });
-                            }}
+                            value={currentItem?.packaging_type || 'rPET'}
+                            onChange={(e) => setCurrentItem({ ...currentItem, packaging_type: e.target.value })}
                             className="mt-1 w-full px-3 h-10 border border-slate-200 rounded-md text-sm bg-white"
                           >
-                            <option value="250">250ml</option>
-                            <option value="500">500ml</option>
-                            <option value="750">750ml</option>
-                            <option value="1000">1000ml</option>
-                            <option value="1200">1200ml</option>
+                            <option value="rPET">rPET</option>
+                            <option value="Vratný obal">Vratný obal</option>
                           </select>
                         </div>
 
-                        <div>
-                          <Label className="text-sm">Typ obalu</Label>
-                          <select
-                            value={currentItem?.packaging_material || 'rPET'}
-                            onChange={(e) => setCurrentItem({ ...currentItem, packaging_material: e.target.value })}
-                            className="mt-1 w-full px-3 h-10 border border-slate-200 rounded-md text-sm bg-white"
-                          >
-                            <option value="PET">PET</option>
-                            <option value="rPET">rPET</option>
-                            <option value="EKO">EKO</option>
-                          </select>
-                        </div>
+                        {currentItem?.packaging_type !== 'Vratný obal' && (
+                          <div>
+                            <Label className="text-sm">Veľkosť krabičky (ml)</Label>
+                            <select
+                              value={currentItem?.packaging_volume_ml || 250}
+                              onChange={(e) => {
+                                const volumeVal = parseInt(e.target.value) || 250;
+                                const selectedPkg = (packagings || []).find(p => p?.size && p.size.includes(volumeVal.toString()));
+                                setCurrentItem({
+                                  ...currentItem,
+                                  packaging_volume_ml: volumeVal,
+                                  packaging_id: selectedPkg?.id || currentItem?.packaging_id
+                                });
+                              }}
+                              className="mt-1 w-full px-3 h-10 border border-slate-200 rounded-md text-sm bg-white"
+                            >
+                              <option value="250">250ml</option>
+                              <option value="500">500ml</option>
+                              <option value="750">750ml</option>
+                              <option value="1000">1000ml</option>
+                              <option value="1200">1200ml</option>
+                            </select>
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex items-center space-x-2 mt-3">
@@ -2214,7 +2227,7 @@ export default function OrdersPage() {
                                       <span className="font-bold text-[#10b981]">--- {itemPrice.toFixed(2)} €</span>
                                     </div>
                                     <div className="text-xs text-gray-500 mt-1">
-                                      • Obal: {item?.packaging_material || 'rPET'} • {item?.packaging_volume_ml || 250}ml
+                                      • Obal: {item?.packaging_type || 'rPET'} • {item?.packaging_volume_ml || 250}ml
                                       {item?.special_requirements && (
                                         <span className="text-orange-600 font-medium"> • {item.special_requirements}</span>
                                       )}
@@ -2384,7 +2397,7 @@ export default function OrdersPage() {
                           </div>
                           <div className="text-sm text-gray-600">
                             {weightDisplay} • {formLabel}
-                            {item?.packaging_material && ` • ${item.packaging_material}`}
+                            {item?.packaging_type && ` • ${item.packaging_type}`}
                             {item?.packaging_volume_ml && ` • ${item.packaging_volume_ml}ml`}
                           </div>
                           {item?.notes && (

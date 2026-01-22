@@ -118,6 +118,7 @@ const CustomersPage = () => {
     customer_type: '' as string | null,
     payment_method: 'cash' as 'cash' | 'card' | 'invoice',
     free_delivery: false,
+    default_packaging_type: 'rPET' as string,
     // Business fields for gastro/wholesale
     company_name: '',
     contact_name: '',
@@ -191,6 +192,7 @@ const CustomersPage = () => {
       customer_type: null,
       payment_method: 'cash',
       free_delivery: false,
+      default_packaging_type: 'rPET',
       company_name: '',
       contact_name: '',
       ico: '',
@@ -213,6 +215,7 @@ const CustomersPage = () => {
       customer_type: (customer as any).customer_type || null,
       payment_method: (customer as any).payment_method || 'cash',
       free_delivery: (customer as any).free_delivery || false,
+      default_packaging_type: (customer as any).default_packaging_type || 'rPET',
       company_name: (customer as any).company_name || '',
       contact_name: (customer as any).contact_name || '',
       ico: (customer as any).ico || '',
@@ -248,6 +251,7 @@ const CustomersPage = () => {
       customer_type: formData.customer_type || null,
       payment_method: formData.payment_method,
       free_delivery: formData.free_delivery,
+      default_packaging_type: formData.default_packaging_type || 'rPET',
       company_name: formData.company_name || null,
       contact_name: formData.contact_name || null,
       ico: formData.ico || null,
@@ -475,6 +479,26 @@ const CustomersPage = () => {
                     checked={formData.free_delivery}
                     onCheckedChange={(checked) => setFormData({ ...formData, free_delivery: checked })}
                   />
+                </div>
+
+                {/* Default Packaging Type */}
+                <div className="grid gap-2">
+                  <Label htmlFor="default-packaging-type">Predvolený typ obalu</Label>
+                  <Select
+                    value={formData.default_packaging_type}
+                    onValueChange={(value) => setFormData({ ...formData, default_packaging_type: value })}
+                  >
+                    <SelectTrigger className="h-10 border-slate-200">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white z-[9999]">
+                      <SelectItem value="rPET">rPET</SelectItem>
+                      <SelectItem value="Vratný obal">Vratný obal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Tento typ obalu sa automaticky nastaví pri vytváraní nových objednávok
+                  </p>
                 </div>
 
                 {/* Home customer - simple form */}

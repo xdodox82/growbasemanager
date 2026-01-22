@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { usePlantingPlans, useOrders, useCustomers, useCrops, useBlends } from '@/hooks/useSupabaseData';
+import { usePlantingPlans, useOrders, useCustomers, useCrops, useBlends, useOrderItems } from '@/hooks/useSupabaseData';
 import { Scissors, FileSpreadsheet, FileText, Leaf, CheckCircle2, CalendarIcon, Filter, Undo2 } from 'lucide-react';
 import { format, isSameDay, startOfDay } from 'date-fns';
 import { sk } from 'date-fns/locale';
@@ -20,6 +20,7 @@ import * as XLSX from 'xlsx';
 export default function HarvestPage() {
   const { data: plantingPlans, update: updatePlantingPlan } = usePlantingPlans();
   const { data: orders, update: updateOrder } = useOrders();
+  const { data: orderItems } = useOrderItems();
   const { data: customers } = useCustomers();
   const { data: crops } = useCrops();
   const { data: blends } = useBlends();
@@ -101,52 +102,69 @@ export default function HarvestPage() {
     return 'Neznáma položka';
   };
 
-  // Helper function to group orders
-  const groupOrders = (ordersList: typeof orders) => ordersList.reduce((acc, order) => {
-    const key = order.crop_id || order.blend_id || 'unknown';
-    if (!acc[key]) {
-      acc[key] = {
-        name: getItemName(order),
-        cropId: order.crop_id,
-        blendId: order.blend_id,
-        totalQuantity: 0,
-        packagingSummary: {} as Record<string, number>,
-        orders: [],
-      };
-    }
-    acc[key].totalQuantity += order.quantity || 0;
+  // Helper function to group orders by crop/blend and packaging type
+  const groupOrders = (ordersList: typeof orders) => {
+    const grouped: Record<string, {
+      name: string;
+      cropId?: string | null;
+      blendId?: string | null;
+      packagingType: string;
+      totalQuantity: number;
+      packagingSummary: Record<string, number>;
+      orders: {
+        id: string;
+        customerName: string;
+        customerType: string;
+        quantity: number;
+        unit: string;
+        packagingSize: string;
+        hasLabel: boolean;
+        deliveryForm: string;
+        packagingType: string;
+      }[]
+    }> = {};
 
-    const packagingKey = order.packaging_size || '50g';
-    acc[key].packagingSummary[packagingKey] = (acc[key].packagingSummary[packagingKey] || 0) + 1;
+    ordersList.forEach(order => {
+      const items = orderItems.filter(item => item.order_id === order.id);
 
-    acc[key].orders.push({
-      id: order.id,
-      customerName: getCustomerName(order.customer_id),
-      customerType: customers.find(c => c.id === order.customer_id)?.customer_type || 'home',
-      quantity: order.quantity || 0,
-      unit: order.unit || 'g',
-      packagingSize: order.packaging_size || '50g',
-      hasLabel: order.has_label !== false,
-      deliveryForm: order.delivery_form || 'cut',
+      items.forEach(item => {
+        const itemId = item.crop_id || item.blend_id || 'unknown';
+        const packagingType = item.packaging_type || 'rPET';
+        const key = `${itemId}-${packagingType}`;
+
+        if (!grouped[key]) {
+          grouped[key] = {
+            name: getItemName({ crop_id: item.crop_id, blend_id: item.blend_id }),
+            cropId: item.crop_id,
+            blendId: item.blend_id,
+            packagingType: packagingType,
+            totalQuantity: 0,
+            packagingSummary: {} as Record<string, number>,
+            orders: [],
+          };
+        }
+
+        grouped[key].totalQuantity += item.quantity || 0;
+
+        const packagingKey = item.packaging_size || '50g';
+        grouped[key].packagingSummary[packagingKey] = (grouped[key].packagingSummary[packagingKey] || 0) + 1;
+
+        grouped[key].orders.push({
+          id: order.id,
+          customerName: getCustomerName(order.customer_id),
+          customerType: customers.find(c => c.id === order.customer_id)?.customer_type || 'home',
+          quantity: item.quantity || 0,
+          unit: item.unit || 'ks',
+          packagingSize: item.packaging_size || '50g',
+          hasLabel: item.has_label !== false,
+          deliveryForm: item.delivery_form || 'rezana',
+          packagingType: packagingType,
+        });
+      });
     });
-    return acc;
-  }, {} as Record<string, {
-    name: string;
-    cropId?: string | null;
-    blendId?: string | null;
-    totalQuantity: number;
-    packagingSummary: Record<string, number>;
-    orders: {
-      id: string;
-      customerName: string;
-      customerType: string;
-      quantity: number;
-      unit: string;
-      packagingSize: string;
-      hasLabel: boolean;
-      deliveryForm: string;
-    }[]
-  }>);
+
+    return grouped;
+  };
 
   // Group pending and ready orders separately
   const groupedPendingOrders = groupOrders(pendingOrders);
@@ -656,7 +674,10 @@ export default function HarvestPage() {
                                       style={{ backgroundColor: getCropColor(item.cropId) }}
                                     />
                                   )}
-                                  <span className="truncate">{item.name}</span>
+                                  <div className="flex flex-col">
+                                    <span className="truncate">{item.name}</span>
+                                    <span className="text-xs text-muted-foreground">{item.packagingType}</span>
+                                  </div>
                                 </div>
                               </TableCell>
                             ) : null}
@@ -732,7 +753,10 @@ export default function HarvestPage() {
                                       style={{ backgroundColor: getCropColor(item.cropId) }}
                                     />
                                   )}
-                                  <span className="truncate">{item.name}</span>
+                                  <div className="flex flex-col">
+                                    <span className="truncate">{item.name}</span>
+                                    <span className="text-xs text-muted-foreground">{item.packagingType}</span>
+                                  </div>
                                 </div>
                               </TableCell>
                             ) : null}

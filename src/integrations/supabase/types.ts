@@ -184,6 +184,7 @@ export interface Database {
           payment_method: 'cash' | 'invoice' | null
           free_delivery: boolean | null
           uses_returnable_packaging: boolean | null
+          default_packaging_type: string | null
         }
         Insert: {
           id?: string
@@ -207,6 +208,7 @@ export interface Database {
           payment_method?: 'cash' | 'invoice' | null
           free_delivery?: boolean | null
           uses_returnable_packaging?: boolean | null
+          default_packaging_type?: string | null
         }
         Update: {
           id?: string
@@ -230,6 +232,7 @@ export interface Database {
           payment_method?: 'cash' | 'invoice' | null
           free_delivery?: boolean | null
           uses_returnable_packaging?: boolean | null
+          default_packaging_type?: string | null
         }
       }
       delivery_days: {
@@ -592,6 +595,7 @@ export interface Database {
           is_special_item: boolean | null
           custom_crop_name: string | null
           pieces: number | null
+          packaging_type: string | null
         }
         Insert: {
           id?: string
@@ -616,6 +620,7 @@ export interface Database {
           is_special_item?: boolean | null
           custom_crop_name?: string | null
           pieces?: number | null
+          packaging_type?: string | null
         }
         Update: {
           id?: string
@@ -640,6 +645,7 @@ export interface Database {
           is_special_item?: boolean | null
           custom_crop_name?: string | null
           pieces?: number | null
+          packaging_type?: string | null
         }
       }
       orders: {
