@@ -191,14 +191,18 @@ export default function OrdersPage() {
   useEffect(() => {
     const fetchPriceAutomatically = async () => {
       if (!currentItem.is_special_item && currentItem.packaging_size && customerType) {
-        // Only auto-fetch price for crops (not blends)
-        if (currentItem.crop_id) {
-          const autoPrice = await autoFetchPrice(currentItem.crop_id, currentItem.packaging_size, customerType);
+        // Auto-fetch price for both crops and blends
+        if (currentItem.crop_id || currentItem.blend_id) {
+          const autoPrice = await autoFetchPrice(
+            currentItem.packaging_size,
+            customerType,
+            currentItem.crop_id,
+            currentItem.blend_id
+          );
           if (autoPrice > 0) {
             setCurrentItem(prev => ({ ...prev, price_per_unit: autoPrice.toString() }));
           }
         }
-        // For blends, price needs to be entered manually (or calculated from components in the future)
       }
     };
 
@@ -439,6 +443,11 @@ export default function OrdersPage() {
   const filteredCropsByCategory = useMemo(() => {
     if (!categoryFilter) return crops;
 
+    // If "Mixy" category is selected, return empty array (blends are shown separately)
+    if (categoryFilter === 'Mixy') {
+      return [];
+    }
+
     const categoryMap: { [key: string]: string } = {
       'Mikrozelenina': 'microgreens',
       'Mikrobylinky': 'microherbs',
@@ -450,6 +459,19 @@ export default function OrdersPage() {
 
     return crops.filter(crop => crop.category === categoryKey);
   }, [crops, categoryFilter]);
+
+  const filteredBlendsByCategory = useMemo(() => {
+    // Only show blends when "Mixy" category is selected
+    if (categoryFilter === 'Mixy') {
+      return blends;
+    }
+    // If no category filter, show blends in "Mixy" group
+    if (!categoryFilter) {
+      return blends;
+    }
+    // Otherwise don't show blends
+    return [];
+  }, [blends, categoryFilter]);
 
   const getDeliveryFee = (order: Order): number => {
     try {
@@ -682,15 +704,23 @@ export default function OrdersPage() {
     setIsDialogOpen(true);
   };
 
-  const autoFetchPrice = async (cropId: string, packagingSize: string, customerType: string) => {
+  const autoFetchPrice = async (packagingSize: string, customerType: string, cropId?: string, blendId?: string) => {
     try {
-      const { data: priceData } = await supabase
+      const query = supabase
         .from('prices')
         .select('*')
-        .eq('crop_id', cropId)
         .eq('packaging_size', packagingSize)
-        .eq('customer_type', customerType)
-        .maybeSingle();
+        .eq('customer_type', customerType);
+
+      if (cropId) {
+        query.eq('crop_id', cropId);
+      } else if (blendId) {
+        query.eq('blend_id', blendId);
+      } else {
+        return 0;
+      }
+
+      const { data: priceData } = await query.maybeSingle();
 
       return priceData?.unit_price || 0;
     } catch (error) {
@@ -756,8 +786,8 @@ export default function OrdersPage() {
       return;
     }
 
-    const autoPrice = currentItem.crop_id && customerType && !currentItem.is_special_item
-      ? await autoFetchPrice(currentItem.crop_id, currentItem.packaging_size, customerType)
+    const autoPrice = (currentItem.crop_id || currentItem.blend_id) && customerType && !currentItem.is_special_item
+      ? await autoFetchPrice(currentItem.packaging_size, customerType, currentItem.crop_id, currentItem.blend_id)
       : 0;
 
     const finalCropName = currentItem.is_special_item
@@ -1722,8 +1752,8 @@ export default function OrdersPage() {
                           onClick={async () => {
                             setCustomerType('home');
                             setCustomerId('');
-                            if (currentItem?.crop_id && currentItem?.packaging_size) {
-                              const autoPrice = await autoFetchPrice(currentItem.crop_id, currentItem.packaging_size, 'home');
+                            if ((currentItem?.crop_id || currentItem?.blend_id) && currentItem?.packaging_size) {
+                              const autoPrice = await autoFetchPrice(currentItem.packaging_size, 'home', currentItem.crop_id, currentItem.blend_id);
                               setCurrentItem({ ...currentItem, price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || '') });
                             }
                           }}
@@ -1743,8 +1773,8 @@ export default function OrdersPage() {
                           onClick={async () => {
                             setCustomerType('gastro');
                             setCustomerId('');
-                            if (currentItem?.crop_id && currentItem?.packaging_size) {
-                              const autoPrice = await autoFetchPrice(currentItem.crop_id, currentItem.packaging_size, 'gastro');
+                            if ((currentItem?.crop_id || currentItem?.blend_id) && currentItem?.packaging_size) {
+                              const autoPrice = await autoFetchPrice(currentItem.packaging_size, 'gastro', currentItem.crop_id, currentItem.blend_id);
                               setCurrentItem({ ...currentItem, price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || '') });
                             }
                           }}
@@ -1764,8 +1794,8 @@ export default function OrdersPage() {
                           onClick={async () => {
                             setCustomerType('wholesale');
                             setCustomerId('');
-                            if (currentItem?.crop_id && currentItem?.packaging_size) {
-                              const autoPrice = await autoFetchPrice(currentItem.crop_id, currentItem.packaging_size, 'wholesale');
+                            if ((currentItem?.crop_id || currentItem?.blend_id) && currentItem?.packaging_size) {
+                              const autoPrice = await autoFetchPrice(currentItem.packaging_size, 'wholesale', currentItem.crop_id, currentItem.blend_id);
                               setCurrentItem({ ...currentItem, price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || '') });
                             }
                           }}
@@ -1967,18 +1997,22 @@ export default function OrdersPage() {
                               <SelectValue placeholder="Vyberte plodinu alebo mix" />
                             </SelectTrigger>
                             <SelectContent className="bg-white z-[9999]">
-                              <SelectGroup>
-                                <SelectLabel>Samostatné plodiny</SelectLabel>
-                                {(filteredCropsByCategory || []).map((crop) => (
-                                  <SelectItem key={crop.id} value={`crop:${crop.id}`}>{crop.name}</SelectItem>
-                                ))}
-                              </SelectGroup>
-                              <SelectGroup>
-                                <SelectLabel>Mixy</SelectLabel>
-                                {(blends || []).map((blend) => (
-                                  <SelectItem key={blend.id} value={`blend:${blend.id}`}>{blend.name}</SelectItem>
-                                ))}
-                              </SelectGroup>
+                              {filteredCropsByCategory.length > 0 && (
+                                <SelectGroup>
+                                  <SelectLabel>Samostatné plodiny</SelectLabel>
+                                  {filteredCropsByCategory.map((crop) => (
+                                    <SelectItem key={crop.id} value={`crop:${crop.id}`}>{crop.name}</SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              )}
+                              {filteredBlendsByCategory.length > 0 && (
+                                <SelectGroup>
+                                  <SelectLabel>Mixy</SelectLabel>
+                                  {filteredBlendsByCategory.map((blend) => (
+                                    <SelectItem key={blend.id} value={`blend:${blend.id}`}>{blend.name}</SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              )}
                             </SelectContent>
                           </Select>
                         </div>
@@ -2011,17 +2045,11 @@ export default function OrdersPage() {
                                 setCurrentItem(prev => ({ ...prev, packaging_size: value }));
                                 // AUTOMATIC FETCHING OF PRICE AND PACKAGING
                                 if ((currentItem?.crop_id || currentItem?.blend_id) && customerType) {
-                                  const promises: [Promise<number>, Promise<any>] = [
-                                    Promise.resolve(0), // Default price for blends (no price table yet)
+                                  const [price, pkg] = await Promise.all([
+                                    autoFetchPrice(value, customerType, currentItem.crop_id, currentItem.blend_id),
                                     autoFetchPackaging(value, currentItem.crop_id, currentItem.blend_id)
-                                  ];
+                                  ]);
 
-                                  // Only fetch price if it's a crop (not a blend)
-                                  if (currentItem?.crop_id) {
-                                    promises[0] = autoFetchPrice(currentItem.crop_id, value, customerType);
-                                  }
-
-                                  const [price, pkg] = await Promise.all(promises);
                                   setCurrentItem(prev => ({
                                     ...prev,
                                     price_per_unit: price > 0 ? price.toString() : prev.price_per_unit || '0.00',
