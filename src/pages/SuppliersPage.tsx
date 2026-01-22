@@ -540,6 +540,7 @@ const SuppliersPage = () => {
                   <TableHead className="hidden sm:table-cell">Firma</TableHead>
                   <TableHead className="hidden md:table-cell">Email</TableHead>
                   <TableHead className="hidden lg:table-cell">Telefón</TableHead>
+                  <TableHead className="hidden xl:table-cell">Adresa</TableHead>
                   <TableHead className="w-24">Akcie</TableHead>
                 </TableRow>
               </TableHeader>
@@ -552,8 +553,61 @@ const SuppliersPage = () => {
                   >
                     <TableCell className="font-medium">{supplier.name}</TableCell>
                     <TableCell className="hidden sm:table-cell">{supplier.company_name || '-'}</TableCell>
-                    <TableCell className="hidden md:table-cell">{supplier.email || '-'}</TableCell>
-                    <TableCell className="hidden lg:table-cell">{supplier.phone || '-'}</TableCell>
+                    <TableCell className="hidden md:table-cell" onClick={(e) => e.stopPropagation()}>
+                      {supplier.email ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm truncate max-w-[150px]">{supplier.email}</span>
+                          <a
+                            href={`mailto:${supplier.email}`}
+                            className="text-emerald-600 hover:text-emerald-700"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Mail className="h-4 w-4" />
+                          </a>
+                        </div>
+                      ) : '-'}
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell" onClick={(e) => e.stopPropagation()}>
+                      {supplier.phone ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">{supplier.phone}</span>
+                          <a
+                            href={`tel:${supplier.phone}`}
+                            className="text-emerald-600 hover:text-emerald-700"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Phone className="h-4 w-4" />
+                          </a>
+                        </div>
+                      ) : '-'}
+                    </TableCell>
+                    <TableCell className="hidden xl:table-cell" onClick={(e) => e.stopPropagation()}>
+                      {supplier.address ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm truncate max-w-[200px]">{supplier.address}</span>
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(supplier.address)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-emerald-600 hover:text-emerald-700"
+                            onClick={(e) => e.stopPropagation()}
+                            title="Otvoriť v Google Maps"
+                          >
+                            <MapPin className="h-4 w-4" />
+                          </a>
+                          <a
+                            href={`https://waze.com/ul?q=${encodeURIComponent(supplier.address)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-700"
+                            onClick={(e) => e.stopPropagation()}
+                            title="Otvoriť vo Waze"
+                          >
+                            <Navigation className="h-4 w-4" />
+                          </a>
+                        </div>
+                      ) : '-'}
+                    </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(supplier)}>

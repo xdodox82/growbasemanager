@@ -864,8 +864,11 @@ const CustomersPage = () => {
                     <MobileTableHead>Názov</MobileTableHead>
                     <MobileTableHead hideOnMobile>IČO</MobileTableHead>
                     <MobileTableHead hideOnMobile>Typ</MobileTableHead>
-                    <MobileTableHead hideOnMobile>Objednávky</MobileTableHead>
+                    <MobileTableHead hideOnMobile>Email</MobileTableHead>
+                    <MobileTableHead hideOnMobile>Telefón</MobileTableHead>
+                    <MobileTableHead hideOnMobile>Adresa</MobileTableHead>
                     <MobileTableHead hideOnMobile>Trasa</MobileTableHead>
+                    <MobileTableHead hideOnMobile>Objednávky</MobileTableHead>
                     <MobileTableHead className="w-24">Akcie</MobileTableHead>
                     {isMobile && <MobileTableHead className="w-10"></MobileTableHead>}
                   </MobileTableRow>
@@ -921,11 +924,66 @@ const CustomersPage = () => {
                           </Badge>
                         ) : '-'}
                       </MobileTableCell>
-                      <MobileTableCell hideOnMobile>
-                        {customerStats[customer.id]?.orderCount || 0}
+                      <MobileTableCell hideOnMobile onClick={(e) => e.stopPropagation()}>
+                        {customer.email ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm truncate max-w-[150px]">{customer.email}</span>
+                            <a
+                              href={`mailto:${customer.email}`}
+                              className="text-emerald-600 hover:text-emerald-700"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Mail className="h-4 w-4" />
+                            </a>
+                          </div>
+                        ) : '-'}
+                      </MobileTableCell>
+                      <MobileTableCell hideOnMobile onClick={(e) => e.stopPropagation()}>
+                        {customer.phone ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm">{customer.phone}</span>
+                            <a
+                              href={`tel:${customer.phone}`}
+                              className="text-emerald-600 hover:text-emerald-700"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Phone className="h-4 w-4" />
+                            </a>
+                          </div>
+                        ) : '-'}
+                      </MobileTableCell>
+                      <MobileTableCell hideOnMobile onClick={(e) => e.stopPropagation()}>
+                        {customer.address ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm truncate max-w-[200px]">{customer.address}</span>
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(customer.address)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-emerald-600 hover:text-emerald-700"
+                              onClick={(e) => e.stopPropagation()}
+                              title="Otvoriť v Google Maps"
+                            >
+                              <MapPin className="h-4 w-4" />
+                            </a>
+                            <a
+                              href={`https://waze.com/ul?q=${encodeURIComponent(customer.address)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-700"
+                              onClick={(e) => e.stopPropagation()}
+                              title="Otvoriť vo Waze"
+                            >
+                              <Navigation className="h-4 w-4" />
+                            </a>
+                          </div>
+                        ) : '-'}
                       </MobileTableCell>
                       <MobileTableCell hideOnMobile>
                         {getRouteName(customer.delivery_route_id) || '-'}
+                      </MobileTableCell>
+                      <MobileTableCell hideOnMobile>
+                        {customerStats[customer.id]?.orderCount || 0}
                       </MobileTableCell>
                       <MobileTableCell onClick={(e) => e.stopPropagation()}>
                         <div className="flex gap-1">
