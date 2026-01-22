@@ -706,23 +706,21 @@ export default function OrdersPage() {
 
   const autoFetchPrice = async (packagingSize: string, customerType: string, cropId?: string, blendId?: string) => {
     try {
-      let query = supabase
+      const query = supabase
         .from('prices')
         .select('*')
         .eq('packaging_size', packagingSize)
         .eq('customer_type', customerType);
 
       if (cropId) {
-        query = query.eq('crop_id', cropId);
+        query.eq('crop_id', cropId);
       } else if (blendId) {
-        query = query.eq('blend_id', blendId);
+        query.eq('blend_id', blendId);
       } else {
         return 0;
       }
 
       const { data: priceData } = await query.maybeSingle();
-
-      console.log(`💰 Price fetch for ${cropId ? 'crop' : 'blend'} ${cropId || blendId}, ${packagingSize}, ${customerType}:`, priceData?.unit_price || 0);
 
       return priceData?.unit_price || 0;
     } catch (error) {
@@ -741,15 +739,15 @@ export default function OrdersPage() {
       const itemId = cropId || blendId;
       console.log(`📦 Auto-fetching packaging for ${itemType} ${itemId}, weight ${weightG}g`);
 
-      let query = supabase
+      const query = supabase
         .from('packaging_mappings')
         .select('packaging_id, packagings(type, size)')
         .eq('weight_g', weightG);
 
       if (cropId) {
-        query = query.eq('crop_id', cropId);
+        query.eq('crop_id', cropId);
       } else if (blendId) {
-        query = query.eq('blend_id', blendId);
+        query.eq('blend_id', blendId);
       }
 
       const { data: mapping } = await query.maybeSingle();
