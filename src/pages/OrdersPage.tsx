@@ -183,6 +183,7 @@ export default function OrdersPage() {
   });
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [deliverySettings, setDeliverySettings] = useState<any>(null);
+  const [isPriceConfigured, setIsPriceConfigured] = useState(true);
 
   useEffect(() => {
     loadData();
@@ -1956,7 +1957,13 @@ export default function OrdersPage() {
                           type="checkbox"
                           id="special-item-modal"
                           checked={currentItem?.is_special_item || false}
-                          onChange={(e) => setCurrentItem({ ...currentItem, is_special_item: e.target.checked })}
+                          onChange={(e) => {
+                            setCurrentItem({ ...currentItem, is_special_item: e.target.checked });
+                            // Allow manual price input for special items
+                            if (e.target.checked) {
+                              setIsPriceConfigured(true);
+                            }
+                          }}
                           className="h-4 w-4"
                         />
                         <Label htmlFor="special-item-modal" className="text-sm cursor-pointer">
@@ -2002,9 +2009,12 @@ export default function OrdersPage() {
                                     autoFetchPackaging(currentItem.packaging_size, id, undefined)
                                   ]);
 
+                                  // Track if price is configured
+                                  setIsPriceConfigured(price > 0);
+
                                   setCurrentItem(prev => ({
                                     ...prev,
-                                    price_per_unit: price > 0 ? price.toString() : prev.price_per_unit || '0.00',
+                                    price_per_unit: price > 0 ? price.toString() : '',
                                     packaging_volume_ml: pkg?.packaging_volume_ml || prev.packaging_volume_ml,
                                     packaging_id: pkg?.packaging_id || prev.packaging_id
                                   }));
@@ -2025,9 +2035,12 @@ export default function OrdersPage() {
                                     autoFetchPackaging(currentItem.packaging_size, undefined, id)
                                   ]);
 
+                                  // Track if price is configured
+                                  setIsPriceConfigured(price > 0);
+
                                   setCurrentItem(prev => ({
                                     ...prev,
-                                    price_per_unit: price > 0 ? price.toString() : prev.price_per_unit || '0.00',
+                                    price_per_unit: price > 0 ? price.toString() : '',
                                     packaging_volume_ml: pkg?.packaging_volume_ml || prev.packaging_volume_ml,
                                     packaging_id: pkg?.packaging_id || prev.packaging_id
                                   }));
@@ -2092,9 +2105,12 @@ export default function OrdersPage() {
                                     autoFetchPackaging(value, currentItem.crop_id, currentItem.blend_id)
                                   ]);
 
+                                  // Track if price is configured
+                                  setIsPriceConfigured(price > 0);
+
                                   setCurrentItem(prev => ({
                                     ...prev,
-                                    price_per_unit: price > 0 ? price.toString() : prev.price_per_unit || '0.00',
+                                    price_per_unit: price > 0 ? price.toString() : '',
                                     packaging_volume_ml: pkg?.packaging_volume_ml || prev.packaging_volume_ml,
                                     packaging_id: pkg?.packaging_id || prev.packaging_id
                                   }));
@@ -2153,12 +2169,13 @@ export default function OrdersPage() {
                           <Input
                             type="text"
                             inputMode="decimal"
-                            placeholder="0.00"
+                            placeholder={!isPriceConfigured && !currentItem.is_special_item ? 'Chýba cena' : '0.00'}
                             value={currentItem.price_per_unit || ''}
                             onChange={(e) => {
                               setCurrentItem({ ...currentItem, price_per_unit: e.target.value });
                             }}
-                            className="mt-1 h-10 border-slate-200"
+                            disabled={!isPriceConfigured && !currentItem.is_special_item}
+                            className="mt-1 h-10 border-slate-200 disabled:bg-slate-100 disabled:cursor-not-allowed"
                           />
                         </div>
 
