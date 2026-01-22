@@ -1983,7 +1983,7 @@ export default function OrdersPage() {
                                 ? `blend:${currentItem.blend_id}`
                                 : ""
                             }
-                            onValueChange={(value) => {
+                            onValueChange={async (value) => {
                               const [type, id] = value.split(':');
 
                               if (type === 'crop') {
@@ -1994,6 +1994,21 @@ export default function OrdersPage() {
                                   blend_id: undefined,
                                   crop_name: selectedCrop?.name || ""
                                 }));
+
+                                // Auto-fetch price and packaging if weight is already selected
+                                if (currentItem?.packaging_size && customerType) {
+                                  const [price, pkg] = await Promise.all([
+                                    autoFetchPrice(currentItem.packaging_size, customerType, id, undefined),
+                                    autoFetchPackaging(currentItem.packaging_size, id, undefined)
+                                  ]);
+
+                                  setCurrentItem(prev => ({
+                                    ...prev,
+                                    price_per_unit: price > 0 ? price.toString() : prev.price_per_unit || '0.00',
+                                    packaging_volume_ml: pkg?.packaging_volume_ml || prev.packaging_volume_ml,
+                                    packaging_id: pkg?.packaging_id || prev.packaging_id
+                                  }));
+                                }
                               } else if (type === 'blend') {
                                 const selectedBlend = blends?.find(b => b.id === id);
                                 setCurrentItem(prev => ({
@@ -2002,6 +2017,21 @@ export default function OrdersPage() {
                                   crop_id: undefined,
                                   crop_name: selectedBlend?.name || ""
                                 }));
+
+                                // Auto-fetch price and packaging if weight is already selected
+                                if (currentItem?.packaging_size && customerType) {
+                                  const [price, pkg] = await Promise.all([
+                                    autoFetchPrice(currentItem.packaging_size, customerType, undefined, id),
+                                    autoFetchPackaging(currentItem.packaging_size, undefined, id)
+                                  ]);
+
+                                  setCurrentItem(prev => ({
+                                    ...prev,
+                                    price_per_unit: price > 0 ? price.toString() : prev.price_per_unit || '0.00',
+                                    packaging_volume_ml: pkg?.packaging_volume_ml || prev.packaging_volume_ml,
+                                    packaging_id: pkg?.packaging_id || prev.packaging_id
+                                  }));
+                                }
                               }
                             }}
                           >
@@ -2140,6 +2170,8 @@ export default function OrdersPage() {
                             className="mt-1 w-full px-3 h-10 border border-slate-200 rounded-md text-sm bg-white"
                           >
                             <option value="rPET">rPET</option>
+                            <option value="PET">PET</option>
+                            <option value="EKO">EKO</option>
                             <option value="Vratný obal">Vratný obal</option>
                           </select>
                         </div>

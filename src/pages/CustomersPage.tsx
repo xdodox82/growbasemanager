@@ -443,62 +443,54 @@ const CustomersPage = () => {
                   </div>
                 </div>
 
-                {/* Payment Method */}
-                <div className="grid gap-2">
-                  <Label>Spôsob platby</Label>
-                  <Select
-                    value={formData.payment_method}
-                    onValueChange={(value: 'cash' | 'card' | 'invoice') => setFormData({ ...formData, payment_method: value })}
-                  >
-                    <SelectTrigger className="h-10 border-slate-200">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white z-[9999]">
-                      <SelectItem value="cash">Hotovosť</SelectItem>
-                      <SelectItem value="card">Platba kartou</SelectItem>
-                      <SelectItem value="invoice">Faktúra</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    {formData.payment_method === 'invoice'
-                      ? 'Pri rozvoz kuriér uvidí "Uhradené faktúrou" a len potvrdí doručenie'
-                      : 'Pri rozvoz kuriér môže potvrdiť platbu'}
-                  </p>
-                </div>
-
-                {/* Free Delivery */}
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="free-delivery">Vždy doprava zdarma</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Zákazník nebude nikdy účtovaný dopravný poplatok
-                    </p>
+                {/* Compact Settings Section */}
+                <div className="space-y-3 bg-slate-50 p-3 rounded-lg">
+                  {/* Payment Method */}
+                  <div className="grid gap-1.5">
+                    <Label className="text-sm">Spôsob platby</Label>
+                    <Select
+                      value={formData.payment_method}
+                      onValueChange={(value: 'cash' | 'card' | 'invoice') => setFormData({ ...formData, payment_method: value })}
+                    >
+                      <SelectTrigger className="h-9 border-slate-200 bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white z-[9999]">
+                        <SelectItem value="cash">Hotovosť</SelectItem>
+                        <SelectItem value="card">Platba kartou</SelectItem>
+                        <SelectItem value="invoice">Faktúra</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <Switch
-                    id="free-delivery"
-                    checked={formData.free_delivery}
-                    onCheckedChange={(checked) => setFormData({ ...formData, free_delivery: checked })}
-                  />
-                </div>
 
-                {/* Default Packaging Type */}
-                <div className="grid gap-2">
-                  <Label htmlFor="default-packaging-type">Predvolený typ obalu</Label>
-                  <Select
-                    value={formData.default_packaging_type}
-                    onValueChange={(value) => setFormData({ ...formData, default_packaging_type: value })}
-                  >
-                    <SelectTrigger className="h-10 border-slate-200">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white z-[9999]">
-                      <SelectItem value="rPET">rPET</SelectItem>
-                      <SelectItem value="Vratný obal">Vratný obal</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Tento typ obalu sa automaticky nastaví pri vytváraní nových objednávok
-                  </p>
+                  {/* Free Delivery */}
+                  <div className="flex items-center justify-between py-1">
+                    <Label htmlFor="free-delivery" className="text-sm">Vždy doprava zdarma</Label>
+                    <Switch
+                      id="free-delivery"
+                      checked={formData.free_delivery}
+                      onCheckedChange={(checked) => setFormData({ ...formData, free_delivery: checked })}
+                    />
+                  </div>
+
+                  {/* Default Packaging Type */}
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="default-packaging-type" className="text-sm">Predvolený typ obalu</Label>
+                    <Select
+                      value={formData.default_packaging_type}
+                      onValueChange={(value) => setFormData({ ...formData, default_packaging_type: value })}
+                    >
+                      <SelectTrigger className="h-9 border-slate-200 bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white z-[9999]">
+                        <SelectItem value="rPET">rPET</SelectItem>
+                        <SelectItem value="PET">PET</SelectItem>
+                        <SelectItem value="EKO">EKO</SelectItem>
+                        <SelectItem value="Vratný obal">Vratný obal</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 {/* Home customer - simple form */}
