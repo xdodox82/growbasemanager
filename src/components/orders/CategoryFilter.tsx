@@ -18,7 +18,6 @@ export function CategoryFilter({ value, onChange }: CategoryFilterProps) {
         <option value="Mikrozelenina">Mikrozelenina</option>
         <option value="Mikrobylinky">Mikrobylinky</option>
         <option value="Jedlé kvety">Jedlé kvety</option>
-        <option value="Mixy">Mixy</option>
       </select>
     </div>
   );
