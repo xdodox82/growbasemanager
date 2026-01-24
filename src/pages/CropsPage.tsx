@@ -95,6 +95,8 @@ const CropsPage = () => {
     days_on_light: 5,
     seed_density: 30,
     seed_soaking: false,
+    soaking: false,
+    soaking_duration_hours: 0,
     expected_yield: 200,
     can_be_cut: true,
     can_be_live: false,
@@ -124,6 +126,8 @@ const CropsPage = () => {
       days_on_light: 5,
       seed_density: 30,
       seed_soaking: false,
+      soaking: false,
+      soaking_duration_hours: 0,
       expected_yield: 200,
       can_be_cut: true,
       can_be_live: false,
@@ -150,6 +154,7 @@ const CropsPage = () => {
       M: { seed_density: (crop.seed_density || 100) * 0.6, expected_yield: (crop.expected_yield || 80) * 0.6 },
       S: { seed_density: (crop.seed_density || 100) * 0.4, expected_yield: (crop.expected_yield || 80) * 0.4 }
     };
+    const soaking = (crop as any).soaking || crop.seed_soaking || false;
     setFormData({
       name: crop.name,
       variety: crop.variety || '',
@@ -162,6 +167,8 @@ const CropsPage = () => {
       days_on_light: crop.days_on_light || 5,
       seed_density: crop.seed_density || 30,
       seed_soaking: crop.seed_soaking || false,
+      soaking: soaking,
+      soaking_duration_hours: (crop as any).soaking_duration_hours || 0,
       expected_yield: crop.expected_yield || 200,
       can_be_cut: crop.can_be_cut !== false,
       can_be_live: crop.can_be_live || false,
@@ -177,7 +184,7 @@ const CropsPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.name.trim()) {
       toast({
         title: 'Chyba',
@@ -187,10 +194,25 @@ const CropsPage = () => {
       return;
     }
 
+    if (formData.soaking && (!formData.soaking_duration_hours || formData.soaking_duration_hours <= 0)) {
+      toast({
+        title: 'Chyba',
+        description: 'Ak vyžaduje namáčanie, zadajte dobu namáčania (hodiny)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setSaving(true);
 
+    const dataToSave = {
+      ...formData,
+      seed_soaking: formData.soaking,
+      soaking_duration_hours: formData.soaking ? formData.soaking_duration_hours : 0
+    };
+
     if (editingCrop) {
-      const { error } = await update(editingCrop.id, formData);
+      const { error } = await update(editingCrop.id, dataToSave);
       if (!error) {
         toast({
           title: 'Plodina aktualizovaná',
@@ -200,7 +222,7 @@ const CropsPage = () => {
         resetForm();
       }
     } else {
-      const { error } = await add(formData);
+      const { error } = await add(dataToSave);
       if (!error) {
         toast({
           title: 'Plodina pridaná',
@@ -482,46 +504,89 @@ const CropsPage = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="grid gap-2">
-                    <Label>Namáčanie</Label>
-                    <Select 
-                      value={formData.seed_soaking ? 'yes' : 'no'} 
-                      onValueChange={(value) => setFormData({ ...formData, seed_soaking: value === 'yes' })}
-                    >
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="no">Nie</SelectItem>
-                        <SelectItem value="yes">Áno</SelectItem>
-                      </SelectContent>
-                    </Select>
+                <div className="grid gap-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="grid gap-2">
+                      <Label>Namáčanie</Label>
+                      <Select
+                        value={formData.soaking ? 'yes' : 'no'}
+                        onValueChange={(value) => {
+                          const soakingValue = value === 'yes';
+                          setFormData({
+                            ...formData,
+                            soaking: soakingValue,
+                            seed_soaking: soakingValue,
+                            soaking_duration_hours: soakingValue ? formData.soaking_duration_hours || 12 : 0
+                          });
+                        }}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="no">Nie</SelectItem>
+                          <SelectItem value="yes">Áno</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Rezaná forma</Label>
+                      <Select
+                        value={formData.can_be_cut ? 'yes' : 'no'}
+                        onValueChange={(value) => setFormData({ ...formData, can_be_cut: value === 'yes' })}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="yes">Áno</SelectItem>
+                          <SelectItem value="no">Nie</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Živá forma</Label>
+                      <Select
+                        value={formData.can_be_live ? 'yes' : 'no'}
+                        onValueChange={(value) => setFormData({ ...formData, can_be_live: value === 'yes' })}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="yes">Áno</SelectItem>
+                          <SelectItem value="no">Nie</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div className="grid gap-2">
-                    <Label>Rezaná forma</Label>
-                    <Select 
-                      value={formData.can_be_cut ? 'yes' : 'no'} 
-                      onValueChange={(value) => setFormData({ ...formData, can_be_cut: value === 'yes' })}
-                    >
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="yes">Áno</SelectItem>
-                        <SelectItem value="no">Nie</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Živá forma</Label>
-                    <Select 
-                      value={formData.can_be_live ? 'yes' : 'no'} 
-                      onValueChange={(value) => setFormData({ ...formData, can_be_live: value === 'yes' })}
-                    >
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="yes">Áno</SelectItem>
-                        <SelectItem value="no">Nie</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+
+                  {formData.soaking && (
+                    <div className="ml-6 space-y-2 border-l-2 border-amber-400 pl-4 bg-amber-50/50 py-3 rounded-r-lg">
+                      <div className="grid gap-2">
+                        <Label htmlFor="soaking-duration" className="text-sm font-medium flex items-center gap-2">
+                          <Droplets className="h-4 w-4 text-amber-600" />
+                          Doba namáčania (hodiny) *
+                        </Label>
+                        <Input
+                          id="soaking-duration"
+                          type="number"
+                          step="0.5"
+                          min="0.5"
+                          max="24"
+                          value={formData.soaking_duration_hours || ''}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            soaking_duration_hours: e.target.value === '' ? 0 : parseFloat(e.target.value)
+                          })}
+                          placeholder="napr. 12 alebo 0.5"
+                          required
+                          className="bg-white"
+                        />
+                        <p className="text-xs text-amber-700 flex items-start gap-1">
+                          <span className="mt-0.5">💡</span>
+                          <span>
+                            <strong>≥ 8 hodín:</strong> upozornenie deň vopred |{' '}
+                            <strong>&lt; 8 hodín:</strong> upozornenie v deň sadenia
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid gap-2">
@@ -878,7 +943,20 @@ const CropsPage = () => {
                 </div>
                 <div className="space-y-1">
                   <div className="text-sm text-muted-foreground">Namáčanie osiva</div>
-                  <div className="font-medium">{selectedCropDetail.seed_soaking ? 'Áno' : 'Nie'}</div>
+                  <div className="font-medium">
+                    {((selectedCropDetail as any).soaking || selectedCropDetail.seed_soaking) ? (
+                      <div className="flex items-center gap-2">
+                        <span>Áno</span>
+                        {(selectedCropDetail as any).soaking_duration_hours > 0 && (
+                          <Badge variant="secondary" className="text-xs">
+                            {(selectedCropDetail as any).soaking_duration_hours}h
+                          </Badge>
+                        )}
+                      </div>
+                    ) : (
+                      'Nie'
+                    )}
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <div className="text-sm text-muted-foreground">Zaťaženie</div>
