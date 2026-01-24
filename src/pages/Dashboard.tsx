@@ -27,6 +27,7 @@ import { Link } from 'react-router-dom';
 import { format, isSameDay, isToday, startOfDay, addDays, differenceInDays, isBefore, isAfter } from 'date-fns';
 import { sk, cs, enUS, de } from 'date-fns/locale';
 import { LowStockAlerts, OrdersChart, ProductionOverview, PlantingStats } from '@/components/dashboard';
+import SoakingReminders from '@/components/dashboard/SoakingReminders';
 
 const locales = {
   sk,
@@ -209,10 +210,15 @@ const Dashboard = () => {
 
   return (
     <MainLayout>
-      <PageHeader 
-        title={t('nav.dashboard')} 
+      <PageHeader
+        title={t('nav.dashboard')}
         description={`${t('dashboard.welcome')} ${format(new Date(), 'EEEE, d. MMMM yyyy', { locale: dateLocale })}`}
       />
+
+      {/* Soaking Reminders */}
+      <div className="mb-6">
+        <SoakingReminders />
+      </div>
 
       {/* Upcoming Notifications */}
       {upcomingNotifications.length > 0 && (
