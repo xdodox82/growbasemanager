@@ -561,21 +561,31 @@ const CropsPage = () => {
                         <Label htmlFor="soaking-duration">Doba namáčania (hodiny) *</Label>
                         <Input
                           id="soaking-duration"
-                          type="number"
-                          step="0.5"
-                          min="0.5"
-                          max="24"
-                          value={formData.soaking_duration_hours || ''}
-                          onChange={(e) => setFormData({
-                            ...formData,
-                            soaking_duration_hours: e.target.value === '' ? '' : parseFloat(e.target.value)
-                          })}
-                          placeholder="napr. 12 alebo 0.5"
+                          type="text"
+                          inputMode="decimal"
+                          value={formData.soaking_duration_hours?.toString().replace('.', ',') || ''}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(',', '.');
+                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                              setFormData({
+                                ...formData,
+                                soaking_duration_hours: value === '' ? '' : value
+                              });
+                            }
+                          }}
+                          onBlur={(e) => {
+                            const value = e.target.value.replace(',', '.');
+                            const numValue = parseFloat(value);
+                            if (!isNaN(numValue)) {
+                              setFormData({
+                                ...formData,
+                                soaking_duration_hours: numValue
+                              });
+                            }
+                          }}
+                          placeholder="napr. 12 alebo 0,5"
                           required
                         />
-                        <p className="text-xs text-muted-foreground">
-                          ≥ 8 hodín: upozornenie deň vopred | &lt; 8 hodín: upozornenie v deň sadenia
-                        </p>
                       </div>
                     </div>
                   )}
