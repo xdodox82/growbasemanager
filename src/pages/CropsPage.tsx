@@ -556,27 +556,37 @@ const CropsPage = () => {
                   </div>
 
                   {formData.soaking && (
-                    <div className="grid gap-2">
-                      <Label htmlFor="soaking-duration">
-                        Doba namáčania (hodiny) *
-                      </Label>
-                      <Input
-                        id="soaking-duration"
-                        type="number"
-                        step="0.5"
-                        min="0.5"
-                        max="24"
-                        value={formData.soaking_duration_hours || ''}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          soaking_duration_hours: e.target.value === '' ? 0 : parseFloat(e.target.value)
-                        })}
-                        placeholder="napr. 12 alebo 0.5"
-                        required
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        ≥ 8 hodín: upozornenie deň vopred | &lt; 8 hodín: upozornenie v deň sadenia
-                      </p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="soaking-duration">Doba namáčania (hodiny) *</Label>
+                        <Input
+                          id="soaking-duration"
+                          type="text"
+                          value={formData.soaking_duration_hours || ''}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                              setFormData({
+                                ...formData,
+                                soaking_duration_hours: value === '' ? 0 : parseFloat(value) || 0
+                              });
+                            }
+                          }}
+                          onBlur={(e) => {
+                            const value = parseFloat(e.target.value) || 0;
+                            if (value < 0.5) {
+                              setFormData({ ...formData, soaking_duration_hours: 0.5 });
+                            } else if (value > 24) {
+                              setFormData({ ...formData, soaking_duration_hours: 24 });
+                            }
+                          }}
+                          placeholder="napr. 12 alebo 0.5"
+                          required
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          ≥ 8 hodín: upozornenie deň vopred | &lt; 8 hodín: upozornenie v deň sadenia
+                        </p>
+                      </div>
                     </div>
                   )}
                 </div>
