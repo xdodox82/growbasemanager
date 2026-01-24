@@ -556,35 +556,27 @@ const CropsPage = () => {
                   </div>
 
                   {formData.soaking && (
-                    <div className="ml-6 space-y-2 border-l-2 border-amber-400 pl-4 bg-amber-50/50 py-3 rounded-r-lg">
-                      <div className="grid gap-2">
-                        <Label htmlFor="soaking-duration" className="text-sm font-medium flex items-center gap-2">
-                          <Droplets className="h-4 w-4 text-amber-600" />
-                          Doba namáčania (hodiny) *
-                        </Label>
-                        <Input
-                          id="soaking-duration"
-                          type="number"
-                          step="0.5"
-                          min="0.5"
-                          max="24"
-                          value={formData.soaking_duration_hours || ''}
-                          onChange={(e) => setFormData({
-                            ...formData,
-                            soaking_duration_hours: e.target.value === '' ? 0 : parseFloat(e.target.value)
-                          })}
-                          placeholder="napr. 12 alebo 0.5"
-                          required
-                          className="bg-white"
-                        />
-                        <p className="text-xs text-amber-700 flex items-start gap-1">
-                          <span className="mt-0.5">💡</span>
-                          <span>
-                            <strong>≥ 8 hodín:</strong> upozornenie deň vopred |{' '}
-                            <strong>&lt; 8 hodín:</strong> upozornenie v deň sadenia
-                          </span>
-                        </p>
-                      </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="soaking-duration">
+                        Doba namáčania (hodiny) *
+                      </Label>
+                      <Input
+                        id="soaking-duration"
+                        type="number"
+                        step="0.5"
+                        min="0.5"
+                        max="24"
+                        value={formData.soaking_duration_hours || ''}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          soaking_duration_hours: e.target.value === '' ? 0 : parseFloat(e.target.value)
+                        })}
+                        placeholder="napr. 12 alebo 0.5"
+                        required
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        ≥ 8 hodín: upozornenie deň vopred | &lt; 8 hodín: upozornenie v deň sadenia
+                      </p>
                     </div>
                   )}
                 </div>
