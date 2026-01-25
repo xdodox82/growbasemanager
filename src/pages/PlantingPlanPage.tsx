@@ -412,7 +412,6 @@ const PlantingPlanPage = () => {
           <PageHeader
             title="Plán sadenia"
             description="Generovanie a správa plánu sadenia podľa objednávok"
-            icon={CalendarDays}
           />
 
           <div className="container mx-auto px-4 py-6 space-y-6">
@@ -517,7 +516,7 @@ const PlantingPlanPage = () => {
               </div>
             ) : filteredPlans.length === 0 ? (
               <EmptyState
-                icon={CalendarDays}
+                icon={<CalendarDays className="h-8 w-8" />}
                 title="Žiadne plány sadenia"
                 description="Vygenerujte plán sadenia pre vybrané obdobie."
               />
