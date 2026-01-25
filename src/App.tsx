@@ -13,7 +13,7 @@ import CropsPage from "./pages/CropsPage";
 import CustomersPage from "./pages/CustomersPage";
 import SuppliersPage from "./pages/SuppliersPage";
 import OrdersPage from "./pages/OrdersPage";
-import PlantingPage from "./pages/PlantingManagement";
+import PlantingPlanPage from "./pages/PlantingPlanPage";
 import HarvestPage from "./pages/HarvestPage";
 import BaleniePage from "./pages/BaleniePage";
 import BlendsPage from "./pages/BlendsPage";
@@ -59,7 +59,7 @@ const App = () => (
               <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
               <Route path="/crops" element={<ProtectedRoute><CropsPage /></ProtectedRoute>} />
               <Route path="/blends" element={<ProtectedRoute><BlendsPage /></ProtectedRoute>} />
-              <Route path="/planting" element={<ProtectedRoute><ErrorBoundary fallbackMessage="Chyba pri načítaní Plánu sadenia"><PlantingPage /></ErrorBoundary></ProtectedRoute>} />
+              <Route path="/planting" element={<ProtectedRoute><ErrorBoundary fallbackMessage="Chyba pri načítaní Plánu sadenia"><PlantingPlanPage /></ErrorBoundary></ProtectedRoute>} />
               <Route path="/prep-planting" element={<ProtectedRoute><PrepPlantingPage /></ProtectedRoute>} />
               <Route path="/prep-packaging" element={<ProtectedRoute><PrepPackagingPage /></ProtectedRoute>} />
               <Route path="/harvest" element={<ProtectedRoute><HarvestPage /></ProtectedRoute>} />

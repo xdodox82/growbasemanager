@@ -1,0 +1,512 @@
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { MainLayout } from '@/components/layout/MainLayout';
+import { PageHeader, EmptyState } from '@/components/ui/page-components';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { PullToRefresh } from '@/components/ui/pull-to-refresh';
+import { useIsMobile } from '@/hooks/use-mobile';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Calendar, Plus, Edit, Trash2, Leaf, Loader2, Sprout, CalendarDays } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { format, addDays, parseISO } from 'date-fns';
+import { sk } from 'date-fns/locale';
+
+interface PlantingPlan {
+  id: string;
+  crop_id: string;
+  sow_date: string;
+  tray_size: 'XL' | 'L' | 'M' | 'S';
+  tray_count: number;
+  seed_amount_grams: number;
+  total_seed_grams: number;
+  status: string;
+  products?: {
+    id: string;
+    name: string;
+    color: string;
+  };
+}
+
+interface GeneratePlanResult {
+  plan_id: string;
+  crop_name: string;
+  sow_date: string;
+  delivery_date: string;
+  tray_size: string;
+  tray_count: number;
+  seed_amount_grams: number;
+  total_seed_grams: number;
+  created_new: boolean;
+}
+
+const TRAY_SIZES = {
+  XL: 'XL',
+  L: 'L',
+  M: 'M',
+  S: 'S',
+} as const;
+
+const PlantingPlanPage = () => {
+  const { isAdmin } = useAuth();
+  const { toast } = useToast();
+  const isMobile = useIsMobile();
+
+  const [plans, setPlans] = useState<PlantingPlan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<PlantingPlan | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const today = new Date().toISOString().split('T')[0];
+  const defaultEndDate = addDays(new Date(), 7).toISOString().split('T')[0];
+
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(defaultEndDate);
+
+  const [editFormData, setEditFormData] = useState({
+    tray_count: 0,
+    tray_size: 'XL' as 'XL' | 'L' | 'M' | 'S',
+  });
+
+  const fetchPlans = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('planting_plans')
+        .select(`
+          id,
+          crop_id,
+          sow_date,
+          tray_size,
+          tray_count,
+          seed_amount_grams,
+          total_seed_grams,
+          status,
+          products:crop_id(id, name, color)
+        `)
+        .gte('sow_date', startDate)
+        .lte('sow_date', endDate)
+        .order('sow_date');
+
+      if (error) throw error;
+      setPlans(data || []);
+    } catch (error) {
+      console.error('Error fetching plans:', error);
+      toast({
+        title: 'Chyba',
+        description: 'Nepodarilo sa načítať plány sadenia.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [startDate, endDate, toast]);
+
+  const handleRefresh = useCallback(async () => {
+    await fetchPlans();
+  }, [fetchPlans]);
+
+  const handleGenerate = async () => {
+    try {
+      setGenerating(true);
+      const { data, error } = await supabase.rpc('generate_planting_plan', {
+        p_start_date: startDate,
+        p_end_date: endDate,
+      });
+
+      if (error) throw error;
+
+      const results = data as GeneratePlanResult[];
+      const newPlansCount = results.filter(r => r.created_new).length;
+
+      toast({
+        title: 'Plán vygenerovaný',
+        description: `Vytvorených ${newPlansCount} nových plánov sadenia, celkom ${results.length} plánov.`,
+      });
+
+      await fetchPlans();
+    } catch (error) {
+      console.error('Error generating plan:', error);
+      toast({
+        title: 'Chyba',
+        description: 'Nepodarilo sa vygenerovať plán sadenia.',
+        variant: 'destructive',
+      });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleEdit = (plan: PlantingPlan) => {
+    setEditingPlan(plan);
+    setEditFormData({
+      tray_count: plan.tray_count,
+      tray_size: plan.tray_size,
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingPlan) return;
+
+    try {
+      setSaving(true);
+      const { error } = await supabase
+        .from('planting_plans')
+        .update({
+          tray_count: editFormData.tray_count,
+          tray_size: editFormData.tray_size,
+        })
+        .eq('id', editingPlan.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Uložené',
+        description: 'Plán sadenia bol aktualizovaný.',
+      });
+
+      setIsEditDialogOpen(false);
+      setEditingPlan(null);
+      await fetchPlans();
+    } catch (error) {
+      console.error('Error updating plan:', error);
+      toast({
+        title: 'Chyba',
+        description: 'Nepodarilo sa aktualizovať plán.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('planting_plans')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Vymazané',
+        description: 'Plán sadenia bol vymazaný.',
+      });
+
+      setDeleteId(null);
+      await fetchPlans();
+    } catch (error) {
+      console.error('Error deleting plan:', error);
+      toast({
+        title: 'Chyba',
+        description: 'Nepodarilo sa vymazať plán.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const plansByDate = useMemo(() => {
+    const grouped: Record<string, PlantingPlan[]> = {};
+    plans.forEach(plan => {
+      const date = plan.sow_date;
+      if (!grouped[date]) {
+        grouped[date] = [];
+      }
+      grouped[date].push(plan);
+    });
+    return grouped;
+  }, [plans]);
+
+  const sortedDates = useMemo(() => {
+    return Object.keys(plansByDate).sort();
+  }, [plansByDate]);
+
+  useEffect(() => {
+    fetchPlans();
+  }, [fetchPlans]);
+
+  const formatDate = (dateStr: string) => {
+    try {
+      return format(parseISO(dateStr), 'EEEE, d.M.yyyy', { locale: sk });
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  return (
+    <MainLayout>
+      <PullToRefresh onRefresh={handleRefresh}>
+        <div className="min-h-screen bg-background">
+          <PageHeader
+            title="Plán sadenia"
+            description="Generovanie a správa plánu sadenia podľa objednávok"
+            icon={CalendarDays}
+          />
+
+          <div className="container mx-auto px-4 py-6 space-y-6">
+            <Card className="p-6">
+              <div className="space-y-4">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <Sprout className="h-5 w-5 text-primary" />
+                  Generovať plán sadenia
+                </h2>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="start-date">Dátum od</Label>
+                    <Input
+                      id="start-date"
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="end-date">Dátum do</Label>
+                    <Input
+                      id="end-date"
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="flex items-end gap-2">
+                    <Button
+                      onClick={handleGenerate}
+                      disabled={generating || !isAdmin}
+                      className="w-full"
+                    >
+                      {generating ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Generujem...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Vygenerovať plán
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {loading ? (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {[...Array(6)].map((_, i) => (
+                  <Card key={i} className="p-4">
+                    <Skeleton className="h-6 w-40 mb-3" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-16 w-full" />
+                      <Skeleton className="h-16 w-full" />
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            ) : sortedDates.length === 0 ? (
+              <EmptyState
+                icon={CalendarDays}
+                title="Žiadne plány sadenia"
+                description="Vygenerujte plán sadenia pre vybrané obdobie."
+              />
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {sortedDates.map(date => {
+                  const plansForDate = plansByDate[date];
+                  return (
+                    <Card key={date} className="p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-5 w-5 text-primary" />
+                          <h3 className="font-semibold capitalize">
+                            {formatDate(date)}
+                          </h3>
+                        </div>
+                        <Badge variant="secondary">
+                          {plansForDate.length} {plansForDate.length === 1 ? 'plodina' : 'plodiny'}
+                        </Badge>
+                      </div>
+
+                      <div className="space-y-2">
+                        {plansForDate.map(plan => (
+                          <div
+                            key={plan.id}
+                            className="flex items-center justify-between p-2 bg-muted/30 rounded"
+                          >
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <Leaf
+                                className="h-4 w-4 flex-shrink-0"
+                                style={{ color: plan.products?.color || '#22c55e' }}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate">
+                                  {plan.products?.name || 'Neznáma plodina'}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {plan.tray_count}× {plan.tray_size} | {plan.total_seed_grams}g semien
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex gap-1 flex-shrink-0">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => handleEdit(plan)}
+                                disabled={!isAdmin}
+                              >
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => setDeleteId(plan.id)}
+                                disabled={!isAdmin}
+                              >
+                                <Trash2 className="h-3 w-3 text-destructive" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </PullToRefresh>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upraviť plán sadenia</DialogTitle>
+            <DialogDescription>
+              {editingPlan?.products?.name || 'Upraviť plán sadenia'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-tray-count">Počet tácok</Label>
+              <Input
+                id="edit-tray-count"
+                type="number"
+                min="1"
+                value={editFormData.tray_count}
+                onChange={(e) => setEditFormData({
+                  ...editFormData,
+                  tray_count: parseInt(e.target.value) || 0
+                })}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="edit-tray-size">Veľkosť tácky</Label>
+              <Select
+                value={editFormData.tray_size}
+                onValueChange={(value: 'XL' | 'L' | 'M' | 'S') => setEditFormData({
+                  ...editFormData,
+                  tray_size: value
+                })}
+              >
+                <SelectTrigger id="edit-tray-size">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.keys(TRAY_SIZES).map(size => (
+                    <SelectItem key={size} value={size}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditDialogOpen(false)}
+              disabled={saving}
+            >
+              Zrušiť
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={saving}>
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Ukladám...
+                </>
+              ) : (
+                'Uložiť'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Vymazať plán sadenia?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Táto akcia je nevratná. Plán sadenia bude natrvalo odstránený.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Zrušiť</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteId && handleDelete(deleteId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Vymazať
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </MainLayout>
+  );
+};
+
+export default PlantingPlanPage;
