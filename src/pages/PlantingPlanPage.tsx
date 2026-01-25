@@ -141,7 +141,7 @@ const PlantingPlanPage = () => {
         .from('planting_plans')
         .select(`
           *,
-          crops:crop_id(id, name, color, days_to_harvest)
+          crops:crop_id(id, name, color, days_to_harvest, tray_configs)
         `)
         .gte('sow_date', startDate)
         .lte('sow_date', endDate)
@@ -149,26 +149,31 @@ const PlantingPlanPage = () => {
 
       if (error) throw error;
 
-      const plansWithConfig = await Promise.all(
-        (plansData || []).map(async (plan) => {
-          const { data: config } = await supabase
-            .from('tray_configurations')
-            .select('seed_density_grams, yield_grams')
-            .eq('crop_id', plan.crop_id)
-            .eq('tray_size', plan.tray_size)
-            .maybeSingle();
+      const plansWithConfig = (plansData || []).map((plan) => {
+        let trayConfig = null;
 
-          console.log(`Config for ${plan.crops?.name} ${plan.tray_size}:`, config);
+        if (plan.crops?.tray_configs) {
+          const configs = plan.crops.tray_configs;
+          const traySize = plan.tray_size;
 
-          return {
-            ...plan,
-            tray_config: config || {
-              seed_density_grams: plan.seed_amount_grams || 0,
-              yield_grams: 0
-            }
-          };
-        })
-      );
+          if (configs[traySize]) {
+            trayConfig = {
+              seed_density_grams: configs[traySize].seed_density,
+              yield_grams: configs[traySize].expected_yield
+            };
+          }
+        }
+
+        console.log(`Config for ${plan.crops?.name} ${plan.tray_size}:`, trayConfig);
+
+        return {
+          ...plan,
+          tray_config: trayConfig || {
+            seed_density_grams: plan.seed_amount_grams || 0,
+            yield_grams: 0
+          }
+        };
+      });
 
       setPlans(plansWithConfig);
     } catch (error) {
