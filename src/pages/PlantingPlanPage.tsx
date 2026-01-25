@@ -49,7 +49,9 @@ import {
   List,
   CheckCircle2,
   Info,
-  Beaker
+  Beaker,
+  RotateCcw,
+  Sparkles
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -63,6 +65,11 @@ interface Crop {
   days_to_harvest: number;
 }
 
+interface TrayConfig {
+  seed_density_grams: number;
+  yield_grams: number;
+}
+
 interface PlantingPlan {
   id: string;
   crop_id: string;
@@ -74,6 +81,7 @@ interface PlantingPlan {
   status: string;
   completed_at?: string;
   crops?: Crop;
+  tray_config?: TrayConfig | null;
 }
 
 interface GeneratePlanResult {
@@ -128,7 +136,7 @@ const PlantingPlanPage = () => {
   const fetchPlans = useCallback(async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data: plansData, error } = await supabase
         .from('planting_plans')
         .select(`
           *,
@@ -139,7 +147,21 @@ const PlantingPlanPage = () => {
         .order('sow_date');
 
       if (error) throw error;
-      setPlans(data || []);
+
+      const plansWithConfig = await Promise.all(
+        (plansData || []).map(async (plan) => {
+          const { data: config } = await supabase
+            .from('tray_configurations')
+            .select('seed_density_grams, yield_grams')
+            .eq('crop_id', plan.crop_id)
+            .eq('tray_size', plan.tray_size)
+            .maybeSingle();
+
+          return { ...plan, tray_config: config };
+        })
+      );
+
+      setPlans(plansWithConfig);
     } catch (error) {
       console.error('Error fetching plans:', error);
       toast({
@@ -230,6 +252,35 @@ const PlantingPlanPage = () => {
       toast({
         title: 'Chyba',
         description: 'Nepodarilo sa označiť plán ako hotový.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleMarkPlanned = async (planId: string) => {
+    try {
+      const { error } = await supabase
+        .from('planting_plans')
+        .update({
+          status: 'planned',
+          completed_at: null
+        })
+        .eq('id', planId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Plán obnovený',
+        description: 'Plán bol vrátený do plánovaných.'
+      });
+
+      setIsDetailDialogOpen(false);
+      await fetchPlans();
+    } catch (error) {
+      console.error('Error marking plan as planned:', error);
+      toast({
+        title: 'Chyba',
+        description: 'Nepodarilo sa vrátiť plán späť.',
         variant: 'destructive',
       });
     }
@@ -393,24 +444,18 @@ const PlantingPlanPage = () => {
                     />
                   </div>
 
-                  <div className="flex items-end gap-2">
+                  <div className="flex flex-col items-end gap-1">
                     <Button
                       onClick={handleGenerate}
-                      disabled={generating || !isAdmin}
+                      disabled={true}
                       className="w-full"
                     >
-                      {generating ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Generujem...
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="mr-2 h-4 w-4" />
-                          Vygenerovať plán
-                        </>
-                      )}
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      Vygenerovať plán
                     </Button>
+                    <p className="text-xs text-muted-foreground">
+                      (Funkcia sa pripravuje)
+                    </p>
                   </div>
                 </div>
               </div>
@@ -515,12 +560,12 @@ const PlantingPlanPage = () => {
                         {plan.tray_count}× {plan.tray_size}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {plan.seed_amount_grams}g/tácka • {plan.total_seed_grams}g celkom
+                        {plan.tray_config?.seed_density_grams || plan.seed_amount_grams}g/tácka • {plan.total_seed_grams}g celkom
                       </p>
                     </div>
 
                     <div className="mt-3 flex gap-1" onClick={(e) => e.stopPropagation()}>
-                      {plan.status === 'planned' && (
+                      {plan.status === 'planned' ? (
                         <Button
                           size="sm"
                           variant="outline"
@@ -530,6 +575,17 @@ const PlantingPlanPage = () => {
                         >
                           <CheckCircle2 className="h-3 w-3 mr-1" />
                           Hotovo
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => handleMarkPlanned(plan.id)}
+                          disabled={!isAdmin}
+                        >
+                          <RotateCcw className="h-3 w-3 mr-1" />
+                          Vrátiť späť
                         </Button>
                       )}
                       <Button
@@ -752,10 +808,17 @@ const PlantingPlanPage = () => {
                 <div className="space-y-1">
                   <p className="text-sm">
                     {selectedPlan.tray_count}× {selectedPlan.tray_size}
-                    ({selectedPlan.seed_amount_grams}g/tácka)
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Celkom: <span className="font-medium">{selectedPlan.total_seed_grams}g</span> semien
+                    Hustota: {selectedPlan.tray_config?.seed_density_grams || selectedPlan.seed_amount_grams}g/tácka
+                  </p>
+                  {selectedPlan.tray_config?.yield_grams && (
+                    <p className="text-sm text-muted-foreground">
+                      Očakávaný výnos: {selectedPlan.tray_config.yield_grams}g/tácka
+                    </p>
+                  )}
+                  <p className="font-medium">
+                    Celkom semien: {selectedPlan.total_seed_grams}g
                   </p>
                 </div>
               </div>
@@ -764,11 +827,20 @@ const PlantingPlanPage = () => {
                 <Button variant="outline" onClick={() => setIsDetailDialogOpen(false)}>
                   Zavrieť
                 </Button>
-                {selectedPlan.status === 'planned' && isAdmin && (
-                  <Button onClick={() => handleMarkComplete(selectedPlan.id)}>
-                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                    Označiť hotovo
-                  </Button>
+                {selectedPlan.status === 'planned' ? (
+                  isAdmin && (
+                    <Button onClick={() => handleMarkComplete(selectedPlan.id)}>
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      Označiť hotovo
+                    </Button>
+                  )
+                ) : (
+                  isAdmin && (
+                    <Button variant="outline" onClick={() => handleMarkPlanned(selectedPlan.id)}>
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      Vrátiť späť
+                    </Button>
+                  )
                 )}
                 {isAdmin && (
                   <Button variant="outline" onClick={() => openEditDialog(selectedPlan)}>
