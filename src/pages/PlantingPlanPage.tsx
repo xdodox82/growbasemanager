@@ -51,7 +51,8 @@ import {
   Info,
   Beaker,
   RotateCcw,
-  Sparkles
+  Sparkles,
+  Package
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -157,7 +158,15 @@ const PlantingPlanPage = () => {
             .eq('tray_size', plan.tray_size)
             .maybeSingle();
 
-          return { ...plan, tray_config: config };
+          console.log(`Config for ${plan.crops?.name} ${plan.tray_size}:`, config);
+
+          return {
+            ...plan,
+            tray_config: config || {
+              seed_density_grams: plan.seed_amount_grams || 0,
+              yield_grams: 0
+            }
+          };
         })
       );
 
@@ -525,7 +534,9 @@ const PlantingPlanPage = () => {
                 {filteredPlans.map(plan => (
                   <Card
                     key={plan.id}
-                    className="p-4 hover:border-primary/50 cursor-pointer transition-colors"
+                    className={`p-4 hover:border-primary/50 cursor-pointer transition-colors ${
+                      plan.status === 'completed' ? 'bg-green-50 border-green-200' : ''
+                    }`}
                     onClick={() => openDetailDialog(plan)}
                   >
                     <div className="flex items-start justify-between mb-3">
@@ -547,7 +558,7 @@ const PlantingPlanPage = () => {
                         </div>
                       </div>
                       {plan.status === 'completed' && (
-                        <Badge variant="secondary" className="bg-green-100 text-green-800">
+                        <Badge className="bg-green-500 text-white hover:bg-green-600">
                           <CheckCircle2 className="h-3 w-3 mr-1" />
                           Hotovo
                         </Badge>
@@ -559,7 +570,7 @@ const PlantingPlanPage = () => {
                         {plan.tray_count}× {plan.tray_size}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {plan.tray_config?.seed_density_grams || plan.seed_amount_grams}g/tácka • {plan.total_seed_grams}g celkom
+                        {plan.tray_config?.seed_density_grams || plan.seed_amount_grams || 0}g/tácka • {plan.total_seed_grams || 0}g celkom
                       </p>
                     </div>
 
@@ -650,7 +661,7 @@ const PlantingPlanPage = () => {
                         <TableCell>{plan.total_seed_grams}g</TableCell>
                         <TableCell>
                           {plan.status === 'completed' ? (
-                            <Badge variant="secondary" className="bg-green-100 text-green-800">
+                            <Badge className="bg-green-500 text-white hover:bg-green-600">
                               <CheckCircle2 className="h-3 w-3 mr-1" />
                               Hotovo
                             </Badge>
@@ -768,7 +779,7 @@ const PlantingPlanPage = () => {
                 <div>
                   <h3 className="text-xl font-bold">{selectedPlan.crops?.name || 'Neznáma plodina'}</h3>
                   {selectedPlan.status === 'completed' && (
-                    <Badge variant="secondary" className="mt-1 bg-green-100 text-green-800">
+                    <Badge className="mt-1 bg-green-500 text-white hover:bg-green-600">
                       <CheckCircle2 className="h-3 w-3 mr-1" />
                       Hotové
                     </Badge>
@@ -800,24 +811,38 @@ const PlantingPlanPage = () => {
               </div>
 
               <div className="border rounded-lg p-4 bg-muted/30">
-                <h4 className="font-semibold mb-2 flex items-center gap-2">
-                  <Sprout className="h-4 w-4 text-primary" />
-                  Kombinácia tácok
-                </h4>
+                <h4 className="font-semibold mb-2">💡 Kombinácia tácok</h4>
                 <div className="space-y-1">
-                  <p className="text-sm">
+                  <p className="font-medium">
                     {selectedPlan.tray_count}× {selectedPlan.tray_size}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Hustota: {selectedPlan.tray_config?.seed_density_grams || selectedPlan.seed_amount_grams}g/tácka
+                    Hustota: {selectedPlan.tray_config?.seed_density_grams || selectedPlan.seed_amount_grams || 0}g/tácka
                   </p>
-                  {selectedPlan.tray_config?.yield_grams && (
+                  {(selectedPlan.tray_config?.yield_grams || 0) > 0 && (
                     <p className="text-sm text-muted-foreground">
-                      Očakávaný výnos: {selectedPlan.tray_config.yield_grams}g/tácka
+                      Očakávaný výnos: {selectedPlan.tray_config?.yield_grams}g/tácka
                     </p>
                   )}
-                  <p className="font-medium">
-                    Celkom semien: {selectedPlan.total_seed_grams}g
+                  <p className="font-medium text-primary">
+                    Celkom semien: {selectedPlan.total_seed_grams || 0}g
+                  </p>
+                </div>
+              </div>
+
+              <div className="border rounded-lg p-4 bg-muted/30">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-semibold flex items-center gap-2">
+                    <Package className="h-4 w-4" />
+                    Objednávky
+                  </h4>
+                  <Badge variant="secondary">0 obj.</Badge>
+                </div>
+
+                <div className="text-sm text-muted-foreground">
+                  <p>Pre tento výsev zatiaľ nie je dostupný detail objednávok.</p>
+                  <p className="text-xs mt-1">
+                    (Funkcia sa pripravuje - prepojenie s objednávkami)
                   </p>
                 </div>
               </div>
