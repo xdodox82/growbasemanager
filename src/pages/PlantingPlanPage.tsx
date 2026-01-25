@@ -50,7 +50,7 @@ interface PlantingPlan {
   seed_amount_grams: number;
   total_seed_grams: number;
   status: string;
-  products?: {
+  crops?: {
     id: string;
     name: string;
     color: string;
@@ -114,7 +114,7 @@ const PlantingPlanPage = () => {
           seed_amount_grams,
           total_seed_grams,
           status,
-          products:crop_id(id, name, color)
+          crops:crop_id(id, name, color)
         `)
         .gte('sow_date', startDate)
         .lte('sow_date', endDate)
@@ -139,26 +139,46 @@ const PlantingPlanPage = () => {
   }, [fetchPlans]);
 
   const handleGenerate = async () => {
+    setGenerating(true);
+
     try {
-      setGenerating(true);
-      const { data, error } = await supabase.rpc('generate_planting_plan', {
-        p_start_date: startDate,
-        p_end_date: endDate,
+      // Formátuj dátumy ako YYYY-MM-DD
+      const formattedStartDate = startDate;
+      const formattedEndDate = endDate;
+
+      console.log('Calling RPC with:', {
+        p_start_date: formattedStartDate,
+        p_end_date: formattedEndDate
       });
 
-      if (error) throw error;
+      const { data, error } = await supabase.rpc('generate_planting_plan', {
+        p_start_date: formattedStartDate,
+        p_end_date: formattedEndDate,
+      });
+
+      console.log('RPC response:', { data, error });
+
+      if (error) {
+        console.error('RPC error details:', error);
+        toast({
+          title: 'Chyba',
+          description: error.message || 'Nepodarilo sa vygenerovať plán',
+          variant: 'destructive',
+        });
+        return;
+      }
 
       const results = data as GeneratePlanResult[];
-      const newPlansCount = results.filter(r => r.created_new).length;
+      const newPlansCount = results?.filter(r => r.created_new).length || 0;
 
       toast({
         title: 'Plán vygenerovaný',
-        description: `Vytvorených ${newPlansCount} nových plánov sadenia, celkom ${results.length} plánov.`,
+        description: `Vytvorených ${newPlansCount} nových plánov sadenia, celkom ${results?.length || 0} plánov.`,
       });
 
       await fetchPlans();
-    } catch (error) {
-      console.error('Error generating plan:', error);
+    } catch (err) {
+      console.error('Generate plan error:', err);
       toast({
         title: 'Chyba',
         description: 'Nepodarilo sa vygenerovať plán sadenia.',
@@ -374,11 +394,11 @@ const PlantingPlanPage = () => {
                             <div className="flex items-center gap-2 flex-1 min-w-0">
                               <Leaf
                                 className="h-4 w-4 flex-shrink-0"
-                                style={{ color: plan.products?.color || '#22c55e' }}
+                                style={{ color: plan.crops?.color || '#22c55e' }}
                               />
                               <div className="flex-1 min-w-0">
                                 <p className="font-medium truncate">
-                                  {plan.products?.name || 'Neznáma plodina'}
+                                  {plan.crops?.name || 'Neznáma plodina'}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
                                   {plan.tray_count}× {plan.tray_size} | {plan.total_seed_grams}g semien
@@ -422,7 +442,7 @@ const PlantingPlanPage = () => {
           <DialogHeader>
             <DialogTitle>Upraviť plán sadenia</DialogTitle>
             <DialogDescription>
-              {editingPlan?.products?.name || 'Upraviť plán sadenia'}
+              {editingPlan?.crops?.name || 'Upraviť plán sadenia'}
             </DialogDescription>
           </DialogHeader>
 
