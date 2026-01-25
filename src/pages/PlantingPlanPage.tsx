@@ -26,6 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -64,6 +65,7 @@ interface Crop {
   name: string;
   color: string;
   days_to_harvest: number;
+  tray_configs?: Record<string, { seed_density?: number; seed_density_grams?: number; expected_yield?: number; yield_grams?: number }>;
 }
 
 interface TrayConfig {
@@ -123,16 +125,76 @@ const PlantingPlanPage = () => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const [newPlantingDialog, setNewPlantingDialog] = useState(false);
+  const [plantingType, setPlantingType] = useState('production');
+  const [selectedCropId, setSelectedCropId] = useState('');
+  const [sowDate, setSowDate] = useState('');
+  const [harvestDate, setHarvestDate] = useState('');
+  const [trayConfig, setTrayConfig] = useState({ XL: 0, L: 0, M: 0, S: 0 });
+  const [seedBatch, setSeedBatch] = useState('');
+  const [includeInStats, setIncludeInStats] = useState(true);
+  const [testNotes, setTestNotes] = useState('');
+  const [crops, setCrops] = useState<Crop[]>([]);
+
   const today = new Date().toISOString().split('T')[0];
   const defaultEndDate = addDays(new Date(), 14).toISOString().split('T')[0];
 
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(defaultEndDate);
 
+  const formatGrams = (grams: number) => {
+    return Math.round(grams * 10) / 10;
+  };
+
+  const selectedCrop = useMemo(() => {
+    return crops.find(crop => crop.id === selectedCropId);
+  }, [crops, selectedCropId]);
+
+  const traySizes = ['XL', 'L', 'M', 'S'];
+
+  const getTrayDensity = (size: string) => {
+    if (!selectedCrop?.tray_configs) return 0;
+    const config = selectedCrop.tray_configs[size];
+    return config?.seed_density_grams || config?.seed_density || 0;
+  };
+
+  const calculateTotalSeeds = () => {
+    let total = 0;
+    for (const [size, count] of Object.entries(trayConfig)) {
+      total += count * getTrayDensity(size);
+    }
+    return formatGrams(total);
+  };
+
+  const resetForm = () => {
+    setPlantingType('production');
+    setSelectedCropId('');
+    setSowDate('');
+    setHarvestDate('');
+    setTrayConfig({ XL: 0, L: 0, M: 0, S: 0 });
+    setSeedBatch('');
+    setIncludeInStats(true);
+    setTestNotes('');
+  };
+
   const [editFormData, setEditFormData] = useState({
     tray_count: 0,
     tray_size: 'XL' as 'XL' | 'L' | 'M' | 'S',
   });
+
+  const fetchCrops = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, days_to_harvest, tray_configs, color')
+        .order('name');
+
+      if (error) throw error;
+      setCrops(data || []);
+    } catch (error) {
+      console.error('Error fetching crops:', error);
+    }
+  }, []);
 
   const fetchPlans = useCallback(async () => {
     try {
@@ -363,6 +425,63 @@ const PlantingPlanPage = () => {
     }
   };
 
+  const handleCreatePlanting = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+
+    try {
+      for (const [size, count] of Object.entries(trayConfig)) {
+        if (count > 0) {
+          const density = getTrayDensity(size);
+
+          const { error } = await supabase
+            .from('planting_plans')
+            .insert({
+              crop_id: selectedCropId,
+              sow_date: sowDate,
+              tray_size: size,
+              tray_count: count,
+              seed_amount_grams: density,
+              total_seed_grams: count * density,
+              status: 'planned',
+              is_test: plantingType === 'test',
+              seed_batch: plantingType === 'test' ? seedBatch : null,
+              include_in_stats: plantingType === 'test' ? includeInStats : true,
+              test_notes: plantingType === 'test' ? testNotes : null
+            });
+
+          if (error) {
+            toast({
+              title: 'Chyba',
+              description: error.message,
+              variant: 'destructive'
+            });
+            setSaving(false);
+            return;
+          }
+        }
+      }
+
+      toast({
+        title: plantingType === 'test' ? 'Test vytvorený' : 'Výsev vytvorený',
+        description: 'Plán sadenia bol úspešne vytvorený.'
+      });
+
+      setNewPlantingDialog(false);
+      resetForm();
+      await fetchPlans();
+    } catch (error) {
+      console.error('Error creating planting:', error);
+      toast({
+        title: 'Chyba',
+        description: 'Nepodarilo sa vytvoriť výsev.',
+        variant: 'destructive'
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     try {
       const { error } = await supabase
@@ -412,7 +531,16 @@ const PlantingPlanPage = () => {
 
   useEffect(() => {
     fetchPlans();
-  }, [fetchPlans]);
+    fetchCrops();
+  }, [fetchPlans, fetchCrops]);
+
+  useEffect(() => {
+    if (selectedCrop && sowDate) {
+      const sowDateObj = parseISO(sowDate);
+      const harvestDateObj = addDays(sowDateObj, selectedCrop.days_to_harvest || 10);
+      setHarvestDate(harvestDateObj.toISOString().split('T')[0]);
+    }
+  }, [selectedCrop, sowDate]);
 
   const formatDate = (dateStr: string) => {
     try {
@@ -526,6 +654,12 @@ const PlantingPlanPage = () => {
                     <SelectItem value="completed">Hotové</SelectItem>
                   </SelectContent>
                 </Select>
+                {isAdmin && (
+                  <Button onClick={() => setNewPlantingDialog(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nový výsev
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -588,7 +722,7 @@ const PlantingPlanPage = () => {
                         {plan.tray_count}× {plan.tray_size}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {plan.tray_config?.seed_density_grams || plan.seed_amount_grams || 0}g/tácka • {plan.total_seed_grams || 0}g celkom
+                        {formatGrams(plan.tray_config?.seed_density_grams || plan.seed_amount_grams || 0)}g/tácka • {formatGrams(plan.total_seed_grams || (plan.tray_count * (plan.tray_config?.seed_density_grams || 0)))}g celkom
                       </p>
                     </div>
 
@@ -676,7 +810,7 @@ const PlantingPlanPage = () => {
                         <TableCell>{formatDate(plan.sow_date)}</TableCell>
                         <TableCell>{formatDate(getHarvestDate(plan).toISOString())}</TableCell>
                         <TableCell>{plan.tray_count}× {plan.tray_size}</TableCell>
-                        <TableCell>{plan.total_seed_grams}g</TableCell>
+                        <TableCell>{formatGrams(plan.total_seed_grams || (plan.tray_count * (plan.tray_config?.seed_density_grams || 0)))}g</TableCell>
                         <TableCell>
                           {plan.status === 'completed' ? (
                             <Badge className="bg-green-500 text-white hover:bg-green-600">
@@ -835,15 +969,15 @@ const PlantingPlanPage = () => {
                     {selectedPlan.tray_count}× {selectedPlan.tray_size}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Hustota: {selectedPlan.tray_config?.seed_density_grams || selectedPlan.seed_amount_grams || 0}g/tácka
+                    Hustota: {formatGrams(selectedPlan.tray_config?.seed_density_grams || selectedPlan.seed_amount_grams || 0)}g/tácka
                   </p>
                   {(selectedPlan.tray_config?.yield_grams || 0) > 0 && (
                     <p className="text-sm text-muted-foreground">
-                      Očakávaný výnos: {selectedPlan.tray_config?.yield_grams}g/tácka
+                      Očakávaný výnos: {formatGrams(selectedPlan.tray_config?.yield_grams)}g/tácka
                     </p>
                   )}
                   <p className="font-medium text-primary">
-                    Celkom semien: {selectedPlan.total_seed_grams || 0}g
+                    Celkom semien: {formatGrams(selectedPlan.total_seed_grams || (selectedPlan.tray_count * (selectedPlan.tray_config?.seed_density_grams || 0)))}g
                   </p>
                 </div>
               </div>
@@ -962,6 +1096,183 @@ const PlantingPlanPage = () => {
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={newPlantingDialog} onOpenChange={setNewPlantingDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Nový výsev</DialogTitle>
+            <DialogDescription>
+              Vytvorte nový plán sadenia - štandardná produkcia alebo test osiva.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreatePlanting}>
+            <div className="space-y-4">
+
+              <div className="grid gap-2">
+                <Label>Typ výsevu *</Label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="plantingType"
+                      value="production"
+                      checked={plantingType === 'production'}
+                      onChange={(e) => setPlantingType(e.target.value)}
+                      className="h-4 w-4"
+                    />
+                    <span>📦 Štandardná produkcia</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="plantingType"
+                      value="test"
+                      checked={plantingType === 'test'}
+                      onChange={(e) => setPlantingType(e.target.value)}
+                      className="h-4 w-4"
+                    />
+                    <span>🧪 Test osiva</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="crop">Plodina *</Label>
+                <Select value={selectedCropId} onValueChange={setSelectedCropId}>
+                  <SelectTrigger id="crop">
+                    <SelectValue placeholder="Vyberte plodinu" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {crops.map(crop => (
+                      <SelectItem key={crop.id} value={crop.id}>
+                        {crop.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="sowDate">Dátum výsevu *</Label>
+                  <Input
+                    id="sowDate"
+                    type="date"
+                    value={sowDate}
+                    onChange={(e) => setSowDate(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="harvestDate">Dátum zberu</Label>
+                  <Input
+                    id="harvestDate"
+                    type="date"
+                    value={harvestDate}
+                    disabled
+                    className="bg-muted"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Automaticky: {selectedCrop?.days_to_harvest || 0} dní od výsevu
+                  </p>
+                </div>
+              </div>
+
+              <div className="border rounded-lg p-4 bg-muted/30">
+                <h4 className="font-semibold mb-3">Kombinácia tácok</h4>
+                <div className="space-y-3">
+                  {traySizes.map((size) => (
+                    <div key={size} className="grid grid-cols-[60px_1fr_1fr] gap-3 items-center">
+                      <Label className="font-semibold">{size}</Label>
+                      <div className="grid gap-1">
+                        <Label className="text-xs text-muted-foreground">Počet tácok</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={trayConfig[size as keyof typeof trayConfig] || 0}
+                          onChange={(e) => setTrayConfig({
+                            ...trayConfig,
+                            [size]: parseInt(e.target.value) || 0
+                          })}
+                          className="h-8"
+                        />
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {formatGrams(getTrayDensity(size))}g/tácka
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 pt-3 border-t">
+                  <p className="font-medium text-primary">
+                    Celkom semien: {calculateTotalSeeds()}g
+                  </p>
+                </div>
+              </div>
+
+              {plantingType === 'test' && (
+                <div className="border-l-4 border-amber-400 pl-4 py-3 bg-amber-50/50 rounded-r space-y-3">
+                  <h4 className="font-semibold text-amber-900 flex items-center gap-2">
+                    <Beaker className="h-4 w-4" />
+                    Testovací výsev
+                  </h4>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="seedBatch">Sárža semien</Label>
+                    <Input
+                      id="seedBatch"
+                      value={seedBatch}
+                      onChange={(e) => setSeedBatch(e.target.value)}
+                      placeholder="napr. 2024-11-A"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="includeStats"
+                      checked={includeInStats}
+                      onChange={(e) => setIncludeInStats(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    <Label htmlFor="includeStats" className="cursor-pointer">
+                      Započítať výnos do štatistík
+                    </Label>
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="testNotes">Poznámka</Label>
+                    <Textarea
+                      id="testNotes"
+                      value={testNotes}
+                      onChange={(e) => setTestNotes(e.target.value)}
+                      placeholder="Dôvod testu, očakávania..."
+                      rows={2}
+                    />
+                  </div>
+
+                  <div className="flex items-start gap-2 p-2 bg-amber-100 rounded text-sm text-amber-900">
+                    <Beaker className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                    <p>Semená sa NEODPOČÍTAJÚ zo skladu pri testovacom výseve.</p>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            <DialogFooter className="mt-6">
+              <Button type="button" variant="outline" onClick={() => setNewPlantingDialog(false)}>
+                Zrušiť
+              </Button>
+              <Button type="submit" disabled={saving || !selectedCropId || !sowDate}>
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Vytvoriť výsev
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
