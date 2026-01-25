@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   Select,
   SelectContent,
@@ -35,11 +36,32 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Calendar, Plus, Edit, Trash2, Leaf, Loader2, Sprout, CalendarDays } from 'lucide-react';
+import {
+  Calendar,
+  Plus,
+  Pencil,
+  Trash2,
+  Leaf,
+  Loader2,
+  Sprout,
+  CalendarDays,
+  LayoutGrid,
+  List,
+  CheckCircle2,
+  Info,
+  Beaker
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { format, addDays, parseISO } from 'date-fns';
 import { sk } from 'date-fns/locale';
+
+interface Crop {
+  id: string;
+  name: string;
+  color: string;
+  days_to_harvest: number;
+}
 
 interface PlantingPlan {
   id: string;
@@ -50,11 +72,8 @@ interface PlantingPlan {
   seed_amount_grams: number;
   total_seed_grams: number;
   status: string;
-  crops?: {
-    id: string;
-    name: string;
-    color: string;
-  };
+  completed_at?: string;
+  crops?: Crop;
 }
 
 interface GeneratePlanResult {
@@ -76,6 +95,8 @@ const TRAY_SIZES = {
   S: 'S',
 } as const;
 
+type ViewMode = 'cards' | 'list' | 'calendar';
+
 const PlantingPlanPage = () => {
   const { isAdmin } = useAuth();
   const { toast } = useToast();
@@ -84,13 +105,17 @@ const PlantingPlanPage = () => {
   const [plans, setPlans] = useState<PlantingPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('cards');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<PlantingPlan | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<PlantingPlan | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const today = new Date().toISOString().split('T')[0];
-  const defaultEndDate = addDays(new Date(), 7).toISOString().split('T')[0];
+  const defaultEndDate = addDays(new Date(), 14).toISOString().split('T')[0];
 
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(defaultEndDate);
@@ -106,15 +131,8 @@ const PlantingPlanPage = () => {
       const { data, error } = await supabase
         .from('planting_plans')
         .select(`
-          id,
-          crop_id,
-          sow_date,
-          tray_size,
-          tray_count,
-          seed_amount_grams,
-          total_seed_grams,
-          status,
-          crops:crop_id(id, name, color)
+          *,
+          crops:crop_id(id, name, color, days_to_harvest)
         `)
         .gte('sow_date', startDate)
         .lte('sow_date', endDate)
@@ -142,7 +160,6 @@ const PlantingPlanPage = () => {
     setGenerating(true);
 
     try {
-      // Formátuj dátumy ako YYYY-MM-DD
       const formattedStartDate = startDate;
       const formattedEndDate = endDate;
 
@@ -189,12 +206,47 @@ const PlantingPlanPage = () => {
     }
   };
 
-  const handleEdit = (plan: PlantingPlan) => {
+  const handleMarkComplete = async (planId: string) => {
+    try {
+      const { error } = await supabase
+        .from('planting_plans')
+        .update({
+          status: 'completed',
+          completed_at: new Date().toISOString()
+        })
+        .eq('id', planId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Výsev dokončený',
+        description: 'Plán bol označený ako hotový.'
+      });
+
+      setIsDetailDialogOpen(false);
+      await fetchPlans();
+    } catch (error) {
+      console.error('Error marking plan complete:', error);
+      toast({
+        title: 'Chyba',
+        description: 'Nepodarilo sa označiť plán ako hotový.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const openDetailDialog = (plan: PlantingPlan) => {
+    setSelectedPlan(plan);
+    setIsDetailDialogOpen(true);
+  };
+
+  const openEditDialog = (plan: PlantingPlan) => {
     setEditingPlan(plan);
     setEditFormData({
       tray_count: plan.tray_count,
       tray_size: plan.tray_size,
     });
+    setIsDetailDialogOpen(false);
     setIsEditDialogOpen(true);
   };
 
@@ -259,9 +311,14 @@ const PlantingPlanPage = () => {
     }
   };
 
+  const filteredPlans = useMemo(() => {
+    if (statusFilter === 'all') return plans;
+    return plans.filter(plan => plan.status === statusFilter);
+  }, [plans, statusFilter]);
+
   const plansByDate = useMemo(() => {
     const grouped: Record<string, PlantingPlan[]> = {};
-    plans.forEach(plan => {
+    filteredPlans.forEach(plan => {
       const date = plan.sow_date;
       if (!grouped[date]) {
         grouped[date] = [];
@@ -269,7 +326,7 @@ const PlantingPlanPage = () => {
       grouped[date].push(plan);
     });
     return grouped;
-  }, [plans]);
+  }, [filteredPlans]);
 
   const sortedDates = useMemo(() => {
     return Object.keys(plansByDate).sort();
@@ -281,9 +338,19 @@ const PlantingPlanPage = () => {
 
   const formatDate = (dateStr: string) => {
     try {
-      return format(parseISO(dateStr), 'EEEE, d.M.yyyy', { locale: sk });
+      return format(parseISO(dateStr), 'd.M.yyyy', { locale: sk });
     } catch (e) {
       return dateStr;
+    }
+  };
+
+  const getHarvestDate = (plan: PlantingPlan) => {
+    try {
+      const sowDate = parseISO(plan.sow_date);
+      const daysToHarvest = plan.crops?.days_to_harvest || 10;
+      return addDays(sowDate, daysToHarvest);
+    } catch {
+      return new Date();
     }
   };
 
@@ -349,24 +416,228 @@ const PlantingPlanPage = () => {
               </div>
             </Card>
 
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex gap-2">
+                <Button
+                  variant={viewMode === 'cards' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('cards')}
+                >
+                  <LayoutGrid className="h-4 w-4 mr-2" />
+                  Karty
+                </Button>
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('list')}
+                >
+                  <List className="h-4 w-4 mr-2" />
+                  Zoznam
+                </Button>
+                <Button
+                  variant={viewMode === 'calendar' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('calendar')}
+                >
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Kalendár
+                </Button>
+              </div>
+
+              <div className="flex gap-2">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Všetky</SelectItem>
+                    <SelectItem value="planned">Plánované</SelectItem>
+                    <SelectItem value="completed">Hotové</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             {loading ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {[...Array(6)].map((_, i) => (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {[...Array(8)].map((_, i) => (
                   <Card key={i} className="p-4">
                     <Skeleton className="h-6 w-40 mb-3" />
                     <div className="space-y-2">
                       <Skeleton className="h-16 w-full" />
-                      <Skeleton className="h-16 w-full" />
+                      <Skeleton className="h-8 w-full" />
                     </div>
                   </Card>
                 ))}
               </div>
-            ) : sortedDates.length === 0 ? (
+            ) : filteredPlans.length === 0 ? (
               <EmptyState
                 icon={CalendarDays}
                 title="Žiadne plány sadenia"
                 description="Vygenerujte plán sadenia pre vybrané obdobie."
               />
+            ) : viewMode === 'cards' ? (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {filteredPlans.map(plan => (
+                  <Card
+                    key={plan.id}
+                    className="p-4 hover:border-primary/50 cursor-pointer transition-colors"
+                    onClick={() => openDetailDialog(plan)}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="h-8 w-8 rounded flex items-center justify-center"
+                          style={{
+                            backgroundColor: `${plan.crops?.color || '#22c55e'}20`,
+                            color: plan.crops?.color || '#22c55e'
+                          }}
+                        >
+                          <Leaf className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold">{plan.crops?.name || 'Neznáma plodina'}</h3>
+                          <p className="text-xs text-muted-foreground">
+                            {formatDate(plan.sow_date)}
+                          </p>
+                        </div>
+                      </div>
+                      {plan.status === 'completed' && (
+                        <Badge variant="secondary" className="bg-green-100 text-green-800">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Hotovo
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="mt-3 space-y-1">
+                      <p className="text-sm">
+                        {plan.tray_count}× {plan.tray_size}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {plan.seed_amount_grams}g/tácka • {plan.total_seed_grams}g celkom
+                      </p>
+                    </div>
+
+                    <div className="mt-3 flex gap-1" onClick={(e) => e.stopPropagation()}>
+                      {plan.status === 'planned' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => handleMarkComplete(plan.id)}
+                          disabled={!isAdmin}
+                        >
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Hotovo
+                        </Button>
+                      )}
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={() => openEditDialog(plan)}
+                        disabled={!isAdmin}
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={() => setDeleteId(plan.id)}
+                        disabled={!isAdmin}
+                      >
+                        <Trash2 className="h-3 w-3 text-destructive" />
+                      </Button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            ) : viewMode === 'list' ? (
+              <Card>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Plodina</TableHead>
+                      <TableHead>Dátum výsevu</TableHead>
+                      <TableHead>Dátum zberu</TableHead>
+                      <TableHead>Tácky</TableHead>
+                      <TableHead>Semená</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Akcie</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredPlans.map(plan => (
+                      <TableRow
+                        key={plan.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => openDetailDialog(plan)}
+                      >
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="h-6 w-6 rounded flex items-center justify-center flex-shrink-0"
+                              style={{
+                                backgroundColor: `${plan.crops?.color || '#22c55e'}20`,
+                                color: plan.crops?.color || '#22c55e'
+                              }}
+                            >
+                              <Leaf className="h-3 w-3" />
+                            </div>
+                            <span className="font-medium">{plan.crops?.name || 'Neznáma'}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>{formatDate(plan.sow_date)}</TableCell>
+                        <TableCell>{formatDate(getHarvestDate(plan).toISOString())}</TableCell>
+                        <TableCell>{plan.tray_count}× {plan.tray_size}</TableCell>
+                        <TableCell>{plan.total_seed_grams}g</TableCell>
+                        <TableCell>
+                          {plan.status === 'completed' ? (
+                            <Badge variant="secondary" className="bg-green-100 text-green-800">
+                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                              Hotovo
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline">Plánované</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex gap-1 justify-end">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8"
+                              onClick={() => openDetailDialog(plan)}
+                            >
+                              <Info className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8"
+                              onClick={() => openEditDialog(plan)}
+                              disabled={!isAdmin}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8"
+                              onClick={() => setDeleteId(plan.id)}
+                              disabled={!isAdmin}
+                            >
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Card>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {sortedDates.map(date => {
@@ -376,12 +647,12 @@ const PlantingPlanPage = () => {
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
                           <Calendar className="h-5 w-5 text-primary" />
-                          <h3 className="font-semibold capitalize">
+                          <h3 className="font-semibold">
                             {formatDate(date)}
                           </h3>
                         </div>
                         <Badge variant="secondary">
-                          {plansForDate.length} {plansForDate.length === 1 ? 'plodina' : 'plodiny'}
+                          {plansForDate.length}
                         </Badge>
                       </div>
 
@@ -389,7 +660,8 @@ const PlantingPlanPage = () => {
                         {plansForDate.map(plan => (
                           <div
                             key={plan.id}
-                            className="flex items-center justify-between p-2 bg-muted/30 rounded"
+                            className="flex items-center justify-between p-2 bg-muted/30 rounded hover:bg-muted/50 cursor-pointer transition-colors"
+                            onClick={() => openDetailDialog(plan)}
                           >
                             <div className="flex items-center gap-2 flex-1 min-w-0">
                               <Leaf
@@ -401,30 +673,13 @@ const PlantingPlanPage = () => {
                                   {plan.crops?.name || 'Neznáma plodina'}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                  {plan.tray_count}× {plan.tray_size} | {plan.total_seed_grams}g semien
+                                  {plan.tray_count}× {plan.tray_size}
                                 </p>
                               </div>
                             </div>
-                            <div className="flex gap-1 flex-shrink-0">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                                onClick={() => handleEdit(plan)}
-                                disabled={!isAdmin}
-                              >
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                                onClick={() => setDeleteId(plan.id)}
-                                disabled={!isAdmin}
-                              >
-                                <Trash2 className="h-3 w-3 text-destructive" />
-                              </Button>
-                            </div>
+                            {plan.status === 'completed' && (
+                              <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                            )}
                           </div>
                         ))}
                       </div>
@@ -436,6 +691,96 @@ const PlantingPlanPage = () => {
           </div>
         </div>
       </PullToRefresh>
+
+      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Detail plánu sadenia</DialogTitle>
+          </DialogHeader>
+
+          {selectedPlan && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div
+                  className="h-12 w-12 rounded-lg flex items-center justify-center"
+                  style={{
+                    backgroundColor: `${selectedPlan.crops?.color || '#22c55e'}20`,
+                    color: selectedPlan.crops?.color || '#22c55e'
+                  }}
+                >
+                  <Leaf className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold">{selectedPlan.crops?.name || 'Neznáma plodina'}</h3>
+                  {selectedPlan.status === 'completed' && (
+                    <Badge variant="secondary" className="mt-1 bg-green-100 text-green-800">
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                      Hotové
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Dátum výsevu</p>
+                  <p className="font-medium">{formatDate(selectedPlan.sow_date)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Dátum zberu</p>
+                  <p className="font-medium">
+                    {formatDate(getHarvestDate(selectedPlan).toISOString())}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Dni do zberu</p>
+                  <p className="font-medium">{selectedPlan.crops?.days_to_harvest || 10} dní</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Status</p>
+                  <p className="font-medium">
+                    {selectedPlan.status === 'completed' ? 'Hotovo' : 'Plánované'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="border rounded-lg p-4 bg-muted/30">
+                <h4 className="font-semibold mb-2 flex items-center gap-2">
+                  <Sprout className="h-4 w-4 text-primary" />
+                  Kombinácia tácok
+                </h4>
+                <div className="space-y-1">
+                  <p className="text-sm">
+                    {selectedPlan.tray_count}× {selectedPlan.tray_size}
+                    ({selectedPlan.seed_amount_grams}g/tácka)
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Celkom: <span className="font-medium">{selectedPlan.total_seed_grams}g</span> semien
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setIsDetailDialogOpen(false)}>
+                  Zavrieť
+                </Button>
+                {selectedPlan.status === 'planned' && isAdmin && (
+                  <Button onClick={() => handleMarkComplete(selectedPlan.id)}>
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    Označiť hotovo
+                  </Button>
+                )}
+                {isAdmin && (
+                  <Button variant="outline" onClick={() => openEditDialog(selectedPlan)}>
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Upraviť
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
