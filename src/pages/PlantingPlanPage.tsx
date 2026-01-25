@@ -152,19 +152,32 @@ const PlantingPlanPage = () => {
       const plansWithConfig = (plansData || []).map((plan) => {
         let trayConfig = null;
 
+        console.log(`RAW tray_configs for ${plan.crops?.name}:`, plan.crops?.tray_configs);
+
         if (plan.crops?.tray_configs) {
           const configs = plan.crops.tray_configs;
           const traySize = plan.tray_size;
 
+          console.log(`Looking for size: ${traySize}`);
+          console.log(`Config for ${traySize}:`, configs[traySize]);
+
           if (configs[traySize]) {
+            const sizeConfig = configs[traySize];
+
             trayConfig = {
-              seed_density_grams: configs[traySize].seed_density,
-              yield_grams: configs[traySize].expected_yield
+              seed_density_grams:
+                sizeConfig.seed_density_grams ||
+                sizeConfig.seed_density ||
+                0,
+              yield_grams:
+                sizeConfig.yield_grams ||
+                sizeConfig.expected_yield ||
+                0
             };
           }
         }
 
-        console.log(`Config for ${plan.crops?.name} ${plan.tray_size}:`, trayConfig);
+        console.log(`FINAL Config for ${plan.crops?.name} ${plan.tray_size}:`, trayConfig);
 
         return {
           ...plan,
