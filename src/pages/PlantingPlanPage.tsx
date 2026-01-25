@@ -429,36 +429,55 @@ const PlantingPlanPage = () => {
     e.preventDefault();
     setSaving(true);
 
+    console.log('=== CREATING PLANTING ===');
+    console.log('Selected Crop ID:', selectedCropId);
+    console.log('Sow Date:', sowDate);
+    console.log('Tray Config:', trayConfig);
+    console.log('Planting Type:', plantingType);
+
     try {
       for (const [size, count] of Object.entries(trayConfig)) {
         if (count > 0) {
           const density = getTrayDensity(size);
 
-          const { error } = await supabase
+          const dataToInsert = {
+            crop_id: selectedCropId,
+            sow_date: sowDate,
+            tray_size: size,
+            tray_count: count,
+            seed_amount_grams: density,
+            total_seed_grams: count * density,
+            status: 'planned',
+            is_test: plantingType === 'test',
+            seed_batch: plantingType === 'test' ? seedBatch : null,
+            include_in_stats: plantingType === 'test' ? includeInStats : true,
+            test_notes: plantingType === 'test' ? testNotes : null
+          };
+
+          console.log('Inserting data:', JSON.stringify(dataToInsert, null, 2));
+
+          const { data, error } = await supabase
             .from('planting_plans')
-            .insert({
-              crop_id: selectedCropId,
-              sow_date: sowDate,
-              tray_size: size,
-              tray_count: count,
-              seed_amount_grams: density,
-              total_seed_grams: count * density,
-              status: 'planned',
-              is_test: plantingType === 'test',
-              seed_batch: plantingType === 'test' ? seedBatch : null,
-              include_in_stats: plantingType === 'test' ? includeInStats : true,
-              test_notes: plantingType === 'test' ? testNotes : null
-            });
+            .insert(dataToInsert);
 
           if (error) {
+            console.error('=== SUPABASE ERROR ===');
+            console.error('Error code:', error.code);
+            console.error('Error message:', error.message);
+            console.error('Error details:', error.details);
+            console.error('Error hint:', error.hint);
+            console.error('Full error:', JSON.stringify(error, null, 2));
+
             toast({
-              title: 'Chyba',
-              description: error.message,
+              title: 'Chyba pri ukladaní',
+              description: error.message || 'Neznáma chyba',
               variant: 'destructive'
             });
             setSaving(false);
             return;
           }
+
+          console.log('Insert successful:', data);
         }
       }
 
