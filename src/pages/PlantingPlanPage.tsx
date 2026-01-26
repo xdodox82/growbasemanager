@@ -656,14 +656,15 @@ const PlantingPlanPage = () => {
                   <div className="flex flex-col items-end gap-1">
                     <Button
                       onClick={handleGenerate}
-                      disabled={true}
+                      disabled={generating}
                       className="w-full"
                     >
-                      <Sparkles className="mr-2 h-4 w-4" />
+                      {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      {!generating && <Sparkles className="mr-2 h-4 w-4" />}
                       Vygenerovať plán
                     </Button>
                     <p className="text-xs text-muted-foreground">
-                      (Funkcia sa pripravuje)
+                      Vytvorí výsevy z potvrdených objednávok
                     </p>
                   </div>
                 </div>
@@ -1239,19 +1240,19 @@ const PlantingPlanPage = () => {
           resetForm();
         }
       }}>
-        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto p-4">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto p-3">
           <DialogHeader>
-            <DialogTitle>{editingPlan ? 'Upraviť výsev' : 'Nový výsev'}</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-base">{editingPlan ? 'Upraviť výsev' : 'Nový výsev'}</DialogTitle>
+            <DialogDescription className="text-xs">
               {editingPlan ? 'Upravte existujúci plán sadenia.' : 'Vytvorte nový plán sadenia - štandardná produkcia alebo test osiva.'}
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleCreatePlanting}>
-            <div className="space-y-3">
+            <div className="space-y-2">
 
-              <div className="grid gap-2">
-                <Label className="text-xs font-medium">Kategória plodiny</Label>
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-medium text-gray-600">Kategória plodiny</Label>
                 <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="w-full">
                   <TabsList className="grid w-full grid-cols-4 h-9">
                     <TabsTrigger value="all" className="text-xs">Všetko</TabsTrigger>
@@ -1262,10 +1263,10 @@ const PlantingPlanPage = () => {
                 </Tabs>
               </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="crop" className="text-xs font-medium">Plodina *</Label>
+              <div className="grid gap-1.5">
+                <Label htmlFor="crop" className="text-xs font-medium text-gray-600">Plodina *</Label>
                 <Select value={selectedCropId} onValueChange={handleCropSelect}>
-                  <SelectTrigger id="crop" className="h-9">
+                  <SelectTrigger id="crop" className="h-9 text-sm">
                     <SelectValue placeholder="Vyberte plodinu" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1278,11 +1279,11 @@ const PlantingPlanPage = () => {
                 </Select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="grid gap-2">
-                  <Label htmlFor="traySize" className="text-xs font-medium">Veľkosť tácky *</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="traySize" className="text-xs font-medium text-gray-600">Veľkosť tácky *</Label>
                   <Select value={selectedTraySize} onValueChange={(val) => setSelectedTraySize(val as 'XL' | 'L' | 'M' | 'S')}>
-                    <SelectTrigger id="traySize" className="h-9">
+                    <SelectTrigger id="traySize" className="h-9 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1294,8 +1295,8 @@ const PlantingPlanPage = () => {
                   </Select>
                 </div>
 
-                <div className="grid gap-2">
-                  <Label htmlFor="trayCount" className="text-xs font-medium">Počet táciek *</Label>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="trayCount" className="text-xs font-medium text-gray-600">Počet táciek *</Label>
                   <Input
                     id="trayCount"
                     type="number"
@@ -1307,14 +1308,14 @@ const PlantingPlanPage = () => {
                       if (e.target.value === '') setTrayCount(0);
                     }}
                     placeholder="0"
-                    className="h-9"
+                    className="h-9 text-sm"
                   />
                 </div>
               </div>
 
-              <div className="border rounded-lg p-2 bg-muted/30 space-y-1.5">
+              <div className="border rounded-lg p-1.5 bg-gray-50/50 space-y-1">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="seedDensity" className="text-xs font-medium">Hustota semien</Label>
+                  <Label htmlFor="seedDensity" className="text-xs font-medium text-gray-600">Hustota semien</Label>
                   <div className="flex items-center space-x-2">
                     <Checkbox
                       id="customDensity"
@@ -1347,51 +1348,51 @@ const PlantingPlanPage = () => {
                       }
                     }}
                     disabled={!useCustomDensity}
-                    className="flex-1 h-9"
+                    className="flex-1 h-9 text-sm"
                   />
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">g/tácka</span>
+                  <span className="text-xs text-gray-600 whitespace-nowrap">g/tácka</span>
                   {dbSeedDensity > 0 && (
-                    <Badge variant="outline" className="whitespace-nowrap text-xs">
+                    <Badge variant="outline" className="whitespace-nowrap text-xs px-1.5 py-0.5">
                       {formatGrams(dbSeedDensity)}g
                     </Badge>
                   )}
                 </div>
 
                 {useCustomDensity && dbSeedDensity !== customSeedDensity && dbSeedDensity > 0 && customSeedDensity > 0 && (
-                  <div className="flex items-start gap-2 p-2 bg-amber-50 dark:bg-amber-950/20 rounded text-xs text-amber-900 dark:text-amber-200">
+                  <div className="flex items-start gap-2 p-1.5 bg-amber-50 dark:bg-amber-950/20 rounded text-xs text-amber-900 dark:text-amber-200">
                     <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
                     <p>Upravené z {formatGrams(dbSeedDensity)}g na {formatGrams(customSeedDensity)}g/tácka</p>
                   </div>
                 )}
 
-                <div className="flex items-center gap-2 pt-1.5 border-t">
-                  <span className="text-xs text-muted-foreground">Celkom:</span>
-                  <Badge variant="secondary" className="text-xs">
+                <div className="flex items-center gap-2 pt-1 border-t">
+                  <span className="text-xs text-gray-600">Celkom:</span>
+                  <Badge variant="secondary" className="text-xs px-2 py-0.5">
                     {formatGrams(totalSeedGrams)}g
                   </Badge>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="grid gap-2">
-                  <Label htmlFor="sowDate" className="text-xs font-medium">Dátum výsevu *</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="sowDate" className="text-xs font-medium text-gray-600">Dátum výsevu *</Label>
                   <Input
                     id="sowDate"
                     type="date"
                     value={sowDate}
                     onChange={(e) => setSowDate(e.target.value)}
                     required
-                    className="h-9"
+                    className="h-9 text-sm"
                   />
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="harvestDate" className="text-xs font-medium">Dátum zberu</Label>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="harvestDate" className="text-xs font-medium text-gray-600">Dátum zberu</Label>
                   <Input
                     id="harvestDate"
                     type="date"
                     value={harvestDate}
                     disabled
-                    className="bg-muted h-9"
+                    className="bg-muted h-9 text-sm"
                   />
                   <p className="text-xs text-muted-foreground">
                     Automaticky: {selectedCrop?.days_to_harvest || 0} dní od výsevu
@@ -1401,11 +1402,11 @@ const PlantingPlanPage = () => {
 
             </div>
 
-            <DialogFooter className="mt-4">
-              <Button type="button" variant="outline" onClick={() => setNewPlantingDialog(false)} className="h-9">
+            <DialogFooter className="mt-3">
+              <Button type="button" variant="outline" onClick={() => setNewPlantingDialog(false)} className="h-9 text-sm">
                 Zrušiť
               </Button>
-              <Button type="submit" disabled={saving || !selectedCropId || !sowDate || trayCount === 0} className="h-9">
+              <Button type="submit" disabled={saving || !selectedCropId || !sowDate || trayCount === 0} className="h-9 text-sm">
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Vytvoriť výsev
               </Button>

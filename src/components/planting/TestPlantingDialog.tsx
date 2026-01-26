@@ -158,11 +158,16 @@ export function TestPlantingDialog({ open, onOpenChange, onSuccess }: TestPlanti
         user_id: user?.id
       };
 
+      console.log('Creating test planting:', dataToSave);
+
       const { error } = await supabase
         .from('test_plantings')
         .insert(dataToSave);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Test planting insert error:', error);
+        throw error;
+      }
 
       toast({
         title: 'Test vytvorený',
@@ -172,11 +177,11 @@ export function TestPlantingDialog({ open, onOpenChange, onSuccess }: TestPlanti
       resetForm();
       onOpenChange(false);
       onSuccess();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving test planting:', error);
       toast({
         title: 'Chyba',
-        description: 'Nepodarilo sa vytvoriť testovací výsev.',
+        description: error?.message || 'Nepodarilo sa vytvoriť testovací výsev.',
         variant: 'destructive'
       });
     } finally {
