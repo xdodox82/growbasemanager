@@ -298,17 +298,17 @@ const PlantingPlanPage = () => {
         .lte('sow_date', endDate)
         .order('sow_date');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Test plantings error:', error);
+        setTestPlantings([]);
+        return;
+      }
       setTestPlantings(testsData || []);
     } catch (error) {
       console.error('Error fetching test plantings:', error);
-      toast({
-        title: 'Chyba',
-        description: 'Nepodarilo sa načítať testové výsevy.',
-        variant: 'destructive',
-      });
+      setTestPlantings([]);
     }
-  }, [startDate, endDate, toast]);
+  }, [startDate, endDate]);
 
   const handleRefresh = useCallback(async () => {
     await fetchPlans();
@@ -1239,7 +1239,7 @@ const PlantingPlanPage = () => {
           resetForm();
         }
       }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto p-4">
           <DialogHeader>
             <DialogTitle>{editingPlan ? 'Upraviť výsev' : 'Nový výsev'}</DialogTitle>
             <DialogDescription>
@@ -1248,10 +1248,10 @@ const PlantingPlanPage = () => {
           </DialogHeader>
 
           <form onSubmit={handleCreatePlanting}>
-            <div className="space-y-4">
+            <div className="space-y-3">
 
               <div className="grid gap-2">
-                <Label className="text-sm">Kategória plodiny</Label>
+                <Label className="text-xs font-medium">Kategória plodiny</Label>
                 <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="w-full">
                   <TabsList className="grid w-full grid-cols-4 h-9">
                     <TabsTrigger value="all" className="text-xs">Všetko</TabsTrigger>
@@ -1263,7 +1263,7 @@ const PlantingPlanPage = () => {
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="crop" className="text-sm">Plodina *</Label>
+                <Label htmlFor="crop" className="text-xs font-medium">Plodina *</Label>
                 <Select value={selectedCropId} onValueChange={handleCropSelect}>
                   <SelectTrigger id="crop" className="h-9">
                     <SelectValue placeholder="Vyberte plodinu" />
@@ -1278,9 +1278,9 @@ const PlantingPlanPage = () => {
                 </Select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div className="grid gap-2">
-                  <Label htmlFor="traySize" className="text-sm">Veľkosť tácky *</Label>
+                  <Label htmlFor="traySize" className="text-xs font-medium">Veľkosť tácky *</Label>
                   <Select value={selectedTraySize} onValueChange={(val) => setSelectedTraySize(val as 'XL' | 'L' | 'M' | 'S')}>
                     <SelectTrigger id="traySize" className="h-9">
                       <SelectValue />
@@ -1295,7 +1295,7 @@ const PlantingPlanPage = () => {
                 </div>
 
                 <div className="grid gap-2">
-                  <Label htmlFor="trayCount" className="text-sm">Počet táciek *</Label>
+                  <Label htmlFor="trayCount" className="text-xs font-medium">Počet táciek *</Label>
                   <Input
                     id="trayCount"
                     type="number"
@@ -1312,9 +1312,9 @@ const PlantingPlanPage = () => {
                 </div>
               </div>
 
-              <div className="border rounded-lg p-3 bg-muted/30 space-y-2">
+              <div className="border rounded-lg p-2 bg-muted/30 space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="seedDensity" className="text-sm">Hustota semien</Label>
+                  <Label htmlFor="seedDensity" className="text-xs font-medium">Hustota semien</Label>
                   <div className="flex items-center space-x-2">
                     <Checkbox
                       id="customDensity"
@@ -1364,17 +1364,17 @@ const PlantingPlanPage = () => {
                   </div>
                 )}
 
-                <div className="flex items-center gap-2 pt-2 border-t">
-                  <span className="text-sm text-muted-foreground">Celkom:</span>
-                  <Badge variant="secondary" className="text-sm">
+                <div className="flex items-center gap-2 pt-1.5 border-t">
+                  <span className="text-xs text-muted-foreground">Celkom:</span>
+                  <Badge variant="secondary" className="text-xs">
                     {formatGrams(totalSeedGrams)}g
                   </Badge>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div className="grid gap-2">
-                  <Label htmlFor="sowDate" className="text-sm">Dátum výsevu *</Label>
+                  <Label htmlFor="sowDate" className="text-xs font-medium">Dátum výsevu *</Label>
                   <Input
                     id="sowDate"
                     type="date"
@@ -1385,7 +1385,7 @@ const PlantingPlanPage = () => {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="harvestDate" className="text-sm">Dátum zberu</Label>
+                  <Label htmlFor="harvestDate" className="text-xs font-medium">Dátum zberu</Label>
                   <Input
                     id="harvestDate"
                     type="date"
@@ -1401,11 +1401,11 @@ const PlantingPlanPage = () => {
 
             </div>
 
-            <DialogFooter className="mt-6">
-              <Button type="button" variant="outline" onClick={() => setNewPlantingDialog(false)}>
+            <DialogFooter className="mt-4">
+              <Button type="button" variant="outline" onClick={() => setNewPlantingDialog(false)} className="h-9">
                 Zrušiť
               </Button>
-              <Button type="submit" disabled={saving || !selectedCropId || !sowDate || trayCount === 0}>
+              <Button type="submit" disabled={saving || !selectedCropId || !sowDate || trayCount === 0} className="h-9">
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Vytvoriť výsev
               </Button>
