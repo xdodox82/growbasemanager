@@ -743,12 +743,12 @@ const CropsPage = () => {
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Droplets className="h-4 w-4" />
-                  <span>{crop.seed_density} g/tác</span>
+                  <span>{crop.tray_configs?.XL?.seed_density_grams || crop.seed_density} g/tác</span>
                 </div>
-                {crop.expected_yield && (
+                {(crop.tray_configs?.XL?.expected_yield || crop.expected_yield) && (
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Scissors className="h-4 w-4" />
-                    <span>{crop.expected_yield} g výnos</span>
+                    <span>{crop.tray_configs?.XL?.expected_yield || crop.expected_yield} g výnos</span>
                   </div>
                 )}
                 {crop.germination_type && (

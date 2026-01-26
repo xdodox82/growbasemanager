@@ -121,7 +121,6 @@ const PlantingPlanPage = () => {
   const [generating, setGenerating] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<PlantingPlan | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<PlantingPlan | null>(null);
@@ -192,10 +191,6 @@ const PlantingPlanPage = () => {
     setCustomSeedDensity(0);
   };
 
-  const [editFormData, setEditFormData] = useState({
-    tray_count: 0,
-    tray_size: 'XL' as 'XL' | 'L' | 'M' | 'S',
-  });
 
   const fetchCrops = useCallback(async () => {
     try {
@@ -397,54 +392,39 @@ const PlantingPlanPage = () => {
 
   const openEditDialog = (plan: PlantingPlan) => {
     setEditingPlan(plan);
-    setEditFormData({
-      tray_count: plan.tray_count,
-      tray_size: plan.tray_size,
-    });
-    setIsDetailDialogOpen(false);
-    setIsEditDialogOpen(true);
-  };
 
-  const handleSaveEdit = async () => {
-    if (!editingPlan) return;
+    const crop = crops.find(c => c.id === plan.crop_id);
+    setSelectedCategory(crop?.category || 'all');
+    setSelectedCropId(plan.crop_id);
+    setSowDate(plan.sow_date);
+    setSelectedTraySize(plan.tray_size);
+    setTrayCount(plan.tray_count);
 
-    try {
-      setSaving(true);
-      const { error } = await supabase
-        .from('planting_plans')
-        .update({
-          tray_count: editFormData.tray_count,
-          tray_size: editFormData.tray_size,
-        })
-        .eq('id', editingPlan.id);
+    if (crop?.tray_configs) {
+      const dbDensity = crop.tray_configs[plan.tray_size]?.seed_density_grams ||
+                        crop.tray_configs[plan.tray_size]?.seed_density || 0;
 
-      if (error) throw error;
-
-      toast({
-        title: 'Uložené',
-        description: 'Plán sadenia bol aktualizovaný.',
-      });
-
-      setIsEditDialogOpen(false);
-      setEditingPlan(null);
-      await fetchPlans();
-    } catch (error) {
-      console.error('Error updating plan:', error);
-      toast({
-        title: 'Chyba',
-        description: 'Nepodarilo sa aktualizovať plán.',
-        variant: 'destructive',
-      });
-    } finally {
-      setSaving(false);
+      if (plan.seed_amount_grams !== dbDensity) {
+        setUseCustomDensity(true);
+        setCustomSeedDensity(plan.seed_amount_grams);
+      } else {
+        setUseCustomDensity(false);
+        setCustomSeedDensity(0);
+      }
     }
+
+    setIsDetailDialogOpen(false);
+    setNewPlantingDialog(true);
   };
+
 
   const handleCreatePlanting = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
 
-    console.log('=== CREATING PLANTING ===');
+    const isEdit = !!editingPlan;
+
+    console.log(isEdit ? '=== UPDATING PLANTING ===' : '=== CREATING PLANTING ===');
     console.log('Selected Crop ID:', selectedCropId);
     console.log('Sow Date:', sowDate);
     console.log('Tray Size:', selectedTraySize);
@@ -453,7 +433,7 @@ const PlantingPlanPage = () => {
     console.log('Planting Type:', plantingType);
 
     try {
-      const dataToInsert = {
+      const dataToSave = {
         crop_id: selectedCropId,
         sow_date: sowDate,
         tray_size: selectedTraySize,
@@ -468,11 +448,21 @@ const PlantingPlanPage = () => {
         console.log('This would be a TEST planting:', { seedBatch, includeInStats, testNotes });
       }
 
-      console.log('Inserting data:', JSON.stringify(dataToInsert, null, 2));
+      console.log(isEdit ? 'Updating data:' : 'Inserting data:', JSON.stringify(dataToSave, null, 2));
 
-      const { data, error } = await supabase
-        .from('planting_plans')
-        .insert(dataToInsert);
+      let error;
+      if (isEdit) {
+        const result = await supabase
+          .from('planting_plans')
+          .update(dataToSave)
+          .eq('id', editingPlan.id);
+        error = result.error;
+      } else {
+        const result = await supabase
+          .from('planting_plans')
+          .insert(dataToSave);
+        error = result.error;
+      }
 
       if (error) {
         console.error('=== SUPABASE ERROR ===');
@@ -491,21 +481,22 @@ const PlantingPlanPage = () => {
         return;
       }
 
-      console.log('Insert successful:', data);
+      console.log(isEdit ? 'Update successful' : 'Insert successful');
 
       toast({
-        title: plantingType === 'test' ? 'Test vytvorený' : 'Výsev vytvorený',
-        description: 'Plán sadenia bol úspešne vytvorený.'
+        title: isEdit ? 'Uložené' : (plantingType === 'test' ? 'Test vytvorený' : 'Výsev vytvorený'),
+        description: isEdit ? 'Plán sadenia bol aktualizovaný.' : 'Plán sadenia bol úspešne vytvorený.'
       });
 
       setNewPlantingDialog(false);
+      setEditingPlan(null);
       resetForm();
       await fetchPlans();
     } catch (error) {
-      console.error('Error creating planting:', error);
+      console.error('Error saving planting:', error);
       toast({
         title: 'Chyba',
-        description: 'Nepodarilo sa vytvoriť výsev.',
+        description: isEdit ? 'Nepodarilo sa aktualizovať výsev.' : 'Nepodarilo sa vytvoriť výsev.',
         variant: 'destructive'
       });
     } finally {
@@ -740,12 +731,25 @@ const PlantingPlanPage = () => {
                           </p>
                         </div>
                       </div>
-                      {plan.status === 'completed' && (
-                        <Badge className="bg-green-500 text-white hover:bg-green-600">
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                          Hotovo
-                        </Badge>
-                      )}
+                      <div onClick={(e) => e.stopPropagation()}>
+                        {plan.status === 'completed' ? (
+                          <Badge className="bg-green-500 text-white hover:bg-green-600">
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Hotovo
+                          </Badge>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleMarkComplete(plan.id)}
+                            disabled={!isAdmin}
+                            className="h-8"
+                          >
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Hotovo
+                          </Button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="mt-3 space-y-1">
@@ -758,18 +762,7 @@ const PlantingPlanPage = () => {
                     </div>
 
                     <div className="mt-3 flex gap-1" onClick={(e) => e.stopPropagation()}>
-                      {plan.status === 'planned' ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1"
-                          onClick={() => handleMarkComplete(plan.id)}
-                          disabled={!isAdmin}
-                        >
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                          Hotovo
-                        </Button>
-                      ) : (
+                      {plan.status === 'completed' && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -1061,81 +1054,19 @@ const PlantingPlanPage = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Upraviť plán sadenia</DialogTitle>
-            <DialogDescription>
-              {editingPlan?.crops?.name || 'Upraviť plán sadenia'}
-            </DialogDescription>
-          </DialogHeader>
 
-          <div className="space-y-4">
-            <div className="grid gap-2">
-              <Label htmlFor="edit-tray-count">Počet tácok</Label>
-              <Input
-                id="edit-tray-count"
-                type="number"
-                min="1"
-                value={editFormData.tray_count}
-                onChange={(e) => setEditFormData({
-                  ...editFormData,
-                  tray_count: parseInt(e.target.value) || 0
-                })}
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="edit-tray-size">Veľkosť tácky</Label>
-              <Select
-                value={editFormData.tray_size}
-                onValueChange={(value: 'XL' | 'L' | 'M' | 'S') => setEditFormData({
-                  ...editFormData,
-                  tray_size: value
-                })}
-              >
-                <SelectTrigger id="edit-tray-size">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.keys(TRAY_SIZES).map(size => (
-                    <SelectItem key={size} value={size}>
-                      {size}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsEditDialogOpen(false)}
-              disabled={saving}
-            >
-              Zrušiť
-            </Button>
-            <Button onClick={handleSaveEdit} disabled={saving}>
-              {saving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Ukladám...
-                </>
-              ) : (
-                'Uložiť'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={newPlantingDialog} onOpenChange={setNewPlantingDialog}>
+      <Dialog open={newPlantingDialog} onOpenChange={(open) => {
+        setNewPlantingDialog(open);
+        if (!open) {
+          setEditingPlan(null);
+          resetForm();
+        }
+      }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Nový výsev</DialogTitle>
+            <DialogTitle>{editingPlan ? 'Upraviť výsev' : 'Nový výsev'}</DialogTitle>
             <DialogDescription>
-              Vytvorte nový plán sadenia - štandardná produkcia alebo test osiva.
+              {editingPlan ? 'Upravte existujúci plán sadenia.' : 'Vytvorte nový plán sadenia - štandardná produkcia alebo test osiva.'}
             </DialogDescription>
           </DialogHeader>
 
