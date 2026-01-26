@@ -61,7 +61,6 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { format, addDays, parseISO } from 'date-fns';
 import { sk } from 'date-fns/locale';
-import { TestPlantingDialog } from '@/components/planting/TestPlantingDialog';
 
 interface Crop {
   id: string;
@@ -91,23 +90,6 @@ interface PlantingPlan {
   tray_config?: TrayConfig | null;
 }
 
-interface TestPlanting {
-  id: string;
-  crop_id: string;
-  test_type: string;
-  batch_number?: string;
-  sow_date: string;
-  harvest_date: string;
-  tray_size: 'XL' | 'L' | 'M' | 'S';
-  tray_count: number;
-  seed_amount_grams: number;
-  total_seed_grams: number;
-  notes?: string;
-  status: string;
-  completed_at?: string;
-  crops?: Crop;
-}
-
 interface GeneratePlanResult {
   plan_id: string;
   crop_name: string;
@@ -135,7 +117,6 @@ const PlantingPlanPage = () => {
   const isMobile = useIsMobile();
 
   const [plans, setPlans] = useState<PlantingPlan[]>([]);
-  const [testPlantings, setTestPlantings] = useState<TestPlanting[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
@@ -146,9 +127,7 @@ const PlantingPlanPage = () => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const [activeTab, setActiveTab] = useState('production');
   const [newPlantingDialog, setNewPlantingDialog] = useState(false);
-  const [newTestDialog, setNewTestDialog] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedCropId, setSelectedCropId] = useState('');
   const [sowDate, setSowDate] = useState('');
@@ -157,6 +136,10 @@ const PlantingPlanPage = () => {
   const [trayCount, setTrayCount] = useState(0);
   const [useCustomDensity, setUseCustomDensity] = useState(false);
   const [customSeedDensity, setCustomSeedDensity] = useState(0);
+  const [isTest, setIsTest] = useState(false);
+  const [testType, setTestType] = useState('osivo');
+  const [batchNumber, setBatchNumber] = useState('');
+  const [testNotes, setTestNotes] = useState('');
   const [crops, setCrops] = useState<Crop[]>([]);
 
   const today = new Date().toISOString().split('T')[0];
@@ -196,6 +179,10 @@ const PlantingPlanPage = () => {
     setTrayCount(0);
     setUseCustomDensity(false);
     setCustomSeedDensity(0);
+    setIsTest(false);
+    setTestType('osivo');
+    setBatchNumber('');
+    setTestNotes('');
   };
 
   const handleCropSelect = (cropId: string) => {
@@ -286,33 +273,8 @@ const PlantingPlanPage = () => {
     }
   }, [startDate, endDate, toast]);
 
-  const fetchTestPlantings = useCallback(async () => {
-    try {
-      const { data: testsData, error } = await supabase
-        .from('test_plantings')
-        .select(`
-          *,
-          crops:crop_id(id, name, color, days_to_harvest, tray_configs)
-        `)
-        .gte('sow_date', startDate)
-        .lte('sow_date', endDate)
-        .order('sow_date');
-
-      if (error) {
-        console.error('Test plantings error:', error);
-        setTestPlantings([]);
-        return;
-      }
-      setTestPlantings(testsData || []);
-    } catch (error) {
-      console.error('Error fetching test plantings:', error);
-      setTestPlantings([]);
-    }
-  }, [startDate, endDate]);
-
   const handleRefresh = useCallback(async () => {
     await fetchPlans();
-    await fetchTestPlantings();
   }, [fetchPlans]);
 
   const handleGenerate = async () => {
@@ -438,6 +400,18 @@ const PlantingPlanPage = () => {
     setSelectedTraySize(plan.tray_size);
     setTrayCount(plan.tray_count);
 
+    if ((plan as any).test_type) {
+      setIsTest(true);
+      setTestType((plan as any).test_type || 'osivo');
+      setBatchNumber((plan as any).batch_number || '');
+      setTestNotes((plan as any).test_notes || '');
+    } else {
+      setIsTest(false);
+      setTestType('osivo');
+      setBatchNumber('');
+      setTestNotes('');
+    }
+
 
     if (crop?.tray_configs) {
       const dbDensity = crop.tray_configs[plan.tray_size]?.seed_density_grams ||
@@ -477,7 +451,10 @@ const PlantingPlanPage = () => {
         tray_count: trayCount,
         seed_amount_grams: seedDensity,
         total_seed_grams: totalSeedGrams,
-        status: 'planned'
+        status: 'planned',
+        test_type: isTest ? testType : null,
+        batch_number: isTest && batchNumber ? batchNumber : null,
+        test_notes: isTest && testNotes ? testNotes : null
       };
 
       console.log(isEdit ? 'Updating data:' : 'Inserting data:', JSON.stringify(dataToSave, null, 2));
@@ -585,9 +562,8 @@ const PlantingPlanPage = () => {
 
   useEffect(() => {
     fetchPlans();
-    fetchTestPlantings();
     fetchCrops();
-  }, [fetchPlans, fetchTestPlantings, fetchCrops]);
+  }, [fetchPlans, fetchCrops]);
 
   useEffect(() => {
     if (sowDate && selectedCrop?.days_to_harvest) {
@@ -671,14 +647,8 @@ const PlantingPlanPage = () => {
               </div>
             </Card>
 
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="production">📦 Produkcia</TabsTrigger>
-                <TabsTrigger value="tests">🧪 Testy</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="production" className="space-y-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex gap-2">
                 <Button
                   variant={viewMode === 'cards' ? 'default' : 'outline'}
@@ -746,12 +716,15 @@ const PlantingPlanPage = () => {
               />
             ) : viewMode === 'cards' ? (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {filteredPlans.map(plan => (
+                {filteredPlans.map(plan => {
+                  const planWithTest = plan as any;
+                  const isTestPlanting = !!planWithTest.test_type;
+                  return (
                   <Card
                     key={plan.id}
                     className={`p-4 hover:border-primary/50 cursor-pointer transition-colors ${
                       plan.status === 'completed' ? 'bg-green-50 border-green-200' : ''
-                    }`}
+                    } ${isTestPlanting ? 'bg-yellow-50 border-yellow-200' : ''}`}
                     onClick={() => openDetailDialog(plan)}
                   >
                     <div className="flex items-start justify-between mb-3">
@@ -766,7 +739,14 @@ const PlantingPlanPage = () => {
                           <Leaf className="h-4 w-4" />
                         </div>
                         <div>
-                          <h3 className="font-semibold">{plan.crops?.name || 'Neznáma plodina'}</h3>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold">{plan.crops?.name || 'Neznáma plodina'}</h3>
+                            {isTestPlanting && (
+                              <Badge className="bg-yellow-100 text-yellow-800 text-xs px-1.5 py-0">
+                                🧪 {planWithTest.test_type?.toUpperCase()}
+                              </Badge>
+                            )}
+                          </div>
                           <p className="text-xs text-muted-foreground">
                             {formatDate(plan.sow_date)}
                           </p>
@@ -835,7 +815,8 @@ const PlantingPlanPage = () => {
                       </Button>
                     </div>
                   </Card>
-                ))}
+                );
+                })}
               </div>
             ) : viewMode === 'list' ? (
               <Card>
@@ -852,12 +833,15 @@ const PlantingPlanPage = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredPlans.map(plan => (
+                    {filteredPlans.map(plan => {
+                      const planWithTest = plan as any;
+                      const isTestPlanting = !!planWithTest.test_type;
+                      return (
                       <TableRow
                         key={plan.id}
                         className={`cursor-pointer hover:bg-muted/50 ${
                           plan.status === 'completed' ? 'bg-green-50' : ''
-                        }`}
+                        } ${isTestPlanting ? 'bg-yellow-50' : ''}`}
                         onClick={() => openDetailDialog(plan)}
                       >
                         <TableCell>
@@ -872,6 +856,11 @@ const PlantingPlanPage = () => {
                               <Leaf className="h-3 w-3" />
                             </div>
                             <span className="font-medium">{plan.crops?.name || 'Neznáma'}</span>
+                            {isTestPlanting && (
+                              <Badge className="bg-yellow-100 text-yellow-800 text-xs px-1.5 py-0 ml-2">
+                                🧪 {planWithTest.test_type?.toUpperCase()}
+                              </Badge>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>{formatDate(plan.sow_date)}</TableCell>
@@ -921,7 +910,8 @@ const PlantingPlanPage = () => {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    );
+                    })}
                   </TableBody>
                 </Table>
               </Card>
@@ -977,140 +967,10 @@ const PlantingPlanPage = () => {
                 })}
               </div>
             )}
-          </TabsContent>
-
-          <TabsContent value="tests" className="space-y-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex gap-2">
-                <Button
-                  variant={viewMode === 'cards' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('cards')}
-                >
-                  <LayoutGrid className="h-4 w-4 mr-2" />
-                  Karty
-                </Button>
-                <Button
-                  variant={viewMode === 'list' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('list')}
-                >
-                  <List className="h-4 w-4 mr-2" />
-                  Zoznam
-                </Button>
-              </div>
-
-              {isAdmin && (
-                <Button onClick={() => setNewTestDialog(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nový test
-                </Button>
-              )}
             </div>
-
-            {loading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[...Array(6)].map((_, i) => (
-                  <Card key={i} className="p-4">
-                    <Skeleton className="h-32" />
-                  </Card>
-                ))}
-              </div>
-            ) : testPlantings.length === 0 ? (
-              <EmptyState
-                icon={<Beaker className="h-8 w-8" />}
-                title="Žiadne testy"
-                description="Zatiaľ nemáte žiadne testové výsevy. Vytvorte prvý test kliknutím na tlačidlo Nový test."
-              />
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {testPlantings.map(test => (
-                  <Card
-                    key={test.id}
-                    className="p-4 bg-yellow-50 border-yellow-200 hover:border-yellow-300 cursor-pointer transition-colors"
-                    onClick={() => {}}
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="h-8 w-8 rounded flex items-center justify-center"
-                          style={{
-                            backgroundColor: `${test.crops?.color || '#eab308'}20`,
-                            color: test.crops?.color || '#eab308'
-                          }}
-                        >
-                          <Beaker className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold">{test.crops?.name || 'Neznáma plodina'}</h3>
-                          <p className="text-xs text-muted-foreground">
-                            {formatDate(test.sow_date)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex gap-1">
-                        {test.status === 'completed' ? (
-                          <Badge className="bg-green-500 text-white hover:bg-green-600">
-                            <CheckCircle2 className="h-3 w-3 mr-1" />
-                            Hotovo
-                          </Badge>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                            }}
-                            disabled={!isAdmin}
-                            className="h-8"
-                          >
-                            <CheckCircle2 className="h-3 w-3 mr-1" />
-                            Hotovo
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="mt-3 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Badge className="bg-yellow-600 text-white text-xs">
-                          🧪 {test.test_type.toUpperCase()}
-                        </Badge>
-                        {test.batch_number && (
-                          <Badge variant="outline" className="text-xs">
-                            Šarža: {test.batch_number}
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-sm">
-                        <span className="font-medium">{test.tray_count}× {test.tray_size}</span> tácky
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {Math.round(test.total_seed_grams * 10) / 10}g semien
-                      </p>
-                      {test.notes && (
-                        <p className="text-xs text-muted-foreground mt-2 italic">
-                          {test.notes}
-                        </p>
-                      )}
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
           </div>
         </div>
       </PullToRefresh>
-
-      <TestPlantingDialog
-        open={newTestDialog}
-        onOpenChange={setNewTestDialog}
-        onSuccess={() => {
-          fetchTestPlantings();
-        }}
-      />
 
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -1399,6 +1259,69 @@ const PlantingPlanPage = () => {
                   </p>
                 </div>
               </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <Checkbox
+                  id="isTest"
+                  checked={isTest}
+                  onCheckedChange={(checked) => setIsTest(checked === true)}
+                />
+                <Label htmlFor="isTest" className="cursor-pointer text-xs font-medium text-gray-600">
+                  Je to test?
+                </Label>
+              </div>
+
+              {isTest && (
+                <div className="space-y-2 border-t pt-2">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Beaker className="h-4 w-4 text-yellow-600" />
+                    <span className="text-xs font-medium text-yellow-700">Testovací výsev</span>
+                  </div>
+
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="testType" className="text-xs font-medium text-gray-600">Typ testu *</Label>
+                    <Select value={testType} onValueChange={setTestType}>
+                      <SelectTrigger id="testType" className="h-9 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="osivo">🌱 Osivo</SelectItem>
+                        <SelectItem value="substrat">🪴 Substrát</SelectItem>
+                        <SelectItem value="technologia">⚙️ Technológia</SelectItem>
+                        <SelectItem value="ine">📋 Iné</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="batchNumber" className="text-xs font-medium text-gray-600">Šarža (voliteľné)</Label>
+                    <Input
+                      id="batchNumber"
+                      value={batchNumber}
+                      onChange={(e) => setBatchNumber(e.target.value)}
+                      placeholder="napr. 2024-11-A"
+                      className="h-9 text-sm"
+                    />
+                  </div>
+
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="testNotes" className="text-xs font-medium text-gray-600">Poznámka k testu (voliteľné)</Label>
+                    <Textarea
+                      id="testNotes"
+                      value={testNotes}
+                      onChange={(e) => setTestNotes(e.target.value)}
+                      placeholder="Napr: test substrátu, test osiva, test novej odrody..."
+                      rows={2}
+                      className="text-sm"
+                    />
+                  </div>
+
+                  <div className="flex items-start gap-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
+                    <Info className="h-3 w-3 mt-0.5 flex-shrink-0 text-yellow-700" />
+                    <p className="text-yellow-800">Semená sa NEODPOČÍTAJÚ zo skladu pri testovacom výseve.</p>
+                  </div>
+                </div>
+              )}
 
             </div>
 
