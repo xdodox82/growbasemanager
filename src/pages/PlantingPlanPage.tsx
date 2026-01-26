@@ -1021,7 +1021,7 @@ const PlantingPlanPage = () => {
               </div>
             ) : testPlantings.length === 0 ? (
               <EmptyState
-                icon={Beaker}
+                icon={<Beaker className="h-8 w-8" />}
                 title="Žiadne testy"
                 description="Zatiaľ nemáte žiadne testové výsevy. Vytvorte prvý test kliknutím na tlačidlo Nový test."
               />
