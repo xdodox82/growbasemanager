@@ -138,7 +138,9 @@ const PlantingPlanPage = () => {
   const [useCustomDensity, setUseCustomDensity] = useState(false);
   const [customSeedDensity, setCustomSeedDensity] = useState(0);
   const [seedBatch, setSeedBatch] = useState('');
-  const [includeInStats, setIncludeInStats] = useState(true);
+  // NOTE: include_in_stats removed due to unresolvable Supabase PostgREST cache issue
+  // All test plantings will be included in stats by default (DB column default = true)
+  // const [includeInStats, setIncludeInStats] = useState(true);
   const [testNotes, setTestNotes] = useState('');
   const [crops, setCrops] = useState<Crop[]>([]);
 
@@ -403,7 +405,7 @@ const PlantingPlanPage = () => {
     setPlantingType((plan as any).is_test ? 'test' : 'production');
     setSeedBatch((plan as any).seed_batch || '');
     setTestNotes((plan as any).test_notes || '');
-    setIncludeInStats((plan as any).include_in_stats !== false);
+    // setIncludeInStats((plan as any).include_in_stats !== false); // Removed due to cache issue
 
     if (crop?.tray_configs) {
       const dbDensity = crop.tray_configs[plan.tray_size]?.seed_density_grams ||
@@ -448,8 +450,9 @@ const PlantingPlanPage = () => {
         status: 'planned',
         is_test: plantingType === 'test',
         seed_batch: plantingType === 'test' ? (seedBatch || null) : null,
-        test_notes: plantingType === 'test' ? (testNotes || null) : null,
-        include_in_stats: plantingType === 'test' ? includeInStats : true
+        test_notes: plantingType === 'test' ? (testNotes || null) : null
+        // NOTE: include_in_stats removed due to unresolvable Supabase PostgREST cache issue
+        // All test plantings will be included in stats by default (DB column default = true)
       };
 
       console.log(isEdit ? 'Updating data:' : 'Inserting data:', JSON.stringify(dataToSave, null, 2));
@@ -1301,19 +1304,6 @@ const PlantingPlanPage = () => {
                       rows={2}
                       className="text-sm"
                     />
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="includeStats"
-                      checked={includeInStats}
-                      onChange={(e) => setIncludeInStats(e.target.checked)}
-                      className="h-4 w-4"
-                    />
-                    <Label htmlFor="includeStats" className="cursor-pointer text-sm">
-                      Započítať výnos do štatistík
-                    </Label>
                   </div>
 
                   <div className="flex items-start gap-2 p-2 bg-muted rounded text-xs">
