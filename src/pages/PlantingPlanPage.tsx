@@ -138,6 +138,12 @@ const PlantingPlanPage = () => {
   const [customSeedDensity, setCustomSeedDensity] = useState(0);
   const [crops, setCrops] = useState<Crop[]>([]);
 
+  const [isMixedPlanting, setIsMixedPlanting] = useState(false);
+  const [mixCrops, setMixCrops] = useState<{ cropId: string; percentage: number }[]>([
+    { cropId: '', percentage: 50 },
+    { cropId: '', percentage: 50 }
+  ]);
+
   const today = new Date().toISOString().split('T')[0];
   const defaultEndDate = addDays(new Date(), 14).toISOString().split('T')[0];
 
@@ -163,7 +169,18 @@ const PlantingPlanPage = () => {
     return config?.seed_density_grams || config?.seed_density || 0;
   }, [selectedCrop, selectedTraySize]);
 
-  const seedDensity = useCustomDensity ? customSeedDensity : dbSeedDensity;
+  const mixedSeedDensity = useMemo(() => {
+    if (!isMixedPlanting) return 0;
+    return mixCrops.reduce((total, mixCrop) => {
+      const crop = crops.find(c => c.id === mixCrop.cropId);
+      if (!crop?.tray_configs) return total;
+      const config = crop.tray_configs[selectedTraySize];
+      const cropDensity = config?.seed_density_grams || config?.seed_density || 0;
+      return total + (cropDensity * (mixCrop.percentage / 100));
+    }, 0);
+  }, [isMixedPlanting, mixCrops, crops, selectedTraySize]);
+
+  const seedDensity = isMixedPlanting ? mixedSeedDensity : (useCustomDensity ? customSeedDensity : dbSeedDensity);
   const totalSeedGrams = trayCount * seedDensity;
 
   const resetForm = () => {
@@ -175,6 +192,11 @@ const PlantingPlanPage = () => {
     setTrayCount(0);
     setUseCustomDensity(false);
     setCustomSeedDensity(0);
+    setIsMixedPlanting(false);
+    setMixCrops([
+      { cropId: '', percentage: 50 },
+      { cropId: '', percentage: 50 }
+    ]);
   };
 
   const handleCropSelect = (cropId: string) => {
@@ -385,38 +407,50 @@ const PlantingPlanPage = () => {
   const openEditDialog = (plan: PlantingPlan) => {
     setEditingPlan(plan);
 
-    const crop = crops.find(c => c.id === plan.crop_id);
-    setSelectedCategory(crop?.category || 'all');
-    setSelectedCropId(plan.crop_id);
+    // Handle mixed planting
+    if ((plan as any).is_mixed && (plan as any).mix_configuration) {
+      setIsMixedPlanting(true);
+      try {
+        const mixConfig = JSON.parse((plan as any).mix_configuration);
+        setMixCrops(mixConfig.map((item: any) => ({
+          cropId: item.crop_id,
+          percentage: item.percentage
+        })));
+        // Get category from first crop in mix
+        if (mixConfig.length > 0) {
+          const firstCrop = crops.find((c: any) => c.id === mixConfig[0].crop_id);
+          setSelectedCategory(firstCrop?.category || 'all');
+        }
+      } catch (e) {
+        console.error('Error parsing mix configuration:', e);
+        setMixCrops([{ cropId: '', percentage: 50 }, { cropId: '', percentage: 50 }]);
+      }
+      setSelectedCropId('');
+    } else {
+      setIsMixedPlanting(false);
+      setMixCrops([{ cropId: '', percentage: 50 }, { cropId: '', percentage: 50 }]);
+
+      const crop = crops.find(c => c.id === plan.crop_id);
+      setSelectedCategory(crop?.category || 'all');
+      setSelectedCropId(plan.crop_id);
+
+      if (crop?.tray_configs) {
+        const dbDensity = crop.tray_configs[plan.tray_size]?.seed_density_grams ||
+                          crop.tray_configs[plan.tray_size]?.seed_density || 0;
+
+        if (plan.seed_amount_grams !== dbDensity) {
+          setUseCustomDensity(true);
+          setCustomSeedDensity(plan.seed_amount_grams);
+        } else {
+          setUseCustomDensity(false);
+          setCustomSeedDensity(0);
+        }
+      }
+    }
+
     setSowDate(plan.sow_date);
     setSelectedTraySize(plan.tray_size);
     setTrayCount(plan.tray_count);
-
-    if ((plan as any).test_type) {
-      setIsTest(true);
-      setTestType((plan as any).test_type || 'osivo');
-      setBatchNumber((plan as any).batch_number || '');
-      setTestNotes((plan as any).test_notes || '');
-    } else {
-      setIsTest(false);
-      setTestType('osivo');
-      setBatchNumber('');
-      setTestNotes('');
-    }
-
-
-    if (crop?.tray_configs) {
-      const dbDensity = crop.tray_configs[plan.tray_size]?.seed_density_grams ||
-                        crop.tray_configs[plan.tray_size]?.seed_density || 0;
-
-      if (plan.seed_amount_grams !== dbDensity) {
-        setUseCustomDensity(true);
-        setCustomSeedDensity(plan.seed_amount_grams);
-      } else {
-        setUseCustomDensity(false);
-        setCustomSeedDensity(0);
-      }
-    }
 
     setIsDetailDialogOpen(false);
     setNewPlantingDialog(true);
@@ -429,25 +463,55 @@ const PlantingPlanPage = () => {
 
     const isEdit = !!editingPlan;
 
+    // Validácia pre kombinovaný výsev
+    if (isMixedPlanting) {
+      const total = mixCrops.reduce((sum, c) => sum + c.percentage, 0);
+      if (total !== 100) {
+        toast({
+          title: 'Chyba validácie',
+          description: 'Súčet percent musí byť presne 100%',
+          variant: 'destructive'
+        });
+        setSaving(false);
+        return;
+      }
+      if (mixCrops.some(c => !c.cropId)) {
+        toast({
+          title: 'Chyba validácie',
+          description: 'Vyberte všetky plodiny',
+          variant: 'destructive'
+        });
+        setSaving(false);
+        return;
+      }
+    }
+
     console.log(isEdit ? '=== UPDATING PLANTING ===' : '=== CREATING PLANTING ===');
     console.log('Selected Crop ID:', selectedCropId);
     console.log('Sow Date:', sowDate);
     console.log('Tray Size:', selectedTraySize);
     console.log('Tray Count:', trayCount);
     console.log('Seed Density:', seedDensity);
+    console.log('Is Mixed:', isMixedPlanting);
     try {
       // NOTE: Test functionality temporarily removed due to Supabase PostgREST cache bug
       // Bug report filed: GitHub issue & Supabase support ticket
       // Will be re-enabled after cache issue is resolved
 
-      const dataToSave = {
-        crop_id: selectedCropId,
+      const dataToSave: any = {
+        crop_id: isMixedPlanting ? null : selectedCropId,
         sow_date: sowDate,
         tray_size: selectedTraySize,
         tray_count: trayCount,
         seed_amount_grams: seedDensity,
         total_seed_grams: totalSeedGrams,
-        status: 'planned'
+        status: 'planned',
+        is_mixed: isMixedPlanting,
+        mix_configuration: isMixedPlanting ? JSON.stringify(mixCrops.map(mc => ({
+          crop_id: mc.cropId,
+          crop_name: crops.find(c => c.id === mc.cropId)?.name,
+          percentage: mc.percentage
+        }))) : null
       };
 
       console.log(isEdit ? 'Updating data:' : 'Inserting data:', JSON.stringify(dataToSave, null, 2));
@@ -729,7 +793,18 @@ const PlantingPlanPage = () => {
                           <Leaf className="h-4 w-4" />
                         </div>
                         <div>
-                          <h3 className="font-semibold">{plan.crops?.name || 'Neznáma plodina'}</h3>
+                          <div className="flex items-center gap-2">
+                            {(plan as any).is_mixed ? (
+                              <>
+                                <h3 className="font-semibold text-sm">Mix výsev</h3>
+                                <Badge className="bg-gradient-to-r from-orange-100 to-pink-100 text-orange-800 text-xs px-1.5 py-0">
+                                  🌈 MIX
+                                </Badge>
+                              </>
+                            ) : (
+                              <h3 className="font-semibold">{plan.crops?.name || 'Neznáma plodina'}</h3>
+                            )}
+                          </div>
                           <p className="text-xs text-muted-foreground">
                             {formatDate(plan.sow_date)}
                           </p>
@@ -757,11 +832,32 @@ const PlantingPlanPage = () => {
                     </div>
 
                     <div className="mt-3 space-y-1">
+                      {(plan as any).is_mixed && (plan as any).mix_configuration ? (
+                        <div className="text-xs space-y-1">
+                          {(() => {
+                            try {
+                              const mixConfig = JSON.parse((plan as any).mix_configuration);
+                              return mixConfig.map((item: any, idx: number) => (
+                                <div key={idx} className="flex items-center gap-1">
+                                  <span className="font-medium">{item.crop_name}</span>
+                                  <span className="text-muted-foreground">{item.percentage}%</span>
+                                </div>
+                              ));
+                            } catch (e) {
+                              return <span className="text-muted-foreground">Chyba načítania mixu</span>;
+                            }
+                          })()}
+                        </div>
+                      ) : null}
                       <p className="text-sm">
                         {plan.tray_count}× {plan.tray_size}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {formatGrams(plan.tray_config?.seed_density_grams || plan.seed_amount_grams || 0)}g/tácka • {formatGrams(plan.total_seed_grams || (plan.tray_count * (plan.tray_config?.seed_density_grams || 0)))}g celkom
+                        {(plan as any).is_mixed ? (
+                          <>Mix: {formatGrams(plan.total_seed_grams || 0)}g celkom</>
+                        ) : (
+                          <>{formatGrams(plan.tray_config?.seed_density_grams || plan.seed_amount_grams || 0)}g/tácka • {formatGrams(plan.total_seed_grams || (plan.tray_count * (plan.tray_config?.seed_density_grams || 0)))}g celkom</>
+                        )}
                       </p>
                     </div>
 
@@ -834,7 +930,30 @@ const PlantingPlanPage = () => {
                             >
                               <Leaf className="h-3 w-3" />
                             </div>
-                            <span className="font-medium">{plan.crops?.name || 'Neznáma'}</span>
+                            {(plan as any).is_mixed ? (
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm">Mix výsev</span>
+                                  <Badge className="bg-gradient-to-r from-orange-100 to-pink-100 text-orange-800 text-xs px-1.5 py-0">
+                                    🌈 MIX
+                                  </Badge>
+                                </div>
+                                {(() => {
+                                  try {
+                                    const mixConfig = JSON.parse((plan as any).mix_configuration || '[]');
+                                    return (
+                                      <span className="text-xs text-muted-foreground">
+                                        {mixConfig.map((item: any) => `${item.crop_name} ${item.percentage}%`).join(' + ')}
+                                      </span>
+                                    );
+                                  } catch (e) {
+                                    return null;
+                                  }
+                                })()}
+                              </div>
+                            ) : (
+                              <span className="font-medium">{plan.crops?.name || 'Neznáma'}</span>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>{formatDate(plan.sow_date)}</TableCell>
@@ -1096,21 +1215,128 @@ const PlantingPlanPage = () => {
                 </Tabs>
               </div>
 
-              <div className="grid gap-1.5">
-                <Label htmlFor="crop" className="text-xs font-medium text-gray-600">Plodina *</Label>
-                <Select value={selectedCropId} onValueChange={handleCropSelect}>
-                  <SelectTrigger id="crop" className="h-9 text-sm">
-                    <SelectValue placeholder="Vyberte plodinu" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filteredCrops.map(crop => (
-                      <SelectItem key={crop.id} value={crop.id}>
-                        {crop.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="flex items-center gap-2 py-2">
+                <Checkbox
+                  id="isMixedPlanting"
+                  checked={isMixedPlanting}
+                  onCheckedChange={(checked) => {
+                    setIsMixedPlanting(checked === true);
+                    if (checked === false) {
+                      setMixCrops([
+                        { cropId: '', percentage: 50 },
+                        { cropId: '', percentage: 50 }
+                      ]);
+                    }
+                  }}
+                />
+                <div>
+                  <Label htmlFor="isMixedPlanting" className="cursor-pointer text-xs font-medium text-gray-600">
+                    Kombinovaný výsev
+                  </Label>
+                  <p className="text-[10px] text-muted-foreground">Viac plodín na jednom tácke</p>
+                </div>
               </div>
+
+              {!isMixedPlanting ? (
+                <div className="grid gap-1.5">
+                  <Label htmlFor="crop" className="text-xs font-medium text-gray-600">Plodina *</Label>
+                  <Select value={selectedCropId} onValueChange={handleCropSelect}>
+                    <SelectTrigger id="crop" className="h-9 text-sm">
+                      <SelectValue placeholder="Vyberte plodinu" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredCrops.map(crop => (
+                        <SelectItem key={crop.id} value={crop.id}>
+                          {crop.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="border rounded-lg p-3 bg-gray-50 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-medium text-gray-700">Plodiny a percentá *</Label>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      onClick={() => setMixCrops([...mixCrops, { cropId: '', percentage: 0 }])}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Pridať
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {mixCrops.map((mixCrop, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <Select
+                          value={mixCrop.cropId}
+                          onValueChange={(val) => {
+                            const newMixCrops = [...mixCrops];
+                            newMixCrops[index].cropId = val;
+                            setMixCrops(newMixCrops);
+                          }}
+                        >
+                          <SelectTrigger className="h-9 text-sm flex-1">
+                            <SelectValue placeholder="Plodina" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {filteredCrops.map(crop => (
+                              <SelectItem key={crop.id} value={crop.id}>
+                                {crop.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        <div className="flex items-center gap-1 w-24">
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="1"
+                            value={mixCrop.percentage === 0 ? '' : mixCrop.percentage}
+                            onChange={(e) => {
+                              const newMixCrops = [...mixCrops];
+                              newMixCrops[index].percentage = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                              setMixCrops(newMixCrops);
+                            }}
+                            placeholder="0"
+                            className="h-9 text-sm w-16"
+                          />
+                          <span className="text-sm text-gray-600">%</span>
+                        </div>
+
+                        {mixCrops.length > 2 && (
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="h-9 w-9 text-destructive"
+                            onClick={() => {
+                              setMixCrops(mixCrops.filter((_, i) => i !== index));
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className={`text-sm font-medium ${
+                    mixCrops.reduce((sum, c) => sum + c.percentage, 0) === 100
+                      ? 'text-green-600'
+                      : 'text-red-600'
+                  }`}>
+                    Súčet: {mixCrops.reduce((sum, c) => sum + c.percentage, 0)}%
+                    {mixCrops.reduce((sum, c) => sum + c.percentage, 0) === 100 && ' ✓'}
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="grid gap-1.5">
@@ -1146,65 +1372,82 @@ const PlantingPlanPage = () => {
                 </div>
               </div>
 
-              <div className="border rounded-lg p-1.5 bg-gray-50/50 space-y-1">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="seedDensity" className="text-xs font-medium text-gray-600">Hustota semien</Label>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="customDensity"
-                      checked={useCustomDensity}
-                      onCheckedChange={(checked) => {
-                        setUseCustomDensity(checked === true);
-                        if (checked === false) {
-                          setCustomSeedDensity(0);
-                        } else {
-                          setCustomSeedDensity(dbSeedDensity);
+              {!isMixedPlanting && (
+                <div className="border rounded-lg p-1.5 bg-gray-50/50 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="seedDensity" className="text-xs font-medium text-gray-600">Hustota semien</Label>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="customDensity"
+                        checked={useCustomDensity}
+                        onCheckedChange={(checked) => {
+                          setUseCustomDensity(checked === true);
+                          if (checked === false) {
+                            setCustomSeedDensity(0);
+                          } else {
+                            setCustomSeedDensity(dbSeedDensity);
+                          }
+                        }}
+                      />
+                      <Label htmlFor="customDensity" className="cursor-pointer font-normal text-xs">
+                        Vlastná hustota
+                      </Label>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="seedDensity"
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={useCustomDensity ? (customSeedDensity === 0 ? '' : customSeedDensity) : dbSeedDensity}
+                      onChange={(e) => {
+                        if (useCustomDensity) {
+                          setCustomSeedDensity(e.target.value === '' ? 0 : parseFloat(e.target.value));
                         }
                       }}
+                      disabled={!useCustomDensity}
+                      className="flex-1 h-9 text-sm"
                     />
-                    <Label htmlFor="customDensity" className="cursor-pointer font-normal text-xs">
-                      Vlastná hustota
-                    </Label>
+                    <span className="text-xs text-gray-600 whitespace-nowrap">g/tácka</span>
+                    {dbSeedDensity > 0 && (
+                      <Badge variant="outline" className="whitespace-nowrap text-xs px-1.5 py-0.5">
+                        {formatGrams(dbSeedDensity)}g
+                      </Badge>
+                    )}
                   </div>
-                </div>
 
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="seedDensity"
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={useCustomDensity ? (customSeedDensity === 0 ? '' : customSeedDensity) : dbSeedDensity}
-                    onChange={(e) => {
-                      if (useCustomDensity) {
-                        setCustomSeedDensity(e.target.value === '' ? 0 : parseFloat(e.target.value));
-                      }
-                    }}
-                    disabled={!useCustomDensity}
-                    className="flex-1 h-9 text-sm"
-                  />
-                  <span className="text-xs text-gray-600 whitespace-nowrap">g/tácka</span>
-                  {dbSeedDensity > 0 && (
-                    <Badge variant="outline" className="whitespace-nowrap text-xs px-1.5 py-0.5">
-                      {formatGrams(dbSeedDensity)}g
-                    </Badge>
+                  {useCustomDensity && dbSeedDensity !== customSeedDensity && dbSeedDensity > 0 && customSeedDensity > 0 && (
+                    <div className="flex items-start gap-2 p-1.5 bg-amber-50 dark:bg-amber-950/20 rounded text-xs text-amber-900 dark:text-amber-200">
+                      <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                      <p>Upravené z {formatGrams(dbSeedDensity)}g na {formatGrams(customSeedDensity)}g/tácka</p>
+                    </div>
                   )}
-                </div>
 
-                {useCustomDensity && dbSeedDensity !== customSeedDensity && dbSeedDensity > 0 && customSeedDensity > 0 && (
-                  <div className="flex items-start gap-2 p-1.5 bg-amber-50 dark:bg-amber-950/20 rounded text-xs text-amber-900 dark:text-amber-200">
-                    <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
-                    <p>Upravené z {formatGrams(dbSeedDensity)}g na {formatGrams(customSeedDensity)}g/tácka</p>
+                  <div className="flex items-center gap-2 pt-1 border-t">
+                    <span className="text-xs text-gray-600">Celkom:</span>
+                    <Badge variant="secondary" className="text-xs px-2 py-0.5">
+                      {formatGrams(totalSeedGrams)}g
+                    </Badge>
                   </div>
-                )}
-
-                <div className="flex items-center gap-2 pt-1 border-t">
-                  <span className="text-xs text-gray-600">Celkom:</span>
-                  <Badge variant="secondary" className="text-xs px-2 py-0.5">
-                    {formatGrams(totalSeedGrams)}g
-                  </Badge>
                 </div>
-              </div>
+              )}
+
+              {isMixedPlanting && (
+                <div className="border rounded-lg p-2 bg-blue-50/50 space-y-1">
+                  <Label className="text-xs font-medium text-gray-600">Celková hustota semien (mix)</Label>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="text-sm px-2 py-1">
+                      {formatGrams(seedDensity)}g / tácka
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">→</span>
+                    <Badge variant="secondary" className="text-sm px-2 py-1">
+                      Celkom: {formatGrams(totalSeedGrams)}g
+                    </Badge>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="grid gap-1.5">
