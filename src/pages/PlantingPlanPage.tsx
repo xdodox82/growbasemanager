@@ -447,12 +447,13 @@ const PlantingPlanPage = () => {
             tray_count: count,
             seed_amount_grams: density,
             total_seed_grams: count * density,
-            status: 'planned',
-            is_test: plantingType === 'test',
-            seed_batch: plantingType === 'test' ? seedBatch : null,
-            include_in_stats: plantingType === 'test' ? includeInStats : true,
-            test_notes: plantingType === 'test' ? testNotes : null
+            status: 'planned'
           };
+
+          console.log('NOTE: Test fields temporarily disabled due to cache issue');
+          if (plantingType === 'test') {
+            console.log('This would be a TEST planting:', { seedBatch, includeInStats, testNotes });
+          }
 
           console.log('Inserting data:', JSON.stringify(dataToInsert, null, 2));
 
