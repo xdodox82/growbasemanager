@@ -27,6 +27,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -65,6 +67,7 @@ interface Crop {
   name: string;
   color: string;
   days_to_harvest: number;
+  category?: string;
   tray_configs?: Record<string, { seed_density?: number; seed_density_grams?: number; expected_yield?: number; yield_grams?: number }>;
 }
 
@@ -127,10 +130,14 @@ const PlantingPlanPage = () => {
 
   const [newPlantingDialog, setNewPlantingDialog] = useState(false);
   const [plantingType, setPlantingType] = useState('production');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedCropId, setSelectedCropId] = useState('');
   const [sowDate, setSowDate] = useState('');
   const [harvestDate, setHarvestDate] = useState('');
-  const [trayConfig, setTrayConfig] = useState({ XL: 0, L: 0, M: 0, S: 0 });
+  const [selectedTraySize, setSelectedTraySize] = useState<'XL' | 'L' | 'M' | 'S'>('XL');
+  const [trayCount, setTrayCount] = useState(0);
+  const [useCustomDensity, setUseCustomDensity] = useState(false);
+  const [customSeedDensity, setCustomSeedDensity] = useState(0);
   const [seedBatch, setSeedBatch] = useState('');
   const [includeInStats, setIncludeInStats] = useState(true);
   const [testNotes, setTestNotes] = useState('');
@@ -150,28 +157,30 @@ const PlantingPlanPage = () => {
     return crops.find(crop => crop.id === selectedCropId);
   }, [crops, selectedCropId]);
 
-  const traySizes = ['XL', 'L', 'M', 'S'];
+  const filteredCrops = useMemo(() => {
+    if (selectedCategory === 'all') return crops;
+    return crops.filter(crop => crop.category === selectedCategory);
+  }, [crops, selectedCategory]);
 
-  const getTrayDensity = (size: string) => {
+  const dbSeedDensity = useMemo(() => {
     if (!selectedCrop?.tray_configs) return 0;
-    const config = selectedCrop.tray_configs[size];
-    return config?.seed_density || config?.seed_density_grams || 0;
-  };
+    const config = selectedCrop.tray_configs[selectedTraySize];
+    return config?.seed_density_grams || config?.seed_density || 0;
+  }, [selectedCrop, selectedTraySize]);
 
-  const calculateTotalSeeds = () => {
-    let total = 0;
-    for (const [size, count] of Object.entries(trayConfig)) {
-      total += count * getTrayDensity(size);
-    }
-    return formatGrams(total);
-  };
+  const seedDensity = useCustomDensity ? customSeedDensity : dbSeedDensity;
+  const totalSeedGrams = trayCount * seedDensity;
 
   const resetForm = () => {
     setPlantingType('production');
+    setSelectedCategory('all');
     setSelectedCropId('');
     setSowDate('');
     setHarvestDate('');
-    setTrayConfig({ XL: 0, L: 0, M: 0, S: 0 });
+    setSelectedTraySize('XL');
+    setTrayCount(0);
+    setUseCustomDensity(false);
+    setCustomSeedDensity(0);
     setSeedBatch('');
     setIncludeInStats(true);
     setTestNotes('');
@@ -179,20 +188,8 @@ const PlantingPlanPage = () => {
 
   const handleCropSelect = (cropId: string) => {
     setSelectedCropId(cropId);
-
-    const crop = crops.find(c => c.id === cropId);
-    if (crop && crop.tray_configs) {
-      console.log('Loading tray densities for crop:', crop.name, crop.tray_configs);
-      setTrayConfig({
-        XL: crop.tray_configs.XL?.seed_density_grams || crop.tray_configs.XL?.seed_density || 0,
-        L: crop.tray_configs.L?.seed_density_grams || crop.tray_configs.L?.seed_density || 0,
-        M: crop.tray_configs.M?.seed_density_grams || crop.tray_configs.M?.seed_density || 0,
-        S: crop.tray_configs.S?.seed_density_grams || crop.tray_configs.S?.seed_density || 0,
-      });
-    } else {
-      console.log('No tray_configs found for crop:', cropId);
-      setTrayConfig({ XL: 0, L: 0, M: 0, S: 0 });
-    }
+    setUseCustomDensity(false);
+    setCustomSeedDensity(0);
   };
 
   const [editFormData, setEditFormData] = useState({
@@ -204,7 +201,7 @@ const PlantingPlanPage = () => {
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, days_to_harvest, tray_configs, color')
+        .select('id, name, days_to_harvest, tray_configs, color, category')
         .order('name');
 
       if (error) throw error;
@@ -450,55 +447,51 @@ const PlantingPlanPage = () => {
     console.log('=== CREATING PLANTING ===');
     console.log('Selected Crop ID:', selectedCropId);
     console.log('Sow Date:', sowDate);
-    console.log('Tray Config:', trayConfig);
+    console.log('Tray Size:', selectedTraySize);
+    console.log('Tray Count:', trayCount);
+    console.log('Seed Density:', seedDensity);
     console.log('Planting Type:', plantingType);
 
     try {
-      for (const [size, count] of Object.entries(trayConfig)) {
-        if (count > 0) {
-          const density = getTrayDensity(size);
+      const dataToInsert = {
+        crop_id: selectedCropId,
+        sow_date: sowDate,
+        tray_size: selectedTraySize,
+        tray_count: trayCount,
+        seed_amount_grams: seedDensity,
+        total_seed_grams: totalSeedGrams,
+        status: 'planned'
+      };
 
-          const dataToInsert = {
-            crop_id: selectedCropId,
-            sow_date: sowDate,
-            tray_size: size,
-            tray_count: count,
-            seed_amount_grams: density,
-            total_seed_grams: count * density,
-            status: 'planned'
-          };
-
-          console.log('NOTE: Test fields temporarily disabled due to cache issue');
-          if (plantingType === 'test') {
-            console.log('This would be a TEST planting:', { seedBatch, includeInStats, testNotes });
-          }
-
-          console.log('Inserting data:', JSON.stringify(dataToInsert, null, 2));
-
-          const { data, error } = await supabase
-            .from('planting_plans')
-            .insert(dataToInsert);
-
-          if (error) {
-            console.error('=== SUPABASE ERROR ===');
-            console.error('Error code:', error.code);
-            console.error('Error message:', error.message);
-            console.error('Error details:', error.details);
-            console.error('Error hint:', error.hint);
-            console.error('Full error:', JSON.stringify(error, null, 2));
-
-            toast({
-              title: 'Chyba pri ukladaní',
-              description: error.message || 'Neznáma chyba',
-              variant: 'destructive'
-            });
-            setSaving(false);
-            return;
-          }
-
-          console.log('Insert successful:', data);
-        }
+      console.log('NOTE: Test fields temporarily disabled due to cache issue');
+      if (plantingType === 'test') {
+        console.log('This would be a TEST planting:', { seedBatch, includeInStats, testNotes });
       }
+
+      console.log('Inserting data:', JSON.stringify(dataToInsert, null, 2));
+
+      const { data, error } = await supabase
+        .from('planting_plans')
+        .insert(dataToInsert);
+
+      if (error) {
+        console.error('=== SUPABASE ERROR ===');
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
+        console.error('Error details:', error.details);
+        console.error('Error hint:', error.hint);
+        console.error('Full error:', JSON.stringify(error, null, 2));
+
+        toast({
+          title: 'Chyba pri ukladaní',
+          description: error.message || 'Neznáma chyba',
+          variant: 'destructive'
+        });
+        setSaving(false);
+        return;
+      }
+
+      console.log('Insert successful:', data);
 
       toast({
         title: plantingType === 'test' ? 'Test vytvorený' : 'Výsev vytvorený',
@@ -1178,19 +1171,124 @@ const PlantingPlanPage = () => {
               </div>
 
               <div className="grid gap-2">
+                <Label>Kategória plodiny</Label>
+                <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="w-full">
+                  <TabsList className="grid w-full grid-cols-4">
+                    <TabsTrigger value="all">Všetko</TabsTrigger>
+                    <TabsTrigger value="microgreens">Mikrozelenina</TabsTrigger>
+                    <TabsTrigger value="microherbs">Mikrobylinky</TabsTrigger>
+                    <TabsTrigger value="edible_flowers">Jedlé kvety</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+
+              <div className="grid gap-2">
                 <Label htmlFor="crop">Plodina *</Label>
                 <Select value={selectedCropId} onValueChange={handleCropSelect}>
                   <SelectTrigger id="crop">
                     <SelectValue placeholder="Vyberte plodinu" />
                   </SelectTrigger>
                   <SelectContent>
-                    {crops.map(crop => (
+                    {filteredCrops.map(crop => (
                       <SelectItem key={crop.id} value={crop.id}>
                         {crop.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="traySize">Veľkosť tácky *</Label>
+                  <Select value={selectedTraySize} onValueChange={(val) => setSelectedTraySize(val as 'XL' | 'L' | 'M' | 'S')}>
+                    <SelectTrigger id="traySize">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="XL">XL</SelectItem>
+                      <SelectItem value="L">L</SelectItem>
+                      <SelectItem value="M">M</SelectItem>
+                      <SelectItem value="S">S</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="trayCount">Počet táciek *</Label>
+                  <Input
+                    id="trayCount"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={trayCount === 0 ? '' : trayCount}
+                    onChange={(e) => setTrayCount(e.target.value === '' ? 0 : parseInt(e.target.value))}
+                    onBlur={(e) => {
+                      if (e.target.value === '') setTrayCount(0);
+                    }}
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              <div className="border rounded-lg p-4 bg-muted/30 space-y-3">
+                <div>
+                  <Label htmlFor="seedDensity">Hustota semien</Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="customDensity"
+                    checked={useCustomDensity}
+                    onCheckedChange={(checked) => {
+                      setUseCustomDensity(checked === true);
+                      if (checked === false) {
+                        setCustomSeedDensity(0);
+                      } else {
+                        setCustomSeedDensity(dbSeedDensity);
+                      }
+                    }}
+                  />
+                  <Label htmlFor="customDensity" className="cursor-pointer font-normal">
+                    Vlastná hustota
+                  </Label>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="seedDensity"
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={useCustomDensity ? (customSeedDensity === 0 ? '' : customSeedDensity) : dbSeedDensity}
+                    onChange={(e) => {
+                      if (useCustomDensity) {
+                        setCustomSeedDensity(e.target.value === '' ? 0 : parseFloat(e.target.value));
+                      }
+                    }}
+                    disabled={!useCustomDensity}
+                    className="flex-1"
+                  />
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">g/tácka</span>
+                  {dbSeedDensity > 0 && (
+                    <Badge variant="outline" className="whitespace-nowrap">
+                      Odporúčané: {formatGrams(dbSeedDensity)}g
+                    </Badge>
+                  )}
+                </div>
+
+                {useCustomDensity && dbSeedDensity !== customSeedDensity && dbSeedDensity > 0 && customSeedDensity > 0 && (
+                  <div className="flex items-start gap-2 p-2 bg-amber-50 dark:bg-amber-950/20 rounded text-sm text-amber-900 dark:text-amber-200">
+                    <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                    <p>Upravené z {formatGrams(dbSeedDensity)}g na {formatGrams(customSeedDensity)}g/tácka</p>
+                  </div>
+                )}
+
+                <div className="mt-3 pt-3 border-t">
+                  <p className="font-medium text-primary">
+                    Celkom semien: {formatGrams(totalSeedGrams)}g
+                  </p>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -1215,50 +1313,6 @@ const PlantingPlanPage = () => {
                   />
                   <p className="text-xs text-muted-foreground">
                     Automaticky: {selectedCrop?.days_to_harvest || 0} dní od výsevu
-                  </p>
-                </div>
-              </div>
-
-              <div className="border rounded-lg p-4 bg-muted/30">
-                <h4 className="font-semibold mb-3">Kombinácia tácok</h4>
-                <div className="space-y-3">
-                  {traySizes.map((size) => (
-                    <div key={size} className="grid grid-cols-[60px_1fr_1fr] gap-3 items-center">
-                      <Label className="font-semibold">{size}</Label>
-                      <div className="grid gap-1">
-                        <Label className="text-xs text-muted-foreground">Počet tácok</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={trayConfig[size as keyof typeof trayConfig] === 0 ? '' : trayConfig[size as keyof typeof trayConfig]}
-                          onChange={(e) => {
-                            const val = e.target.value === '' ? 0 : parseInt(e.target.value);
-                            setTrayConfig({
-                              ...trayConfig,
-                              [size]: val
-                            });
-                          }}
-                          onBlur={(e) => {
-                            if (e.target.value === '') {
-                              setTrayConfig({
-                                ...trayConfig,
-                                [size]: 0
-                              });
-                            }
-                          }}
-                          className="h-8"
-                        />
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {formatGrams(getTrayDensity(size))}g/tácka
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-3 pt-3 border-t">
-                  <p className="font-medium text-primary">
-                    Celkom semien: {calculateTotalSeeds()}g
                   </p>
                 </div>
               </div>
@@ -1317,7 +1371,7 @@ const PlantingPlanPage = () => {
               <Button type="button" variant="outline" onClick={() => setNewPlantingDialog(false)}>
                 Zrušiť
               </Button>
-              <Button type="submit" disabled={saving || !selectedCropId || !sowDate}>
+              <Button type="submit" disabled={saving || !selectedCropId || !sowDate || trayCount === 0}>
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Vytvoriť výsev
               </Button>
