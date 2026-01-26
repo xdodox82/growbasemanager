@@ -188,7 +188,6 @@ const PlantingPlanPage = () => {
   const totalSeedGrams = trayCount * seedDensity;
 
   const resetForm = () => {
-    setPlantingType('production');
     setSelectedCategory('all');
     setSelectedCropId('');
     setSowDate('');
@@ -197,9 +196,6 @@ const PlantingPlanPage = () => {
     setTrayCount(0);
     setUseCustomDensity(false);
     setCustomSeedDensity(0);
-    setSeedBatch('');
-    setIncludeInStats(true);
-    setTestNotes('');
   };
 
   const handleCropSelect = (cropId: string) => {
