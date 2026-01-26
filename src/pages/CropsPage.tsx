@@ -929,11 +929,11 @@ const CropsPage = () => {
                 </div>
                 <div className="space-y-1">
                   <div className="text-sm text-muted-foreground">Hustota osiva</div>
-                  <div className="font-medium">{selectedCropDetail.seed_density} g/tác</div>
+                  <div className="font-medium">{selectedCropDetail.tray_configs?.XL?.seed_density_grams || selectedCropDetail.seed_density} g/tác</div>
                 </div>
                 <div className="space-y-1">
                   <div className="text-sm text-muted-foreground">Očakávaný výnos</div>
-                  <div className="font-medium">{selectedCropDetail.expected_yield || '-'} g</div>
+                  <div className="font-medium">{selectedCropDetail.tray_configs?.XL?.expected_yield || selectedCropDetail.expected_yield || '-'} g</div>
                 </div>
                 <div className="space-y-1">
                   <div className="text-sm text-muted-foreground">Dni v tme</div>

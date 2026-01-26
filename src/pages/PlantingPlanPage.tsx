@@ -400,6 +400,11 @@ const PlantingPlanPage = () => {
     setSelectedTraySize(plan.tray_size);
     setTrayCount(plan.tray_count);
 
+    setPlantingType((plan as any).is_test ? 'test' : 'production');
+    setSeedBatch((plan as any).seed_batch || '');
+    setTestNotes((plan as any).test_notes || '');
+    setIncludeInStats((plan as any).include_in_stats !== false);
+
     if (crop?.tray_configs) {
       const dbDensity = crop.tray_configs[plan.tray_size]?.seed_density_grams ||
                         crop.tray_configs[plan.tray_size]?.seed_density || 0;
@@ -440,13 +445,12 @@ const PlantingPlanPage = () => {
         tray_count: trayCount,
         seed_amount_grams: seedDensity,
         total_seed_grams: totalSeedGrams,
-        status: 'planned'
+        status: 'planned',
+        is_test: plantingType === 'test',
+        seed_batch: plantingType === 'test' ? (seedBatch || null) : null,
+        test_notes: plantingType === 'test' ? (testNotes || null) : null,
+        include_in_stats: plantingType === 'test' ? includeInStats : true
       };
-
-      console.log('NOTE: Test fields temporarily disabled due to cache issue');
-      if (plantingType === 'test') {
-        console.log('This would be a TEST planting:', { seedBatch, includeInStats, testNotes });
-      }
 
       console.log(isEdit ? 'Updating data:' : 'Inserting data:', JSON.stringify(dataToSave, null, 2));
 
@@ -709,7 +713,8 @@ const PlantingPlanPage = () => {
                   <Card
                     key={plan.id}
                     className={`p-4 hover:border-primary/50 cursor-pointer transition-colors ${
-                      plan.status === 'completed' ? 'bg-green-50 border-green-200' : ''
+                      plan.status === 'completed' ? 'bg-green-50 border-green-200' :
+                      (plan as any).is_test ? 'bg-yellow-50 border-yellow-200' : ''
                     }`}
                     onClick={() => openDetailDialog(plan)}
                   >
@@ -731,7 +736,12 @@ const PlantingPlanPage = () => {
                           </p>
                         </div>
                       </div>
-                      <div onClick={(e) => e.stopPropagation()}>
+                      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                        {(plan as any).is_test && (
+                          <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200">
+                            🧪 TEST
+                          </Badge>
+                        )}
                         {plan.status === 'completed' ? (
                           <Badge className="bg-green-500 text-white hover:bg-green-600">
                             <CheckCircle2 className="h-3 w-3 mr-1" />
@@ -814,7 +824,10 @@ const PlantingPlanPage = () => {
                     {filteredPlans.map(plan => (
                       <TableRow
                         key={plan.id}
-                        className="cursor-pointer hover:bg-muted/50"
+                        className={`cursor-pointer hover:bg-muted/50 ${
+                          plan.status === 'completed' ? 'bg-green-50' :
+                          (plan as any).is_test ? 'bg-yellow-50' : ''
+                        }`}
                         onClick={() => openDetailDialog(plan)}
                       >
                         <TableCell>
@@ -836,14 +849,21 @@ const PlantingPlanPage = () => {
                         <TableCell>{plan.tray_count}× {plan.tray_size}</TableCell>
                         <TableCell>{formatGrams(plan.total_seed_grams || (plan.tray_count * (plan.tray_config?.seed_density_grams || 0)))}g</TableCell>
                         <TableCell>
-                          {plan.status === 'completed' ? (
-                            <Badge className="bg-green-500 text-white hover:bg-green-600">
-                              <CheckCircle2 className="h-3 w-3 mr-1" />
-                              Hotovo
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline">Plánované</Badge>
-                          )}
+                          <div className="flex gap-1">
+                            {(plan as any).is_test && (
+                              <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200 text-xs">
+                                🧪 TEST
+                              </Badge>
+                            )}
+                            {plan.status === 'completed' ? (
+                              <Badge className="bg-green-500 text-white hover:bg-green-600">
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                Hotovo
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline">Plánované</Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="flex gap-1 justify-end">
@@ -902,7 +922,10 @@ const PlantingPlanPage = () => {
                         {plansForDate.map(plan => (
                           <div
                             key={plan.id}
-                            className="flex items-center justify-between p-2 bg-muted/30 rounded hover:bg-muted/50 cursor-pointer transition-colors"
+                            className={`flex items-center justify-between p-2 rounded hover:bg-muted/50 cursor-pointer transition-colors ${
+                              plan.status === 'completed' ? 'bg-green-50' :
+                              (plan as any).is_test ? 'bg-yellow-50' : 'bg-muted/30'
+                            }`}
                             onClick={() => openDetailDialog(plan)}
                           >
                             <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -1074,9 +1097,9 @@ const PlantingPlanPage = () => {
             <div className="space-y-4">
 
               <div className="grid gap-2">
-                <Label>Typ výsevu *</Label>
+                <Label className="text-sm">Typ výsevu *</Label>
                 <div className="flex gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm">
                     <input
                       type="radio"
                       name="plantingType"
@@ -1087,7 +1110,7 @@ const PlantingPlanPage = () => {
                     />
                     <span>📦 Štandardná produkcia</span>
                   </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm">
                     <input
                       type="radio"
                       name="plantingType"
@@ -1096,27 +1119,27 @@ const PlantingPlanPage = () => {
                       onChange={(e) => setPlantingType(e.target.value)}
                       className="h-4 w-4"
                     />
-                    <span>🧪 Test osiva</span>
+                    <span>🧪 Test</span>
                   </label>
                 </div>
               </div>
 
               <div className="grid gap-2">
-                <Label>Kategória plodiny</Label>
+                <Label className="text-sm">Kategória plodiny</Label>
                 <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="w-full">
-                  <TabsList className="grid w-full grid-cols-4">
-                    <TabsTrigger value="all">Všetko</TabsTrigger>
-                    <TabsTrigger value="microgreens">Mikrozelenina</TabsTrigger>
-                    <TabsTrigger value="microherbs">Mikrobylinky</TabsTrigger>
-                    <TabsTrigger value="edible_flowers">Jedlé kvety</TabsTrigger>
+                  <TabsList className="grid w-full grid-cols-4 h-9">
+                    <TabsTrigger value="all" className="text-xs">Všetko</TabsTrigger>
+                    <TabsTrigger value="microgreens" className="text-xs">Mikrozelenina</TabsTrigger>
+                    <TabsTrigger value="microherbs" className="text-xs">Mikrobylinky</TabsTrigger>
+                    <TabsTrigger value="edible_flowers" className="text-xs">Jedlé kvety</TabsTrigger>
                   </TabsList>
                 </Tabs>
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="crop">Plodina *</Label>
+                <Label htmlFor="crop" className="text-sm">Plodina *</Label>
                 <Select value={selectedCropId} onValueChange={handleCropSelect}>
-                  <SelectTrigger id="crop">
+                  <SelectTrigger id="crop" className="h-9">
                     <SelectValue placeholder="Vyberte plodinu" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1131,9 +1154,9 @@ const PlantingPlanPage = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="traySize">Veľkosť tácky *</Label>
+                  <Label htmlFor="traySize" className="text-sm">Veľkosť tácky *</Label>
                   <Select value={selectedTraySize} onValueChange={(val) => setSelectedTraySize(val as 'XL' | 'L' | 'M' | 'S')}>
-                    <SelectTrigger id="traySize">
+                    <SelectTrigger id="traySize" className="h-9">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1146,7 +1169,7 @@ const PlantingPlanPage = () => {
                 </div>
 
                 <div className="grid gap-2">
-                  <Label htmlFor="trayCount">Počet táciek *</Label>
+                  <Label htmlFor="trayCount" className="text-sm">Počet táciek *</Label>
                   <Input
                     id="trayCount"
                     type="number"
@@ -1158,31 +1181,31 @@ const PlantingPlanPage = () => {
                       if (e.target.value === '') setTrayCount(0);
                     }}
                     placeholder="0"
+                    className="h-9"
                   />
                 </div>
               </div>
 
-              <div className="border rounded-lg p-4 bg-muted/30 space-y-3">
-                <div>
-                  <Label htmlFor="seedDensity">Hustota semien</Label>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="customDensity"
-                    checked={useCustomDensity}
-                    onCheckedChange={(checked) => {
-                      setUseCustomDensity(checked === true);
-                      if (checked === false) {
-                        setCustomSeedDensity(0);
-                      } else {
-                        setCustomSeedDensity(dbSeedDensity);
-                      }
-                    }}
-                  />
-                  <Label htmlFor="customDensity" className="cursor-pointer font-normal">
-                    Vlastná hustota
-                  </Label>
+              <div className="border rounded-lg p-3 bg-muted/30 space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="seedDensity" className="text-sm">Hustota semien</Label>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="customDensity"
+                      checked={useCustomDensity}
+                      onCheckedChange={(checked) => {
+                        setUseCustomDensity(checked === true);
+                        if (checked === false) {
+                          setCustomSeedDensity(0);
+                        } else {
+                          setCustomSeedDensity(dbSeedDensity);
+                        }
+                      }}
+                    />
+                    <Label htmlFor="customDensity" className="cursor-pointer font-normal text-xs">
+                      Vlastná hustota
+                    </Label>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -1198,49 +1221,51 @@ const PlantingPlanPage = () => {
                       }
                     }}
                     disabled={!useCustomDensity}
-                    className="flex-1"
+                    className="flex-1 h-9"
                   />
-                  <span className="text-sm text-muted-foreground whitespace-nowrap">g/tácka</span>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">g/tácka</span>
                   {dbSeedDensity > 0 && (
-                    <Badge variant="outline" className="whitespace-nowrap">
-                      Odporúčané: {formatGrams(dbSeedDensity)}g
+                    <Badge variant="outline" className="whitespace-nowrap text-xs">
+                      {formatGrams(dbSeedDensity)}g
                     </Badge>
                   )}
                 </div>
 
                 {useCustomDensity && dbSeedDensity !== customSeedDensity && dbSeedDensity > 0 && customSeedDensity > 0 && (
-                  <div className="flex items-start gap-2 p-2 bg-amber-50 dark:bg-amber-950/20 rounded text-sm text-amber-900 dark:text-amber-200">
-                    <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <div className="flex items-start gap-2 p-2 bg-amber-50 dark:bg-amber-950/20 rounded text-xs text-amber-900 dark:text-amber-200">
+                    <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
                     <p>Upravené z {formatGrams(dbSeedDensity)}g na {formatGrams(customSeedDensity)}g/tácka</p>
                   </div>
                 )}
 
-                <div className="mt-3 pt-3 border-t">
-                  <p className="font-medium text-primary">
-                    Celkom semien: {formatGrams(totalSeedGrams)}g
-                  </p>
+                <div className="flex items-center gap-2 pt-2 border-t">
+                  <span className="text-sm text-muted-foreground">Celkom:</span>
+                  <Badge variant="secondary" className="text-sm">
+                    {formatGrams(totalSeedGrams)}g
+                  </Badge>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="sowDate">Dátum výsevu *</Label>
+                  <Label htmlFor="sowDate" className="text-sm">Dátum výsevu *</Label>
                   <Input
                     id="sowDate"
                     type="date"
                     value={sowDate}
                     onChange={(e) => setSowDate(e.target.value)}
                     required
+                    className="h-9"
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="harvestDate">Dátum zberu</Label>
+                  <Label htmlFor="harvestDate" className="text-sm">Dátum zberu</Label>
                   <Input
                     id="harvestDate"
                     type="date"
                     value={harvestDate}
                     disabled
-                    className="bg-muted"
+                    className="bg-muted h-9"
                   />
                   <p className="text-xs text-muted-foreground">
                     Automaticky: {selectedCrop?.days_to_harvest || 0} dní od výsevu
@@ -1249,19 +1274,32 @@ const PlantingPlanPage = () => {
               </div>
 
               {plantingType === 'test' && (
-                <div className="border rounded-lg p-4 bg-muted/30 space-y-3">
-                  <div className="flex items-center gap-2 mb-2">
+                <div className="border rounded-lg p-3 bg-muted/30 space-y-2">
+                  <div className="flex items-center gap-2">
                     <Beaker className="h-4 w-4 text-primary" />
-                    <h4 className="font-semibold">Testovací výsev</h4>
+                    <h4 className="font-semibold text-sm">Testovací výsev</h4>
                   </div>
 
                   <div className="grid gap-2">
-                    <Label htmlFor="seedBatch">Sárža semien</Label>
+                    <Label htmlFor="seedBatch" className="text-sm">Šarža (voliteľné)</Label>
                     <Input
                       id="seedBatch"
                       value={seedBatch}
                       onChange={(e) => setSeedBatch(e.target.value)}
                       placeholder="napr. 2024-11-A"
+                      className="h-9"
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="testNotes" className="text-sm">Poznámka k testu (voliteľné)</Label>
+                    <Textarea
+                      id="testNotes"
+                      value={testNotes}
+                      onChange={(e) => setTestNotes(e.target.value)}
+                      placeholder="Napr: test substrátu, test osiva, test novej odrody..."
+                      rows={2}
+                      className="text-sm"
                     />
                   </div>
 
@@ -1273,24 +1311,13 @@ const PlantingPlanPage = () => {
                       onChange={(e) => setIncludeInStats(e.target.checked)}
                       className="h-4 w-4"
                     />
-                    <Label htmlFor="includeStats" className="cursor-pointer">
+                    <Label htmlFor="includeStats" className="cursor-pointer text-sm">
                       Započítať výnos do štatistík
                     </Label>
                   </div>
 
-                  <div className="grid gap-2">
-                    <Label htmlFor="testNotes">Poznámka</Label>
-                    <Textarea
-                      id="testNotes"
-                      value={testNotes}
-                      onChange={(e) => setTestNotes(e.target.value)}
-                      placeholder="Dôvod testu, očakávania..."
-                      rows={2}
-                    />
-                  </div>
-
-                  <div className="flex items-start gap-2 p-3 bg-muted rounded text-sm">
-                    <Beaker className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <div className="flex items-start gap-2 p-2 bg-muted rounded text-xs">
+                    <Beaker className="h-3 w-3 mt-0.5 flex-shrink-0" />
                     <p>Semená sa NEODPOČÍTAJÚ zo skladu pri testovacom výseve.</p>
                   </div>
                 </div>
