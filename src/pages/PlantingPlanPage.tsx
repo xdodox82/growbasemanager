@@ -177,6 +177,24 @@ const PlantingPlanPage = () => {
     setTestNotes('');
   };
 
+  const handleCropSelect = (cropId: string) => {
+    setSelectedCropId(cropId);
+
+    const crop = crops.find(c => c.id === cropId);
+    if (crop && crop.tray_configs) {
+      console.log('Loading tray densities for crop:', crop.name, crop.tray_configs);
+      setTrayConfig({
+        XL: crop.tray_configs.XL?.seed_density_grams || crop.tray_configs.XL?.seed_density || 0,
+        L: crop.tray_configs.L?.seed_density_grams || crop.tray_configs.L?.seed_density || 0,
+        M: crop.tray_configs.M?.seed_density_grams || crop.tray_configs.M?.seed_density || 0,
+        S: crop.tray_configs.S?.seed_density_grams || crop.tray_configs.S?.seed_density || 0,
+      });
+    } else {
+      console.log('No tray_configs found for crop:', cropId);
+      setTrayConfig({ XL: 0, L: 0, M: 0, S: 0 });
+    }
+  };
+
   const [editFormData, setEditFormData] = useState({
     tray_count: 0,
     tray_size: 'XL' as 'XL' | 'L' | 'M' | 'S',
@@ -1161,7 +1179,7 @@ const PlantingPlanPage = () => {
 
               <div className="grid gap-2">
                 <Label htmlFor="crop">Plodina *</Label>
-                <Select value={selectedCropId} onValueChange={setSelectedCropId}>
+                <Select value={selectedCropId} onValueChange={handleCropSelect}>
                   <SelectTrigger id="crop">
                     <SelectValue placeholder="Vyberte plodinu" />
                   </SelectTrigger>
