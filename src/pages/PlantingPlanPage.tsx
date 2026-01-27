@@ -961,14 +961,14 @@ const PlantingPlanPage = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Plodina</TableHead>
-                      <TableHead>Dátum výsevu</TableHead>
-                      <TableHead>Dátum zberu</TableHead>
-                      <TableHead>Tácky</TableHead>
-                      <TableHead>Semená</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="w-[120px]">Hotovo</TableHead>
-                      <TableHead className="w-[100px] text-right">Akcie</TableHead>
+                      <TableHead className="align-middle py-3">Plodina</TableHead>
+                      <TableHead className="align-middle py-3">Dátum výsevu</TableHead>
+                      <TableHead className="align-middle py-3">Dátum zberu</TableHead>
+                      <TableHead className="align-middle py-3">Tácky</TableHead>
+                      <TableHead className="align-middle py-3">Semená</TableHead>
+                      <TableHead className="align-middle py-3">Status</TableHead>
+                      <TableHead className="align-middle py-3 w-[120px]">Hotovo</TableHead>
+                      <TableHead className="align-middle py-3 w-[100px] text-right">Akcie</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -981,7 +981,7 @@ const PlantingPlanPage = () => {
                         }`}
                         onClick={() => openDetailDialog(plan)}
                       >
-                        <TableCell>
+                        <TableCell className="align-middle py-3">
                           <div className="flex items-center gap-2">
                             <div
                               className="h-6 w-6 rounded flex items-center justify-center flex-shrink-0"
@@ -1030,11 +1030,11 @@ const PlantingPlanPage = () => {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>{formatDate(plan.sow_date)}</TableCell>
-                        <TableCell>{formatDate(getHarvestDate(plan).toISOString())}</TableCell>
-                        <TableCell>{plan.tray_count}× {plan.tray_size}</TableCell>
-                        <TableCell>{formatGrams(plan.total_seed_grams || (plan.tray_count * (plan.tray_config?.seed_density_grams || 0)))}g</TableCell>
-                        <TableCell>
+                        <TableCell className="align-middle py-3">{formatDate(plan.sow_date)}</TableCell>
+                        <TableCell className="align-middle py-3">{formatDate(getHarvestDate(plan).toISOString())}</TableCell>
+                        <TableCell className="align-middle py-3">{plan.tray_count}× {plan.tray_size}</TableCell>
+                        <TableCell className="align-middle py-3">{formatGrams(plan.total_seed_grams || (plan.tray_count * (plan.tray_config?.seed_density_grams || 0)))}g</TableCell>
+                        <TableCell className="align-middle py-3">
                           <div className="flex gap-1">
                             {plan.status === 'completed' ? (
                               <Badge className="bg-green-500 text-white hover:bg-green-600">
@@ -1046,7 +1046,7 @@ const PlantingPlanPage = () => {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
+                        <TableCell className="align-middle py-3" onClick={(e) => e.stopPropagation()}>
                           <Button
                             variant={plan.status === 'completed' ? 'default' : 'outline'}
                             size="sm"
@@ -1066,7 +1066,7 @@ const PlantingPlanPage = () => {
                             {plan.status === 'completed' ? 'Hotovo' : 'Označiť'}
                           </Button>
                         </TableCell>
-                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                        <TableCell className="align-middle py-3 text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="flex gap-1 justify-end">
                             <Button
                               size="icon"
