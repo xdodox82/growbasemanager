@@ -825,43 +825,25 @@ const PlantingPlanPage = () => {
                     }`}
                     onClick={() => openDetailDialog(plan)}
                   >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="h-8 w-8 rounded flex items-center justify-center"
-                          style={{
-                            backgroundColor: `${plan.crops?.color || '#22c55e'}20`,
-                            color: plan.crops?.color || '#22c55e'
-                          }}
-                        >
-                          <Leaf className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            {(plan as any).is_mixed ? (
-                              <div className="flex items-center gap-1">
-                                <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs">
-                                  <Layers className="h-3 w-3 mr-1" />
-                                  KOMBINOVANÝ VÝSEV
-                                </Badge>
-                              </div>
-                            ) : (
-                              <h3 className="font-semibold">{plan.crops?.name || 'Neznáma plodina'}</h3>
-                            )}
-                            {(plan as any).is_test && (
-                              <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">
-                                🧪 TEST
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {formatDate(plan.sow_date)}
-                          </p>
-                        </div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {(plan as any).is_mixed ? (
+                          <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs h-8 px-3 flex items-center">
+                            <Layers className="h-3 w-3 mr-1" />
+                            KOMBINOVANÝ VÝSEV
+                          </Badge>
+                        ) : null}
+
+                        {(plan as any).is_test && (
+                          <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300 text-xs h-8 px-3 flex items-center">
+                            🧪 TEST
+                          </Badge>
+                        )}
                       </div>
+
                       <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                         {plan.status === 'completed' ? (
-                          <Badge className="bg-green-500 text-white hover:bg-green-600">
+                          <Badge className="bg-green-500 text-white hover:bg-green-600 h-8 px-3 flex items-center">
                             <CheckCircle2 className="h-3 w-3 mr-1" />
                             Hotovo
                           </Badge>
@@ -871,7 +853,7 @@ const PlantingPlanPage = () => {
                             variant="outline"
                             onClick={() => handleMarkComplete(plan.id)}
                             disabled={!isAdmin}
-                            className="h-8"
+                            className="h-8 px-3 text-xs flex-shrink-0"
                           >
                             <CheckCircle2 className="h-3 w-3 mr-1" />
                             Hotovo
@@ -880,73 +862,94 @@ const PlantingPlanPage = () => {
                       </div>
                     </div>
 
-                    <div className="mt-3 space-y-1">
-                      {(plan as any).is_mixed && (plan as any).mix_configuration ? (
-                        <div className="text-xs space-y-1">
-                          {(() => {
-                            try {
-                              const mixConfig = JSON.parse((plan as any).mix_configuration);
-                              return mixConfig.map((item: any, idx: number) => (
-                                <div key={idx} className="flex items-center gap-1">
-                                  <span className="font-medium">{item.crop_name}</span>
-                                  <span className="text-muted-foreground">{item.percentage}%</span>
-                                </div>
-                              ));
-                            } catch (e) {
-                              return <span className="text-muted-foreground">Chyba načítania mixu</span>;
-                            }
-                          })()}
-                        </div>
-                      ) : null}
-                      <p className="text-sm">
-                        {plan.tray_count}× {plan.tray_size}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-green-100">
                         {(plan as any).is_mixed ? (
-                          <>Mix: {formatGrams(plan.total_seed_grams || 0)}g celkom</>
+                          <Layers className="h-5 w-5 text-green-600" />
                         ) : (
-                          <>{formatGrams(plan.tray_config?.seed_density_grams || plan.seed_amount_grams || 0)}g/tácka • {formatGrams(plan.total_seed_grams || (plan.tray_count * (plan.tray_config?.seed_density_grams || 0)))}g celkom</>
+                          <Sprout className="h-5 w-5 text-green-600" />
                         )}
-                      </p>
-                    </div>
+                      </div>
 
-                    {(plan as any).notes && (
-                      <p className="text-xs text-gray-500 mt-2 line-clamp-2">
-                        📝 {(plan as any).notes}
-                      </p>
-                    )}
+                      <div className="flex-1 min-w-0">
+                        <div className="mb-2">
+                          {!(plan as any).is_mixed && (
+                            <h3 className="font-semibold text-base">{plan.crops?.name || 'Neznáma plodina'}</h3>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            {formatDate(plan.sow_date)}
+                          </p>
+                        </div>
 
-                    <div className="mt-3 flex gap-1" onClick={(e) => e.stopPropagation()}>
-                      {plan.status === 'completed' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1"
-                          onClick={() => handleMarkPlanned(plan.id)}
-                          disabled={!isAdmin}
-                        >
-                          <RotateCcw className="h-3 w-3 mr-1" />
-                          Vrátiť späť
-                        </Button>
-                      )}
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8"
-                        onClick={() => openEditDialog(plan)}
-                        disabled={!isAdmin}
-                      >
-                        <Pencil className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8"
-                        onClick={() => setDeleteId(plan.id)}
-                        disabled={!isAdmin}
-                      >
-                        <Trash2 className="h-3 w-3 text-destructive" />
-                      </Button>
+                        <div className="space-y-1">
+                          {(plan as any).is_mixed && (plan as any).mix_configuration ? (
+                            <div className="text-xs space-y-1">
+                              {(() => {
+                                try {
+                                  const mixConfig = JSON.parse((plan as any).mix_configuration);
+                                  return mixConfig.map((item: any, idx: number) => (
+                                    <div key={idx} className="flex items-center gap-1">
+                                      <span className="font-medium">{item.crop_name}</span>
+                                      <span className="text-muted-foreground">{item.percentage}%</span>
+                                    </div>
+                                  ));
+                                } catch (e) {
+                                  return <span className="text-muted-foreground">Chyba načítania mixu</span>;
+                                }
+                              })()}
+                            </div>
+                          ) : null}
+                          <p className="text-sm">
+                            {plan.tray_count}× {plan.tray_size}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {(plan as any).is_mixed ? (
+                              <>Mix: {formatGrams(plan.total_seed_grams || 0)}g celkom</>
+                            ) : (
+                              <>{formatGrams(plan.tray_config?.seed_density_grams || plan.seed_amount_grams || 0)}g/tácka • {formatGrams(plan.total_seed_grams || (plan.tray_count * (plan.tray_config?.seed_density_grams || 0)))}g celkom</>
+                            )}
+                          </p>
+                        </div>
+
+                        {(plan as any).notes && (
+                          <p className="text-xs text-gray-500 mt-2 line-clamp-2">
+                            📝 {(plan as any).notes}
+                          </p>
+                        )}
+
+                        <div className="mt-3 flex gap-1" onClick={(e) => e.stopPropagation()}>
+                          {plan.status === 'completed' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1"
+                              onClick={() => handleMarkPlanned(plan.id)}
+                              disabled={!isAdmin}
+                            >
+                              <RotateCcw className="h-3 w-3 mr-1" />
+                              Vrátiť späť
+                            </Button>
+                          )}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8"
+                            onClick={() => openEditDialog(plan)}
+                            disabled={!isAdmin}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8"
+                            onClick={() => setDeleteId(plan.id)}
+                            disabled={!isAdmin}
+                          >
+                            <Trash2 className="h-3 w-3 text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   </Card>
                 ))}
@@ -1258,15 +1261,28 @@ const PlantingPlanPage = () => {
                       {(() => {
                         try {
                           const mixConfig = JSON.parse((selectedPlan as any).mix_configuration);
+                          const traySize = selectedPlan.tray_size?.toLowerCase();
+
                           return mixConfig.map((mix: any, idx: number) => {
                             const crop = crops.find(c => c.id === mix.crop_id);
-                            if (!crop?.tray_configs?.[selectedPlan.tray_size]) return null;
 
-                            const fullDensity = crop.tray_configs[selectedPlan.tray_size].seed_density_grams || 0;
+                            if (!crop) {
+                              console.warn('Crop not found for:', mix.crop_id);
+                              return null;
+                            }
+
+                            const trayConfig = crop.tray_configs?.[traySize];
+
+                            if (!trayConfig) {
+                              console.warn('Tray config not found:', crop.name, traySize, crop.tray_configs);
+                              return null;
+                            }
+
+                            const fullDensity = trayConfig.seed_density_grams || 0;
                             const mixDensity = fullDensity * (mix.percentage / 100);
 
                             return (
-                              <div key={idx} className="flex justify-between text-sm py-1 border-b">
+                              <div key={idx} className="flex justify-between text-sm py-1 border-b last:border-0">
                                 <span className="text-gray-700">
                                   • {mix.crop_name} ({mix.percentage}%)
                                 </span>
@@ -1276,21 +1292,22 @@ const PlantingPlanPage = () => {
                               </div>
                             );
                           });
-                        } catch (e) {
-                          return null;
+                        } catch (error) {
+                          console.error('Error parsing mix_configuration:', error);
+                          return <p className="text-xs text-red-500">Chyba pri načítaní rozpadu</p>;
                         }
                       })()}
 
-                      <div className="flex justify-between font-semibold text-sm pt-1 border-t">
+                      <div className="flex justify-between font-semibold text-sm pt-2 border-t">
                         <span>Celkom:</span>
                         <span className="text-green-600">
-                          {formatGrams(selectedPlan.seed_amount_grams || 0)}g / tácka
+                          {(selectedPlan.seed_amount_grams || 0).toFixed(1)}g / tácka
                         </span>
                       </div>
 
                       {selectedPlan.tray_count > 1 && (
-                        <div className="text-xs text-gray-500">
-                          Celková potreba: {formatGrams((selectedPlan.seed_amount_grams || 0) * selectedPlan.tray_count)}g
+                        <div className="text-xs text-gray-500 mt-1">
+                          Celková potreba: {((selectedPlan.seed_amount_grams || 0) * selectedPlan.tray_count).toFixed(1)}g
                         </div>
                       )}
                     </div>
