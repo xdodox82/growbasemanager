@@ -839,13 +839,12 @@ const PlantingPlanPage = () => {
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
                             {(plan as any).is_mixed ? (
-                              <>
-                                <h3 className="font-semibold text-sm">Kombinovaný výsev</h3>
-                                <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-white">
+                              <div className="flex items-center gap-1">
+                                <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs">
                                   <Layers className="h-3 w-3 mr-1" />
-                                  KOMBINOVANÝ
+                                  KOMBINOVANÝ VÝSEV
                                 </Badge>
-                              </>
+                              </div>
                             ) : (
                               <h3 className="font-semibold">{plan.crops?.name || 'Neznáma plodina'}</h3>
                             )}
@@ -990,10 +989,9 @@ const PlantingPlanPage = () => {
                             {(plan as any).is_mixed ? (
                               <div className="flex flex-col gap-1">
                                 <div className="flex items-center gap-2">
-                                  <span className="font-medium text-sm">Kombinovaný výsev</span>
-                                  <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-white">
+                                  <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs">
                                     <Layers className="h-3 w-3 mr-1" />
-                                    KOMBINOVANÝ
+                                    KOMBINOVANÝ VÝSEV
                                   </Badge>
                                   {(plan as any).is_test && (
                                     <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">
