@@ -1546,7 +1546,21 @@ const PlantingPlanPage = () => {
               <Button type="button" variant="outline" onClick={() => setNewPlantingDialog(false)} className="h-9 text-sm">
                 Zrušiť
               </Button>
-              <Button type="submit" disabled={saving || !selectedCropId || !sowDate || trayCount === 0} className="h-9 text-sm">
+              <Button
+                type="submit"
+                disabled={
+                  saving ||
+                  (isMixedPlanting
+                    ? (mixCrops.length === 0 || mixCrops.some(mc => !mc.cropId))
+                    : !selectedCropId
+                  ) ||
+                  !selectedTraySize ||
+                  trayCount === 0 ||
+                  !sowDate ||
+                  !harvestDate
+                }
+                className="h-9 text-sm"
+              >
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Vytvoriť výsev
               </Button>
