@@ -59,12 +59,14 @@ import {
   Package,
   Layers,
   TreePine,
-  Flower2
+  Flower2,
+  Lightbulb
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { format, addDays, parseISO } from 'date-fns';
 import { sk } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 interface Crop {
   id: string;
@@ -965,7 +967,8 @@ const PlantingPlanPage = () => {
                       <TableHead>Tácky</TableHead>
                       <TableHead>Semená</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Akcie</TableHead>
+                      <TableHead className="w-[120px]">Hotovo</TableHead>
+                      <TableHead className="w-[100px] text-right">Akcie</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1042,6 +1045,26 @@ const PlantingPlanPage = () => {
                               <Badge variant="outline">Plánované</Badge>
                             )}
                           </div>
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            variant={plan.status === 'completed' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => plan.status === 'completed' ? handleMarkPlanned(plan.id) : handleMarkComplete(plan.id)}
+                            disabled={!isAdmin}
+                            className={cn(
+                              "h-8 px-3 text-xs w-full md:h-8 sm:h-10",
+                              plan.status === 'completed'
+                                ? "bg-green-600 hover:bg-green-700 text-white"
+                                : "border-gray-300 hover:bg-gray-50"
+                            )}
+                          >
+                            <CheckCircle2 className={cn(
+                              "h-3 w-3 mr-1",
+                              plan.status === 'completed' && "fill-current"
+                            )} />
+                            {plan.status === 'completed' ? 'Hotovo' : 'Označiť'}
+                          </Button>
                         </TableCell>
                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="flex gap-1 justify-end">
@@ -1240,50 +1263,38 @@ const PlantingPlanPage = () => {
                 </div>
               </div>
 
-              <div className="border rounded-lg p-4 bg-muted/30">
-                <h4 className="font-semibold mb-2">💡 Kombinácia tácok</h4>
-                <div className="space-y-1">
-                  <p className="font-medium">
-                    {selectedPlan.tray_count}× {selectedPlan.tray_size}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Hustota: {formatGrams(selectedPlan.tray_config?.seed_density_grams || selectedPlan.seed_amount_grams || 0)}g/tácka
-                  </p>
-                  {(selectedPlan.tray_config?.yield_grams || 0) > 0 && (
-                    <p className="text-sm text-muted-foreground">
-                      Očakávaný výnos: {formatGrams(selectedPlan.tray_config?.yield_grams)}g/tácka
-                    </p>
-                  )}
+              <div className="space-y-2 rounded-lg border p-4 bg-gray-50">
+                <div className="flex items-center gap-2">
+                  <Lightbulb className="h-5 w-5 text-amber-500" />
+                  <h4 className="font-semibold text-sm">Kombinácia tácok</h4>
+                </div>
 
-                  {(selectedPlan as any).is_mixed && (selectedPlan as any).mix_configuration ? (
-                    <div className="space-y-2 mt-3">
-                      <Label className="text-xs font-medium text-gray-700">Rozpad semien:</Label>
+                <p className="text-sm">
+                  {selectedPlan.tray_count}× {selectedPlan.tray_size}
+                </p>
+
+                <p className="text-xs text-gray-600">
+                  Hustota: {selectedPlan.seed_amount_grams || selectedPlan.tray_config?.seed_density_grams || 0}g/tácka
+                </p>
+
+                {(selectedPlan as any).is_mixed && (selectedPlan as any).mix_configuration && (
+                  <div className="mt-3 pt-3 border-t">
+                    <Label className="text-xs font-medium text-gray-700 mb-2 block">
+                      Rozpad semien:
+                    </Label>
+
+                    <div className="space-y-1">
                       {(() => {
                         try {
                           const mixConfig = JSON.parse((selectedPlan as any).mix_configuration);
-                          const traySize = selectedPlan.tray_size?.toLowerCase();
+                          const totalDensity = selectedPlan.seed_amount_grams || 0;
 
                           return mixConfig.map((mix: any, idx: number) => {
-                            const crop = crops.find(c => c.id === mix.crop_id);
-
-                            if (!crop) {
-                              console.warn('Crop not found for:', mix.crop_id);
-                              return null;
-                            }
-
-                            const trayConfig = crop.tray_configs?.[traySize];
-
-                            if (!trayConfig) {
-                              console.warn('Tray config not found:', crop.name, traySize, crop.tray_configs);
-                              return null;
-                            }
-
-                            const fullDensity = trayConfig.seed_density_grams || 0;
-                            const mixDensity = fullDensity * (mix.percentage / 100);
+                            const mixDensity = totalDensity * (mix.percentage / 100);
 
                             return (
-                              <div key={idx} className="flex justify-between text-sm py-1 border-b last:border-0">
-                                <span className="text-gray-700">
+                              <div key={idx} className="flex justify-between text-xs py-1">
+                                <span className="text-gray-600">
                                   • {mix.crop_name} ({mix.percentage}%)
                                 </span>
                                 <span className="font-medium text-gray-900">
@@ -1294,28 +1305,20 @@ const PlantingPlanPage = () => {
                           });
                         } catch (error) {
                           console.error('Error parsing mix_configuration:', error);
-                          return <p className="text-xs text-red-500">Chyba pri načítaní rozpadu</p>;
+                          return null;
                         }
                       })()}
-
-                      <div className="flex justify-between font-semibold text-sm pt-2 border-t">
-                        <span>Celkom:</span>
-                        <span className="text-green-600">
-                          {(selectedPlan.seed_amount_grams || 0).toFixed(1)}g / tácka
-                        </span>
-                      </div>
-
-                      {selectedPlan.tray_count > 1 && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          Celková potreba: {((selectedPlan.seed_amount_grams || 0) * selectedPlan.tray_count).toFixed(1)}g
-                        </div>
-                      )}
                     </div>
-                  ) : (
-                    <p className="font-medium text-primary">
-                      Celkom semien: {formatGrams(selectedPlan.total_seed_grams || (selectedPlan.tray_count * (selectedPlan.tray_config?.seed_density_grams || 0)))}g
-                    </p>
-                  )}
+                  </div>
+                )}
+
+                <div className="mt-2 pt-2 border-t">
+                  <div className="flex justify-between text-sm font-semibold">
+                    <span>Celkom semien:</span>
+                    <span className="text-green-600">
+                      {selectedPlan.seed_amount_grams || selectedPlan.total_seed_grams || (selectedPlan.tray_count * (selectedPlan.tray_config?.seed_density_grams || 0))}g
+                    </span>
+                  </div>
                 </div>
               </div>
 
