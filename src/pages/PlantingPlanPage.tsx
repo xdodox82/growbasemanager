@@ -67,6 +67,7 @@ interface Crop {
   name: string;
   color: string;
   days_to_harvest: number;
+  growth_days?: number;
   category?: string;
   tray_configs?: Record<string, { seed_density?: number; seed_density_grams?: number; expected_yield?: number; yield_grams?: number }>;
 }
@@ -170,15 +171,21 @@ const PlantingPlanPage = () => {
   }, [selectedCrop, selectedTraySize]);
 
   const mixedSeedDensity = useMemo(() => {
-    if (!isMixedPlanting) return 0;
-    return mixCrops.reduce((total, mixCrop) => {
-      const crop = crops.find(c => c.id === mixCrop.cropId);
-      if (!crop?.tray_configs) return total;
-      const config = crop.tray_configs[selectedTraySize];
-      const cropDensity = config?.seed_density_grams || config?.seed_density || 0;
-      return total + (cropDensity * (mixCrop.percentage / 100));
-    }, 0);
-  }, [isMixedPlanting, mixCrops, crops, selectedTraySize]);
+    if (!isMixedPlanting || !selectedTraySize) return 0;
+
+    let total = 0;
+    mixCrops.forEach(mc => {
+      if (!mc.cropId) return;
+      const crop = crops.find(c => c.id === mc.cropId);
+      if (!crop?.tray_configs?.[selectedTraySize]) return;
+
+      const fullDensity = crop.tray_configs[selectedTraySize].seed_density_grams || crop.tray_configs[selectedTraySize].seed_density || 0;
+      const mixDensity = fullDensity * (mc.percentage / 100);
+      total += mixDensity;
+    });
+
+    return total;
+  }, [isMixedPlanting, mixCrops, selectedTraySize, crops]);
 
   const seedDensity = isMixedPlanting ? mixedSeedDensity : (useCustomDensity ? customSeedDensity : dbSeedDensity);
   const totalSeedGrams = trayCount * seedDensity;
@@ -623,12 +630,36 @@ const PlantingPlanPage = () => {
   }, [fetchPlans, fetchCrops]);
 
   useEffect(() => {
-    if (sowDate && selectedCrop?.days_to_harvest) {
-      const sow = new Date(sowDate);
-      sow.setDate(sow.getDate() + selectedCrop.days_to_harvest);
-      setHarvestDate(format(sow, 'yyyy-MM-dd'));
+    if (!sowDate) {
+      setHarvestDate('');
+      return;
     }
-  }, [sowDate, selectedCrop]);
+
+    if (isMixedPlanting && mixCrops.length > 0) {
+      const maxGrowthDays = mixCrops.reduce((max, mc) => {
+        if (!mc.cropId) return max;
+        const crop = crops.find(c => c.id === mc.cropId);
+        const growthDays = crop?.growth_days || crop?.days_to_harvest || 0;
+        return Math.max(max, growthDays);
+      }, 0);
+
+      if (maxGrowthDays > 0) {
+        const harvest = addDays(new Date(sowDate), maxGrowthDays);
+        setHarvestDate(format(harvest, 'yyyy-MM-dd'));
+      } else {
+        setHarvestDate('');
+      }
+    } else if (selectedCropId) {
+      const crop = crops.find(c => c.id === selectedCropId);
+      const growthDays = crop?.growth_days || crop?.days_to_harvest;
+      if (growthDays) {
+        const harvest = addDays(new Date(sowDate), growthDays);
+        setHarvestDate(format(harvest, 'yyyy-MM-dd'));
+      } else {
+        setHarvestDate('');
+      }
+    }
+  }, [sowDate, selectedCropId, isMixedPlanting, mixCrops, crops]);
 
   const formatDate = (dateStr: string) => {
     try {
@@ -1335,6 +1366,23 @@ const PlantingPlanPage = () => {
                     Súčet: {mixCrops.reduce((sum, c) => sum + c.percentage, 0)}%
                     {mixCrops.reduce((sum, c) => sum + c.percentage, 0) === 100 && ' ✓'}
                   </div>
+                  {(() => {
+                    const maxGrowthDays = mixCrops.reduce((max, mc) => {
+                      if (!mc.cropId) return max;
+                      const crop = crops.find(c => c.id === mc.cropId);
+                      const growthDays = crop?.growth_days || crop?.days_to_harvest || 0;
+                      return Math.max(max, growthDays);
+                    }, 0);
+
+                    if (maxGrowthDays > 0) {
+                      return (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Dátum zberu: {maxGrowthDays} dní (najdlhšia plodina)
+                        </p>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
               )}
 
@@ -1435,16 +1483,32 @@ const PlantingPlanPage = () => {
               )}
 
               {isMixedPlanting && (
-                <div className="border rounded-lg p-2 bg-blue-50/50 space-y-1">
-                  <Label className="text-xs font-medium text-gray-600">Celková hustota semien (mix)</Label>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="text-sm px-2 py-1">
-                      {formatGrams(seedDensity)}g / tácka
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">→</span>
-                    <Badge variant="secondary" className="text-sm px-2 py-1">
-                      Celkom: {formatGrams(totalSeedGrams)}g
-                    </Badge>
+                <div className="space-y-2 rounded-lg border p-3 bg-gray-50">
+                  <Label className="text-xs font-medium">Celková hustota semien (mix)</Label>
+                  <div className="space-y-1 text-xs">
+                    {mixCrops.map((mc, idx) => {
+                      if (!mc.cropId) return null;
+                      const crop = crops.find(c => c.id === mc.cropId);
+                      if (!crop?.tray_configs?.[selectedTraySize]) return null;
+
+                      const fullDensity = crop.tray_configs[selectedTraySize].seed_density_grams || crop.tray_configs[selectedTraySize].seed_density || 0;
+                      const mixDensity = fullDensity * (mc.percentage / 100);
+
+                      return (
+                        <div key={idx} className="flex justify-between text-gray-700">
+                          <span>• {crop.name} ({mc.percentage}%)</span>
+                          <span className="font-medium">{mixDensity.toFixed(1)}g</span>
+                        </div>
+                      );
+                    })}
+                    <div className="border-t pt-1 mt-1 flex justify-between font-medium">
+                      <span>Celkom:</span>
+                      <span>{mixedSeedDensity.toFixed(1)}g / tácka</span>
+                    </div>
+                    <div className="flex justify-between text-gray-600 text-xs pt-1 border-t">
+                      <span>Celková potreba semien:</span>
+                      <span className="font-medium">{formatGrams(totalSeedGrams)}g</span>
+                    </div>
                   </div>
                 </div>
               )}
