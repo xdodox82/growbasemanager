@@ -57,7 +57,9 @@ import {
   RotateCcw,
   Sparkles,
   Package,
-  Layers
+  Layers,
+  TreePine,
+  Flower2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -1159,12 +1161,25 @@ const PlantingPlanPage = () => {
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <h3 className="text-xl font-bold">Kombinovaný výsev</h3>
+                      </div>
+                      <div className="flex gap-2 flex-wrap">
                         <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-white">
                           <Layers className="h-3 w-3 mr-1" />
                           KOMBINOVANÝ
                         </Badge>
+                        {selectedPlan.status === 'completed' && (
+                          <Badge className="bg-green-500 text-white hover:bg-green-600">
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Hotové
+                          </Badge>
+                        )}
+                        {(selectedPlan as any).is_test && (
+                          <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                            🧪 TEST
+                          </Badge>
+                        )}
                       </div>
-                      <div className="space-y-1">
+                      <div className="space-y-1 mt-2">
                         {(() => {
                           try {
                             const mixConfig = JSON.parse((selectedPlan as any).mix_configuration);
@@ -1259,14 +1274,10 @@ const PlantingPlanPage = () => {
                     <Package className="h-4 w-4" />
                     Objednávky
                   </h4>
-                  <Badge variant="secondary">0 obj.</Badge>
                 </div>
 
                 <div className="text-sm text-muted-foreground">
                   <p>Pre tento výsev zatiaľ nie je dostupný detail objednávok.</p>
-                  <p className="text-xs mt-1">
-                    (Funkcia sa pripravuje - prepojenie s objednávkami)
-                  </p>
                 </div>
               </div>
 
@@ -1323,53 +1334,75 @@ const PlantingPlanPage = () => {
               <div className="grid gap-1.5">
                 <Label className="text-xs font-medium text-gray-600">Kategória plodiny</Label>
                 <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="w-full">
-                  <TabsList className="grid w-full grid-cols-4 h-9">
-                    <TabsTrigger value="all" className="text-xs">Všetko</TabsTrigger>
-                    <TabsTrigger value="microgreens" className="text-xs">Mikrozelenina</TabsTrigger>
-                    <TabsTrigger value="microherbs" className="text-xs">Mikrobylinky</TabsTrigger>
-                    <TabsTrigger value="edible_flowers" className="text-xs">Jedlé kvety</TabsTrigger>
+                  <TabsList className="grid w-full grid-cols-4 h-auto p-1 bg-gradient-to-br from-gray-50 to-gray-100">
+                    <TabsTrigger
+                      value="all"
+                      className="text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                    >
+                      <Leaf className="h-3 w-3 mr-1" />
+                      Všetko
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="microgreens"
+                      className="text-xs data-[state=active]:bg-green-50 data-[state=active]:text-green-700 data-[state=active]:shadow-sm"
+                    >
+                      <Sprout className="h-3 w-3 mr-1" />
+                      Mikrozelenina
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="microherbs"
+                      className="text-xs data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm"
+                    >
+                      <TreePine className="h-3 w-3 mr-1" />
+                      Mikrobylinky
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="edible_flowers"
+                      className="text-xs data-[state=active]:bg-pink-50 data-[state=active]:text-pink-700 data-[state=active]:shadow-sm"
+                    >
+                      <Flower2 className="h-3 w-3 mr-1" />
+                      Jedlé kvety
+                    </TabsTrigger>
                   </TabsList>
                 </Tabs>
               </div>
 
-              <div className="flex items-center gap-2 py-2">
-                <Checkbox
-                  id="isMixedPlanting"
-                  checked={isMixedPlanting}
-                  onCheckedChange={(checked) => {
-                    setIsMixedPlanting(checked === true);
-                    if (checked === false) {
-                      setMixCrops([
-                        { cropId: '', percentage: 50 },
-                        { cropId: '', percentage: 50 }
-                      ]);
-                    }
-                  }}
-                />
-                <div>
-                  <Label htmlFor="isMixedPlanting" className="cursor-pointer text-xs font-medium text-gray-600">
-                    Kombinovaný výsev
-                  </Label>
-                  <p className="text-[10px] text-muted-foreground">Viac plodín na jednom tácke</p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between rounded-lg border p-3 bg-gray-50">
-                <div className="flex items-center gap-2">
-                  <Beaker className="h-5 w-5 text-amber-600" />
-                  <div>
-                    <Label className="text-sm font-medium cursor-pointer">
-                      Testovací výsev
-                    </Label>
-                    <p className="text-xs text-gray-500">
-                      Označiť ako test osiva/substrátu
-                    </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center justify-between rounded-lg border p-3 bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+                  <div className="flex items-center gap-2">
+                    <Layers className="h-4 w-4 text-green-600" />
+                    <div>
+                      <Label className="text-xs font-medium">Kombinovaný výsev</Label>
+                      <p className="text-xs text-gray-500">Viac plodín na tácke</p>
+                    </div>
                   </div>
+                  <Switch
+                    checked={isMixedPlanting}
+                    onCheckedChange={(checked) => {
+                      setIsMixedPlanting(checked === true);
+                      if (checked === false) {
+                        setMixCrops([
+                          { cropId: '', percentage: 50 },
+                          { cropId: '', percentage: 50 }
+                        ]);
+                      }
+                    }}
+                  />
                 </div>
-                <Switch
-                  checked={isTest}
-                  onCheckedChange={setIsTest}
-                />
+
+                <div className="flex items-center justify-between rounded-lg border p-3 bg-gradient-to-br from-yellow-50 to-amber-50 border-yellow-200">
+                  <div className="flex items-center gap-2">
+                    <Beaker className="h-4 w-4 text-amber-600" />
+                    <div>
+                      <Label className="text-xs font-medium">Testovací výsev</Label>
+                      <p className="text-xs text-gray-500">Test osiva/substrátu</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={isTest}
+                    onCheckedChange={setIsTest}
+                  />
+                </div>
               </div>
 
               {!isMixedPlanting ? (
@@ -1525,12 +1558,11 @@ const PlantingPlanPage = () => {
               </div>
 
               {!isMixedPlanting && (
-                <div className="border rounded-lg p-1.5 bg-gray-50/50 space-y-1">
+                <div className="space-y-3 rounded-lg border border-gray-200 p-3 bg-gradient-to-br from-gray-50 to-white">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="seedDensity" className="text-xs font-medium text-gray-600">Hustota semien</Label>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="customDensity"
+                    <Label className="text-xs font-medium text-gray-700">Hustota semien</Label>
+                    <div className="flex items-center gap-2">
+                      <Switch
                         checked={useCustomDensity}
                         onCheckedChange={(checked) => {
                           setUseCustomDensity(checked === true);
@@ -1540,48 +1572,38 @@ const PlantingPlanPage = () => {
                             setCustomSeedDensity(dbSeedDensity);
                           }
                         }}
+                        id="custom-density"
                       />
-                      <Label htmlFor="customDensity" className="cursor-pointer font-normal text-xs">
+                      <Label htmlFor="custom-density" className="text-xs text-gray-600 cursor-pointer">
                         Vlastná hustota
                       </Label>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="seedDensity"
-                      type="number"
-                      min="0"
-                      step="0.1"
-                      value={useCustomDensity ? (customSeedDensity === 0 ? '' : customSeedDensity) : dbSeedDensity}
-                      onChange={(e) => {
-                        if (useCustomDensity) {
-                          setCustomSeedDensity(e.target.value === '' ? 0 : parseFloat(e.target.value));
-                        }
-                      }}
-                      disabled={!useCustomDensity}
-                      className="flex-1 h-9 text-sm"
-                    />
-                    <span className="text-xs text-gray-600 whitespace-nowrap">g/tácka</span>
-                    {dbSeedDensity > 0 && (
-                      <Badge variant="outline" className="whitespace-nowrap text-xs px-1.5 py-0.5">
-                        {formatGrams(dbSeedDensity)}g
-                      </Badge>
-                    )}
-                  </div>
-
-                  {useCustomDensity && dbSeedDensity !== customSeedDensity && dbSeedDensity > 0 && customSeedDensity > 0 && (
-                    <div className="flex items-start gap-2 p-1.5 bg-amber-50 dark:bg-amber-950/20 rounded text-xs text-amber-900 dark:text-amber-200">
-                      <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
-                      <p>Upravené z {formatGrams(dbSeedDensity)}g na {formatGrams(customSeedDensity)}g/tácka</p>
+                  {useCustomDensity ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={customSeedDensity === 0 ? '' : customSeedDensity}
+                        onChange={(e) => setCustomSeedDensity(e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                        className="text-sm"
+                        placeholder="0"
+                      />
+                      <span className="text-xs text-gray-500 whitespace-nowrap">g/tácka</span>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-600">
+                      Automaticky: <span className="font-semibold text-gray-900">{formatGrams(seedDensity)}g/tácka</span>
                     </div>
                   )}
 
-                  <div className="flex items-center gap-2 pt-1 border-t">
-                    <span className="text-xs text-gray-600">Celkom:</span>
-                    <Badge variant="secondary" className="text-xs px-2 py-0.5">
-                      {formatGrams(totalSeedGrams)}g
-                    </Badge>
+                  <div className="pt-2 border-t border-gray-200">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-gray-600">Celkom pre všetky tácky:</span>
+                      <span className="font-bold text-green-600 text-sm">{formatGrams(totalSeedGrams)}g</span>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1617,28 +1639,33 @@ const PlantingPlanPage = () => {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-2">
-                <div className="grid gap-1.5">
-                  <Label htmlFor="sowDate" className="text-xs font-medium text-gray-600">Dátum výsevu *</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="sow-date" className="text-xs font-medium">
+                    Dátum výsevu *
+                  </Label>
                   <Input
-                    id="sowDate"
+                    id="sow-date"
                     type="date"
                     value={sowDate}
                     onChange={(e) => setSowDate(e.target.value)}
                     required
-                    className="h-9 text-sm"
+                    className="text-sm"
                   />
                 </div>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="harvestDate" className="text-xs font-medium text-gray-600">Dátum zberu</Label>
+
+                <div className="space-y-2">
+                  <Label htmlFor="harvest-date" className="text-xs font-medium">
+                    Dátum zberu
+                  </Label>
                   <Input
-                    id="harvestDate"
+                    id="harvest-date"
                     type="date"
                     value={harvestDate}
                     disabled
-                    className="bg-muted h-9 text-sm"
+                    className="text-sm bg-gray-50"
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-gray-500">
                     Automaticky: {selectedCrop?.days_to_harvest || 0} dní od výsevu
                   </p>
                 </div>
