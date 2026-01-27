@@ -1163,7 +1163,7 @@ const PlantingPlanPage = () => {
                       <div className="flex gap-2 flex-wrap">
                         <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-white">
                           <Layers className="h-3 w-3 mr-1" />
-                          KOMBINOVANÝ
+                          KOMBINOVANÝ VÝSEV
                         </Badge>
                         {selectedPlan.status === 'completed' && (
                           <Badge className="bg-green-500 text-white hover:bg-green-600">
@@ -1251,9 +1251,54 @@ const PlantingPlanPage = () => {
                       Očakávaný výnos: {formatGrams(selectedPlan.tray_config?.yield_grams)}g/tácka
                     </p>
                   )}
-                  <p className="font-medium text-primary">
-                    Celkom semien: {formatGrams(selectedPlan.total_seed_grams || (selectedPlan.tray_count * (selectedPlan.tray_config?.seed_density_grams || 0)))}g
-                  </p>
+
+                  {(selectedPlan as any).is_mixed && (selectedPlan as any).mix_configuration ? (
+                    <div className="space-y-2 mt-3">
+                      <Label className="text-xs font-medium text-gray-700">Rozpad semien:</Label>
+                      {(() => {
+                        try {
+                          const mixConfig = JSON.parse((selectedPlan as any).mix_configuration);
+                          return mixConfig.map((mix: any, idx: number) => {
+                            const crop = crops.find(c => c.id === mix.crop_id);
+                            if (!crop?.tray_configs?.[selectedPlan.tray_size]) return null;
+
+                            const fullDensity = crop.tray_configs[selectedPlan.tray_size].seed_density_grams || 0;
+                            const mixDensity = fullDensity * (mix.percentage / 100);
+
+                            return (
+                              <div key={idx} className="flex justify-between text-sm py-1 border-b">
+                                <span className="text-gray-700">
+                                  • {mix.crop_name} ({mix.percentage}%)
+                                </span>
+                                <span className="font-medium text-gray-900">
+                                  {mixDensity.toFixed(1)}g
+                                </span>
+                              </div>
+                            );
+                          });
+                        } catch (e) {
+                          return null;
+                        }
+                      })()}
+
+                      <div className="flex justify-between font-semibold text-sm pt-1 border-t">
+                        <span>Celkom:</span>
+                        <span className="text-green-600">
+                          {formatGrams(selectedPlan.seed_amount_grams || 0)}g / tácka
+                        </span>
+                      </div>
+
+                      {selectedPlan.tray_count > 1 && (
+                        <div className="text-xs text-gray-500">
+                          Celková potreba: {formatGrams((selectedPlan.seed_amount_grams || 0) * selectedPlan.tray_count)}g
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="font-medium text-primary">
+                      Celkom semien: {formatGrams(selectedPlan.total_seed_grams || (selectedPlan.tray_count * (selectedPlan.tray_config?.seed_density_grams || 0)))}g
+                    </p>
+                  )}
                 </div>
               </div>
 
