@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AlertDialog,
@@ -55,7 +56,8 @@ import {
   Beaker,
   RotateCcw,
   Sparkles,
-  Package
+  Package,
+  Layers
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -144,6 +146,8 @@ const PlantingPlanPage = () => {
     { cropId: '', percentage: 50 },
     { cropId: '', percentage: 50 }
   ]);
+  const [isTest, setIsTest] = useState(false);
+  const [notes, setNotes] = useState('');
 
   const today = new Date().toISOString().split('T')[0];
   const defaultEndDate = addDays(new Date(), 14).toISOString().split('T')[0];
@@ -204,6 +208,8 @@ const PlantingPlanPage = () => {
       { cropId: '', percentage: 50 },
       { cropId: '', percentage: 50 }
     ]);
+    setIsTest(false);
+    setNotes('');
   };
 
   const handleCropSelect = (cropId: string) => {
@@ -458,6 +464,8 @@ const PlantingPlanPage = () => {
     setSowDate(plan.sow_date);
     setSelectedTraySize(plan.tray_size);
     setTrayCount(plan.tray_count);
+    setIsTest((plan as any).is_test || false);
+    setNotes((plan as any).notes || '');
 
     setIsDetailDialogOpen(false);
     setNewPlantingDialog(true);
@@ -518,7 +526,9 @@ const PlantingPlanPage = () => {
           crop_id: mc.cropId,
           crop_name: crops.find(c => c.id === mc.cropId)?.name,
           percentage: mc.percentage
-        }))) : null
+        }))) : null,
+        is_test: isTest,
+        notes: notes.trim() || null
       };
 
       console.log(isEdit ? 'Updating data:' : 'Inserting data:', JSON.stringify(dataToSave, null, 2));
@@ -808,7 +818,8 @@ const PlantingPlanPage = () => {
                   <Card
                     key={plan.id}
                     className={`p-4 hover:border-primary/50 cursor-pointer transition-colors ${
-                      plan.status === 'completed' ? 'bg-green-50 border-green-200' : ''
+                      plan.status === 'completed' ? 'bg-green-50 border-green-200' :
+                      (plan as any).is_test ? 'bg-yellow-50 border-yellow-200' : ''
                     }`}
                     onClick={() => openDetailDialog(plan)}
                   >
@@ -824,16 +835,22 @@ const PlantingPlanPage = () => {
                           <Leaf className="h-4 w-4" />
                         </div>
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             {(plan as any).is_mixed ? (
                               <>
-                                <h3 className="font-semibold text-sm">Mix výsev</h3>
-                                <Badge className="bg-gradient-to-r from-orange-100 to-pink-100 text-orange-800 text-xs px-1.5 py-0">
-                                  🌈 MIX
+                                <h3 className="font-semibold text-sm">Kombinovaný výsev</h3>
+                                <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-white">
+                                  <Layers className="h-3 w-3 mr-1" />
+                                  KOMBINOVANÝ
                                 </Badge>
                               </>
                             ) : (
                               <h3 className="font-semibold">{plan.crops?.name || 'Neznáma plodina'}</h3>
+                            )}
+                            {(plan as any).is_test && (
+                              <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                                🧪 TEST
+                              </Badge>
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground">
@@ -892,6 +909,12 @@ const PlantingPlanPage = () => {
                       </p>
                     </div>
 
+                    {(plan as any).notes && (
+                      <p className="text-xs text-gray-500 mt-2 line-clamp-2">
+                        📝 {(plan as any).notes}
+                      </p>
+                    )}
+
                     <div className="mt-3 flex gap-1" onClick={(e) => e.stopPropagation()}>
                       {plan.status === 'completed' && (
                         <Button
@@ -946,7 +969,8 @@ const PlantingPlanPage = () => {
                       <TableRow
                         key={plan.id}
                         className={`cursor-pointer hover:bg-muted/50 ${
-                          plan.status === 'completed' ? 'bg-green-50' : ''
+                          plan.status === 'completed' ? 'bg-green-50' :
+                          (plan as any).is_test ? 'bg-yellow-50' : ''
                         }`}
                         onClick={() => openDetailDialog(plan)}
                       >
@@ -964,10 +988,16 @@ const PlantingPlanPage = () => {
                             {(plan as any).is_mixed ? (
                               <div className="flex flex-col gap-1">
                                 <div className="flex items-center gap-2">
-                                  <span className="font-medium text-sm">Mix výsev</span>
-                                  <Badge className="bg-gradient-to-r from-orange-100 to-pink-100 text-orange-800 text-xs px-1.5 py-0">
-                                    🌈 MIX
+                                  <span className="font-medium text-sm">Kombinovaný výsev</span>
+                                  <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-white">
+                                    <Layers className="h-3 w-3 mr-1" />
+                                    KOMBINOVANÝ
                                   </Badge>
+                                  {(plan as any).is_test && (
+                                    <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                                      🧪 TEST
+                                    </Badge>
+                                  )}
                                 </div>
                                 {(() => {
                                   try {
@@ -983,7 +1013,14 @@ const PlantingPlanPage = () => {
                                 })()}
                               </div>
                             ) : (
-                              <span className="font-medium">{plan.crops?.name || 'Neznáma'}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{plan.crops?.name || 'Neznáma'}</span>
+                                {(plan as any).is_test && (
+                                  <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                                    🧪 TEST
+                                  </Badge>
+                                )}
+                              </div>
                             )}
                           </div>
                         </TableCell>
@@ -1111,15 +1148,55 @@ const PlantingPlanPage = () => {
                     color: selectedPlan.crops?.color || '#22c55e'
                   }}
                 >
-                  <Leaf className="h-6 w-6" />
+                  {(selectedPlan as any).is_mixed ? (
+                    <Layers className="h-6 w-6" />
+                  ) : (
+                    <Leaf className="h-6 w-6" />
+                  )}
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold">{selectedPlan.crops?.name || 'Neznáma plodina'}</h3>
-                  {selectedPlan.status === 'completed' && (
-                    <Badge className="mt-1 bg-green-500 text-white hover:bg-green-600">
-                      <CheckCircle2 className="h-3 w-3 mr-1" />
-                      Hotové
-                    </Badge>
+                  {(selectedPlan as any).is_mixed && (selectedPlan as any).mix_configuration ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-xl font-bold">Kombinovaný výsev</h3>
+                        <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-white">
+                          <Layers className="h-3 w-3 mr-1" />
+                          KOMBINOVANÝ
+                        </Badge>
+                      </div>
+                      <div className="space-y-1">
+                        {(() => {
+                          try {
+                            const mixConfig = JSON.parse((selectedPlan as any).mix_configuration);
+                            return mixConfig.map((mix: any, idx: number) => (
+                              <div key={idx} className="flex justify-between items-center py-1 border-b text-sm">
+                                <span className="font-medium">{mix.crop_name}</span>
+                                <Badge variant="outline">{mix.percentage}%</Badge>
+                              </div>
+                            ));
+                          } catch (e) {
+                            return <span className="text-muted-foreground">Chyba načítania mixu</span>;
+                          }
+                        })()}
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <h3 className="text-xl font-bold">{selectedPlan.crops?.name || 'Neznáma plodina'}</h3>
+                      <div className="flex gap-2 mt-1">
+                        {selectedPlan.status === 'completed' && (
+                          <Badge className="bg-green-500 text-white hover:bg-green-600">
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Hotové
+                          </Badge>
+                        )}
+                        {(selectedPlan as any).is_test && (
+                          <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                            🧪 TEST
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -1166,6 +1243,15 @@ const PlantingPlanPage = () => {
                   </p>
                 </div>
               </div>
+
+              {(selectedPlan as any).notes && (
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <h4 className="font-semibold mb-2">📝 Poznámka</h4>
+                  <p className="text-sm text-gray-700">
+                    {(selectedPlan as any).notes}
+                  </p>
+                </div>
+              )}
 
               <div className="border rounded-lg p-4 bg-muted/30">
                 <div className="flex items-center justify-between mb-2">
@@ -1227,7 +1313,7 @@ const PlantingPlanPage = () => {
           <DialogHeader>
             <DialogTitle className="text-base">{editingPlan ? 'Upraviť výsev' : 'Nový výsev'}</DialogTitle>
             <DialogDescription className="text-xs">
-              {editingPlan ? 'Upravte existujúci plán sadenia.' : 'Vytvorte nový plán sadenia - štandardná produkcia alebo test osiva.'}
+              {editingPlan ? 'Upravte existujúci plán sadenia.' : 'Vytvorte nový plán sadenia - štandardná produkcia alebo kombinovaný výsev.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -1266,6 +1352,24 @@ const PlantingPlanPage = () => {
                   </Label>
                   <p className="text-[10px] text-muted-foreground">Viac plodín na jednom tácke</p>
                 </div>
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border p-3 bg-gray-50">
+                <div className="flex items-center gap-2">
+                  <Beaker className="h-5 w-5 text-amber-600" />
+                  <div>
+                    <Label className="text-sm font-medium cursor-pointer">
+                      Testovací výsev
+                    </Label>
+                    <p className="text-xs text-gray-500">
+                      Označiť ako test osiva/substrátu
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={isTest}
+                  onCheckedChange={setIsTest}
+                />
               </div>
 
               {!isMixedPlanting ? (
@@ -1538,6 +1642,20 @@ const PlantingPlanPage = () => {
                     Automaticky: {selectedCrop?.days_to_harvest || 0} dní od výsevu
                   </p>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="notes" className="text-xs font-medium">
+                  Poznámka <span className="text-gray-400">(voliteľné)</span>
+                </Label>
+                <Textarea
+                  id="notes"
+                  placeholder="Napr: šarža semien, poznámky k testu, informácie o substrát..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={3}
+                  className="resize-none text-sm"
+                />
               </div>
 
             </div>
