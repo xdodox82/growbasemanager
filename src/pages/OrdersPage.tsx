@@ -128,6 +128,56 @@ interface Packaging {
   type: string;
 }
 
+const deleteOrderItemsDirectFetch = async (orderId: string) => {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  const { data: { session } } = await supabase.auth.getSession();
+  const accessToken = session?.access_token || supabaseAnonKey;
+
+  const response = await fetch(`${supabaseUrl}/rest/v1/order_items?order_id=eq.${orderId}`, {
+    method: 'DELETE',
+    headers: {
+      'apikey': supabaseAnonKey,
+      'Authorization': `Bearer ${accessToken}`,
+      'Prefer': 'return=minimal'
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Delete call failed: ${response.status} ${response.statusText} - ${errorText}`);
+  }
+
+  return response;
+};
+
+const createOrderItemDirectFetch = async (itemData: any) => {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  const { data: { session } } = await supabase.auth.getSession();
+  const accessToken = session?.access_token || supabaseAnonKey;
+
+  const response = await fetch(`${supabaseUrl}/rest/v1/rpc/create_order_item_with_packaging`, {
+    method: 'POST',
+    headers: {
+      'apikey': supabaseAnonKey,
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=minimal'
+    },
+    body: JSON.stringify({ p_data: itemData })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`RPC call failed: ${response.status} ${response.statusText} - ${errorText}`);
+  }
+
+  return response;
+};
+
 export default function OrdersPage() {
   console.log('[OrdersPage] Component rendering started');
   const { toast } = useToast();
@@ -1020,7 +1070,7 @@ export default function OrdersPage() {
         const { error } = await supabase.from('orders').update(orderData).eq('id', editingOrder.id);
         if (error) throw error;
 
-        await supabase.from('order_items').delete().eq('order_id', editingOrder.id);
+        await deleteOrderItemsDirectFetch(editingOrder.id);
 
         const items = (orderItems || []).map(item => {
           const crop = crops?.find(c => c.id === item.crop_id);
@@ -1090,17 +1140,13 @@ export default function OrdersPage() {
             custom_crop_name: item.custom_crop_name || null
           };
 
-          const { error: itemError } = await supabase.rpc(
-            'create_order_item_with_packaging',
-            { p_data: itemData }
-          );
-
-          if (itemError) {
-            console.error(`=== RPC ERROR (EDIT ORDER) Item ${idx + 1} ===`, itemError);
+          try {
+            await createOrderItemDirectFetch(itemData);
+            console.log(`✅ DIRECT FETCH SUCCESS (EDIT ORDER) Item ${idx + 1}`);
+          } catch (itemError) {
+            console.error(`=== DIRECT FETCH ERROR (EDIT ORDER) Item ${idx + 1} ===`, itemError);
             throw itemError;
           }
-
-          console.log(`✅ RPC SUCCESS (EDIT ORDER) Item ${idx + 1}`);
         }
 
         for (const item of orderItems || []) {
@@ -1196,17 +1242,13 @@ export default function OrdersPage() {
             custom_crop_name: item.custom_crop_name || null
           };
 
-          const { error: itemError } = await supabase.rpc(
-            'create_order_item_with_packaging',
-            { p_data: itemData }
-          );
-
-          if (itemError) {
-            console.error(`=== RPC ERROR (CREATE ORDER) Item ${idx + 1} ===`, itemError);
+          try {
+            await createOrderItemDirectFetch(itemData);
+            console.log(`✅ DIRECT FETCH SUCCESS (CREATE ORDER) Item ${idx + 1}`);
+          } catch (itemError) {
+            console.error(`=== DIRECT FETCH ERROR (CREATE ORDER) Item ${idx + 1} ===`, itemError);
             throw itemError;
           }
-
-          console.log(`✅ RPC SUCCESS (CREATE ORDER) Item ${idx + 1}`);
         }
 
         for (const item of orderItems || []) {
@@ -1441,19 +1483,15 @@ export default function OrdersPage() {
             custom_crop_name: item.custom_crop_name || null
           };
 
-          const { error: itemError } = await supabase.rpc(
-            'create_order_item_with_packaging',
-            { p_data: itemData }
-          );
-
-          if (itemError) {
-            console.error('❌ RPC INSERT FAILED (DUPLICATE ORDER) Item', idx + 1);
+          try {
+            await createOrderItemDirectFetch(itemData);
+            console.log(`✅ DIRECT FETCH SUCCESS (DUPLICATE ORDER) Item ${idx + 1}`);
+          } catch (itemError) {
+            console.error('❌ DIRECT FETCH FAILED (DUPLICATE ORDER) Item', idx + 1);
             console.error('Error object:', JSON.stringify(itemError, null, 2));
             console.error('Item that was sent:', JSON.stringify(item, null, 2));
             throw itemError;
           }
-
-          console.log(`✅ RPC SUCCESS (DUPLICATE ORDER) Item ${idx + 1}`);
         }
 
         console.log('✅ Order items created successfully');
