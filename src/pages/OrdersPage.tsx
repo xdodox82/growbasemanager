@@ -1058,30 +1058,32 @@ export default function OrdersPage() {
           console.log(`  p_container_size_ml: ${item.container_size_ml}`);
           console.log(`  p_needs_label: ${item.needs_label}`);
 
+          const itemData = {
+            order_id: editingOrder.id,
+            crop_id: item.crop_id || null,
+            blend_id: item.blend_id || null,
+            quantity: item.quantity,
+            pieces: 0,
+            delivery_form: item.delivery_form || 'whole',
+            price_per_unit: item.price_per_unit,
+            total_price: item.total_price,
+            packaging_type: item.packaging_type || null,
+            container_size_ml: item.container_size_ml || null,
+            needs_label: item.needs_label || false,
+            crop_name: item.crop_name || null,
+            unit: item.unit || 'ks',
+            packaging_size: item.packaging_size || '50g',
+            has_label: item.has_label || false,
+            notes: item.notes || null,
+            packaging_id: item.packaging_id || null,
+            special_requirements: item.special_requirements || null,
+            is_special_item: item.is_special_item || false,
+            custom_crop_name: item.custom_crop_name || null
+          };
+
           const { error: itemError } = await supabase.rpc(
             'create_order_item_with_packaging',
-            {
-              p_order_id: editingOrder.id,
-              p_crop_id: item.crop_id || null,
-              p_blend_id: item.blend_id || null,
-              p_quantity: item.quantity,
-              p_pieces: 0,
-              p_delivery_form: item.delivery_form || 'whole',
-              p_price_per_unit: item.price_per_unit,
-              p_total_price: item.total_price,
-              p_packaging_type: item.packaging_type || null,
-              p_container_size_ml: item.container_size_ml || null,
-              p_needs_label: item.needs_label || false,
-              p_crop_name: item.crop_name || null,
-              p_unit: item.unit || 'ks',
-              p_packaging_size: item.packaging_size || '50g',
-              p_has_label: item.has_label || false,
-              p_notes: item.notes || null,
-              p_packaging_id: item.packaging_id || null,
-              p_special_requirements: item.special_requirements || null,
-              p_is_special_item: item.is_special_item || false,
-              p_custom_crop_name: item.custom_crop_name || null
-            }
+            { p_data: itemData }
           );
 
           if (itemError) {
@@ -1162,30 +1164,32 @@ export default function OrdersPage() {
           console.log(`  p_container_size_ml: ${item.container_size_ml}`);
           console.log(`  p_needs_label: ${item.needs_label}`);
 
+          const itemData = {
+            order_id: newOrder.id,
+            crop_id: item.crop_id || null,
+            blend_id: item.blend_id || null,
+            quantity: item.quantity,
+            pieces: 0,
+            delivery_form: item.delivery_form || 'whole',
+            price_per_unit: item.price_per_unit,
+            total_price: item.total_price,
+            packaging_type: item.packaging_type || null,
+            container_size_ml: item.container_size_ml || null,
+            needs_label: item.needs_label || false,
+            crop_name: item.crop_name || null,
+            unit: item.unit || 'ks',
+            packaging_size: item.packaging_size || '50g',
+            has_label: item.has_label || false,
+            notes: item.notes || null,
+            packaging_id: item.packaging_id || null,
+            special_requirements: item.special_requirements || null,
+            is_special_item: item.is_special_item || false,
+            custom_crop_name: item.custom_crop_name || null
+          };
+
           const { error: itemError } = await supabase.rpc(
             'create_order_item_with_packaging',
-            {
-              p_order_id: newOrder.id,
-              p_crop_id: item.crop_id || null,
-              p_blend_id: item.blend_id || null,
-              p_quantity: item.quantity,
-              p_pieces: 0,
-              p_delivery_form: item.delivery_form || 'whole',
-              p_price_per_unit: item.price_per_unit,
-              p_total_price: item.total_price,
-              p_packaging_type: item.packaging_type || null,
-              p_container_size_ml: item.container_size_ml || null,
-              p_needs_label: item.needs_label || false,
-              p_crop_name: item.crop_name || null,
-              p_unit: item.unit || 'ks',
-              p_packaging_size: item.packaging_size || '50g',
-              p_has_label: item.has_label || false,
-              p_notes: item.notes || null,
-              p_packaging_id: item.packaging_id || null,
-              p_special_requirements: item.special_requirements || null,
-              p_is_special_item: item.is_special_item || false,
-              p_custom_crop_name: item.custom_crop_name || null
-            }
+            { p_data: itemData }
           );
 
           if (itemError) {
@@ -1405,30 +1409,32 @@ export default function OrdersPage() {
           console.log(`  p_container_size_ml: ${item.container_size_ml}`);
           console.log(`  p_needs_label: ${item.needs_label}`);
 
+          const itemData = {
+            order_id: newOrder.id,
+            crop_id: item.crop_id || null,
+            blend_id: item.blend_id || null,
+            quantity: item.quantity,
+            pieces: item.pieces || 0,
+            delivery_form: item.delivery_form || 'whole',
+            price_per_unit: item.price_per_unit,
+            total_price: item.total_price,
+            packaging_type: item.packaging_type || null,
+            container_size_ml: item.container_size_ml || null,
+            needs_label: item.needs_label || false,
+            crop_name: item.crop_name || null,
+            unit: item.unit || 'ks',
+            packaging_size: item.packaging_size || '50g',
+            has_label: item.has_label || false,
+            notes: item.notes || null,
+            packaging_id: item.packaging_id || null,
+            special_requirements: item.special_requirements || null,
+            is_special_item: item.is_special_item || false,
+            custom_crop_name: item.custom_crop_name || null
+          };
+
           const { error: itemError } = await supabase.rpc(
             'create_order_item_with_packaging',
-            {
-              p_order_id: newOrder.id,
-              p_crop_id: item.crop_id || null,
-              p_blend_id: item.blend_id || null,
-              p_quantity: item.quantity,
-              p_pieces: item.pieces || 0,
-              p_delivery_form: item.delivery_form || 'whole',
-              p_price_per_unit: item.price_per_unit,
-              p_total_price: item.total_price,
-              p_packaging_type: item.packaging_type || null,
-              p_container_size_ml: item.container_size_ml || null,
-              p_needs_label: item.needs_label || false,
-              p_crop_name: item.crop_name || null,
-              p_unit: item.unit || 'ks',
-              p_packaging_size: item.packaging_size || '50g',
-              p_has_label: item.has_label || false,
-              p_notes: item.notes || null,
-              p_packaging_id: item.packaging_id || null,
-              p_special_requirements: item.special_requirements || null,
-              p_is_special_item: item.is_special_item || false,
-              p_custom_crop_name: item.custom_crop_name || null
-            }
+            { p_data: itemData }
           );
 
           if (itemError) {
