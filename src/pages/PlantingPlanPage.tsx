@@ -865,11 +865,11 @@ const PlantingPlanPage = () => {
                         )}
                       </div>
 
-                      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                         <Button
                           variant={plan.status === 'completed' ? 'default' : 'outline'}
                           size="sm"
-                          onClick={() => plan.status === 'completed' ? handleMarkPlanned(plan.id) : handleMarkComplete(plan.id)}
+                          onClick={() => handleMarkComplete(plan.id)}
                           disabled={!isAdmin}
                           className={cn(
                             "h-8 px-3 text-xs gap-1.5 rounded-full",
@@ -885,6 +885,18 @@ const PlantingPlanPage = () => {
                           )}
                           <span>Hotovo</span>
                         </Button>
+
+                        {plan.status === 'completed' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleMarkPlanned(plan.id)}
+                            disabled={!isAdmin}
+                            className="h-8 px-3 text-xs text-gray-600 hover:text-gray-900"
+                          >
+                            Vrátiť späť
+                          </Button>
+                        )}
                       </div>
                     </div>
 
