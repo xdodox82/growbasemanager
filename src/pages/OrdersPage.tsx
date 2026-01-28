@@ -1009,8 +1009,21 @@ export default function OrdersPage() {
             user_id: user.id
           };
         });
+
+        console.log('=== INSERTING ORDER_ITEMS (EDIT ORDER) ===');
+        items.forEach((item, idx) => {
+          console.log(`Item ${idx + 1}:`, item);
+          console.log(`  packaging_type: ${item.packaging_type}`);
+          console.log(`  container_size_ml: ${item.container_size_ml}`);
+          console.log(`  needs_label: ${item.needs_label}`);
+        });
+
         const { error: itemsError } = await supabase.from('order_items').insert(items);
-        if (itemsError) throw itemsError;
+
+        if (itemsError) {
+          console.error('=== INSERT ERROR (EDIT ORDER) ===', itemsError);
+          throw itemsError;
+        }
 
         for (const item of orderItems || []) {
           if (item?.packaging_id && item?.quantity) {
@@ -1072,8 +1085,21 @@ export default function OrdersPage() {
             user_id: user.id
           };
         });
+
+        console.log('=== INSERTING ORDER_ITEMS (CREATE ORDER) ===');
+        items.forEach((item, idx) => {
+          console.log(`Item ${idx + 1}:`, item);
+          console.log(`  packaging_type: ${item.packaging_type}`);
+          console.log(`  container_size_ml: ${item.container_size_ml}`);
+          console.log(`  needs_label: ${item.needs_label}`);
+        });
+
         const { error: itemsError } = await supabase.from('order_items').insert(items);
-        if (itemsError) throw itemsError;
+
+        if (itemsError) {
+          console.error('=== INSERT ERROR (CREATE ORDER) ===', itemsError);
+          throw itemsError;
+        }
 
         for (const item of orderItems || []) {
           if (item?.packaging_id && item?.quantity) {
@@ -1274,6 +1300,14 @@ export default function OrdersPage() {
         });
 
         console.log('Inserting items:', items);
+
+        console.log('=== INSERTING ORDER_ITEMS (DUPLICATE ORDER) ===');
+        items.forEach((item, idx) => {
+          console.log(`Item ${idx + 1}:`, item);
+          console.log(`  packaging_type: ${item.packaging_type}`);
+          console.log(`  container_size_ml: ${item.container_size_ml}`);
+          console.log(`  needs_label: ${item.needs_label}`);
+        });
 
         const { error: itemsError } = await supabase.from('order_items').insert(items);
 
