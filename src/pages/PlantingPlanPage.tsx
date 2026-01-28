@@ -521,6 +521,16 @@ const PlantingPlanPage = () => {
     console.log('Tray Count:', trayCount);
     console.log('Seed Density:', seedDensity);
     console.log('Is Mixed:', isMixedPlanting);
+
+    console.log('=== UKLADANIE VÝSEVU ===');
+    console.log('isMixedPlanting:', isMixedPlanting);
+    console.log('mixedSeedDensity:', mixedSeedDensity);
+    console.log('useCustomDensity:', useCustomDensity);
+    console.log('customSeedDensity:', customSeedDensity);
+    console.log('dbSeedDensity:', dbSeedDensity);
+    console.log('Final seedDensity:', seedDensity);
+    console.log('Total seed grams (seedDensity × trayCount):', totalSeedGrams);
+
     try {
       // NOTE: Test functionality temporarily removed due to Supabase PostgREST cache bug
       // Bug report filed: GitHub issue & Supabase support ticket
@@ -544,6 +554,9 @@ const PlantingPlanPage = () => {
         notes: notes.trim() || null
       };
 
+      console.log('=== UKLADÁM DO DB ===');
+      console.log('Ukladám seed_amount_grams:', dataToSave.seed_amount_grams);
+      console.log('Ukladám total_seed_grams:', dataToSave.total_seed_grams);
       console.log(isEdit ? 'Updating data:' : 'Inserting data:', JSON.stringify(dataToSave, null, 2));
 
       let error;
@@ -1045,17 +1058,23 @@ const PlantingPlanPage = () => {
                         <TableCell className="text-center align-middle py-3" onClick={(e) => e.stopPropagation()}>
                           <div className="flex justify-center">
                             <Button
-                              variant="ghost"
-                              size="icon"
+                              variant={plan.status === 'completed' ? 'default' : 'outline'}
+                              size="sm"
                               onClick={() => plan.status === 'completed' ? handleMarkPlanned(plan.id) : handleMarkComplete(plan.id)}
                               disabled={!isAdmin}
-                              className="h-8 w-8 rounded-full hover:bg-gray-100"
+                              className={cn(
+                                "h-8 px-3 text-xs gap-1.5 rounded-full",
+                                plan.status === 'completed'
+                                  ? "bg-green-600 hover:bg-green-700 text-white border-0"
+                                  : "border-gray-300 hover:bg-gray-50 text-gray-700"
+                              )}
                             >
                               {plan.status === 'completed' ? (
-                                <CheckCircle className="h-5 w-5 text-green-600 fill-current" />
+                                <CheckCircle className="h-4 w-4" />
                               ) : (
-                                <Circle className="h-5 w-5 text-gray-400" />
+                                <Circle className="h-4 w-4" />
                               )}
+                              <span>Hotovo</span>
                             </Button>
                           </div>
                         </TableCell>
@@ -1305,14 +1324,17 @@ const PlantingPlanPage = () => {
                           const totalDensity = selectedPlan.seed_amount_grams;
 
                           console.log('=== ROZPAD SEMIEN DEBUG ===');
+                          console.log('seed_amount_grams z DB:', selectedPlan.seed_amount_grams);
                           console.log('Mix config:', mixConfig);
-                          console.log('Total density (seed_amount_grams):', totalDensity);
-                          console.log('Total seed grams:', selectedPlan.total_seed_grams);
+
+                          const prepoctaneHodnoty = mixConfig.map((m: any) => {
+                            const gramov = (totalDensity * m.percentage / 100).toFixed(1);
+                            return `${m.crop_name}: ${gramov}g`;
+                          });
+                          console.log('Prepočítané hodnoty:', prepoctaneHodnoty);
 
                           return mixConfig.map((mix: any, idx: number) => {
                             const mixDensity = totalDensity * (mix.percentage / 100);
-
-                            console.log(`${mix.crop_name}: ${totalDensity} × ${mix.percentage}% = ${mixDensity.toFixed(1)}g`);
 
                             return (
                               <div key={idx} className="flex justify-between text-xs py-1">
@@ -1779,7 +1801,9 @@ const PlantingPlanPage = () => {
                 disabled={
                   saving ||
                   (isMixedPlanting
-                    ? (mixCrops.length === 0 || mixCrops.some(mc => !mc.cropId))
+                    ? (mixCrops.length === 0 ||
+                       mixCrops.some(mc => !mc.cropId) ||
+                       mixCrops.reduce((sum, mc) => sum + mc.percentage, 0) !== 100)
                     : !selectedCropId
                   ) ||
                   !selectedTraySize ||
