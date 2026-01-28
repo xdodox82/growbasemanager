@@ -52,6 +52,8 @@ import {
   LayoutGrid,
   List,
   CheckCircle2,
+  CheckCircle,
+  Circle,
   Info,
   Beaker,
   RotateCcw,
@@ -961,12 +963,12 @@ const PlantingPlanPage = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-center align-middle py-3">Plodina</TableHead>
+                      <TableHead className="text-left align-middle py-3">Plodina</TableHead>
                       <TableHead className="text-center align-middle py-3">Dátum výsevu</TableHead>
                       <TableHead className="text-center align-middle py-3">Dátum zberu</TableHead>
                       <TableHead className="text-center align-middle py-3">Tácky</TableHead>
                       <TableHead className="text-center align-middle py-3">Semená</TableHead>
-                      <TableHead className="text-center align-middle py-3">Hotovo</TableHead>
+                      <TableHead className="text-center align-middle py-3">Status</TableHead>
                       <TableHead className="text-center align-middle py-3">Akcie</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -980,8 +982,8 @@ const PlantingPlanPage = () => {
                         }`}
                         onClick={() => openDetailDialog(plan)}
                       >
-                        <TableCell className="text-center align-middle py-3">
-                          <div className="flex items-center justify-center gap-2">
+                        <TableCell className="text-left align-middle py-3">
+                          <div className="flex items-center gap-2">
                             <div
                               className="h-6 w-6 rounded flex items-center justify-center flex-shrink-0"
                               style={{
@@ -1035,22 +1037,17 @@ const PlantingPlanPage = () => {
                         <TableCell className="text-center align-middle py-3">{formatGrams(plan.total_seed_grams || (plan.tray_count * (plan.tray_config?.seed_density_grams || 0)))}g</TableCell>
                         <TableCell className="text-center align-middle py-3" onClick={(e) => e.stopPropagation()}>
                           <Button
-                            variant={plan.status === 'completed' ? 'default' : 'outline'}
+                            variant="ghost"
                             size="sm"
                             onClick={() => plan.status === 'completed' ? handleMarkPlanned(plan.id) : handleMarkComplete(plan.id)}
                             disabled={!isAdmin}
-                            className={cn(
-                              "h-8 px-3 text-xs w-full md:h-8 sm:h-10",
-                              plan.status === 'completed'
-                                ? "bg-green-600 hover:bg-green-700 text-white"
-                                : "border-gray-300 hover:bg-gray-50"
-                            )}
+                            className="h-8 w-8 p-0 rounded-full"
                           >
-                            <CheckCircle2 className={cn(
-                              "h-3 w-3 mr-1",
-                              plan.status === 'completed' && "fill-current"
-                            )} />
-                            {plan.status === 'completed' ? 'Hotovo' : 'Označiť'}
+                            {plan.status === 'completed' ? (
+                              <CheckCircle className="h-5 w-5 text-green-600 fill-current" />
+                            ) : (
+                              <Circle className="h-5 w-5 text-gray-400" />
+                            )}
                           </Button>
                         </TableCell>
                         <TableCell className="text-center align-middle py-3" onClick={(e) => e.stopPropagation()}>

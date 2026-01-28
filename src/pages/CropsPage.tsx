@@ -743,12 +743,12 @@ const CropsPage = () => {
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Droplets className="h-4 w-4" />
-                  <span>{crop.tray_configs?.XL?.seed_density_grams || crop.seed_density} g/tác</span>
+                  <span>{(crop as any).tray_configs?.XL?.seed_density || crop.seed_density} g/tác</span>
                 </div>
-                {(crop.tray_configs?.XL?.expected_yield || crop.expected_yield) && (
+                {((crop as any).tray_configs?.XL?.expected_yield || crop.expected_yield) && (
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Scissors className="h-4 w-4" />
-                    <span>{crop.tray_configs?.XL?.expected_yield || crop.expected_yield} g výnos</span>
+                    <span>{(crop as any).tray_configs?.XL?.expected_yield || crop.expected_yield} g výnos</span>
                   </div>
                 )}
                 {crop.germination_type && (
@@ -805,8 +805,8 @@ const CropsPage = () => {
                       expandedContent={
                         <>
                           <ExpandedDetail label="Dni do zberu" value={`${crop.days_to_harvest} dní`} />
-                          <ExpandedDetail label="Hustota" value={`${crop.seed_density} g/tác`} />
-                          <ExpandedDetail label="Výnos" value={crop.expected_yield ? `${crop.expected_yield} g` : '-'} />
+                          <ExpandedDetail label="Hustota" value={`${(crop as any).tray_configs?.XL?.seed_density || crop.seed_density} g/tác`} />
+                          <ExpandedDetail label="Výnos" value={(crop as any).tray_configs?.XL?.expected_yield || crop.expected_yield ? `${(crop as any).tray_configs?.XL?.expected_yield || crop.expected_yield} g` : '-'} />
                           <ExpandedDetail label="Zaťaženie" value={crop.needs_weight ? 'Áno' : 'Nie'} />
                           <ExpandedDetail label="Namáčanie" value={crop.seed_soaking ? 'Áno' : 'Nie'} />
                           <ExpandedDetail label="Rezaná forma" value={crop.can_be_cut ? 'Áno' : 'Nie'} />
@@ -834,8 +834,8 @@ const CropsPage = () => {
                         </Badge>
                       </MobileTableCell>
                       <MobileTableCell hideOnMobile>{crop.days_to_harvest} dní</MobileTableCell>
-                      <MobileTableCell hideOnMobile>{crop.seed_density} g/tác</MobileTableCell>
-                      <MobileTableCell hideOnMobile>{crop.expected_yield || '-'} g</MobileTableCell>
+                      <MobileTableCell hideOnMobile>{(crop as any).tray_configs?.XL?.seed_density || crop.seed_density} g/tác</MobileTableCell>
+                      <MobileTableCell hideOnMobile>{(crop as any).tray_configs?.XL?.expected_yield || crop.expected_yield || '-'} g</MobileTableCell>
                       <MobileTableCell hideOnMobile>
                         {crop.needs_weight ? (
                           <div className="flex items-center gap-1 text-primary">
@@ -929,11 +929,11 @@ const CropsPage = () => {
                 </div>
                 <div className="space-y-1">
                   <div className="text-sm text-muted-foreground">Hustota osiva</div>
-                  <div className="font-medium">{selectedCropDetail.tray_configs?.XL?.seed_density_grams || selectedCropDetail.seed_density} g/tác</div>
+                  <div className="font-medium">{(selectedCropDetail as any).tray_configs?.XL?.seed_density || selectedCropDetail.seed_density} g/tác</div>
                 </div>
                 <div className="space-y-1">
                   <div className="text-sm text-muted-foreground">Očakávaný výnos</div>
-                  <div className="font-medium">{selectedCropDetail.tray_configs?.XL?.expected_yield || selectedCropDetail.expected_yield || '-'} g</div>
+                  <div className="font-medium">{(selectedCropDetail as any).tray_configs?.XL?.expected_yield || selectedCropDetail.expected_yield || '-'} g</div>
                 </div>
                 <div className="space-y-1">
                   <div className="text-sm text-muted-foreground">Dni v tme</div>
