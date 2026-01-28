@@ -735,6 +735,7 @@ export default function OrdersPage() {
     setOrderNotes('');
     setFreeDelivery(false); // Default: OFF = calculate delivery
     setManualDeliveryAmount(''); // Clear manual amount
+    setCalculatedDeliveryPrice(0);
     setOrderItems([]);
     setCurrentItem({
       crop_name: '',
@@ -771,8 +772,10 @@ export default function OrdersPage() {
     // Load manual amount if delivery was charged and has a value
     if (!shouldBeFree && order.delivery_price && order.delivery_price > 0) {
       setManualDeliveryAmount(order.delivery_price.toString());
+      setCalculatedDeliveryPrice(order.delivery_price);
     } else {
       setManualDeliveryAmount('');
+      setCalculatedDeliveryPrice(0);
     }
     setOrderItems(order.order_items || []);
     setIsDialogOpen(true);
@@ -1128,13 +1131,12 @@ export default function OrdersPage() {
             delivery_form: item.delivery_form || 'whole',
             price_per_unit: item.price_per_unit,
             total_price: item.total_price,
-            packaging_type: item.packaging_type || null,
-            container_size_ml: item.container_size_ml || null,
-            needs_label: item.needs_label || false,
+            package_type: item.packaging_type || null,
+            package_ml: item.packaging_volume_ml || item.container_size_ml || null,
+            has_label_req: item.needs_label || item.has_label || false,
             crop_name: item.crop_name || null,
             unit: item.unit || 'ks',
             packaging_size: item.packaging_size || '50g',
-            has_label: item.has_label || false,
             notes: item.notes || null,
             packaging_id: item.packaging_id || null,
             special_requirements: item.special_requirements || null,
@@ -1230,13 +1232,12 @@ export default function OrdersPage() {
             delivery_form: item.delivery_form || 'whole',
             price_per_unit: item.price_per_unit,
             total_price: item.total_price,
-            packaging_type: item.packaging_type || null,
-            container_size_ml: item.container_size_ml || null,
-            needs_label: item.needs_label || false,
+            package_type: item.packaging_type || null,
+            package_ml: item.packaging_volume_ml || item.container_size_ml || null,
+            has_label_req: item.needs_label || item.has_label || false,
             crop_name: item.crop_name || null,
             unit: item.unit || 'ks',
             packaging_size: item.packaging_size || '50g',
-            has_label: item.has_label || false,
             notes: item.notes || null,
             packaging_id: item.packaging_id || null,
             special_requirements: item.special_requirements || null,
@@ -1471,13 +1472,12 @@ export default function OrdersPage() {
             delivery_form: item.delivery_form || 'whole',
             price_per_unit: item.price_per_unit,
             total_price: item.total_price,
-            packaging_type: item.packaging_type || null,
-            container_size_ml: item.container_size_ml || null,
-            needs_label: item.needs_label || false,
+            package_type: item.packaging_type || null,
+            package_ml: item.packaging_volume_ml || item.container_size_ml || null,
+            has_label_req: item.needs_label || item.has_label || false,
             crop_name: item.crop_name || null,
             unit: item.unit || 'ks',
             packaging_size: item.packaging_size || '50g',
-            has_label: item.has_label || false,
             notes: item.notes || null,
             packaging_id: item.packaging_id || null,
             special_requirements: item.special_requirements || null,
