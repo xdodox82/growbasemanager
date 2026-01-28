@@ -910,7 +910,7 @@ const PlantingPlanPage = () => {
                             {(plan as any).is_mixed ? (
                               <>Mix: {formatGrams(plan.total_seed_grams || 0)}g celkom</>
                             ) : (
-                              <>{formatGrams(plan.tray_config?.seed_density_grams || plan.seed_amount_grams || 0)}g/tácka • {formatGrams(plan.total_seed_grams || (plan.tray_count * (plan.tray_config?.seed_density_grams || 0)))}g celkom</>
+                              <>{formatGrams(plan.seed_amount_grams || 0)}g/tácka • {formatGrams(plan.total_seed_grams || 0)}g celkom</>
                             )}
                           </p>
                         </div>
@@ -1034,7 +1034,7 @@ const PlantingPlanPage = () => {
                         <TableCell className="text-center align-middle py-3">{formatDate(plan.sow_date)}</TableCell>
                         <TableCell className="text-center align-middle py-3">{formatDate(getHarvestDate(plan).toISOString())}</TableCell>
                         <TableCell className="text-center align-middle py-3">{plan.tray_count} × {plan.tray_size}</TableCell>
-                        <TableCell className="text-center align-middle py-3">{formatGrams(plan.total_seed_grams || (plan.tray_count * (plan.tray_config?.seed_density_grams || 0)))}g</TableCell>
+                        <TableCell className="text-center align-middle py-3">{formatGrams(plan.total_seed_grams || 0)}g</TableCell>
                         <TableCell className="text-center align-middle py-3" onClick={(e) => e.stopPropagation()}>
                           <Button
                             variant={plan.status === 'completed' ? 'default' : 'outline'}
@@ -1056,7 +1056,7 @@ const PlantingPlanPage = () => {
                             ) : (
                               <>
                                 <Circle className="h-3 w-3" />
-                                <span>Označiť</span>
+                                <span>Hotovo</span>
                               </>
                             )}
                           </Button>
@@ -1124,17 +1124,39 @@ const PlantingPlanPage = () => {
                             onClick={() => openDetailDialog(plan)}
                           >
                             <div className="flex items-center gap-2 flex-1 min-w-0">
-                              <Leaf
-                                className="h-4 w-4 flex-shrink-0"
-                                style={{ color: plan.crops?.color || '#22c55e' }}
-                              />
+                              {(plan as any).is_mixed ? (
+                                <Layers className="h-4 w-4 flex-shrink-0 text-green-600" />
+                              ) : (
+                                <Leaf
+                                  className="h-4 w-4 flex-shrink-0"
+                                  style={{ color: plan.crops?.color || '#22c55e' }}
+                                />
+                              )}
                               <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate">
-                                  {plan.crops?.name || 'Neznáma plodina'}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {plan.tray_count} × {plan.tray_size}
-                                </p>
+                                {(plan as any).is_mixed ? (
+                                  <>
+                                    <p className="font-medium truncate">Kombinovaný výsev</p>
+                                    <p className="text-xs text-muted-foreground truncate">
+                                      {(() => {
+                                        try {
+                                          const mixConfig = JSON.parse((plan as any).mix_configuration);
+                                          return mixConfig.map((m: any) => `${m.crop_name} ${m.percentage}%`).join(' + ');
+                                        } catch {
+                                          return plan.tray_count + ' × ' + plan.tray_size;
+                                        }
+                                      })()}
+                                    </p>
+                                  </>
+                                ) : (
+                                  <>
+                                    <p className="font-medium truncate">
+                                      {plan.crops?.name || 'Neznáma plodina'}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {plan.tray_count} × {plan.tray_size}
+                                    </p>
+                                  </>
+                                )}
                               </div>
                             </div>
                             {plan.status === 'completed' && (
@@ -1269,7 +1291,7 @@ const PlantingPlanPage = () => {
                 </p>
 
                 <p className="text-xs text-gray-600">
-                  Hustota: {selectedPlan.seed_amount_grams || selectedPlan.tray_config?.seed_density_grams || 0}g/tácka
+                  Hustota: {selectedPlan.seed_amount_grams || 0}g/tácka
                 </p>
 
                 {(selectedPlan as any).is_mixed && (selectedPlan as any).mix_configuration && (
@@ -1316,7 +1338,7 @@ const PlantingPlanPage = () => {
                   <div className="flex justify-between text-sm font-semibold">
                     <span>Celkom semien:</span>
                     <span className="text-green-600">
-                      {((selectedPlan.seed_amount_grams || selectedPlan.total_seed_grams || (selectedPlan.tray_count * (selectedPlan.tray_config?.seed_density_grams || 0)))).toFixed(1)}g
+                      {(selectedPlan.total_seed_grams || (selectedPlan.tray_count * (selectedPlan.seed_amount_grams || 0))).toFixed(1)}g
                     </span>
                   </div>
                 </div>
