@@ -1071,7 +1071,16 @@ export default function OrdersPage() {
               p_total_price: item.total_price,
               p_packaging_type: item.packaging_type || null,
               p_container_size_ml: item.container_size_ml || null,
-              p_needs_label: item.needs_label || false
+              p_needs_label: item.needs_label || false,
+              p_crop_name: item.crop_name || null,
+              p_unit: item.unit || 'ks',
+              p_packaging_size: item.packaging_size || '50g',
+              p_has_label: item.has_label || false,
+              p_notes: item.notes || null,
+              p_packaging_id: item.packaging_id || null,
+              p_special_requirements: item.special_requirements || null,
+              p_is_special_item: item.is_special_item || false,
+              p_custom_crop_name: item.custom_crop_name || null
             }
           );
 
@@ -1166,7 +1175,16 @@ export default function OrdersPage() {
               p_total_price: item.total_price,
               p_packaging_type: item.packaging_type || null,
               p_container_size_ml: item.container_size_ml || null,
-              p_needs_label: item.needs_label || false
+              p_needs_label: item.needs_label || false,
+              p_crop_name: item.crop_name || null,
+              p_unit: item.unit || 'ks',
+              p_packaging_size: item.packaging_size || '50g',
+              p_has_label: item.has_label || false,
+              p_notes: item.notes || null,
+              p_packaging_id: item.packaging_id || null,
+              p_special_requirements: item.special_requirements || null,
+              p_is_special_item: item.is_special_item || false,
+              p_custom_crop_name: item.custom_crop_name || null
             }
           );
 
@@ -1400,7 +1418,16 @@ export default function OrdersPage() {
               p_total_price: item.total_price,
               p_packaging_type: item.packaging_type || null,
               p_container_size_ml: item.container_size_ml || null,
-              p_needs_label: item.needs_label || false
+              p_needs_label: item.needs_label || false,
+              p_crop_name: item.crop_name || null,
+              p_unit: item.unit || 'ks',
+              p_packaging_size: item.packaging_size || '50g',
+              p_has_label: item.has_label || false,
+              p_notes: item.notes || null,
+              p_packaging_id: item.packaging_id || null,
+              p_special_requirements: item.special_requirements || null,
+              p_is_special_item: item.is_special_item || false,
+              p_custom_crop_name: item.custom_crop_name || null
             }
           );
 
