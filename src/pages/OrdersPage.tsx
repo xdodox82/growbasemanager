@@ -1011,38 +1011,23 @@ export default function OrdersPage() {
         });
 
         console.log('=== INSERTING ORDER_ITEMS (EDIT ORDER) ===');
-
-        for (let idx = 0; idx < items.length; idx++) {
-          const item = items[idx];
+        items.forEach((item, idx) => {
           console.log(`Item ${idx + 1}:`, item);
           console.log(`  packaging_type: ${item.packaging_type}`);
           console.log(`  container_size_ml: ${item.container_size_ml}`);
           console.log(`  needs_label: ${item.needs_label}`);
+        });
 
-          const { data: itemId, error: itemError } = await supabase.rpc(
-            'create_order_item_with_packaging',
-            {
-              p_order_id: editingOrder.id,
-              p_quantity: item.quantity,
-              p_pieces: item.pieces || 0,
-              p_delivery_form: item.delivery_form || 'whole',
-              p_price_per_unit: item.price_per_unit,
-              p_total_price: item.total_price,
-              p_crop_id: item.crop_id || null,
-              p_blend_id: item.blend_id || null,
-              p_packaging_type: item.packaging_type || null,
-              p_container_size_ml: item.container_size_ml || null,
-              p_needs_label: item.needs_label || false
-            }
-          );
+        const { error: insertError } = await supabase
+          .from('order_items')
+          .insert(items);
 
-          if (itemError) {
-            console.error(`=== RPC ERROR (EDIT ORDER) Item ${idx + 1} ===`, itemError);
-            throw itemError;
-          }
-
-          console.log(`✅ RPC SUCCESS (EDIT ORDER) Item ${idx + 1}, ID: ${itemId}`);
+        if (insertError) {
+          console.error('=== INSERT ERROR (EDIT ORDER) ===', insertError);
+          throw insertError;
         }
+
+        console.log('✅ INSERT SUCCESS (EDIT ORDER)');
 
         for (const item of orderItems || []) {
           if (item?.packaging_id && item?.quantity) {
@@ -1106,38 +1091,23 @@ export default function OrdersPage() {
         });
 
         console.log('=== INSERTING ORDER_ITEMS (CREATE ORDER) ===');
-
-        for (let idx = 0; idx < items.length; idx++) {
-          const item = items[idx];
+        items.forEach((item, idx) => {
           console.log(`Item ${idx + 1}:`, item);
           console.log(`  packaging_type: ${item.packaging_type}`);
           console.log(`  container_size_ml: ${item.container_size_ml}`);
           console.log(`  needs_label: ${item.needs_label}`);
+        });
 
-          const { data: itemId, error: itemError } = await supabase.rpc(
-            'create_order_item_with_packaging',
-            {
-              p_order_id: newOrder.id,
-              p_quantity: item.quantity,
-              p_pieces: item.pieces || 0,
-              p_delivery_form: item.delivery_form || 'whole',
-              p_price_per_unit: item.price_per_unit,
-              p_total_price: item.total_price,
-              p_crop_id: item.crop_id || null,
-              p_blend_id: item.blend_id || null,
-              p_packaging_type: item.packaging_type || null,
-              p_container_size_ml: item.container_size_ml || null,
-              p_needs_label: item.needs_label || false
-            }
-          );
+        const { error: insertError } = await supabase
+          .from('order_items')
+          .insert(items);
 
-          if (itemError) {
-            console.error(`=== RPC ERROR (CREATE ORDER) Item ${idx + 1} ===`, itemError);
-            throw itemError;
-          }
-
-          console.log(`✅ RPC SUCCESS (CREATE ORDER) Item ${idx + 1}, ID: ${itemId}`);
+        if (insertError) {
+          console.error('=== INSERT ERROR (CREATE ORDER) ===', insertError);
+          throw insertError;
         }
+
+        console.log('✅ INSERT SUCCESS (CREATE ORDER)');
 
         for (const item of orderItems || []) {
           if (item?.packaging_id && item?.quantity) {
@@ -1340,40 +1310,25 @@ export default function OrdersPage() {
         console.log('Inserting items:', items);
 
         console.log('=== INSERTING ORDER_ITEMS (DUPLICATE ORDER) ===');
-
-        for (let idx = 0; idx < items.length; idx++) {
-          const item = items[idx];
+        items.forEach((item, idx) => {
           console.log(`Item ${idx + 1}:`, item);
           console.log(`  packaging_type: ${item.packaging_type}`);
           console.log(`  container_size_ml: ${item.container_size_ml}`);
           console.log(`  needs_label: ${item.needs_label}`);
+        });
 
-          const { data: itemId, error: itemError } = await supabase.rpc(
-            'create_order_item_with_packaging',
-            {
-              p_order_id: duplicateOrder.id,
-              p_quantity: item.quantity,
-              p_pieces: item.pieces || 0,
-              p_delivery_form: item.delivery_form || 'whole',
-              p_price_per_unit: item.price_per_unit,
-              p_total_price: item.total_price,
-              p_crop_id: item.crop_id || null,
-              p_blend_id: item.blend_id || null,
-              p_packaging_type: item.packaging_type || null,
-              p_container_size_ml: item.container_size_ml || null,
-              p_needs_label: item.needs_label || false
-            }
-          );
+        const { error: insertError } = await supabase
+          .from('order_items')
+          .insert(items);
 
-          if (itemError) {
-            console.error(`❌ RPC INSERT FAILED (DUPLICATE ORDER) Item ${idx + 1}`);
-            console.error('Error object:', JSON.stringify(itemError, null, 2));
-            console.error('Item that was sent:', JSON.stringify(item, null, 2));
-            throw itemError;
-          }
-
-          console.log(`✅ RPC SUCCESS (DUPLICATE ORDER) Item ${idx + 1}, ID: ${itemId}`);
+        if (insertError) {
+          console.error('❌ INSERT FAILED (DUPLICATE ORDER)');
+          console.error('Error object:', JSON.stringify(insertError, null, 2));
+          console.error('Items that were sent:', JSON.stringify(items, null, 2));
+          throw insertError;
         }
+
+        console.log('✅ INSERT SUCCESS (DUPLICATE ORDER)');
 
         console.log('✅ Order items created successfully');
       }
