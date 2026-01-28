@@ -1004,6 +1004,8 @@ export default function OrdersPage() {
             total_price: Number(parseFloat((quantity * price).toFixed(2))),
             is_special_item: item.is_special_item || false,
             custom_crop_name: item.is_special_item ? item.custom_crop_name : null,
+            container_size_ml: item.packaging_volume_ml || null,
+            needs_label: item.has_label || false,
             user_id: user.id
           };
         });
@@ -1065,6 +1067,8 @@ export default function OrdersPage() {
             total_price: Number(parseFloat((quantity * price).toFixed(2))),
             is_special_item: item.is_special_item || false,
             custom_crop_name: item.is_special_item ? item.custom_crop_name : null,
+            container_size_ml: item.packaging_volume_ml || null,
+            needs_label: item.has_label || false,
             user_id: user.id
           };
         });
@@ -1245,6 +1249,8 @@ export default function OrdersPage() {
             packaging_type: item.packaging_type || '',
             packaging_volume_ml: Number(item.packaging_volume_ml) || 0, // integer type
             has_label: Boolean(item.has_label),
+            container_size_ml: Number(item.packaging_volume_ml) || 0,
+            needs_label: Boolean(item.has_label) || false,
             // Price fields - convert to Number
             price_per_unit: Number(item.price_per_unit) || 0,
             total_price: Number(item.total_price) || 0,
