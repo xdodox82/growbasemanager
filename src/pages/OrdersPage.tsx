@@ -949,7 +949,46 @@ export default function OrdersPage() {
         }
       }
 
+      // VALIDATION: If charge_delivery is true but deliveryPrice is 0, recalculate
+      if (!freeDelivery && deliveryPrice === 0 && route && route !== '' && route !== 'Žiadna trasa') {
+        console.warn('⚠️ VALIDATION: Delivery fee is 0€ but charge_delivery is enabled. Recalculating...');
+
+        const deliveryRoute = routes?.find(r => r.name === route);
+        if (deliveryRoute && customer && !customer.free_delivery) {
+          const custType = customer.customer_type || 'home';
+          let deliveryFee = 0;
+          let minFreeDelivery = 0;
+
+          if (custType === 'home') {
+            deliveryFee = parseFloat((deliveryRoute?.delivery_fee_home || 0).toString());
+            minFreeDelivery = parseFloat((deliveryRoute?.home_min_free_delivery || 0).toString());
+          } else if (custType === 'gastro') {
+            deliveryFee = parseFloat((deliveryRoute?.delivery_fee_gastro || 0).toString());
+            minFreeDelivery = parseFloat((deliveryRoute?.gastro_min_free_delivery || 0).toString());
+          } else if (custType === 'wholesale') {
+            deliveryFee = parseFloat((deliveryRoute?.delivery_fee_wholesale || 0).toString());
+            minFreeDelivery = parseFloat((deliveryRoute?.wholesale_min_free_delivery || 0).toString());
+          }
+
+          if (minFreeDelivery !== 0 && totalPrice < minFreeDelivery) {
+            deliveryPrice = deliveryFee;
+            console.log('✅ VALIDATION: Recalculated delivery fee:', deliveryPrice);
+          }
+        }
+      }
+
       const finalTotalPrice = totalPrice + deliveryPrice;
+
+      console.log('💾 SAVING ORDER:', {
+        customerType: customer?.customer_type,
+        route: route,
+        subtotal: totalPrice.toFixed(2),
+        deliveryPrice: deliveryPrice.toFixed(2),
+        totalPrice: finalTotalPrice.toFixed(2),
+        chargeDelivery: !freeDelivery,
+        freeDeliveryToggle: freeDelivery,
+        manualAmount: manualDeliveryAmount
+      });
 
       const orderData = {
         customer_id: customerId,
@@ -959,7 +998,7 @@ export default function OrdersPage() {
         status: status,
         total_price: Number(parseFloat(finalTotalPrice.toFixed(2))),
         delivery_price: Number(parseFloat(deliveryPrice.toFixed(2))),
-        charge_delivery: !freeDelivery, // Store: true = charge, false = free
+        charge_delivery: !freeDelivery,
         route: route || null,
         notes: orderNotes || null,
         is_recurring: orderType === 'tyzdenne' || orderType === 'dvojtyzdenne',
