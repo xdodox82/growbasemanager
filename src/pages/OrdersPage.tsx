@@ -153,13 +153,19 @@ const deleteOrderItemsDirectFetch = async (orderId: string) => {
 };
 
 const createOrderItemDirectFetch = async (itemData: any) => {
+  console.log('🚀 VERSION 2.0 - NEW SCHEMA ACTIVE - Using package_ml, package_type, has_label_req');
+
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
   const { data: { session } } = await supabase.auth.getSession();
   const accessToken = session?.access_token || supabaseAnonKey;
 
-  console.log('Final Payload:', itemData);
+  console.log('✅ Final Payload with NEW SCHEMA:', {
+    package_type: itemData.package_type,
+    package_ml: itemData.package_ml,
+    has_label_req: itemData.has_label_req
+  });
 
   const response = await fetch(`${supabaseUrl}/rest/v1/rpc/create_order_item_with_packaging`, {
     method: 'POST',
@@ -174,9 +180,11 @@ const createOrderItemDirectFetch = async (itemData: any) => {
 
   if (!response.ok) {
     const errorText = await response.text();
+    console.error('❌ RPC ERROR:', errorText);
     throw new Error(`RPC call failed: ${response.status} ${response.statusText} - ${errorText}`);
   }
 
+  console.log('✅ RPC SUCCESS - Item created with new schema');
   return response;
 };
 
