@@ -866,23 +866,25 @@ const PlantingPlanPage = () => {
                       </div>
 
                       <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                        {plan.status === 'completed' ? (
-                          <Badge className="bg-green-500 text-white hover:bg-green-600 h-8 px-3 flex items-center">
-                            <CheckCircle2 className="h-3 w-3 mr-1" />
-                            Hotovo
-                          </Badge>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleMarkComplete(plan.id)}
-                            disabled={!isAdmin}
-                            className="h-8 px-3 text-xs flex-shrink-0"
-                          >
-                            <CheckCircle2 className="h-3 w-3 mr-1" />
-                            Hotovo
-                          </Button>
-                        )}
+                        <Button
+                          variant={plan.status === 'completed' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => plan.status === 'completed' ? handleMarkPlanned(plan.id) : handleMarkComplete(plan.id)}
+                          disabled={!isAdmin}
+                          className={cn(
+                            "h-8 px-3 text-xs gap-1.5 rounded-full",
+                            plan.status === 'completed'
+                              ? "bg-green-600 hover:bg-green-700 text-white border-0"
+                              : "border-gray-300 hover:bg-gray-50 text-gray-700"
+                          )}
+                        >
+                          {plan.status === 'completed' ? (
+                            <CheckCircle className="h-4 w-4" />
+                          ) : (
+                            <Circle className="h-4 w-4" />
+                          )}
+                          <span>Hotovo</span>
+                        </Button>
                       </div>
                     </div>
 
@@ -942,18 +944,6 @@ const PlantingPlanPage = () => {
                         )}
 
                         <div className="mt-3 flex gap-1" onClick={(e) => e.stopPropagation()}>
-                          {plan.status === 'completed' && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="flex-1"
-                              onClick={() => handleMarkPlanned(plan.id)}
-                              disabled={!isAdmin}
-                            >
-                              <RotateCcw className="h-3 w-3 mr-1" />
-                              Vrátiť späť
-                            </Button>
-                          )}
                           <Button
                             size="icon"
                             variant="ghost"
