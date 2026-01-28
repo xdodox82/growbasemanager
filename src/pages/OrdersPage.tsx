@@ -1011,34 +1011,38 @@ export default function OrdersPage() {
         });
 
         console.log('=== INSERTING ORDER_ITEMS (EDIT ORDER) ===');
-        items.forEach((item, idx) => {
+
+        for (let idx = 0; idx < items.length; idx++) {
+          const item = items[idx];
           console.log(`Item ${idx + 1}:`, item);
           console.log(`  packaging_type: ${item.packaging_type}`);
           console.log(`  container_size_ml: ${item.container_size_ml}`);
           console.log(`  needs_label: ${item.needs_label}`);
-        });
 
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+          const { data: itemId, error: itemError } = await supabase.rpc(
+            'create_order_item_with_packaging',
+            {
+              p_order_id: editingOrder.id,
+              p_quantity: item.quantity,
+              p_pieces: item.pieces || 0,
+              p_delivery_form: item.delivery_form || 'whole',
+              p_price_per_unit: item.price_per_unit,
+              p_total_price: item.total_price,
+              p_crop_id: item.crop_id || null,
+              p_blend_id: item.blend_id || null,
+              p_packaging_type: item.packaging_type || null,
+              p_container_size_ml: item.container_size_ml || null,
+              p_needs_label: item.needs_label || false
+            }
+          );
 
-        const response = await fetch(`${supabaseUrl}/rest/v1/order_items`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
-            'Prefer': 'return=representation'
-          },
-          body: JSON.stringify(items)
-        });
+          if (itemError) {
+            console.error(`=== RPC ERROR (EDIT ORDER) Item ${idx + 1} ===`, itemError);
+            throw itemError;
+          }
 
-        if (!response.ok) {
-          const error = await response.json();
-          console.error('=== REST API INSERT ERROR (EDIT ORDER) ===', error);
-          throw new Error(JSON.stringify(error));
+          console.log(`✅ RPC SUCCESS (EDIT ORDER) Item ${idx + 1}, ID: ${itemId}`);
         }
-
-        console.log('✅ REST API INSERT SUCCESS (EDIT ORDER)');
 
         for (const item of orderItems || []) {
           if (item?.packaging_id && item?.quantity) {
@@ -1102,34 +1106,38 @@ export default function OrdersPage() {
         });
 
         console.log('=== INSERTING ORDER_ITEMS (CREATE ORDER) ===');
-        items.forEach((item, idx) => {
+
+        for (let idx = 0; idx < items.length; idx++) {
+          const item = items[idx];
           console.log(`Item ${idx + 1}:`, item);
           console.log(`  packaging_type: ${item.packaging_type}`);
           console.log(`  container_size_ml: ${item.container_size_ml}`);
           console.log(`  needs_label: ${item.needs_label}`);
-        });
 
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+          const { data: itemId, error: itemError } = await supabase.rpc(
+            'create_order_item_with_packaging',
+            {
+              p_order_id: newOrder.id,
+              p_quantity: item.quantity,
+              p_pieces: item.pieces || 0,
+              p_delivery_form: item.delivery_form || 'whole',
+              p_price_per_unit: item.price_per_unit,
+              p_total_price: item.total_price,
+              p_crop_id: item.crop_id || null,
+              p_blend_id: item.blend_id || null,
+              p_packaging_type: item.packaging_type || null,
+              p_container_size_ml: item.container_size_ml || null,
+              p_needs_label: item.needs_label || false
+            }
+          );
 
-        const response = await fetch(`${supabaseUrl}/rest/v1/order_items`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
-            'Prefer': 'return=representation'
-          },
-          body: JSON.stringify(items)
-        });
+          if (itemError) {
+            console.error(`=== RPC ERROR (CREATE ORDER) Item ${idx + 1} ===`, itemError);
+            throw itemError;
+          }
 
-        if (!response.ok) {
-          const error = await response.json();
-          console.error('=== REST API INSERT ERROR (CREATE ORDER) ===', error);
-          throw new Error(JSON.stringify(error));
+          console.log(`✅ RPC SUCCESS (CREATE ORDER) Item ${idx + 1}, ID: ${itemId}`);
         }
-
-        console.log('✅ REST API INSERT SUCCESS (CREATE ORDER)');
 
         for (const item of orderItems || []) {
           if (item?.packaging_id && item?.quantity) {
@@ -1332,38 +1340,40 @@ export default function OrdersPage() {
         console.log('Inserting items:', items);
 
         console.log('=== INSERTING ORDER_ITEMS (DUPLICATE ORDER) ===');
-        items.forEach((item, idx) => {
+
+        for (let idx = 0; idx < items.length; idx++) {
+          const item = items[idx];
           console.log(`Item ${idx + 1}:`, item);
           console.log(`  packaging_type: ${item.packaging_type}`);
           console.log(`  container_size_ml: ${item.container_size_ml}`);
           console.log(`  needs_label: ${item.needs_label}`);
-        });
 
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+          const { data: itemId, error: itemError } = await supabase.rpc(
+            'create_order_item_with_packaging',
+            {
+              p_order_id: duplicateOrder.id,
+              p_quantity: item.quantity,
+              p_pieces: item.pieces || 0,
+              p_delivery_form: item.delivery_form || 'whole',
+              p_price_per_unit: item.price_per_unit,
+              p_total_price: item.total_price,
+              p_crop_id: item.crop_id || null,
+              p_blend_id: item.blend_id || null,
+              p_packaging_type: item.packaging_type || null,
+              p_container_size_ml: item.container_size_ml || null,
+              p_needs_label: item.needs_label || false
+            }
+          );
 
-        const response = await fetch(`${supabaseUrl}/rest/v1/order_items`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
-            'Prefer': 'return=representation'
-          },
-          body: JSON.stringify(items)
-        });
+          if (itemError) {
+            console.error(`❌ RPC INSERT FAILED (DUPLICATE ORDER) Item ${idx + 1}`);
+            console.error('Error object:', JSON.stringify(itemError, null, 2));
+            console.error('Item that was sent:', JSON.stringify(item, null, 2));
+            throw itemError;
+          }
 
-        if (!response.ok) {
-          const error = await response.json();
-          console.error('❌ REST API INSERT FAILED (DUPLICATE ORDER)');
-          console.error('Error object:', JSON.stringify(error, null, 2));
-          console.error('Response status:', response.status);
-          console.error('Response statusText:', response.statusText);
-          console.error('Items that were sent:', JSON.stringify(items, null, 2));
-          throw new Error(JSON.stringify(error));
+          console.log(`✅ RPC SUCCESS (DUPLICATE ORDER) Item ${idx + 1}, ID: ${itemId}`);
         }
-
-        console.log('✅ REST API INSERT SUCCESS (DUPLICATE ORDER)');
 
         console.log('✅ Order items created successfully');
       }
