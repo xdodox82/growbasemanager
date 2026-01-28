@@ -419,6 +419,13 @@ const PlantingPlanPage = () => {
   };
 
   const openDetailDialog = (plan: PlantingPlan) => {
+    console.log('=== OPENING DETAIL DIALOG ===');
+    console.log('Plan data:', plan);
+    console.log('seed_amount_grams:', plan.seed_amount_grams);
+    console.log('total_seed_grams:', plan.total_seed_grams);
+    console.log('is_mixed:', (plan as any).is_mixed);
+    console.log('mix_configuration:', (plan as any).mix_configuration);
+
     setSelectedPlan(plan);
     setIsDetailDialogOpen(true);
   };
@@ -1036,30 +1043,21 @@ const PlantingPlanPage = () => {
                         <TableCell className="text-center align-middle py-3">{plan.tray_count} × {plan.tray_size}</TableCell>
                         <TableCell className="text-center align-middle py-3">{formatGrams(plan.total_seed_grams || 0)}g</TableCell>
                         <TableCell className="text-center align-middle py-3" onClick={(e) => e.stopPropagation()}>
-                          <Button
-                            variant={plan.status === 'completed' ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => plan.status === 'completed' ? handleMarkPlanned(plan.id) : handleMarkComplete(plan.id)}
-                            disabled={!isAdmin}
-                            className={cn(
-                              "h-8 px-3 text-xs gap-1",
-                              plan.status === 'completed'
-                                ? "bg-green-600 hover:bg-green-700 text-white"
-                                : "border-gray-300 hover:bg-gray-50"
-                            )}
-                          >
-                            {plan.status === 'completed' ? (
-                              <>
-                                <CheckCircle className="h-3 w-3 fill-current" />
-                                <span>Hotovo</span>
-                              </>
-                            ) : (
-                              <>
-                                <Circle className="h-3 w-3" />
-                                <span>Hotovo</span>
-                              </>
-                            )}
-                          </Button>
+                          <div className="flex justify-center">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => plan.status === 'completed' ? handleMarkPlanned(plan.id) : handleMarkComplete(plan.id)}
+                              disabled={!isAdmin}
+                              className="h-8 w-8 rounded-full hover:bg-gray-100"
+                            >
+                              {plan.status === 'completed' ? (
+                                <CheckCircle className="h-5 w-5 text-green-600 fill-current" />
+                              ) : (
+                                <Circle className="h-5 w-5 text-gray-400" />
+                              )}
+                            </Button>
+                          </div>
                         </TableCell>
                         <TableCell className="text-center align-middle py-3" onClick={(e) => e.stopPropagation()}>
                           <div className="flex gap-1 justify-end">
@@ -1304,15 +1302,17 @@ const PlantingPlanPage = () => {
                       {(() => {
                         try {
                           const mixConfig = JSON.parse((selectedPlan as any).mix_configuration);
-                          const totalDensity = selectedPlan.seed_amount_grams || 0;
+                          const totalDensity = selectedPlan.seed_amount_grams;
 
+                          console.log('=== ROZPAD SEMIEN DEBUG ===');
                           console.log('Mix config:', mixConfig);
-                          console.log('Total density from planting:', totalDensity);
+                          console.log('Total density (seed_amount_grams):', totalDensity);
+                          console.log('Total seed grams:', selectedPlan.total_seed_grams);
 
                           return mixConfig.map((mix: any, idx: number) => {
                             const mixDensity = totalDensity * (mix.percentage / 100);
 
-                            console.log(`${mix.crop_name} (${mix.percentage}%): ${mixDensity.toFixed(1)}g`);
+                            console.log(`${mix.crop_name}: ${totalDensity} × ${mix.percentage}% = ${mixDensity.toFixed(1)}g`);
 
                             return (
                               <div key={idx} className="flex justify-between text-xs py-1">
@@ -1331,17 +1331,15 @@ const PlantingPlanPage = () => {
                         }
                       })()}
                     </div>
+
+                    <div className="mt-2 pt-2 border-t flex justify-between text-sm font-semibold">
+                      <span>Celkom semien:</span>
+                      <span className="text-green-600">
+                        {selectedPlan.seed_amount_grams?.toFixed(1)}g
+                      </span>
+                    </div>
                   </div>
                 )}
-
-                <div className="mt-2 pt-2 border-t">
-                  <div className="flex justify-between text-sm font-semibold">
-                    <span>Celkom semien:</span>
-                    <span className="text-green-600">
-                      {(selectedPlan.total_seed_grams || (selectedPlan.tray_count * (selectedPlan.seed_amount_grams || 0))).toFixed(1)}g
-                    </span>
-                  </div>
-                </div>
               </div>
 
               {(selectedPlan as any).notes && (
