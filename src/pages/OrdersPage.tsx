@@ -99,6 +99,12 @@ interface Route {
   id: string;
   name: string;
   delivery_day_id?: string;
+  delivery_fee_home?: number;
+  delivery_fee_gastro?: number;
+  delivery_fee_wholesale?: number;
+  home_min_free_delivery?: number;
+  gastro_min_free_delivery?: number;
+  wholesale_min_free_delivery?: number;
 }
 
 interface DeliveryDay {
@@ -313,10 +319,13 @@ export default function OrdersPage() {
       // SMIŽANY RULE: If min_free_delivery is 0, delivery is automatically free
       if (minFreeDelivery === 0) {
         setCalculatedDeliveryPrice(0);
+        console.log('💶 [calculateDelivery] Free delivery (min threshold is 0)');
       } else if (totalPrice >= minFreeDelivery) {
         setCalculatedDeliveryPrice(0);
+        console.log('💶 [calculateDelivery] Free delivery (threshold met):', totalPrice, '>=', minFreeDelivery);
       } else {
         setCalculatedDeliveryPrice(deliveryFee);
+        console.log('💶 [calculateDelivery] Charging delivery:', deliveryFee, '€ (order:', totalPrice, '€, threshold:', minFreeDelivery, '€)');
       }
     };
 
