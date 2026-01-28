@@ -1018,12 +1018,27 @@ export default function OrdersPage() {
           console.log(`  needs_label: ${item.needs_label}`);
         });
 
-        const { error: itemsError } = await supabase.from('order_items').insert(items);
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-        if (itemsError) {
-          console.error('=== INSERT ERROR (EDIT ORDER) ===', itemsError);
-          throw itemsError;
+        const response = await fetch(`${supabaseUrl}/rest/v1/order_items`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify(items)
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          console.error('=== REST API INSERT ERROR (EDIT ORDER) ===', error);
+          throw new Error(JSON.stringify(error));
         }
+
+        console.log('✅ REST API INSERT SUCCESS (EDIT ORDER)');
 
         for (const item of orderItems || []) {
           if (item?.packaging_id && item?.quantity) {
@@ -1094,12 +1109,27 @@ export default function OrdersPage() {
           console.log(`  needs_label: ${item.needs_label}`);
         });
 
-        const { error: itemsError } = await supabase.from('order_items').insert(items);
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-        if (itemsError) {
-          console.error('=== INSERT ERROR (CREATE ORDER) ===', itemsError);
-          throw itemsError;
+        const response = await fetch(`${supabaseUrl}/rest/v1/order_items`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify(items)
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          console.error('=== REST API INSERT ERROR (CREATE ORDER) ===', error);
+          throw new Error(JSON.stringify(error));
         }
+
+        console.log('✅ REST API INSERT SUCCESS (CREATE ORDER)');
 
         for (const item of orderItems || []) {
           if (item?.packaging_id && item?.quantity) {
@@ -1309,17 +1339,31 @@ export default function OrdersPage() {
           console.log(`  needs_label: ${item.needs_label}`);
         });
 
-        const { error: itemsError } = await supabase.from('order_items').insert(items);
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-        if (itemsError) {
-          console.error('❌ ORDER ITEMS INSERT FAILED');
-          console.error('Error object:', JSON.stringify(itemsError, null, 2));
-          console.error('Error message:', itemsError.message);
-          console.error('Error details:', itemsError.details);
-          console.error('Error hint:', itemsError.hint);
+        const response = await fetch(`${supabaseUrl}/rest/v1/order_items`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify(items)
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          console.error('❌ REST API INSERT FAILED (DUPLICATE ORDER)');
+          console.error('Error object:', JSON.stringify(error, null, 2));
+          console.error('Response status:', response.status);
+          console.error('Response statusText:', response.statusText);
           console.error('Items that were sent:', JSON.stringify(items, null, 2));
-          throw itemsError;
+          throw new Error(JSON.stringify(error));
         }
+
+        console.log('✅ REST API INSERT SUCCESS (DUPLICATE ORDER)');
 
         console.log('✅ Order items created successfully');
       }
