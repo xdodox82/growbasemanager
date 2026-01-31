@@ -152,31 +152,6 @@ const deleteOrderItemsDirectFetch = async (orderId: string) => {
   return response;
 };
 
-const createOrderItemDirectFetch = async (itemData: any) => {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-  const { data: { session } } = await supabase.auth.getSession();
-  const accessToken = session?.access_token || supabaseAnonKey;
-
-  const response = await fetch(`${supabaseUrl}/rest/v1/rpc/create_order_item_with_packaging`, {
-    method: 'POST',
-    headers: {
-      'apikey': supabaseAnonKey,
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-      'Prefer': 'return=minimal'
-    },
-    body: JSON.stringify({ p_data: itemData })
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`RPC call failed: ${response.status} ${response.statusText} - ${errorText}`);
-  }
-
-  return response;
-};
 
 export default function OrdersPage() {
   console.log('[OrdersPage] Component rendering started');
@@ -733,6 +708,7 @@ export default function OrdersPage() {
     setOrderNotes('');
     setFreeDelivery(false); // Default: OFF = calculate delivery
     setManualDeliveryAmount(''); // Clear manual amount
+    setCalculatedDeliveryPrice(0);
     setOrderItems([]);
     setCurrentItem({
       crop_name: '',
@@ -769,8 +745,10 @@ export default function OrdersPage() {
     // Load manual amount if delivery was charged and has a value
     if (!shouldBeFree && order.delivery_price && order.delivery_price > 0) {
       setManualDeliveryAmount(order.delivery_price.toString());
+      setCalculatedDeliveryPrice(order.delivery_price);
     } else {
       setManualDeliveryAmount('');
+      setCalculatedDeliveryPrice(0);
     }
     setOrderItems(order.order_items || []);
     setIsDialogOpen(true);
@@ -903,6 +881,8 @@ export default function OrdersPage() {
   };
 
   const saveOrder = async () => {
+    alert('APP VERSION 4.0 - ACTIVE');
+
     if (!customerId) {
       toast({ title: 'Chyba', description: 'Vyberte zákazníka', variant: 'destructive' });
       return;
@@ -1102,22 +1082,14 @@ export default function OrdersPage() {
             total_price: Number(parseFloat((quantity * price).toFixed(2))),
             is_special_item: item.is_special_item || false,
             custom_crop_name: item.is_special_item ? item.custom_crop_name : null,
-            container_size_ml: item.packaging_volume_ml || null,
-            needs_label: item.has_label || false,
             user_id: user.id
           };
         });
 
-        console.log('=== INSERTING ORDER_ITEMS (EDIT ORDER) VIA RPC ===');
+        console.log('=== INSERTING ORDER_ITEMS (EDIT ORDER) USING STANDARD CLIENT ===');
 
-        for (let idx = 0; idx < items.length; idx++) {
-          const item = items[idx];
-          console.log(`Item ${idx + 1}:`, item);
-          console.log(`  p_packaging_type: ${item.packaging_type}`);
-          console.log(`  p_container_size_ml: ${item.container_size_ml}`);
-          console.log(`  p_needs_label: ${item.needs_label}`);
-
-          const itemData = {
+        const itemsToInsert = items.map(item => {
+          const newItem = {
             order_id: editingOrder.id,
             crop_id: item.crop_id || null,
             blend_id: item.blend_id || null,
@@ -1126,28 +1098,34 @@ export default function OrdersPage() {
             delivery_form: item.delivery_form || 'whole',
             price_per_unit: item.price_per_unit,
             total_price: item.total_price,
-            packaging_type: item.packaging_type || null,
-            container_size_ml: item.container_size_ml || null,
-            needs_label: item.needs_label || false,
+            package_type: item.packaging_type || null,
+            package_ml: item.packaging_volume_ml?.toString() || null,
+            has_label_req: item.has_label || false,
             crop_name: item.crop_name || null,
             unit: item.unit || 'ks',
             packaging_size: item.packaging_size || '50g',
-            has_label: item.has_label || false,
             notes: item.notes || null,
             packaging_id: item.packaging_id || null,
             special_requirements: item.special_requirements || null,
             is_special_item: item.is_special_item || false,
-            custom_crop_name: item.custom_crop_name || null
+            custom_crop_name: item.custom_crop_name || null,
+            user_id: user.id
           };
 
-          try {
-            await createOrderItemDirectFetch(itemData);
-            console.log(`✅ DIRECT FETCH SUCCESS (EDIT ORDER) Item ${idx + 1}`);
-          } catch (itemError) {
-            console.error(`=== DIRECT FETCH ERROR (EDIT ORDER) Item ${idx + 1} ===`, itemError);
-            throw itemError;
-          }
+          console.log('SENDING_TO_DB:', newItem);
+          return newItem;
+        });
+
+        const { error: itemsError } = await supabase
+          .from('order_items')
+          .insert(itemsToInsert);
+
+        if (itemsError) {
+          console.error('❌ STANDARD CLIENT ERROR (EDIT ORDER):', itemsError);
+          throw itemsError;
         }
+
+        console.log(`✅ STANDARD CLIENT SUCCESS (EDIT ORDER) - ${itemsToInsert.length} items inserted`);
 
         for (const item of orderItems || []) {
           if (item?.packaging_id && item?.quantity) {
@@ -1204,22 +1182,14 @@ export default function OrdersPage() {
             total_price: Number(parseFloat((quantity * price).toFixed(2))),
             is_special_item: item.is_special_item || false,
             custom_crop_name: item.is_special_item ? item.custom_crop_name : null,
-            container_size_ml: item.packaging_volume_ml || null,
-            needs_label: item.has_label || false,
             user_id: user.id
           };
         });
 
-        console.log('=== INSERTING ORDER_ITEMS (CREATE ORDER) VIA RPC ===');
+        console.log('=== INSERTING ORDER_ITEMS (CREATE ORDER) USING STANDARD CLIENT ===');
 
-        for (let idx = 0; idx < items.length; idx++) {
-          const item = items[idx];
-          console.log(`Item ${idx + 1}:`, item);
-          console.log(`  p_packaging_type: ${item.packaging_type}`);
-          console.log(`  p_container_size_ml: ${item.container_size_ml}`);
-          console.log(`  p_needs_label: ${item.needs_label}`);
-
-          const itemData = {
+        const itemsToInsert = items.map(item => {
+          const newItem = {
             order_id: newOrder.id,
             crop_id: item.crop_id || null,
             blend_id: item.blend_id || null,
@@ -1228,28 +1198,34 @@ export default function OrdersPage() {
             delivery_form: item.delivery_form || 'whole',
             price_per_unit: item.price_per_unit,
             total_price: item.total_price,
-            packaging_type: item.packaging_type || null,
-            container_size_ml: item.container_size_ml || null,
-            needs_label: item.needs_label || false,
+            package_type: item.packaging_type || null,
+            package_ml: item.packaging_volume_ml?.toString() || null,
+            has_label_req: item.has_label || false,
             crop_name: item.crop_name || null,
             unit: item.unit || 'ks',
             packaging_size: item.packaging_size || '50g',
-            has_label: item.has_label || false,
             notes: item.notes || null,
             packaging_id: item.packaging_id || null,
             special_requirements: item.special_requirements || null,
             is_special_item: item.is_special_item || false,
-            custom_crop_name: item.custom_crop_name || null
+            custom_crop_name: item.custom_crop_name || null,
+            user_id: user.id
           };
 
-          try {
-            await createOrderItemDirectFetch(itemData);
-            console.log(`✅ DIRECT FETCH SUCCESS (CREATE ORDER) Item ${idx + 1}`);
-          } catch (itemError) {
-            console.error(`=== DIRECT FETCH ERROR (CREATE ORDER) Item ${idx + 1} ===`, itemError);
-            throw itemError;
-          }
+          console.log('SENDING_TO_DB:', newItem);
+          return newItem;
+        });
+
+        const { error: itemsError } = await supabase
+          .from('order_items')
+          .insert(itemsToInsert);
+
+        if (itemsError) {
+          console.error('❌ STANDARD CLIENT ERROR (CREATE ORDER):', itemsError);
+          throw itemsError;
         }
+
+        console.log(`✅ STANDARD CLIENT SUCCESS (CREATE ORDER) - ${itemsToInsert.length} items inserted`);
 
         for (const item of orderItems || []) {
           if (item?.packaging_id && item?.quantity) {
@@ -1425,8 +1401,6 @@ export default function OrdersPage() {
             packaging_type: item.packaging_type || '',
             packaging_volume_ml: Number(item.packaging_volume_ml) || 0, // integer type
             has_label: Boolean(item.has_label),
-            container_size_ml: Number(item.packaging_volume_ml) || 0,
-            needs_label: Boolean(item.has_label) || false,
             // Price fields - convert to Number
             price_per_unit: Number(item.price_per_unit) || 0,
             total_price: Number(item.total_price) || 0,
@@ -1451,16 +1425,12 @@ export default function OrdersPage() {
 
         console.log('Inserting items:', items);
 
-        console.log('=== INSERTING ORDER_ITEMS (DUPLICATE ORDER) VIA RPC ===');
+        console.log('=== INSERTING ORDER_ITEMS (DUPLICATE ORDER) USING STANDARD CLIENT ===');
 
-        for (let idx = 0; idx < items.length; idx++) {
-          const item = items[idx];
-          console.log(`Item ${idx + 1}:`, item);
-          console.log(`  p_packaging_type: ${item.packaging_type}`);
-          console.log(`  p_container_size_ml: ${item.container_size_ml}`);
-          console.log(`  p_needs_label: ${item.needs_label}`);
+        const { data: { user } } = await supabase.auth.getUser();
 
-          const itemData = {
+        const itemsToInsert = items.map(item => {
+          const newItem = {
             order_id: newOrder.id,
             crop_id: item.crop_id || null,
             blend_id: item.blend_id || null,
@@ -1469,30 +1439,34 @@ export default function OrdersPage() {
             delivery_form: item.delivery_form || 'whole',
             price_per_unit: item.price_per_unit,
             total_price: item.total_price,
-            packaging_type: item.packaging_type || null,
-            container_size_ml: item.container_size_ml || null,
-            needs_label: item.needs_label || false,
+            package_type: item.packaging_type || null,
+            package_ml: item.packaging_volume_ml?.toString() || null,
+            has_label_req: item.has_label || false,
             crop_name: item.crop_name || null,
             unit: item.unit || 'ks',
             packaging_size: item.packaging_size || '50g',
-            has_label: item.has_label || false,
             notes: item.notes || null,
             packaging_id: item.packaging_id || null,
             special_requirements: item.special_requirements || null,
             is_special_item: item.is_special_item || false,
-            custom_crop_name: item.custom_crop_name || null
+            custom_crop_name: item.custom_crop_name || null,
+            user_id: user?.id
           };
 
-          try {
-            await createOrderItemDirectFetch(itemData);
-            console.log(`✅ DIRECT FETCH SUCCESS (DUPLICATE ORDER) Item ${idx + 1}`);
-          } catch (itemError) {
-            console.error('❌ DIRECT FETCH FAILED (DUPLICATE ORDER) Item', idx + 1);
-            console.error('Error object:', JSON.stringify(itemError, null, 2));
-            console.error('Item that was sent:', JSON.stringify(item, null, 2));
-            throw itemError;
-          }
+          console.log('SENDING_TO_DB:', newItem);
+          return newItem;
+        });
+
+        const { error: itemsError } = await supabase
+          .from('order_items')
+          .insert(itemsToInsert);
+
+        if (itemsError) {
+          console.error('❌ STANDARD CLIENT ERROR (DUPLICATE ORDER):', itemsError);
+          throw itemsError;
         }
+
+        console.log(`✅ STANDARD CLIENT SUCCESS (DUPLICATE ORDER) - ${itemsToInsert.length} items inserted`);
 
         console.log('✅ Order items created successfully');
       }

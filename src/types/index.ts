@@ -124,6 +124,9 @@ export interface OrderItem {
   quantity: number; // in grams
   pieces?: number; // počet kusov
   deliveryForm?: 'cut' | 'live'; // Forma dodania - rezaná/živá
+  package_ml: string; // NEW SCHEMA: Veľkosť balenia (napr. "250", "500")
+  package_type: string; // NEW SCHEMA: Typ obalu (napr. "PET", "PP")
+  has_label_req: boolean; // NEW SCHEMA: Požiadavka na etiketu
 }
 
 export const DELIVERY_FORMS = {
