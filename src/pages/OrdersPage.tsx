@@ -152,41 +152,6 @@ const deleteOrderItemsDirectFetch = async (orderId: string) => {
   return response;
 };
 
-const createOrderItemDirectFetch = async (itemData: any) => {
-  console.log('🚀 VERSION 2.0 - NEW SCHEMA ACTIVE - Using package_ml, package_type, has_label_req');
-
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-  const { data: { session } } = await supabase.auth.getSession();
-  const accessToken = session?.access_token || supabaseAnonKey;
-
-  console.log('✅ Final Payload with NEW SCHEMA:', {
-    package_type: itemData.package_type,
-    package_ml: itemData.package_ml,
-    has_label_req: itemData.has_label_req
-  });
-
-  const response = await fetch(`${supabaseUrl}/rest/v1/rpc/create_order_item_with_packaging`, {
-    method: 'POST',
-    headers: {
-      'apikey': supabaseAnonKey,
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-      'Prefer': 'return=minimal'
-    },
-    body: JSON.stringify({ p_data: itemData })
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('❌ RPC ERROR:', errorText);
-    throw new Error(`RPC call failed: ${response.status} ${response.statusText} - ${errorText}`);
-  }
-
-  console.log('✅ RPC SUCCESS - Item created with new schema');
-  return response;
-};
 
 export default function OrdersPage() {
   console.log('[OrdersPage] Component rendering started');
@@ -916,6 +881,8 @@ export default function OrdersPage() {
   };
 
   const saveOrder = async () => {
+    alert('APP VERSION 4.0 - ACTIVE');
+
     if (!customerId) {
       toast({ title: 'Chyba', description: 'Vyberte zákazníka', variant: 'destructive' });
       return;
@@ -1119,16 +1086,10 @@ export default function OrdersPage() {
           };
         });
 
-        console.log('=== INSERTING ORDER_ITEMS (EDIT ORDER) VIA RPC ===');
+        console.log('=== INSERTING ORDER_ITEMS (EDIT ORDER) USING STANDARD CLIENT ===');
 
-        for (let idx = 0; idx < items.length; idx++) {
-          const item = items[idx];
-          console.log(`Item ${idx + 1}:`, item);
-          console.log(`  package_type: ${item.packaging_type}`);
-          console.log(`  package_ml: ${item.packaging_volume_ml}`);
-          console.log(`  has_label_req: ${item.has_label}`);
-
-          const itemData = {
+        const itemsToInsert = items.map(item => {
+          const newItem = {
             order_id: editingOrder.id,
             crop_id: item.crop_id || null,
             blend_id: item.blend_id || null,
@@ -1138,7 +1099,7 @@ export default function OrdersPage() {
             price_per_unit: item.price_per_unit,
             total_price: item.total_price,
             package_type: item.packaging_type || null,
-            package_ml: item.packaging_volume_ml || null,
+            package_ml: item.packaging_volume_ml?.toString() || null,
             has_label_req: item.has_label || false,
             crop_name: item.crop_name || null,
             unit: item.unit || 'ks',
@@ -1147,17 +1108,24 @@ export default function OrdersPage() {
             packaging_id: item.packaging_id || null,
             special_requirements: item.special_requirements || null,
             is_special_item: item.is_special_item || false,
-            custom_crop_name: item.custom_crop_name || null
+            custom_crop_name: item.custom_crop_name || null,
+            user_id: user.id
           };
 
-          try {
-            await createOrderItemDirectFetch(itemData);
-            console.log(`✅ DIRECT FETCH SUCCESS (EDIT ORDER) Item ${idx + 1}`);
-          } catch (itemError) {
-            console.error(`=== DIRECT FETCH ERROR (EDIT ORDER) Item ${idx + 1} ===`, itemError);
-            throw itemError;
-          }
+          console.log('SENDING_TO_DB:', newItem);
+          return newItem;
+        });
+
+        const { error: itemsError } = await supabase
+          .from('order_items')
+          .insert(itemsToInsert);
+
+        if (itemsError) {
+          console.error('❌ STANDARD CLIENT ERROR (EDIT ORDER):', itemsError);
+          throw itemsError;
         }
+
+        console.log(`✅ STANDARD CLIENT SUCCESS (EDIT ORDER) - ${itemsToInsert.length} items inserted`);
 
         for (const item of orderItems || []) {
           if (item?.packaging_id && item?.quantity) {
@@ -1218,16 +1186,10 @@ export default function OrdersPage() {
           };
         });
 
-        console.log('=== INSERTING ORDER_ITEMS (CREATE ORDER) VIA RPC ===');
+        console.log('=== INSERTING ORDER_ITEMS (CREATE ORDER) USING STANDARD CLIENT ===');
 
-        for (let idx = 0; idx < items.length; idx++) {
-          const item = items[idx];
-          console.log(`Item ${idx + 1}:`, item);
-          console.log(`  package_type: ${item.packaging_type}`);
-          console.log(`  package_ml: ${item.packaging_volume_ml}`);
-          console.log(`  has_label_req: ${item.has_label}`);
-
-          const itemData = {
+        const itemsToInsert = items.map(item => {
+          const newItem = {
             order_id: newOrder.id,
             crop_id: item.crop_id || null,
             blend_id: item.blend_id || null,
@@ -1237,7 +1199,7 @@ export default function OrdersPage() {
             price_per_unit: item.price_per_unit,
             total_price: item.total_price,
             package_type: item.packaging_type || null,
-            package_ml: item.packaging_volume_ml || null,
+            package_ml: item.packaging_volume_ml?.toString() || null,
             has_label_req: item.has_label || false,
             crop_name: item.crop_name || null,
             unit: item.unit || 'ks',
@@ -1246,17 +1208,24 @@ export default function OrdersPage() {
             packaging_id: item.packaging_id || null,
             special_requirements: item.special_requirements || null,
             is_special_item: item.is_special_item || false,
-            custom_crop_name: item.custom_crop_name || null
+            custom_crop_name: item.custom_crop_name || null,
+            user_id: user.id
           };
 
-          try {
-            await createOrderItemDirectFetch(itemData);
-            console.log(`✅ DIRECT FETCH SUCCESS (CREATE ORDER) Item ${idx + 1}`);
-          } catch (itemError) {
-            console.error(`=== DIRECT FETCH ERROR (CREATE ORDER) Item ${idx + 1} ===`, itemError);
-            throw itemError;
-          }
+          console.log('SENDING_TO_DB:', newItem);
+          return newItem;
+        });
+
+        const { error: itemsError } = await supabase
+          .from('order_items')
+          .insert(itemsToInsert);
+
+        if (itemsError) {
+          console.error('❌ STANDARD CLIENT ERROR (CREATE ORDER):', itemsError);
+          throw itemsError;
         }
+
+        console.log(`✅ STANDARD CLIENT SUCCESS (CREATE ORDER) - ${itemsToInsert.length} items inserted`);
 
         for (const item of orderItems || []) {
           if (item?.packaging_id && item?.quantity) {
@@ -1456,16 +1425,12 @@ export default function OrdersPage() {
 
         console.log('Inserting items:', items);
 
-        console.log('=== INSERTING ORDER_ITEMS (DUPLICATE ORDER) VIA RPC ===');
+        console.log('=== INSERTING ORDER_ITEMS (DUPLICATE ORDER) USING STANDARD CLIENT ===');
 
-        for (let idx = 0; idx < items.length; idx++) {
-          const item = items[idx];
-          console.log(`Item ${idx + 1}:`, item);
-          console.log(`  package_type: ${item.packaging_type}`);
-          console.log(`  package_ml: ${item.packaging_volume_ml}`);
-          console.log(`  has_label_req: ${item.has_label}`);
+        const { data: { user } } = await supabase.auth.getUser();
 
-          const itemData = {
+        const itemsToInsert = items.map(item => {
+          const newItem = {
             order_id: newOrder.id,
             crop_id: item.crop_id || null,
             blend_id: item.blend_id || null,
@@ -1475,7 +1440,7 @@ export default function OrdersPage() {
             price_per_unit: item.price_per_unit,
             total_price: item.total_price,
             package_type: item.packaging_type || null,
-            package_ml: item.packaging_volume_ml || null,
+            package_ml: item.packaging_volume_ml?.toString() || null,
             has_label_req: item.has_label || false,
             crop_name: item.crop_name || null,
             unit: item.unit || 'ks',
@@ -1484,19 +1449,24 @@ export default function OrdersPage() {
             packaging_id: item.packaging_id || null,
             special_requirements: item.special_requirements || null,
             is_special_item: item.is_special_item || false,
-            custom_crop_name: item.custom_crop_name || null
+            custom_crop_name: item.custom_crop_name || null,
+            user_id: user?.id
           };
 
-          try {
-            await createOrderItemDirectFetch(itemData);
-            console.log(`✅ DIRECT FETCH SUCCESS (DUPLICATE ORDER) Item ${idx + 1}`);
-          } catch (itemError) {
-            console.error('❌ DIRECT FETCH FAILED (DUPLICATE ORDER) Item', idx + 1);
-            console.error('Error object:', JSON.stringify(itemError, null, 2));
-            console.error('Item that was sent:', JSON.stringify(item, null, 2));
-            throw itemError;
-          }
+          console.log('SENDING_TO_DB:', newItem);
+          return newItem;
+        });
+
+        const { error: itemsError } = await supabase
+          .from('order_items')
+          .insert(itemsToInsert);
+
+        if (itemsError) {
+          console.error('❌ STANDARD CLIENT ERROR (DUPLICATE ORDER):', itemsError);
+          throw itemsError;
         }
+
+        console.log(`✅ STANDARD CLIENT SUCCESS (DUPLICATE ORDER) - ${itemsToInsert.length} items inserted`);
 
         console.log('✅ Order items created successfully');
       }
