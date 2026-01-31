@@ -1101,16 +1101,23 @@ export default function OrdersPage() {
 
         console.log(`Prepared ${itemsToInsert.length} items for insertion`);
 
-        const { error: itemsError } = await supabase
-          .from('order_items')
-          .insert(itemsToInsert);
+        try {
+          const { error: itemsError } = await supabase
+            .from('order_items')
+            .insert(itemsToInsert);
 
-        if (itemsError) {
-          console.error('❌ STANDARD CLIENT ERROR (EDIT ORDER):', itemsError);
-          throw itemsError;
+          if (itemsError) {
+            console.error('❌ STANDARD CLIENT ERROR (EDIT ORDER):', itemsError);
+            alert('DB ERROR: ' + itemsError.message);
+            throw itemsError;
+          }
+
+          console.log(`✅ STANDARD CLIENT SUCCESS (EDIT ORDER) - ${itemsToInsert.length} items inserted`);
+        } catch (error: any) {
+          console.error('❌ INSERT FAILED (EDIT ORDER):', error);
+          alert('DB ERROR: ' + error.message);
+          throw error;
         }
-
-        console.log(`✅ STANDARD CLIENT SUCCESS (EDIT ORDER) - ${itemsToInsert.length} items inserted`);
 
         for (const item of orderItems || []) {
           if (item?.packaging_id && item?.quantity) {
@@ -1221,16 +1228,23 @@ export default function OrdersPage() {
 
         console.log(`Prepared ${itemsToInsert.length} items for insertion`);
 
-        const { error: itemsError } = await supabase
-          .from('order_items')
-          .insert(itemsToInsert);
+        try {
+          const { error: itemsError } = await supabase
+            .from('order_items')
+            .insert(itemsToInsert);
 
-        if (itemsError) {
-          console.error('❌ STANDARD CLIENT ERROR (CREATE ORDER):', itemsError);
-          throw itemsError;
+          if (itemsError) {
+            console.error('❌ STANDARD CLIENT ERROR (CREATE ORDER):', itemsError);
+            alert('DB ERROR: ' + itemsError.message);
+            throw itemsError;
+          }
+
+          console.log(`✅ STANDARD CLIENT SUCCESS (CREATE ORDER) - ${itemsToInsert.length} items inserted`);
+        } catch (error: any) {
+          console.error('❌ INSERT FAILED (CREATE ORDER):', error);
+          alert('DB ERROR: ' + error.message);
+          throw error;
         }
-
-        console.log(`✅ STANDARD CLIENT SUCCESS (CREATE ORDER) - ${itemsToInsert.length} items inserted`);
 
         for (const item of orderItems || []) {
           if (item?.packaging_id && item?.quantity) {
@@ -1466,16 +1480,23 @@ export default function OrdersPage() {
           return newItem;
         });
 
-        const { error: itemsError } = await supabase
-          .from('order_items')
-          .insert(itemsToInsert);
+        try {
+          const { error: itemsError } = await supabase
+            .from('order_items')
+            .insert(itemsToInsert);
 
-        if (itemsError) {
-          console.error('❌ STANDARD CLIENT ERROR (DUPLICATE ORDER):', itemsError);
-          throw itemsError;
+          if (itemsError) {
+            console.error('❌ STANDARD CLIENT ERROR (DUPLICATE ORDER):', itemsError);
+            alert('DB ERROR: ' + itemsError.message);
+            throw itemsError;
+          }
+
+          console.log(`✅ STANDARD CLIENT SUCCESS (DUPLICATE ORDER) - ${itemsToInsert.length} items inserted`);
+        } catch (error: any) {
+          console.error('❌ INSERT FAILED (DUPLICATE ORDER):', error);
+          alert('DB ERROR: ' + error.message);
+          throw error;
         }
-
-        console.log(`✅ STANDARD CLIENT SUCCESS (DUPLICATE ORDER) - ${itemsToInsert.length} items inserted`);
 
         console.log('✅ Order items created successfully');
       }
