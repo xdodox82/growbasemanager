@@ -159,8 +159,6 @@ const createOrderItemDirectFetch = async (itemData: any) => {
   const { data: { session } } = await supabase.auth.getSession();
   const accessToken = session?.access_token || supabaseAnonKey;
 
-  console.log('Final Payload:', itemData);
-
   const response = await fetch(`${supabaseUrl}/rest/v1/rpc/create_order_item_with_packaging`, {
     method: 'POST',
     headers: {
