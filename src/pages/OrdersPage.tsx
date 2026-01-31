@@ -883,22 +883,21 @@ export default function OrdersPage() {
   const saveOrder = async () => {
     alert('APP VERSION 4.0 - ACTIVE');
 
-    if (!customerId) {
-      toast({ title: 'Chyba', description: 'Vyberte zákazníka', variant: 'destructive' });
-      return;
-    }
-
-    if (!deliveryDate) {
-      toast({ title: 'Chyba', description: 'Vyberte dátum dodania', variant: 'destructive' });
-      return;
-    }
-
-    if (!orderItems || orderItems.length === 0) {
-      toast({ title: 'Chyba', description: 'Pridajte aspoň jednu položku', variant: 'destructive' });
-      return;
-    }
-
     try {
+      if (!customerId) {
+        toast({ title: 'Chyba', description: 'Vyberte zákazníka', variant: 'destructive' });
+        return;
+      }
+
+      if (!deliveryDate) {
+        toast({ title: 'Chyba', description: 'Vyberte dátum dodania', variant: 'destructive' });
+        return;
+      }
+
+      if (!orderItems || orderItems.length === 0) {
+        toast({ title: 'Chyba', description: 'Pridajte aspoň jednu položku', variant: 'destructive' });
+        return;
+      }
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         toast({
@@ -1052,7 +1051,17 @@ export default function OrdersPage() {
 
         await deleteOrderItemsDirectFetch(editingOrder.id);
 
-        const items = (orderItems || []).map(item => {
+        console.log('=== INSERTING ORDER_ITEMS (EDIT ORDER) USING STANDARD CLIENT ===');
+
+        if (!user || !user.id) {
+          throw new Error('User ID is missing - cannot insert order items');
+        }
+
+        const itemsToInsert = (orderItems || []).map(item => {
+          if (!item) {
+            throw new Error('Item is null or undefined');
+          }
+
           const crop = crops?.find(c => c.id === item.crop_id);
           const blend = blends?.find(b => b.id === item.blend_id);
           const cropName = item.is_special_item
@@ -1063,58 +1072,34 @@ export default function OrdersPage() {
           const quantity = parseFloat(item.quantity) || 0;
           const price = parseFloat(item.price_per_unit.toString().replace(',', '.')) || 0;
 
-          return {
+          const newItem = {
             order_id: editingOrder.id,
             crop_id: item.is_special_item ? null : (item.crop_id || null),
             blend_id: item.blend_id || null,
             crop_name: cropName,
             quantity: Number(quantity),
-            unit: item.unit,
+            pieces: 0,
+            unit: item.unit || 'ks',
             packaging_size: weightValue,
-            delivery_form: item.delivery_form,
-            has_label: item.has_label,
-            notes: item.notes || null,
-            packaging_type: item.packaging_type || 'PET',
-            packaging_volume_ml: item.packaging_volume_ml || null,
-            packaging_id: item.packaging_id || null,
-            special_requirements: item.special_requirements || null,
+            delivery_form: item.delivery_form || 'whole',
             price_per_unit: Number(price),
             total_price: Number(parseFloat((quantity * price).toFixed(2))),
-            is_special_item: item.is_special_item || false,
-            custom_crop_name: item.is_special_item ? item.custom_crop_name : null,
-            user_id: user.id
-          };
-        });
-
-        console.log('=== INSERTING ORDER_ITEMS (EDIT ORDER) USING STANDARD CLIENT ===');
-
-        const itemsToInsert = items.map(item => {
-          const newItem = {
-            order_id: editingOrder.id,
-            crop_id: item.crop_id || null,
-            blend_id: item.blend_id || null,
-            quantity: item.quantity,
-            pieces: 0,
-            delivery_form: item.delivery_form || 'whole',
-            price_per_unit: item.price_per_unit,
-            total_price: item.total_price,
             package_type: item.packaging_type || null,
-            package_ml: item.packaging_volume_ml?.toString() || null,
-            has_label_req: item.has_label || false,
-            crop_name: item.crop_name || null,
-            unit: item.unit || 'ks',
-            packaging_size: item.packaging_size || '50g',
+            package_ml: item.packaging_volume_ml ? item.packaging_volume_ml.toString() : null,
+            has_label_req: Boolean(item.has_label),
             notes: item.notes || null,
             packaging_id: item.packaging_id || null,
             special_requirements: item.special_requirements || null,
-            is_special_item: item.is_special_item || false,
-            custom_crop_name: item.custom_crop_name || null,
+            is_special_item: Boolean(item.is_special_item),
+            custom_crop_name: item.is_special_item ? item.custom_crop_name : null,
             user_id: user.id
           };
 
           console.log('SENDING_TO_DB:', newItem);
           return newItem;
         });
+
+        console.log(`Prepared ${itemsToInsert.length} items for insertion`);
 
         const { error: itemsError } = await supabase
           .from('order_items')
@@ -1188,33 +1173,53 @@ export default function OrdersPage() {
 
         console.log('=== INSERTING ORDER_ITEMS (CREATE ORDER) USING STANDARD CLIENT ===');
 
-        const itemsToInsert = items.map(item => {
+        if (!user || !user.id) {
+          throw new Error('User ID is missing - cannot insert order items');
+        }
+
+        const itemsToInsert = (orderItems || []).map(item => {
+          if (!item) {
+            throw new Error('Item is null or undefined');
+          }
+
+          const crop = crops?.find(c => c.id === item.crop_id);
+          const blend = blends?.find(b => b.id === item.blend_id);
+          const cropName = item.is_special_item
+            ? item.custom_crop_name
+            : (crop ? crop.name : (blend ? `${blend.name} (Mix)` : ''));
+
+          const weightValue = item.packaging_size?.toString().replace(/[^0-9.]/g, '') || '0';
+          const quantity = parseFloat(item.quantity) || 0;
+          const price = parseFloat(item.price_per_unit.toString().replace(',', '.')) || 0;
+
           const newItem = {
             order_id: newOrder.id,
-            crop_id: item.crop_id || null,
+            crop_id: item.is_special_item ? null : (item.crop_id || null),
             blend_id: item.blend_id || null,
-            quantity: item.quantity,
+            crop_name: cropName,
+            quantity: Number(quantity),
             pieces: 0,
-            delivery_form: item.delivery_form || 'whole',
-            price_per_unit: item.price_per_unit,
-            total_price: item.total_price,
-            package_type: item.packaging_type || null,
-            package_ml: item.packaging_volume_ml?.toString() || null,
-            has_label_req: item.has_label || false,
-            crop_name: item.crop_name || null,
             unit: item.unit || 'ks',
-            packaging_size: item.packaging_size || '50g',
+            packaging_size: weightValue,
+            delivery_form: item.delivery_form || 'whole',
+            price_per_unit: Number(price),
+            total_price: Number(parseFloat((quantity * price).toFixed(2))),
+            package_type: item.packaging_type || null,
+            package_ml: item.packaging_volume_ml ? item.packaging_volume_ml.toString() : null,
+            has_label_req: Boolean(item.has_label),
             notes: item.notes || null,
             packaging_id: item.packaging_id || null,
             special_requirements: item.special_requirements || null,
-            is_special_item: item.is_special_item || false,
-            custom_crop_name: item.custom_crop_name || null,
+            is_special_item: Boolean(item.is_special_item),
+            custom_crop_name: item.is_special_item ? item.custom_crop_name : null,
             user_id: user.id
           };
 
           console.log('SENDING_TO_DB:', newItem);
           return newItem;
         });
+
+        console.log(`Prepared ${itemsToInsert.length} items for insertion`);
 
         const { error: itemsError } = await supabase
           .from('order_items')
@@ -1251,6 +1256,7 @@ export default function OrdersPage() {
       console.error('Error details:', error?.details);
       console.error('Error hint:', error?.hint);
       console.error('Error code:', error?.code);
+      console.error('Error stack:', error?.stack);
       console.error('Order data:', {
         customer_id: customerId,
         customer_type: customerType,
@@ -1262,7 +1268,10 @@ export default function OrdersPage() {
       console.error('Order items:', orderItems);
       console.error('========================');
 
-      const errorMsg = error?.message || error?.details || 'Nepodarilo sa uložiť objednávku';
+      const errorMsg = error?.message || error?.details || error?.toString() || 'Nepodarilo sa uložiť objednávku';
+
+      alert('ERROR: ' + errorMsg);
+
       toast({
         title: 'Chyba pri ukladaní',
         description: errorMsg,
