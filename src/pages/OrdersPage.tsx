@@ -2152,13 +2152,14 @@ export default function OrdersPage() {
                       <div>
                         <Label className="text-sm">Počet týždňov</Label>
                         <Input
-                          type="text"
-                          inputMode="numeric"
+                          type="number"
+                          min="1"
+                          max="52"
                           placeholder="1"
-                          value={weekCount === 1 ? '' : weekCount}
+                          value={weekCount}
                           onChange={(e) => {
-                            const value = e.target.value.replace(/[^0-9]/g, '');
-                            setWeekCount(value === '' ? 1 : parseInt(value) || 1);
+                            const value = parseInt(e.target.value) || 1;
+                            setWeekCount(Math.min(Math.max(value, 1), 52));
                           }}
                           className="mt-1 h-10 border-slate-200"
                         />
