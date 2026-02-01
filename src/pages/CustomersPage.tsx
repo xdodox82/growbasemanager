@@ -443,57 +443,6 @@ const CustomersPage = () => {
                   </div>
                 </div>
 
-                {/* Compact Settings Section */}
-                <div className="space-y-3 bg-slate-50 p-3 rounded-lg">
-                  {/* Payment Method and Packaging Type on same row */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="grid gap-1.5">
-                      <Label className="text-sm">Spôsob platby</Label>
-                      <Select
-                        value={formData.payment_method}
-                        onValueChange={(value: 'cash' | 'card' | 'invoice') => setFormData({ ...formData, payment_method: value })}
-                      >
-                        <SelectTrigger className="h-9 border-slate-200 bg-white">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white z-[9999]">
-                          <SelectItem value="cash">Hotovosť</SelectItem>
-                          <SelectItem value="card">Platba kartou</SelectItem>
-                          <SelectItem value="invoice">Faktúra</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="grid gap-1.5">
-                      <Label htmlFor="default-packaging-type" className="text-sm">Predvolený typ obalu</Label>
-                      <Select
-                        value={formData.default_packaging_type}
-                        onValueChange={(value) => setFormData({ ...formData, default_packaging_type: value })}
-                      >
-                        <SelectTrigger className="h-9 border-slate-200 bg-white">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white z-[9999]">
-                          <SelectItem value="rPET">rPET</SelectItem>
-                          <SelectItem value="PET">PET</SelectItem>
-                          <SelectItem value="EKO">EKO</SelectItem>
-                          <SelectItem value="Vratný obal">Vratný obal</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {/* Free Delivery on separate row */}
-                  <div className="flex items-center justify-between py-1">
-                    <Label htmlFor="free-delivery" className="text-sm">Vždy doprava zdarma</Label>
-                    <Switch
-                      id="free-delivery"
-                      checked={formData.free_delivery}
-                      onCheckedChange={(checked) => setFormData({ ...formData, free_delivery: checked })}
-                    />
-                  </div>
-                </div>
-
                 {/* Home customer - simple form */}
                 {(formData.customer_type === 'home' || !formData.customer_type) && (
                   <>
@@ -555,8 +504,8 @@ const CustomersPage = () => {
 
                     <div className="grid gap-2">
                       <Label>Rozvozová trasa</Label>
-                      <Select 
-                        value={formData.delivery_route_id || 'none'} 
+                      <Select
+                        value={formData.delivery_route_id || 'none'}
                         onValueChange={(value) => setFormData({ ...formData, delivery_route_id: value === 'none' ? null : value })}
                       >
                         <SelectTrigger className="h-10 border-slate-200">
@@ -572,6 +521,55 @@ const CustomersPage = () => {
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {/* Settings Section - 3 fields on one row */}
+                    <div className="grid grid-cols-3 gap-3 bg-slate-50 p-3 rounded-lg">
+                      <div className="grid gap-1.5">
+                        <Label className="text-sm">Spôsob platby</Label>
+                        <Select
+                          value={formData.payment_method}
+                          onValueChange={(value: 'cash' | 'card' | 'invoice') => setFormData({ ...formData, payment_method: value })}
+                        >
+                          <SelectTrigger className="h-9 border-slate-200 bg-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white z-[9999]">
+                            <SelectItem value="cash">Hotovosť</SelectItem>
+                            <SelectItem value="card">Platba kartou</SelectItem>
+                            <SelectItem value="invoice">Faktúra</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid gap-1.5">
+                        <Label htmlFor="default-packaging-type" className="text-sm">Predvolený typ obalu</Label>
+                        <Select
+                          value={formData.default_packaging_type}
+                          onValueChange={(value) => setFormData({ ...formData, default_packaging_type: value })}
+                        >
+                          <SelectTrigger className="h-9 border-slate-200 bg-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white z-[9999]">
+                            <SelectItem value="rPET">rPET</SelectItem>
+                            <SelectItem value="PET">PET</SelectItem>
+                            <SelectItem value="EKO">EKO</SelectItem>
+                            <SelectItem value="Vratný obal">Vratný obal</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid gap-1.5">
+                        <Label htmlFor="free-delivery" className="text-sm">Vždy doprava zdarma</Label>
+                        <div className="flex items-center h-9">
+                          <Switch
+                            id="free-delivery"
+                            checked={formData.free_delivery}
+                            onCheckedChange={(checked) => setFormData({ ...formData, free_delivery: checked })}
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </>
                 )}
 
@@ -580,22 +578,22 @@ const CustomersPage = () => {
                   <>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="grid gap-2">
-                        <Label htmlFor="name">Kontaktná osoba *</Label>
-                        <Input
-                          id="name"
-                          value={formData.name}
-                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                          placeholder="napr. Ján Novák"
-                          className="h-10 border-slate-200"
-                        />
-                      </div>
-                      <div className="grid gap-2">
                         <Label htmlFor="companyName">Obchodný názov</Label>
                         <Input
                           id="companyName"
                           value={formData.company_name}
                           onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
                           placeholder="napr. Reštaurácia s.r.o."
+                          className="h-10 border-slate-200"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="name">Kontaktná osoba *</Label>
+                        <Input
+                          id="name"
+                          value={formData.name}
+                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          placeholder="napr. Ján Novák"
                           className="h-10 border-slate-200"
                         />
                       </div>
@@ -681,8 +679,8 @@ const CustomersPage = () => {
 
                     <div className="grid gap-2">
                       <Label>Rozvozová trasa</Label>
-                      <Select 
-                        value={formData.delivery_route_id || 'none'} 
+                      <Select
+                        value={formData.delivery_route_id || 'none'}
                         onValueChange={(value) => setFormData({ ...formData, delivery_route_id: value === 'none' ? null : value })}
                       >
                         <SelectTrigger className="h-10 border-slate-200">
@@ -697,6 +695,55 @@ const CustomersPage = () => {
                           ))}
                         </SelectContent>
                       </Select>
+                    </div>
+
+                    {/* Settings Section - 3 fields on one row */}
+                    <div className="grid grid-cols-3 gap-3 bg-slate-50 p-3 rounded-lg">
+                      <div className="grid gap-1.5">
+                        <Label className="text-sm">Spôsob platby</Label>
+                        <Select
+                          value={formData.payment_method}
+                          onValueChange={(value: 'cash' | 'card' | 'invoice') => setFormData({ ...formData, payment_method: value })}
+                        >
+                          <SelectTrigger className="h-9 border-slate-200 bg-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white z-[9999]">
+                            <SelectItem value="cash">Hotovosť</SelectItem>
+                            <SelectItem value="card">Platba kartou</SelectItem>
+                            <SelectItem value="invoice">Faktúra</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid gap-1.5">
+                        <Label htmlFor="default-packaging-type-gastro" className="text-sm">Predvolený typ obalu</Label>
+                        <Select
+                          value={formData.default_packaging_type}
+                          onValueChange={(value) => setFormData({ ...formData, default_packaging_type: value })}
+                        >
+                          <SelectTrigger className="h-9 border-slate-200 bg-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white z-[9999]">
+                            <SelectItem value="rPET">rPET</SelectItem>
+                            <SelectItem value="PET">PET</SelectItem>
+                            <SelectItem value="EKO">EKO</SelectItem>
+                            <SelectItem value="Vratný obal">Vratný obal</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid gap-1.5">
+                        <Label htmlFor="free-delivery-gastro" className="text-sm">Vždy doprava zdarma</Label>
+                        <div className="flex items-center h-9">
+                          <Switch
+                            id="free-delivery-gastro"
+                            checked={formData.free_delivery}
+                            onCheckedChange={(checked) => setFormData({ ...formData, free_delivery: checked })}
+                          />
+                        </div>
+                      </div>
                     </div>
 
                     <div className="grid gap-2">

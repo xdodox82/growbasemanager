@@ -2050,7 +2050,16 @@ export default function OrdersPage() {
                           <SearchableCustomerSelect
                             customers={customers}
                             value={customerId || ''}
-                            onChange={setCustomerId}
+                            onChange={(newCustomerId) => {
+                              setCustomerId(newCustomerId);
+                              const selectedCustomer = customers.find(c => c.id === newCustomerId);
+                              if (selectedCustomer && (selectedCustomer as any).delivery_route_id) {
+                                const customerRoute = routes?.find(r => r.id === (selectedCustomer as any).delivery_route_id);
+                                if (customerRoute) {
+                                  setRoute(customerRoute.name);
+                                }
+                              }
+                            }}
                             filterByType={customerType}
                             placeholder="Vyberte zákazníka"
                           />
@@ -2152,14 +2161,28 @@ export default function OrdersPage() {
                       <div>
                         <Label className="text-sm">Počet týždňov</Label>
                         <Input
-                          type="number"
-                          min="1"
-                          max="52"
+                          type="text"
+                          inputMode="numeric"
                           placeholder="1"
                           value={weekCount}
                           onChange={(e) => {
-                            const value = parseInt(e.target.value) || 1;
-                            setWeekCount(Math.min(Math.max(value, 1), 52));
+                            const inputValue = e.target.value.replace(/[^0-9]/g, '');
+                            if (inputValue === '') {
+                              setWeekCount(1);
+                            } else {
+                              const num = parseInt(inputValue);
+                              if (num >= 1 && num <= 52) {
+                                setWeekCount(num);
+                              }
+                            }
+                          }}
+                          onBlur={(e) => {
+                            const inputValue = e.target.value.replace(/[^0-9]/g, '');
+                            if (inputValue === '' || parseInt(inputValue) < 1) {
+                              setWeekCount(1);
+                            } else if (parseInt(inputValue) > 52) {
+                              setWeekCount(52);
+                            }
                           }}
                           className="mt-1 h-10 border-slate-200"
                         />
