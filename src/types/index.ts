@@ -92,6 +92,9 @@ export interface Order {
   isRecurring: boolean;
   recurringType?: 'single' | 'weekly' | 'biweekly'; // Typ opakovania
   recurringDays?: number[];
+  recurrence_pattern?: string; // Pattern opakovania (tyzdenne, dvojtyzdenne)
+  recurring_weeks?: number; // Počet týždňov opakovania
+  parent_order_id?: string; // ID rodičovskej objednávky pre opakujúce sa objednávky
   packagingType?: 'disposable' | 'returnable'; // Druh balenia
   hasLabel?: boolean; // Etiketa
   deliveryRouteId?: string; // Rozvozová trasa

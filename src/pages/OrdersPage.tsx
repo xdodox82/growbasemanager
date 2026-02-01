@@ -1176,6 +1176,7 @@ export default function OrdersPage() {
         setIsDialogOpen(false);
         await loadData();
       } else {
+        // Create parent order
         const { data: newOrder, error } = await supabase
           .from('orders')
           .insert(orderData)
@@ -1184,94 +1185,167 @@ export default function OrdersPage() {
 
         if (error) throw error;
 
-        const items = (orderItems || []).map(item => {
-          const crop = crops?.find(c => c.id === item.crop_id);
-          const blend = blends?.find(b => b.id === item.blend_id);
-          const cropName = item.is_special_item
-            ? item.custom_crop_name
-            : (crop ? crop.name : (blend ? `${blend.name} (Mix)` : ''));
+        // Helper function to create order items for an order
+        const createOrderItemsForOrder = async (orderId: string) => {
+          const items = (orderItems || []).map(item => {
+            const crop = crops?.find(c => c.id === item.crop_id);
+            const blend = blends?.find(b => b.id === item.blend_id);
+            const cropName = item.is_special_item
+              ? item.custom_crop_name
+              : (crop ? crop.name : (blend ? `${blend.name} (Mix)` : ''));
 
-          const weightValue = item.packaging_size?.toString().replace(/[^0-9.]/g, '') || '0';
-          const quantity = parseFloat(item.quantity) || 0;
-          const price = parseFloat(item.price_per_unit.toString().replace(',', '.')) || 0;
+            const weightValue = item.packaging_size?.toString().replace(/[^0-9.]/g, '') || '0';
+            const quantity = parseFloat(item.quantity) || 0;
+            const price = parseFloat(item.price_per_unit.toString().replace(',', '.')) || 0;
 
-          return {
-            order_id: newOrder.id,
-            crop_id: item.is_special_item ? null : (item.crop_id || null),
-            blend_id: item.blend_id || null,
-            crop_name: cropName,
-            quantity: Number(quantity),
-            unit: item.unit,
-            packaging_size: weightValue,
-            delivery_form: item.delivery_form,
-            has_label: item.has_label,
-            notes: item.notes || null,
-            packaging_type: item.packaging_type || 'PET',
-            packaging_volume_ml: item.packaging_volume_ml || null,
-            packaging_id: item.packaging_id || null,
-            special_requirements: item.special_requirements || null,
-            price_per_unit: Number(price),
-            total_price: Number(parseFloat((quantity * price).toFixed(2))),
-            is_special_item: item.is_special_item || false,
-            custom_crop_name: item.is_special_item ? item.custom_crop_name : null,
-            user_id: user.id
-          };
-        });
+            return {
+              order_id: orderId,
+              crop_id: item.is_special_item ? null : (item.crop_id || null),
+              blend_id: item.blend_id || null,
+              crop_name: cropName,
+              quantity: Number(quantity),
+              unit: item.unit,
+              packaging_size: weightValue,
+              delivery_form: item.delivery_form,
+              has_label: item.has_label,
+              notes: item.notes || null,
+              packaging_type: item.packaging_type || 'PET',
+              packaging_volume_ml: item.packaging_volume_ml || null,
+              packaging_id: item.packaging_id || null,
+              special_requirements: item.special_requirements || null,
+              price_per_unit: Number(price),
+              total_price: Number(parseFloat((quantity * price).toFixed(2))),
+              is_special_item: item.is_special_item || false,
+              custom_crop_name: item.is_special_item ? item.custom_crop_name : null,
+              user_id: user.id
+            };
+          });
 
-        console.log('=== INSERTING ORDER_ITEMS (CREATE ORDER) VIA RPC ===');
+          console.log(`=== INSERTING ORDER_ITEMS FOR ORDER ${orderId} VIA RPC ===`);
 
-        for (let idx = 0; idx < items.length; idx++) {
-          const item = items[idx];
-          console.log(`Item ${idx + 1}:`, item);
-          console.log(`  package_type: ${item.packaging_type}`);
-          console.log(`  package_ml: ${item.packaging_volume_ml}`);
-          console.log(`  has_label_req: ${item.has_label}`);
+          for (let idx = 0; idx < items.length; idx++) {
+            const item = items[idx];
+            console.log(`Item ${idx + 1}:`, item);
+            console.log(`  package_type: ${item.packaging_type}`);
+            console.log(`  package_ml: ${item.packaging_volume_ml}`);
+            console.log(`  has_label_req: ${item.has_label}`);
 
-          const itemData = {
-            order_id: newOrder.id,
-            crop_id: item.crop_id || null,
-            blend_id: item.blend_id || null,
-            quantity: item.quantity,
-            pieces: 0,
-            delivery_form: item.delivery_form || 'whole',
-            price_per_unit: item.price_per_unit,
-            total_price: item.total_price,
-            package_type: item.packaging_type || null,
-            package_ml: item.packaging_volume_ml || null,
-            has_label_req: item.has_label || false,
-            crop_name: item.crop_name || null,
-            unit: item.unit || 'ks',
-            packaging_size: item.packaging_size || '50g',
-            notes: item.notes || null,
-            packaging_id: item.packaging_id || null,
-            special_requirements: item.special_requirements || null,
-            is_special_item: item.is_special_item || false,
-            custom_crop_name: item.custom_crop_name || null
-          };
+            const itemData = {
+              order_id: orderId,
+              crop_id: item.crop_id || null,
+              blend_id: item.blend_id || null,
+              quantity: item.quantity,
+              pieces: 0,
+              delivery_form: item.delivery_form || 'whole',
+              price_per_unit: item.price_per_unit,
+              total_price: item.total_price,
+              package_type: item.packaging_type || null,
+              package_ml: item.packaging_volume_ml || null,
+              has_label_req: item.has_label || false,
+              crop_name: item.crop_name || null,
+              unit: item.unit || 'ks',
+              packaging_size: item.packaging_size || '50g',
+              notes: item.notes || null,
+              packaging_id: item.packaging_id || null,
+              special_requirements: item.special_requirements || null,
+              is_special_item: item.is_special_item || false,
+              custom_crop_name: item.custom_crop_name || null
+            };
 
-          try {
-            await createOrderItemDirectFetch(itemData);
-            console.log(`✅ DIRECT FETCH SUCCESS (CREATE ORDER) Item ${idx + 1}`);
-          } catch (itemError) {
-            console.error(`=== DIRECT FETCH ERROR (CREATE ORDER) Item ${idx + 1} ===`, itemError);
-            throw itemError;
-          }
-        }
-
-        for (const item of orderItems || []) {
-          if (item?.packaging_id && item?.quantity) {
             try {
-              await supabase.rpc('decrement_packaging_stock', {
-                packaging_id: item.packaging_id,
-                amount: item.quantity
-              });
-            } catch (pkgError) {
-              console.error('[OrdersPage] Error decrementing packaging stock:', pkgError);
+              await createOrderItemDirectFetch(itemData);
+              console.log(`✅ DIRECT FETCH SUCCESS Item ${idx + 1} for order ${orderId}`);
+            } catch (itemError) {
+              console.error(`=== DIRECT FETCH ERROR Item ${idx + 1} for order ${orderId} ===`, itemError);
+              throw itemError;
             }
           }
+
+          // Decrement packaging stock for each item
+          for (const item of orderItems || []) {
+            if (item?.packaging_id && item?.quantity) {
+              try {
+                await supabase.rpc('decrement_packaging_stock', {
+                  packaging_id: item.packaging_id,
+                  amount: item.quantity
+                });
+              } catch (pkgError) {
+                console.error(`[OrdersPage] Error decrementing packaging stock for order ${orderId}:`, pkgError);
+              }
+            }
+          }
+        };
+
+        // Create items for parent order
+        await createOrderItemsForOrder(newOrder.id);
+
+        // Check if this is a recurring order
+        const isRecurring = orderType !== 'jednorazova';
+        const recurringCount = isRecurring ? parseInt(weekCount) || 1 : 1;
+
+        if (isRecurring && recurringCount > 1) {
+          console.log(`=== CREATING ${recurringCount - 1} CHILD ORDERS ===`);
+
+          const childOrders = [];
+
+          for (let i = 1; i < recurringCount; i++) {
+            // Calculate new delivery date
+            const weeksToAdd = orderType === 'tyzdenne' ? i : i * 2;
+            const newDate = new Date(deliveryDate);
+            newDate.setDate(newDate.getDate() + (weeksToAdd * 7));
+            const newDateString = newDate.toISOString().split('T')[0];
+
+            console.log(`Child order ${i}: ${newDateString} (${weeksToAdd} weeks from parent)`);
+
+            // Create child order data
+            const childOrderData = {
+              customer_id: customerId,
+              customer_name: customer?.company_name || customer?.name || '',
+              customer_type: customer?.customer_type || 'home',
+              delivery_date: newDateString,
+              status: status,
+              total_price: Number(parseFloat(finalTotalPrice.toFixed(2))),
+              delivery_price: Number(parseFloat(deliveryPrice.toFixed(2))),
+              charge_delivery: !freeDelivery,
+              route: route || null,
+              notes: orderNotes || null,
+              is_recurring: true,
+              recurrence_pattern: orderType,
+              recurring_weeks: recurringCount,
+              parent_order_id: newOrder.id,
+              user_id: user.id
+            };
+
+            childOrders.push(childOrderData);
+          }
+
+          // Insert all child orders at once
+          const { data: insertedChildOrders, error: childError } = await supabase
+            .from('orders')
+            .insert(childOrders)
+            .select();
+
+          if (childError) {
+            console.error('Error creating child orders:', childError);
+            throw childError;
+          }
+
+          console.log(`✅ Created ${insertedChildOrders.length} child orders`);
+
+          // Create order items for each child order
+          for (const childOrder of insertedChildOrders) {
+            console.log(`Creating items for child order ${childOrder.id} (${childOrder.delivery_date})`);
+            await createOrderItemsForOrder(childOrder.id);
+          }
+
+          toast({
+            title: 'Úspech',
+            description: `Vytvorených ${recurringCount} opakujúcich sa objednávok`
+          });
+        } else {
+          toast({ title: 'Úspech', description: 'Objednávka vytvorená' });
         }
 
-        toast({ title: 'Úspech', description: 'Objednávka vytvorená' });
         setIsDialogOpen(false);
         await loadData();
       }
