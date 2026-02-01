@@ -36,7 +36,8 @@ import {
   Store,
   Scissors,
   X,
-  MapPin
+  MapPin,
+  RefreshCw
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -2224,9 +2225,17 @@ export default function OrdersPage() {
                         {order.route || '-'}
                       </td>
                       <td className="px-4 py-3">
-                        <Badge className={`border ${getStatusBadgeClass(order.status)} text-xs font-semibold px-2 py-0.5`}>
-                          {getStatusLabel(order.status)}
-                        </Badge>
+                        <div className="flex flex-wrap gap-1.5">
+                          <Badge className={`border ${getStatusBadgeClass(order.status)} text-xs font-semibold px-2 py-0.5`}>
+                            {getStatusLabel(order.status)}
+                          </Badge>
+                          {(order.parent_order_id || (order.is_recurring && (order.recurring_weeks || 0) > 1)) && (
+                            <Badge variant="secondary" className="flex items-center gap-1 bg-blue-50 text-blue-700 border-blue-200 text-xs font-semibold px-2 py-0.5" title="Opakujúca sa objednávka">
+                              <RefreshCw className="h-3 w-3" />
+                              <span>Opakujúca sa</span>
+                            </Badge>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <span className="text-base font-bold text-[#10b981]">
@@ -2290,9 +2299,17 @@ export default function OrdersPage() {
                     </div>
                     <div>
                       <h3 className="font-bold text-base text-gray-900">{order.customer_name || 'Bez názvu'}</h3>
-                      <Badge className={`mt-1.5 border ${getStatusBadgeClass(order.status)} text-xs font-semibold px-2.5 py-0.5`}>
-                        {getStatusLabel(order.status)}
-                      </Badge>
+                      <div className="flex flex-wrap gap-1.5 mt-1.5">
+                        <Badge className={`border ${getStatusBadgeClass(order.status)} text-xs font-semibold px-2.5 py-0.5`}>
+                          {getStatusLabel(order.status)}
+                        </Badge>
+                        {(order.parent_order_id || (order.is_recurring && (order.recurring_weeks || 0) > 1)) && (
+                          <Badge variant="secondary" className="flex items-center gap-1 bg-blue-50 text-blue-700 border-blue-200 text-xs font-semibold px-2.5 py-0.5" title="Opakujúca sa objednávka">
+                            <RefreshCw className="h-3 w-3" />
+                            <span>Opakujúca sa</span>
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
@@ -3129,11 +3146,19 @@ export default function OrdersPage() {
                   <div className="text-sm text-gray-600">Trasa</div>
                   <div className="font-semibold text-gray-900">{selectedOrderDetail.route || '-'}</div>
                 </div>
-                <div>
-                  <div className="text-sm text-gray-600">Status</div>
-                  <Badge className={`border ${getStatusBadgeClass(selectedOrderDetail.status)} text-xs font-semibold px-2 py-0.5 w-fit`}>
-                    {getStatusLabel(selectedOrderDetail.status)}
-                  </Badge>
+                <div className="col-span-2">
+                  <div className="text-sm text-gray-600 mb-1.5">Status</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    <Badge className={`border ${getStatusBadgeClass(selectedOrderDetail.status)} text-xs font-semibold px-2 py-0.5`}>
+                      {getStatusLabel(selectedOrderDetail.status)}
+                    </Badge>
+                    {(selectedOrderDetail.parent_order_id || (selectedOrderDetail.is_recurring && (selectedOrderDetail.recurring_weeks || 0) > 1)) && (
+                      <Badge variant="secondary" className="flex items-center gap-1 bg-blue-50 text-blue-700 border-blue-200 text-xs font-semibold px-2 py-0.5" title="Opakujúca sa objednávka">
+                        <RefreshCw className="h-3 w-3" />
+                        <span>Opakujúca sa</span>
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
 
