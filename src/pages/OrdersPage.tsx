@@ -286,6 +286,17 @@ export default function OrdersPage() {
     }
   }, [customerId, customers]);
 
+  // DEBUG useEffect - sleduje zmeny v currentItem
+  useEffect(() => {
+    console.log('🔄 CurrentItem changed:', {
+      packaging_size: currentItem?.packaging_size,
+      is_special_item: currentItem?.is_special_item,
+      crop_id: currentItem?.crop_id,
+      blend_id: currentItem?.blend_id,
+      quantity: currentItem?.quantity
+    });
+  }, [currentItem]);
+
   useEffect(() => {
     const fetchPriceAutomatically = async () => {
       if (!currentItem.is_special_item && currentItem.packaging_size && customerType) {
@@ -848,26 +859,34 @@ export default function OrdersPage() {
       }
 
       // Map order_items to OrderItem interface
-      const mappedItems: OrderItem[] = (orderItems || []).map(item => ({
-        id: item.id,
-        crop_id: item.crop_id || undefined,
-        crop_name: item.crop_name || '',
-        blend_id: item.blend_id || undefined,
-        quantity: item.quantity || 0,
-        unit: item.unit || 'ks',
-        packaging_size: item.packaging_size || '50g',
-        delivery_form: item.delivery_form || 'whole',
-        packaging_type: item.package_type || 'rPET',
-        packaging_volume_ml: item.package_ml || 250,
-        packaging_id: item.packaging_id || undefined,
-        has_label: item.has_label_req || false,
-        notes: item.notes || '',
-        special_requirements: item.special_requirements || '',
-        price_per_unit: item.price_per_unit || 0,
-        total_price: item.total_price || 0,
-        is_special_item: item.is_special_item || false,
-        custom_crop_name: item.custom_crop_name || ''
-      }));
+      const mappedItems: OrderItem[] = (orderItems || []).map(item => {
+        // Normalizuj packaging_size - pridaj "g" ak chýba
+        let packagingSize = item.packaging_size || '50g';
+        if (packagingSize && !packagingSize.includes('g') && !packagingSize.includes('kg') && !isNaN(Number(packagingSize))) {
+          packagingSize = packagingSize + 'g';
+        }
+
+        return {
+          id: item.id,
+          crop_id: item.crop_id || undefined,
+          crop_name: item.crop_name || '',
+          blend_id: item.blend_id || undefined,
+          quantity: item.quantity || 0,
+          unit: item.unit || 'ks',
+          packaging_size: packagingSize,
+          delivery_form: item.delivery_form || 'whole',
+          packaging_type: item.package_type || 'rPET',
+          packaging_volume_ml: item.package_ml || 250,
+          packaging_id: item.packaging_id || undefined,
+          has_label: item.has_label_req || false,
+          notes: item.notes || '',
+          special_requirements: item.special_requirements || '',
+          price_per_unit: item.price_per_unit || 0,
+          total_price: item.total_price || 0,
+          is_special_item: item.is_special_item || false,
+          custom_crop_name: item.custom_crop_name || ''
+        };
+      });
 
       console.log('🗺️ Mapped items:', mappedItems);
       if (mappedItems.length > 0) {
@@ -2949,7 +2968,23 @@ export default function OrdersPage() {
                                       console.log('✏️ Item packaging_size:', item?.packaging_size);
                                       console.log('✏️ Item packaging_type:', item?.packaging_type);
                                       console.log('✏️ Item packaging_volume_ml:', item?.packaging_volume_ml);
-                                      setCurrentItem(item);
+
+                                      // OPRAVA: Normalizuj packaging_size - pridaj "g" ak chýba
+                                      let normalizedPackagingSize = String(item?.packaging_size || '');
+                                      if (normalizedPackagingSize && !normalizedPackagingSize.includes('g') && !normalizedPackagingSize.includes('kg') && !isNaN(Number(normalizedPackagingSize))) {
+                                        normalizedPackagingSize = normalizedPackagingSize + 'g';
+                                      }
+
+                                      // OPRAVA: Explicitný spread s typovou konverziou
+                                      setCurrentItem({
+                                        ...item,
+                                        packaging_size: normalizedPackagingSize,
+                                        quantity: Number(item?.quantity || 1),
+                                        price_per_unit: item?.price_per_unit?.toString() || ''
+                                      });
+
+                                      console.log('✏️ After setCurrentItem, normalized packaging_size:', normalizedPackagingSize);
+
                                       removeItem(index);
                                     }} className="ml-2">
                                       <Edit className="h-4 w-4 text-blue-500" />
