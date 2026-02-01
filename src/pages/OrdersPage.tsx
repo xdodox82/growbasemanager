@@ -819,6 +819,11 @@ export default function OrdersPage() {
       }
 
       console.log('📦 Loaded order items for edit:', orderItems);
+      if (orderItems && orderItems.length > 0) {
+        console.log('🔍 First item packaging_size from DB:', orderItems[0]?.packaging_size);
+        console.log('🔍 First item package_type from DB:', orderItems[0]?.package_type);
+        console.log('🔍 First item package_ml from DB:', orderItems[0]?.package_ml);
+      }
 
       setEditingOrder(order);
       setCustomerType(order.customer_type || 'home');
@@ -863,6 +868,12 @@ export default function OrdersPage() {
         is_special_item: item.is_special_item || false,
         custom_crop_name: item.custom_crop_name || ''
       }));
+
+      console.log('🗺️ Mapped items:', mappedItems);
+      if (mappedItems.length > 0) {
+        console.log('🗺️ First mapped item packaging_size:', mappedItems[0]?.packaging_size);
+        console.log('🗺️ First mapped item packaging_type:', mappedItems[0]?.packaging_type);
+      }
 
       setOrderItems(mappedItems);
 
@@ -2720,12 +2731,18 @@ export default function OrdersPage() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg mt-2">
                         <div className="space-y-2">
                           <Label>Váha</Label>
+                          {(() => {
+                            console.log('🎯 Current item packaging_size in form:', currentItem?.packaging_size);
+                            console.log('🎯 Current item is_special_item:', currentItem?.is_special_item);
+                            return null;
+                          })()}
                           {currentItem?.is_special_item ? (
                             <Input
                               placeholder="Zadajte váhu (napr. 30)"
                               value={currentItem?.packaging_size || ''}
                               onChange={(e) => {
                                 const val = e.target.value;
+                                console.log('📝 Input onChange - new value:', val);
                                 setCurrentItem(prev => ({ ...prev, packaging_size: val }));
                               }}
                               onBlur={(e) => {
@@ -2740,6 +2757,7 @@ export default function OrdersPage() {
                             <Select
                               value={currentItem?.packaging_size || ''}
                               onValueChange={async (value) => {
+                                console.log('📝 Select onChange - new value:', value);
                                 setCurrentItem(prev => ({ ...prev, packaging_size: value }));
                                 // AUTOMATIC FETCHING OF PRICE AND PACKAGING
                                 if ((currentItem?.crop_id || currentItem?.blend_id) && customerType) {
@@ -2927,6 +2945,10 @@ export default function OrdersPage() {
                                   </div>
                                   <div className="flex gap-1">
                                     <Button variant="ghost" size="sm" onClick={() => {
+                                      console.log('✏️ Editing item:', item);
+                                      console.log('✏️ Item packaging_size:', item?.packaging_size);
+                                      console.log('✏️ Item packaging_type:', item?.packaging_type);
+                                      console.log('✏️ Item packaging_volume_ml:', item?.packaging_volume_ml);
                                       setCurrentItem(item);
                                       removeItem(index);
                                     }} className="ml-2">
