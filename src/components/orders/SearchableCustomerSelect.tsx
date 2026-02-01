@@ -65,39 +65,48 @@ export function SearchableCustomerSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-full p-0" align="start">
-        <Command className="overflow-visible">
+        <Command shouldFilter={false} className="overflow-visible">
           <CommandInput placeholder="Hľadať zákazníka..." />
           <CommandEmpty>Žiadny zákazník nebol nájdený.</CommandEmpty>
-          <CommandGroup className="max-h-60 overflow-y-scroll">
-            {filteredCustomers.map((customer) => (
-              <CommandItem
-                key={customer.id}
-                value={`${customer.name} ${customer.company_name} ${customer.customer_type}`}
-                onSelect={() => {
-                  onChange(customer.id);
-                  setOpen(false);
-                }}
-              >
-                <Check
-                  className={cn(
-                    'mr-2 h-4 w-4',
-                    value === customer.id ? 'opacity-100' : 'opacity-0'
-                  )}
-                />
-                <div className="flex flex-col">
-                  <span className="font-medium">
-                    {customer.company_name || customer.name}
-                  </span>
-                  {customer.customer_type && (
-                    <span className="text-xs text-gray-500">
-                      {customer.customer_type === 'home' ? 'Domáci' :
-                       customer.customer_type === 'gastro' ? 'Gastro' : 'Veľkoobchod'}
+          <div
+            className="max-h-60 overflow-y-scroll"
+            onWheel={(e) => {
+              e.stopPropagation();
+              const target = e.currentTarget;
+              target.scrollTop += e.deltaY;
+            }}
+          >
+            <CommandGroup>
+              {filteredCustomers.map((customer) => (
+                <CommandItem
+                  key={customer.id}
+                  value={`${customer.name} ${customer.company_name} ${customer.customer_type}`}
+                  onSelect={() => {
+                    onChange(customer.id);
+                    setOpen(false);
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      'mr-2 h-4 w-4',
+                      value === customer.id ? 'opacity-100' : 'opacity-0'
+                    )}
+                  />
+                  <div className="flex flex-col">
+                    <span className="font-medium">
+                      {customer.company_name || customer.name}
                     </span>
-                  )}
-                </div>
-              </CommandItem>
-            ))}
-          </CommandGroup>
+                    {customer.customer_type && (
+                      <span className="text-xs text-gray-500">
+                        {customer.customer_type === 'home' ? 'Domáci' :
+                         customer.customer_type === 'gastro' ? 'Gastro' : 'Veľkoobchod'}
+                      </span>
+                    )}
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </div>
         </Command>
       </PopoverContent>
     </Popover>
