@@ -60,6 +60,8 @@ interface OrderItem {
   special_requirements?: string;
   price_per_unit?: number | string;
   total_price?: number;
+  is_special_item?: boolean;
+  custom_crop_name?: string;
 }
 
 interface Order {
@@ -775,7 +777,7 @@ export default function OrdersPage() {
     setIsDialogOpen(true);
   };
 
-  const openEdit = (order: Order) => {
+  const openEdit = async (order: Order) => {
     // Check if this is part of a recurring series
     const isPartOfSeries = order.parent_order_id !== null ||
                           (order.is_recurring && (order.recurring_weeks || 0) > 1);
@@ -788,40 +790,91 @@ export default function OrdersPage() {
       });
     } else {
       // Normal edit
-      proceedWithEdit(order);
+      await proceedWithEdit(order);
     }
   };
 
-  const proceedWithEdit = (order: Order) => {
-    setEditingOrder(order);
-    setCustomerType(order.customer_type || 'home');
-    setCustomerId(order.customer_id);
-    setDeliveryDate(order.delivery_date);
-    setStatus(order.status);
-    const recurrenceType = order.recurrence_pattern || 'jednorazova';
-    setOrderType(recurrenceType);
-    setWeekCount(order.recurring_weeks || 1);
-    setRoute(order.route || '');
-    setOrderNotes(order.notes || '');
-    // Invert logic: DB stores charge_delivery (true=charge), UI uses freeDelivery (true=free)
-    const shouldBeFree = !(order.charge_delivery ?? true);
-    setFreeDelivery(shouldBeFree);
-    // Load manual amount if delivery was charged and has a value
-    if (!shouldBeFree && order.delivery_price && order.delivery_price > 0) {
-      setManualDeliveryAmount(order.delivery_price.toString());
-      setCalculatedDeliveryPrice(order.delivery_price);
-    } else {
-      setManualDeliveryAmount('');
-      setCalculatedDeliveryPrice(0);
+  const proceedWithEdit = async (order: Order) => {
+    try {
+      // Load complete order data with order_items from database
+      const { data: orderItems, error: itemsError } = await supabase
+        .from('order_items')
+        .select('*')
+        .eq('order_id', order.id)
+        .order('created_at', { ascending: true });
+
+      if (itemsError) {
+        console.error('Error loading order items:', itemsError);
+        toast({
+          title: 'Chyba',
+          description: 'Nepodarilo sa načítať položky objednávky',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      console.log('📦 Loaded order items for edit:', orderItems);
+
+      setEditingOrder(order);
+      setCustomerType(order.customer_type || 'home');
+      setCustomerId(order.customer_id);
+      setDeliveryDate(order.delivery_date);
+      setStatus(order.status);
+      const recurrenceType = order.recurrence_pattern || 'jednorazova';
+      setOrderType(recurrenceType);
+      setWeekCount(order.recurring_weeks || 1);
+      setRoute(order.route || '');
+      setOrderNotes(order.notes || '');
+      // Invert logic: DB stores charge_delivery (true=charge), UI uses freeDelivery (true=free)
+      const shouldBeFree = !(order.charge_delivery ?? true);
+      setFreeDelivery(shouldBeFree);
+      // Load manual amount if delivery was charged and has a value
+      if (!shouldBeFree && order.delivery_price && order.delivery_price > 0) {
+        setManualDeliveryAmount(order.delivery_price.toString());
+        setCalculatedDeliveryPrice(order.delivery_price);
+      } else {
+        setManualDeliveryAmount('');
+        setCalculatedDeliveryPrice(0);
+      }
+
+      // Map order_items to OrderItem interface
+      const mappedItems: OrderItem[] = (orderItems || []).map(item => ({
+        id: item.id,
+        crop_id: item.crop_id || undefined,
+        crop_name: item.crop_name || '',
+        blend_id: item.blend_id || undefined,
+        quantity: item.quantity || 0,
+        unit: item.unit || 'ks',
+        packaging_size: item.packaging_size || '50g',
+        delivery_form: item.delivery_form || 'whole',
+        packaging_type: item.package_type || 'rPET',
+        packaging_volume_ml: item.package_ml || 250,
+        packaging_id: item.packaging_id || undefined,
+        has_label: item.has_label_req || false,
+        notes: item.notes || '',
+        special_requirements: item.special_requirements || '',
+        price_per_unit: item.price_per_unit || 0,
+        total_price: item.total_price || 0,
+        is_special_item: item.is_special_item || false,
+        custom_crop_name: item.custom_crop_name || ''
+      }));
+
+      setOrderItems(mappedItems);
+      setIsDialogOpen(true);
+    } catch (error) {
+      console.error('Error in proceedWithEdit:', error);
+      toast({
+        title: 'Chyba',
+        description: 'Nepodarilo sa načítať objednávku',
+        variant: 'destructive'
+      });
     }
-    setOrderItems(order.order_items || []);
-    setIsDialogOpen(true);
   };
 
-  const handleRecurringEditConfirm = (updateAllFuture: boolean) => {
+  const handleRecurringEditConfirm = async (updateAllFuture: boolean) => {
     setUpdateAllFutureOrders(updateAllFuture);
     if (recurringEditDialog.order) {
-      proceedWithEdit(recurringEditDialog.order);
+      await proceedWithEdit(recurringEditDialog.order);
     }
     setRecurringEditDialog({ open: false, order: null });
   };
@@ -1117,7 +1170,9 @@ export default function OrdersPage() {
       };
 
       if (editingOrder) {
-        let orderIdsToUpdate = [editingOrder.id];
+        let ordersToUpdate: Array<{ id: string; delivery_date: string }> = [
+          { id: editingOrder.id, delivery_date: editingOrder.delivery_date }
+        ];
 
         // Check if we need to update all future orders
         if (updateAllFutureOrders) {
@@ -1140,21 +1195,38 @@ export default function OrdersPage() {
           }
 
           if (relatedOrders && relatedOrders.length > 0) {
-            orderIdsToUpdate = relatedOrders.map(o => o.id);
-            console.log(`Found ${orderIdsToUpdate.length} orders to update:`, orderIdsToUpdate);
+            ordersToUpdate = relatedOrders.map(o => ({
+              id: o.id,
+              delivery_date: o.delivery_date
+            }));
+            console.log(`Found ${ordersToUpdate.length} orders to update:`, ordersToUpdate);
           }
         }
 
-        // Update all selected orders
-        const { error: updateError } = await supabase
-          .from('orders')
-          .update(orderData)
-          .in('id', orderIdsToUpdate);
+        // Update each order individually to preserve delivery_date
+        for (const orderToUpdate of ordersToUpdate) {
+          console.log(`=== UPDATING ORDER ${orderToUpdate.id} (delivery: ${orderToUpdate.delivery_date}) ===`);
 
-        if (updateError) throw updateError;
+          // Prepare order data, preserving original delivery_date
+          const updateData = {
+            ...orderData,
+            delivery_date: orderToUpdate.delivery_date // PRESERVE original delivery date!
+          };
+
+          const { error: updateError } = await supabase
+            .from('orders')
+            .update(updateData)
+            .eq('id', orderToUpdate.id);
+
+          if (updateError) {
+            console.error(`Error updating order ${orderToUpdate.id}:`, updateError);
+            throw updateError;
+          }
+        }
 
         // Update order items for all selected orders
-        for (const orderId of orderIdsToUpdate) {
+        for (const orderToUpdate of ordersToUpdate) {
+          const orderId = orderToUpdate.id;
           console.log(`=== UPDATING ORDER ITEMS FOR ORDER ${orderId} ===`);
 
           // Delete existing items
@@ -1250,10 +1322,10 @@ export default function OrdersPage() {
         setUpdateAllFutureOrders(false);
 
         // Show success message
-        if (orderIdsToUpdate.length > 1) {
+        if (ordersToUpdate.length > 1) {
           toast({
             title: 'Úspech',
-            description: `Upravených ${orderIdsToUpdate.length} objednávok`
+            description: `Upravených ${ordersToUpdate.length} objednávok`
           });
         } else {
           toast({ title: 'Úspech', description: 'Objednávka upravená' });
