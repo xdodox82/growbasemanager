@@ -68,7 +68,7 @@ export function SearchableCustomerSelect({
         <Command>
           <CommandInput placeholder="Hľadať zákazníka..." />
           <CommandEmpty>Žiadny zákazník nebol nájdený.</CommandEmpty>
-          <CommandGroup className="max-h-64 overflow-auto">
+          <CommandGroup className="max-h-64 overflow-y-auto">
             {filteredCustomers.map((customer) => (
               <CommandItem
                 key={customer.id}

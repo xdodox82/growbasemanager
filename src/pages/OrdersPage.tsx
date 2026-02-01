@@ -220,7 +220,7 @@ export default function OrdersPage() {
   const [deliveryDate, setDeliveryDate] = useState('');
   const [status, setStatus] = useState('cakajuca');
   const [orderType, setOrderType] = useState('jednorazova');
-  const [weekCount, setWeekCount] = useState(1);
+  const [weekCount, setWeekCount] = useState<number | string>(1);
   const [route, setRoute] = useState('');
   const [orderNotes, setOrderNotes] = useState('');
   const [freeDelivery, setFreeDelivery] = useState(false); // Default OFF - auto-calculate delivery, ON = force free
@@ -2166,22 +2166,31 @@ export default function OrdersPage() {
                           placeholder="1"
                           value={weekCount}
                           onChange={(e) => {
-                            const inputValue = e.target.value.replace(/[^0-9]/g, '');
+                            const inputValue = e.target.value;
+                            console.log('weekCount onChange:', inputValue);
                             if (inputValue === '') {
-                              setWeekCount(1);
+                              setWeekCount('');
                             } else {
-                              const num = parseInt(inputValue);
-                              if (num >= 1 && num <= 52) {
-                                setWeekCount(num);
+                              const cleanValue = inputValue.replace(/[^0-9]/g, '');
+                              if (cleanValue !== '') {
+                                const num = parseInt(cleanValue);
+                                if (num <= 52) {
+                                  setWeekCount(num);
+                                }
                               }
                             }
                           }}
                           onBlur={(e) => {
-                            const inputValue = e.target.value.replace(/[^0-9]/g, '');
-                            if (inputValue === '' || parseInt(inputValue) < 1) {
+                            const inputValue = e.target.value;
+                            if (inputValue === '') {
                               setWeekCount(1);
-                            } else if (parseInt(inputValue) > 52) {
-                              setWeekCount(52);
+                            } else {
+                              const num = parseInt(inputValue);
+                              if (isNaN(num) || num < 1) {
+                                setWeekCount(1);
+                              } else if (num > 52) {
+                                setWeekCount(52);
+                              }
                             }
                           }}
                           className="mt-1 h-10 border-slate-200"
