@@ -16,6 +16,7 @@ import { SearchableCustomerSelect } from '@/components/orders/SearchableCustomer
 import { CategoryFilter } from '@/components/orders/CategoryFilter';
 import { CustomerTypeFilter } from '@/components/filters/CustomerTypeFilter';
 import { RecurringOrderEditDialog } from '@/components/orders/RecurringOrderEditDialog';
+import { RecurringOrderDeleteDialog } from '@/components/orders/RecurringOrderDeleteDialog';
 import { useDeliveryDays } from '@/hooks/useDeliveryDays';
 import {
   ShoppingCart,
@@ -228,6 +229,10 @@ export default function OrdersPage() {
     order: Order | null;
   }>({ open: false, order: null });
   const [updateAllFutureOrders, setUpdateAllFutureOrders] = useState(false);
+  const [recurringDeleteDialog, setRecurringDeleteDialog] = useState<{
+    open: boolean;
+    order: Order | null;
+  }>({ open: false, order: null });
 
   const [customerType, setCustomerType] = useState('home');
   const [customerId, setCustomerId] = useState('');
@@ -860,6 +865,24 @@ export default function OrdersPage() {
       }));
 
       setOrderItems(mappedItems);
+
+      // Reset currentItem to empty state when opening edit dialog
+      setCurrentItem({
+        crop_name: '',
+        quantity: 1,
+        unit: 'ks',
+        packaging_size: '',
+        delivery_form: 'rezana',
+        packaging_type: 'rPET',
+        packaging_volume_ml: 250,
+        has_label: false,
+        notes: '',
+        special_requirements: '',
+        price_per_unit: '',
+        is_special_item: false,
+        custom_crop_name: ''
+      });
+
       setIsDialogOpen(true);
     } catch (error) {
       console.error('Error in proceedWithEdit:', error);
@@ -1534,9 +1557,48 @@ export default function OrdersPage() {
     }
   };
 
-  const openDeleteDialog = (orderId: string) => {
-    setOrderToDelete(orderId);
-    setDeleteDialogOpen(true);
+  const openDeleteDialog = async (orderId: string) => {
+    try {
+      // Fetch the order to check if it's part of a recurring series
+      const { data: order, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', orderId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching order:', error);
+        toast({
+          title: 'Chyba',
+          description: 'Nepodarilo sa načítať objednávku',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // Check if this is part of a recurring series
+      const isPartOfSeries = order.parent_order_id !== null ||
+                            (order.is_recurring && (order.recurring_weeks || 0) > 1);
+
+      if (isPartOfSeries) {
+        // Show recurring delete dialog
+        setRecurringDeleteDialog({
+          open: true,
+          order: order as Order
+        });
+      } else {
+        // Show normal delete dialog
+        setOrderToDelete(orderId);
+        setDeleteDialogOpen(true);
+      }
+    } catch (error) {
+      console.error('Error in openDeleteDialog:', error);
+      toast({
+        title: 'Chyba',
+        description: 'Nepodarilo sa načítať objednávku',
+        variant: 'destructive'
+      });
+    }
   };
 
   const confirmDeleteOrder = async () => {
@@ -1553,6 +1615,105 @@ export default function OrdersPage() {
     } catch (error) {
       console.error('Error deleting order:', error);
       toast({ title: 'Chyba', description: 'Nepodarilo sa odstrániť objednávku', variant: 'destructive' });
+    }
+  };
+
+  const handleRecurringDeleteConfirm = async (deleteAllFuture: boolean) => {
+    if (!recurringDeleteDialog.order) return;
+
+    try {
+      const orderToDelete = recurringDeleteDialog.order;
+
+      if (deleteAllFuture) {
+        console.log('=== DELETING ALL FUTURE RECURRING ORDERS ===');
+
+        // Find parent order ID
+        const parentId = orderToDelete.parent_order_id || orderToDelete.id;
+
+        // Find all related orders with delivery_date >= current order date
+        const { data: relatedOrders, error: fetchError } = await supabase
+          .from('orders')
+          .select('id')
+          .or(`id.eq.${parentId},parent_order_id.eq.${parentId}`)
+          .gte('delivery_date', orderToDelete.delivery_date);
+
+        if (fetchError) {
+          console.error('Error fetching related orders:', fetchError);
+          throw fetchError;
+        }
+
+        if (relatedOrders && relatedOrders.length > 0) {
+          const orderIds = relatedOrders.map(o => o.id);
+          console.log(`Deleting ${orderIds.length} orders:`, orderIds);
+
+          // First delete order_items (foreign key constraint)
+          const { error: itemsError } = await supabase
+            .from('order_items')
+            .delete()
+            .in('order_id', orderIds);
+
+          if (itemsError) {
+            console.error('Error deleting order items:', itemsError);
+            throw itemsError;
+          }
+
+          // Then delete orders
+          const { error: ordersError } = await supabase
+            .from('orders')
+            .delete()
+            .in('id', orderIds);
+
+          if (ordersError) {
+            console.error('Error deleting orders:', ordersError);
+            throw ordersError;
+          }
+
+          toast({
+            title: 'Úspech',
+            description: `Zmazaných ${orderIds.length} objednávok`
+          });
+        }
+      } else {
+        console.log('=== DELETING SINGLE ORDER ===');
+
+        // Delete order items first
+        const { error: itemsError } = await supabase
+          .from('order_items')
+          .delete()
+          .eq('order_id', orderToDelete.id);
+
+        if (itemsError) {
+          console.error('Error deleting order items:', itemsError);
+          throw itemsError;
+        }
+
+        // Then delete the order
+        const { error: orderError } = await supabase
+          .from('orders')
+          .delete()
+          .eq('id', orderToDelete.id);
+
+        if (orderError) {
+          console.error('Error deleting order:', orderError);
+          throw orderError;
+        }
+
+        toast({
+          title: 'Úspech',
+          description: 'Objednávka zmazaná'
+        });
+      }
+
+      // Close dialog and refresh
+      setRecurringDeleteDialog({ open: false, order: null });
+      await loadData();
+    } catch (error) {
+      console.error('Error in handleRecurringDeleteConfirm:', error);
+      toast({
+        title: 'Chyba',
+        description: 'Nepodarilo sa zmazať objednávku',
+        variant: 'destructive'
+      });
     }
   };
 
@@ -2882,6 +3043,13 @@ export default function OrdersPage() {
         onClose={() => setRecurringEditDialog({ open: false, order: null })}
         onConfirm={handleRecurringEditConfirm}
         orderDate={recurringEditDialog.order?.delivery_date || ''}
+      />
+
+      <RecurringOrderDeleteDialog
+        open={recurringDeleteDialog.open}
+        onClose={() => setRecurringDeleteDialog({ open: false, order: null })}
+        onConfirm={handleRecurringDeleteConfirm}
+        orderDate={recurringDeleteDialog.order?.delivery_date || ''}
       />
 
       <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
