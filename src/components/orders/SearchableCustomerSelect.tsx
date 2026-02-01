@@ -65,10 +65,10 @@ export function SearchableCustomerSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-full p-0" align="start">
-        <Command>
+        <Command className="overflow-visible">
           <CommandInput placeholder="Hľadať zákazníka..." />
           <CommandEmpty>Žiadny zákazník nebol nájdený.</CommandEmpty>
-          <CommandGroup className="max-h-64 overflow-y-auto">
+          <CommandGroup className="max-h-60 overflow-y-scroll">
             {filteredCustomers.map((customer) => (
               <CommandItem
                 key={customer.id}

@@ -493,26 +493,42 @@ const CustomersPage = () => {
 
                     {/* Rozvozová trasa + Settings Section */}
                     <div className="space-y-3 bg-slate-50 p-3 rounded-lg">
-                      <div className="grid gap-2">
-                        <Label>Rozvozová trasa</Label>
-                        <Select
-                          value={formData.delivery_route_id || 'none'}
-                          onValueChange={(value) => setFormData({ ...formData, delivery_route_id: value === 'none' ? null : value })}
-                        >
-                          <SelectTrigger className="h-10 border-slate-200 bg-white">
-                            <SelectValue placeholder="Vyberte trasu" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-white z-[9999]">
-                            <SelectItem value="none">Žiadna trasa</SelectItem>
-                            {deliveryRoutes.map(route => (
-                              <SelectItem key={route.id} value={route.id}>
-                                {route.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                      {/* Riadok 1: Rozvozová trasa | Doprava zdarma */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="grid gap-2">
+                          <Label>Rozvozová trasa</Label>
+                          <Select
+                            value={formData.delivery_route_id || 'none'}
+                            onValueChange={(value) => setFormData({ ...formData, delivery_route_id: value === 'none' ? null : value })}
+                          >
+                            <SelectTrigger className="h-10 border-slate-200 bg-white">
+                              <SelectValue placeholder="Vyberte trasu" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white z-[9999]">
+                              <SelectItem value="none">Žiadna trasa</SelectItem>
+                              {deliveryRoutes.map(route => (
+                                <SelectItem key={route.id} value={route.id}>
+                                  {route.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                          <Label className="text-sm">Vždy doprava zdarma</Label>
+                          <div className="flex items-center h-10">
+                            <Switch
+                              id="free-delivery"
+                              checked={formData.free_delivery}
+                              onCheckedChange={(checked) => setFormData({ ...formData, free_delivery: checked })}
+                            />
+                            <Label htmlFor="free-delivery" className="text-sm cursor-pointer ml-2">Áno</Label>
+                          </div>
+                        </div>
                       </div>
 
+                      {/* Riadok 2: Spôsob platby | Predvolený typ obalu */}
                       <div className="grid grid-cols-2 gap-3">
                         <div className="grid gap-1.5">
                           <Label className="text-sm">Spôsob platby</Label>
@@ -548,15 +564,6 @@ const CustomersPage = () => {
                             </SelectContent>
                           </Select>
                         </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          id="free-delivery"
-                          checked={formData.free_delivery}
-                          onCheckedChange={(checked) => setFormData({ ...formData, free_delivery: checked })}
-                        />
-                        <Label htmlFor="free-delivery" className="text-sm cursor-pointer">Vždy doprava zdarma</Label>
                       </div>
                     </div>
 
@@ -679,26 +686,42 @@ const CustomersPage = () => {
 
                     {/* Rozvozová trasa + Settings Section */}
                     <div className="space-y-3 bg-slate-50 p-3 rounded-lg">
-                      <div className="grid gap-2">
-                        <Label>Rozvozová trasa</Label>
-                        <Select
-                          value={formData.delivery_route_id || 'none'}
-                          onValueChange={(value) => setFormData({ ...formData, delivery_route_id: value === 'none' ? null : value })}
-                        >
-                          <SelectTrigger className="h-10 border-slate-200 bg-white">
-                            <SelectValue placeholder="Vyberte trasu" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-white z-[9999]">
-                            <SelectItem value="none">Žiadna trasa</SelectItem>
-                            {deliveryRoutes.map(route => (
-                              <SelectItem key={route.id} value={route.id}>
-                                {route.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                      {/* Riadok 1: Rozvozová trasa | Doprava zdarma */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="grid gap-2">
+                          <Label>Rozvozová trasa</Label>
+                          <Select
+                            value={formData.delivery_route_id || 'none'}
+                            onValueChange={(value) => setFormData({ ...formData, delivery_route_id: value === 'none' ? null : value })}
+                          >
+                            <SelectTrigger className="h-10 border-slate-200 bg-white">
+                              <SelectValue placeholder="Vyberte trasu" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white z-[9999]">
+                              <SelectItem value="none">Žiadna trasa</SelectItem>
+                              {deliveryRoutes.map(route => (
+                                <SelectItem key={route.id} value={route.id}>
+                                  {route.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                          <Label className="text-sm">Vždy doprava zdarma</Label>
+                          <div className="flex items-center h-10">
+                            <Switch
+                              id="free-delivery-gastro"
+                              checked={formData.free_delivery}
+                              onCheckedChange={(checked) => setFormData({ ...formData, free_delivery: checked })}
+                            />
+                            <Label htmlFor="free-delivery-gastro" className="text-sm cursor-pointer ml-2">Áno</Label>
+                          </div>
+                        </div>
                       </div>
 
+                      {/* Riadok 2: Spôsob platby | Predvolený typ obalu */}
                       <div className="grid grid-cols-2 gap-3">
                         <div className="grid gap-1.5">
                           <Label className="text-sm">Spôsob platby</Label>
@@ -734,15 +757,6 @@ const CustomersPage = () => {
                             </SelectContent>
                           </Select>
                         </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          id="free-delivery-gastro"
-                          checked={formData.free_delivery}
-                          onCheckedChange={(checked) => setFormData({ ...formData, free_delivery: checked })}
-                        />
-                        <Label htmlFor="free-delivery-gastro" className="text-sm cursor-pointer">Vždy doprava zdarma</Label>
                       </div>
                     </div>
 
