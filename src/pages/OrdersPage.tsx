@@ -15,6 +15,7 @@ import { OrderSearchBar } from '@/components/orders/OrderSearchBar';
 import { SearchableCustomerSelect } from '@/components/orders/SearchableCustomerSelect';
 import { CategoryFilter } from '@/components/orders/CategoryFilter';
 import { CustomerTypeFilter } from '@/components/filters/CustomerTypeFilter';
+import { RecurringOrderEditDialog } from '@/components/orders/RecurringOrderEditDialog';
 import { useDeliveryDays } from '@/hooks/useDeliveryDays';
 import {
   ShoppingCart,
@@ -73,6 +74,12 @@ interface Order {
   week_count?: number;
   total_price?: number;
   charge_delivery?: boolean;
+  delivery_price?: number;
+  notes?: string;
+  is_recurring?: boolean;
+  recurrence_pattern?: string;
+  recurring_weeks?: number;
+  parent_order_id?: string;
   created_at: string;
   order_items?: OrderItem[];
 }
@@ -214,6 +221,11 @@ export default function OrdersPage() {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [recurringEditDialog, setRecurringEditDialog] = useState<{
+    open: boolean;
+    order: Order | null;
+  }>({ open: false, order: null });
+  const [updateAllFutureOrders, setUpdateAllFutureOrders] = useState(false);
 
   const [customerType, setCustomerType] = useState('home');
   const [customerId, setCustomerId] = useState('');
@@ -764,6 +776,23 @@ export default function OrdersPage() {
   };
 
   const openEdit = (order: Order) => {
+    // Check if this is part of a recurring series
+    const isPartOfSeries = order.parent_order_id !== null ||
+                          (order.is_recurring && (order.recurring_weeks || 0) > 1);
+
+    if (isPartOfSeries) {
+      // Show dialog to choose edit type
+      setRecurringEditDialog({
+        open: true,
+        order: order
+      });
+    } else {
+      // Normal edit
+      proceedWithEdit(order);
+    }
+  };
+
+  const proceedWithEdit = (order: Order) => {
     setEditingOrder(order);
     setCustomerType(order.customer_type || 'home');
     setCustomerId(order.customer_id);
@@ -787,6 +816,14 @@ export default function OrdersPage() {
     }
     setOrderItems(order.order_items || []);
     setIsDialogOpen(true);
+  };
+
+  const handleRecurringEditConfirm = (updateAllFuture: boolean) => {
+    setUpdateAllFutureOrders(updateAllFuture);
+    if (recurringEditDialog.order) {
+      proceedWithEdit(recurringEditDialog.order);
+    }
+    setRecurringEditDialog({ open: false, order: null });
   };
 
   const autoFetchPrice = async (packagingSize: string, customerType: string, cropId?: string, blendId?: string) => {
@@ -1080,99 +1117,148 @@ export default function OrdersPage() {
       };
 
       if (editingOrder) {
-        const { error } = await supabase.from('orders').update(orderData).eq('id', editingOrder.id);
-        if (error) throw error;
+        let orderIdsToUpdate = [editingOrder.id];
 
-        await deleteOrderItemsDirectFetch(editingOrder.id);
+        // Check if we need to update all future orders
+        if (updateAllFutureOrders) {
+          console.log('=== UPDATING ALL FUTURE RECURRING ORDERS ===');
 
-        const items = (orderItems || []).map(item => {
-          const crop = crops?.find(c => c.id === item.crop_id);
-          const blend = blends?.find(b => b.id === item.blend_id);
-          const cropName = item.is_special_item
-            ? item.custom_crop_name
-            : (crop ? crop.name : (blend ? `${blend.name} (Mix)` : ''));
+          // Find parent order ID (either parent_order_id or current order id if it's the parent)
+          const parentId = editingOrder.parent_order_id || editingOrder.id;
 
-          const weightValue = item.packaging_size?.toString().replace(/[^0-9.]/g, '') || '0';
-          const quantity = parseFloat(item.quantity) || 0;
-          const price = parseFloat(item.price_per_unit.toString().replace(',', '.')) || 0;
+          // Find all related orders with delivery_date >= current order date
+          const { data: relatedOrders, error: fetchError } = await supabase
+            .from('orders')
+            .select('id, delivery_date')
+            .or(`id.eq.${parentId},parent_order_id.eq.${parentId}`)
+            .gte('delivery_date', editingOrder.delivery_date)
+            .order('delivery_date', { ascending: true });
 
-          return {
-            order_id: editingOrder.id,
-            crop_id: item.is_special_item ? null : (item.crop_id || null),
-            blend_id: item.blend_id || null,
-            crop_name: cropName,
-            quantity: Number(quantity),
-            unit: item.unit,
-            packaging_size: weightValue,
-            delivery_form: item.delivery_form,
-            has_label: item.has_label,
-            notes: item.notes || null,
-            packaging_type: item.packaging_type || 'PET',
-            packaging_volume_ml: item.packaging_volume_ml || null,
-            packaging_id: item.packaging_id || null,
-            special_requirements: item.special_requirements || null,
-            price_per_unit: Number(price),
-            total_price: Number(parseFloat((quantity * price).toFixed(2))),
-            is_special_item: item.is_special_item || false,
-            custom_crop_name: item.is_special_item ? item.custom_crop_name : null,
-            user_id: user.id
-          };
-        });
+          if (fetchError) {
+            console.error('Error fetching related orders:', fetchError);
+            throw fetchError;
+          }
 
-        console.log('=== INSERTING ORDER_ITEMS (EDIT ORDER) VIA RPC ===');
-
-        for (let idx = 0; idx < items.length; idx++) {
-          const item = items[idx];
-          console.log(`Item ${idx + 1}:`, item);
-          console.log(`  package_type: ${item.packaging_type}`);
-          console.log(`  package_ml: ${item.packaging_volume_ml}`);
-          console.log(`  has_label_req: ${item.has_label}`);
-
-          const itemData = {
-            order_id: editingOrder.id,
-            crop_id: item.crop_id || null,
-            blend_id: item.blend_id || null,
-            quantity: item.quantity,
-            pieces: 0,
-            delivery_form: item.delivery_form || 'whole',
-            price_per_unit: item.price_per_unit,
-            total_price: item.total_price,
-            package_type: item.packaging_type || null,
-            package_ml: item.packaging_volume_ml || null,
-            has_label_req: item.has_label || false,
-            crop_name: item.crop_name || null,
-            unit: item.unit || 'ks',
-            packaging_size: item.packaging_size || '50g',
-            notes: item.notes || null,
-            packaging_id: item.packaging_id || null,
-            special_requirements: item.special_requirements || null,
-            is_special_item: item.is_special_item || false,
-            custom_crop_name: item.custom_crop_name || null
-          };
-
-          try {
-            await createOrderItemDirectFetch(itemData);
-            console.log(`✅ DIRECT FETCH SUCCESS (EDIT ORDER) Item ${idx + 1}`);
-          } catch (itemError) {
-            console.error(`=== DIRECT FETCH ERROR (EDIT ORDER) Item ${idx + 1} ===`, itemError);
-            throw itemError;
+          if (relatedOrders && relatedOrders.length > 0) {
+            orderIdsToUpdate = relatedOrders.map(o => o.id);
+            console.log(`Found ${orderIdsToUpdate.length} orders to update:`, orderIdsToUpdate);
           }
         }
 
-        for (const item of orderItems || []) {
-          if (item?.packaging_id && item?.quantity) {
+        // Update all selected orders
+        const { error: updateError } = await supabase
+          .from('orders')
+          .update(orderData)
+          .in('id', orderIdsToUpdate);
+
+        if (updateError) throw updateError;
+
+        // Update order items for all selected orders
+        for (const orderId of orderIdsToUpdate) {
+          console.log(`=== UPDATING ORDER ITEMS FOR ORDER ${orderId} ===`);
+
+          // Delete existing items
+          await deleteOrderItemsDirectFetch(orderId);
+
+          // Prepare new items
+          const items = (orderItems || []).map(item => {
+            const crop = crops?.find(c => c.id === item.crop_id);
+            const blend = blends?.find(b => b.id === item.blend_id);
+            const cropName = item.is_special_item
+              ? item.custom_crop_name
+              : (crop ? crop.name : (blend ? `${blend.name} (Mix)` : ''));
+
+            const weightValue = item.packaging_size?.toString().replace(/[^0-9.]/g, '') || '0';
+            const quantity = parseFloat(item.quantity) || 0;
+            const price = parseFloat(item.price_per_unit.toString().replace(',', '.')) || 0;
+
+            return {
+              order_id: orderId,
+              crop_id: item.is_special_item ? null : (item.crop_id || null),
+              blend_id: item.blend_id || null,
+              crop_name: cropName,
+              quantity: Number(quantity),
+              unit: item.unit,
+              packaging_size: weightValue,
+              delivery_form: item.delivery_form,
+              has_label: item.has_label,
+              notes: item.notes || null,
+              packaging_type: item.packaging_type || 'PET',
+              packaging_volume_ml: item.packaging_volume_ml || null,
+              packaging_id: item.packaging_id || null,
+              special_requirements: item.special_requirements || null,
+              price_per_unit: Number(price),
+              total_price: Number(parseFloat((quantity * price).toFixed(2))),
+              is_special_item: item.is_special_item || false,
+              custom_crop_name: item.is_special_item ? item.custom_crop_name : null,
+              user_id: user.id
+            };
+          });
+
+          // Insert new items
+          for (let idx = 0; idx < items.length; idx++) {
+            const item = items[idx];
+            console.log(`Item ${idx + 1} for order ${orderId}:`, item);
+
+            const itemData = {
+              order_id: orderId,
+              crop_id: item.crop_id || null,
+              blend_id: item.blend_id || null,
+              quantity: item.quantity,
+              pieces: 0,
+              delivery_form: item.delivery_form || 'whole',
+              price_per_unit: item.price_per_unit,
+              total_price: item.total_price,
+              package_type: item.packaging_type || null,
+              package_ml: item.packaging_volume_ml || null,
+              has_label_req: item.has_label || false,
+              crop_name: item.crop_name || null,
+              unit: item.unit || 'ks',
+              packaging_size: item.packaging_size || '50g',
+              notes: item.notes || null,
+              packaging_id: item.packaging_id || null,
+              special_requirements: item.special_requirements || null,
+              is_special_item: item.is_special_item || false,
+              custom_crop_name: item.custom_crop_name || null
+            };
+
             try {
-              await supabase.rpc('decrement_packaging_stock', {
-                packaging_id: item.packaging_id,
-                amount: item.quantity
-              });
-            } catch (pkgError) {
-              console.error('[OrdersPage] Error decrementing packaging stock:', pkgError);
+              await createOrderItemDirectFetch(itemData);
+              console.log(`✅ DIRECT FETCH SUCCESS Item ${idx + 1} for order ${orderId}`);
+            } catch (itemError) {
+              console.error(`=== DIRECT FETCH ERROR Item ${idx + 1} for order ${orderId} ===`, itemError);
+              throw itemError;
+            }
+          }
+
+          // Decrement packaging stock for each item
+          for (const item of orderItems || []) {
+            if (item?.packaging_id && item?.quantity) {
+              try {
+                await supabase.rpc('decrement_packaging_stock', {
+                  packaging_id: item.packaging_id,
+                  amount: item.quantity
+                });
+              } catch (pkgError) {
+                console.error(`[OrdersPage] Error decrementing packaging stock for order ${orderId}:`, pkgError);
+              }
             }
           }
         }
 
-        toast({ title: 'Úspech', description: 'Objednávka upravená' });
+        // Reset state
+        setUpdateAllFutureOrders(false);
+
+        // Show success message
+        if (orderIdsToUpdate.length > 1) {
+          toast({
+            title: 'Úspech',
+            description: `Upravených ${orderIdsToUpdate.length} objednávok`
+          });
+        } else {
+          toast({ title: 'Úspech', description: 'Objednávka upravená' });
+        }
+
         setIsDialogOpen(false);
         await loadData();
       } else {
@@ -2718,6 +2804,13 @@ export default function OrdersPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <RecurringOrderEditDialog
+        open={recurringEditDialog.open}
+        onClose={() => setRecurringEditDialog({ open: false, order: null })}
+        onConfirm={handleRecurringEditConfirm}
+        orderDate={recurringEditDialog.order?.delivery_date || ''}
+      />
 
       <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
