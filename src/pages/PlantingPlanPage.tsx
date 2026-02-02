@@ -322,6 +322,7 @@ const PlantingPlanPage = () => {
         .select(`
           id,
           delivery_date,
+          status,
           order_items (
             id,
             crop_id,
@@ -338,7 +339,15 @@ const PlantingPlanPage = () => {
         `)
         .gte('delivery_date', formattedStartDate)
         .lte('delivery_date', formattedEndDate)
-        .in('status', ['confirmed', 'preparing', 'pending']);
+        .in('status', ['pending', 'waiting', 'preparing']);
+
+      console.log('📦 Načítané objednávky:', orders?.length);
+      console.log('📦 Statusy objednávok:', orders?.map(o => ({
+        id: o.id,
+        status: o.status,
+        date: o.delivery_date,
+        items: o.order_items?.length
+      })));
 
       if (ordersError) {
         console.error('Orders fetch error:', ordersError);
@@ -348,12 +357,18 @@ const PlantingPlanPage = () => {
       if (!orders || orders.length === 0) {
         toast({
           title: 'Žiadne objednávky',
-          description: 'V danom období neboli nájdené žiadne potvrdené objednávky.',
+          description: 'V danom období neboli nájdené žiadne aktívne objednávky (pending/waiting/preparing).',
         });
         return;
       }
 
       const grouped = groupOrdersByCropAndHarvestDate(orders);
+      console.log('📦 Zoskupené skupiny:', grouped.length);
+      console.log('📦 Detail skupín:', grouped.map(g => ({
+        crop: g.crop.name,
+        harvestDate: g.harvestDate,
+        totalRequired: g.totalRequired
+      })));
 
       if (grouped.length === 0) {
         toast({
@@ -367,10 +382,14 @@ const PlantingPlanPage = () => {
       let updatedCount = 0;
 
       for (const group of grouped) {
+        console.log(`🌱 Spracovávam skupinu: ${group.crop.name}, zber ${group.harvestDate}, potreba ${group.totalRequired}g`);
         const result = await createPlantingTasksForGroup(group);
+        console.log(`✅ Vytvorené: ${result.created}, Aktualizované: ${result.updated}`);
         createdCount += result.created;
         updatedCount += result.updated;
       }
+
+      console.log(`🎉 Celkom vytvorených: ${createdCount}, aktualizovaných: ${updatedCount}`);
 
       toast({
         title: 'Plán vygenerovaný',
@@ -429,11 +448,16 @@ const PlantingPlanPage = () => {
     const reserve = crop.reserved_percentage || 0.1;
     const withReserve = totalRequired * (1 + reserve);
 
+    console.log(`  📊 Požiadavka: ${totalRequired}g + rezerva ${reserve * 100}% = ${withReserve}g`);
+
     const trayConfig = optimizeTrayConfiguration(crop, withReserve);
+    console.log(`  🎯 Optimalizácia tácok:`, trayConfig);
 
     const plantingDate = new Date(harvestDate);
     plantingDate.setDate(plantingDate.getDate() - (crop.days_to_harvest || 10));
     const plantingDateStr = plantingDate.toISOString().split('T')[0];
+
+    console.log(`  📅 Dátum sadenia: ${plantingDateStr}, zber: ${harvestDate}`);
 
     let created = 0;
     let updated = 0;
@@ -479,6 +503,8 @@ const PlantingPlanPage = () => {
   function optimizeTrayConfiguration(crop: any, requiredYield: number) {
     const trayConfigs = crop.tray_configs || {};
 
+    console.log(`    🔧 tray_configs plodiny:`, trayConfigs);
+
     const sizes = ['XL', 'L', 'M', 'S']
       .map(size => ({
         name: size,
@@ -487,7 +513,10 @@ const PlantingPlanPage = () => {
       }))
       .filter(s => s.seeds > 0 && s.yield > 0);
 
+    console.log(`    ✅ Dostupné veľkosti:`, sizes);
+
     if (sizes.length === 0) {
+      console.log(`    ⚠️ Žiadne tray_configs, použijem default`);
       return [{
         size: 'XL',
         count: Math.ceil(requiredYield / 200),
