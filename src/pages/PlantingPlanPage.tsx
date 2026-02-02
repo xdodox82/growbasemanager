@@ -317,6 +317,9 @@ const PlantingPlanPage = () => {
       const formattedStartDate = startDate;
       const formattedEndDate = endDate;
 
+      console.log('🔍 Filter statusov:', ['cakajuca', 'potvrdena', 'pripravena']);
+      console.log('🔍 Obdobie:', formattedStartDate, 'až', formattedEndDate);
+
       const { data: orders, error: ordersError } = await supabase
         .from('orders')
         .select(`
@@ -339,7 +342,7 @@ const PlantingPlanPage = () => {
         `)
         .gte('delivery_date', formattedStartDate)
         .lte('delivery_date', formattedEndDate)
-        .in('status', ['pending', 'waiting', 'preparing']);
+        .in('status', ['cakajuca', 'potvrdena', 'pripravena']);
 
       console.log('📦 Načítané objednávky:', orders?.length);
       console.log('📦 Statusy objednávok:', orders?.map(o => ({
@@ -357,7 +360,7 @@ const PlantingPlanPage = () => {
       if (!orders || orders.length === 0) {
         toast({
           title: 'Žiadne objednávky',
-          description: 'V danom období neboli nájdené žiadne aktívne objednávky (pending/waiting/preparing).',
+          description: 'V danom období neboli nájdené žiadne aktívne objednávky (čakajúca/potvrdená/pripravená).',
         });
         return;
       }
