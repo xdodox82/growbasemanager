@@ -430,7 +430,8 @@ const PlantingPlanPage = () => {
       console.log('📦 Detail skupín:', grouped.map(g => ({
         crop: g.crop.name,
         harvestDate: g.harvestDate,
-        totalRequired: g.totalRequired
+        totalRequired: g.totalRequired,
+        orderIds: g.orderIds
       })));
 
       if (grouped.length === 0) {
@@ -445,7 +446,7 @@ const PlantingPlanPage = () => {
       let updatedCount = 0;
 
       for (const group of grouped) {
-        console.log(`🌱 Spracovávam skupinu: ${group.crop.name}, zber ${group.harvestDate}, potreba ${group.totalRequired}g`);
+        console.log(`🌱 Spracovávam skupinu: ${group.crop.name}, zber ${group.harvestDate}, potreba ${group.totalRequired}g, objednávky: ${group.orderIds.join(', ')}`);
         const result = await createPlantingTasksForGroup(group);
         console.log(`✅ Vytvorené: ${result.created}, Aktualizované: ${result.updated}`);
         createdCount += result.created;
@@ -550,6 +551,8 @@ const PlantingPlanPage = () => {
         const existingOrders = existingPlan.source_orders || [];
         const mergedOrders = [...new Set([...existingOrders, ...orderIds])];
 
+        console.log(`    🔄 Aktualizujem existujúci plán: ${tray.size}, nové source_orders:`, mergedOrders);
+
         await supabase
           .from('planting_plans')
           .update({
@@ -560,6 +563,8 @@ const PlantingPlanPage = () => {
           .eq('id', existingPlan.id);
         updated++;
       } else {
+        console.log(`    ➕ Vytváram nový plán: ${tray.size}, source_orders:`, orderIds);
+
         const { error } = await supabase.from('planting_plans').insert({
           crop_id: crop.id,
           sow_date: plantingDateStr,
@@ -573,7 +578,11 @@ const PlantingPlanPage = () => {
           source_orders: orderIds,
         });
 
-        if (!error) created++;
+        if (error) {
+          console.error('    ❌ Chyba pri vytváraní plánu:', error);
+        } else {
+          created++;
+        }
       }
     }
 
@@ -733,14 +742,46 @@ const PlantingPlanPage = () => {
     setIsDetailDialogOpen(true);
   };
 
-  const openEditDialog = (plan: PlantingPlan) => {
-    setEditingPlan(plan);
+  const openEditDialog = async (plan: PlantingPlan | GroupedPlantingPlan) => {
+    // If it's a grouped plan, we need to fetch the first individual plan
+    let actualPlan: PlantingPlan;
+
+    if ((plan as GroupedPlantingPlan).trays) {
+      // Fetch first plan for this group
+      const { data: firstPlan, error } = await supabase
+        .from('planting_plans')
+        .select('*')
+        .eq('crop_id', plan.crop_id)
+        .eq('sow_date', plan.sow_date)
+        .limit(1)
+        .single();
+
+      if (error || !firstPlan) {
+        toast({
+          title: 'Chyba',
+          description: 'Nepodarilo sa načítať plán na úpravu.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      actualPlan = firstPlan as PlantingPlan;
+
+      toast({
+        title: 'Upozornenie',
+        description: 'Editujete prvý plán z tejto skupiny. Pre zmenu všetkých tácok, upravte každý plán samostatne alebo vytvorte nový výsev.',
+      });
+    } else {
+      actualPlan = plan as PlantingPlan;
+    }
+
+    setEditingPlan(actualPlan);
 
     // Handle mixed planting
-    if ((plan as any).is_mixed && (plan as any).mix_configuration) {
+    if ((actualPlan as any).is_mixed && (actualPlan as any).mix_configuration) {
       setIsMixedPlanting(true);
       try {
-        const mixConfig = JSON.parse((plan as any).mix_configuration);
+        const mixConfig = JSON.parse((actualPlan as any).mix_configuration);
         setMixCrops(mixConfig.map((item: any) => ({
           cropId: item.crop_id,
           percentage: item.percentage
@@ -759,17 +800,17 @@ const PlantingPlanPage = () => {
       setIsMixedPlanting(false);
       setMixCrops([{ cropId: '', percentage: 50 }, { cropId: '', percentage: 50 }]);
 
-      const crop = crops.find(c => c.id === plan.crop_id);
+      const crop = crops.find(c => c.id === actualPlan.crop_id);
       setSelectedCategory(crop?.category || 'all');
-      setSelectedCropId(plan.crop_id);
+      setSelectedCropId(actualPlan.crop_id);
 
       if (crop?.tray_configs) {
-        const dbDensity = crop.tray_configs[plan.tray_size]?.seed_density_grams ||
-                          crop.tray_configs[plan.tray_size]?.seed_density || 0;
+        const dbDensity = crop.tray_configs[actualPlan.tray_size]?.seed_density_grams ||
+                          crop.tray_configs[actualPlan.tray_size]?.seed_density || 0;
 
-        if (plan.seed_amount_grams !== dbDensity) {
+        if (actualPlan.seed_amount_grams !== dbDensity) {
           setUseCustomDensity(true);
-          setCustomSeedDensity(plan.seed_amount_grams);
+          setCustomSeedDensity(actualPlan.seed_amount_grams);
         } else {
           setUseCustomDensity(false);
           setCustomSeedDensity(0);
@@ -777,11 +818,11 @@ const PlantingPlanPage = () => {
       }
     }
 
-    setSowDate(plan.sow_date);
-    setSelectedTraySize(plan.tray_size);
-    setTrayCount(plan.tray_count);
-    setIsTest((plan as any).is_test || false);
-    setNotes((plan as any).notes || '');
+    setSowDate(actualPlan.sow_date);
+    setSelectedTraySize(actualPlan.tray_size);
+    setTrayCount(actualPlan.tray_count);
+    setIsTest((actualPlan as any).is_test || false);
+    setNotes((actualPlan as any).notes || '');
 
     setIsDetailDialogOpen(false);
     setNewPlantingDialog(true);
@@ -1008,7 +1049,7 @@ const PlantingPlanPage = () => {
     }
   };
 
-  const getHarvestDate = (plan: PlantingPlan) => {
+  const getHarvestDate = (plan: PlantingPlan | GroupedPlantingPlan) => {
     try {
       const sowDate = parseISO(plan.sow_date);
       const daysToHarvest = plan.crops?.days_to_harvest || 10;
@@ -1361,8 +1402,35 @@ const PlantingPlanPage = () => {
                         </TableCell>
                         <TableCell className="text-center align-middle py-3">{formatDate(plan.sow_date)}</TableCell>
                         <TableCell className="text-center align-middle py-3">{formatDate(getHarvestDate(plan).toISOString())}</TableCell>
-                        <TableCell className="text-center align-middle py-3">{plan.tray_count} × {plan.tray_size}</TableCell>
-                        <TableCell className="text-center align-middle py-3">{formatGrams(plan.total_seed_grams || 0)}g</TableCell>
+                        <TableCell className="text-center align-middle py-3">
+                          {plan.trays ? (
+                            <div className="flex flex-col gap-1">
+                              {plan.trays.map((tray, idx) => (
+                                <span key={idx} className="text-sm">
+                                  {tray.count}×{tray.size}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span>{(plan as any).tray_count}×{(plan as any).tray_size}</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center align-middle py-3">
+                          {plan.trays ? (
+                            <div className="flex flex-col gap-1">
+                              {plan.trays.map((tray, idx) => (
+                                <span key={idx} className="text-xs text-gray-600">
+                                  {formatGrams(tray.seeds_per_tray)}g/tácka
+                                </span>
+                              ))}
+                              <span className="font-medium text-sm border-t pt-1 mt-1">
+                                Σ {formatGrams(plan.trays.reduce((sum, t) => sum + t.total_seeds, 0))}g
+                              </span>
+                            </div>
+                          ) : (
+                            <span>{formatGrams((plan as any).total_seed_grams || 0)}g</span>
+                          )}
+                        </TableCell>
                         <TableCell className="text-center align-middle py-3" onClick={(e) => e.stopPropagation()}>
                           <div className="flex justify-center">
                             <Button
@@ -1478,7 +1546,11 @@ const PlantingPlanPage = () => {
                                       {plan.crops?.name || 'Neznáma plodina'}
                                     </p>
                                     <p className="text-xs text-muted-foreground">
-                                      {plan.tray_count} × {plan.tray_size}
+                                      {plan.trays ? (
+                                        plan.trays.map((t, i) => `${t.count}×${t.size}`).join(', ')
+                                      ) : (
+                                        `${(plan as any).tray_count}×${(plan as any).tray_size}`
+                                      )}
                                     </p>
                                   </>
                                 )}
