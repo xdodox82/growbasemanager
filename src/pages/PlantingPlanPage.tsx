@@ -317,34 +317,64 @@ const PlantingPlanPage = () => {
       const formattedStartDate = startDate;
       const formattedEndDate = endDate;
 
-      console.log('Calling RPC with:', {
-        p_start_date: formattedStartDate,
-        p_end_date: formattedEndDate
-      });
+      const { data: orders, error: ordersError } = await supabase
+        .from('orders')
+        .select(`
+          id,
+          delivery_date,
+          order_items (
+            id,
+            crop_id,
+            quantity,
+            packaging_size,
+            crops:crop_id (
+              id,
+              name,
+              days_to_harvest,
+              tray_configs,
+              reserved_percentage
+            )
+          )
+        `)
+        .gte('delivery_date', formattedStartDate)
+        .lte('delivery_date', formattedEndDate)
+        .in('status', ['confirmed', 'preparing', 'pending']);
 
-      const { data, error } = await supabase.rpc('generate_planting_plan', {
-        p_start_date: formattedStartDate,
-        p_end_date: formattedEndDate,
-      });
+      if (ordersError) {
+        console.error('Orders fetch error:', ordersError);
+        throw ordersError;
+      }
 
-      console.log('RPC response:', { data, error });
-
-      if (error) {
-        console.error('RPC error details:', error);
+      if (!orders || orders.length === 0) {
         toast({
-          title: 'Chyba',
-          description: error.message || 'Nepodarilo sa vygenerovať plán',
-          variant: 'destructive',
+          title: 'Žiadne objednávky',
+          description: 'V danom období neboli nájdené žiadne potvrdené objednávky.',
         });
         return;
       }
 
-      const results = data as GeneratePlanResult[];
-      const newPlansCount = results?.filter(r => r.created_new).length || 0;
+      const grouped = groupOrdersByCropAndHarvestDate(orders);
+
+      if (grouped.length === 0) {
+        toast({
+          title: 'Žiadne položky',
+          description: 'Objednávky neobsahujú žiadne plodiny na sadenie.',
+        });
+        return;
+      }
+
+      let createdCount = 0;
+      let updatedCount = 0;
+
+      for (const group of grouped) {
+        const result = await createPlantingTasksForGroup(group);
+        createdCount += result.created;
+        updatedCount += result.updated;
+      }
 
       toast({
         title: 'Plán vygenerovaný',
-        description: `Vytvorených ${newPlansCount} nových plánov sadenia, celkom ${results?.length || 0} plánov.`,
+        description: `Vytvorených ${createdCount} nových výsevov, aktualizovaných ${updatedCount} existujúcich.`,
       });
 
       await fetchPlans();
@@ -359,6 +389,144 @@ const PlantingPlanPage = () => {
       setGenerating(false);
     }
   };
+
+  function groupOrdersByCropAndHarvestDate(orders: any[]) {
+    const groups = new Map<string, {
+      crop: any;
+      harvestDate: string;
+      totalRequired: number;
+    }>();
+
+    orders.forEach(order => {
+      order.order_items?.forEach((item: any) => {
+        if (!item.crop_id || !item.crops) return;
+
+        const key = `${item.crop_id}_${order.delivery_date}`;
+
+        if (!groups.has(key)) {
+          groups.set(key, {
+            crop: item.crops,
+            harvestDate: order.delivery_date,
+            totalRequired: 0,
+          });
+        }
+
+        const grams = parseFloat(item.packaging_size?.replace(/[^0-9.]/g, '') || '0');
+        groups.get(key)!.totalRequired += grams * (item.quantity || 0);
+      });
+    });
+
+    return Array.from(groups.values());
+  }
+
+  async function createPlantingTasksForGroup(group: {
+    crop: any;
+    harvestDate: string;
+    totalRequired: number;
+  }) {
+    const { crop, harvestDate, totalRequired } = group;
+
+    const reserve = crop.reserved_percentage || 0.1;
+    const withReserve = totalRequired * (1 + reserve);
+
+    const trayConfig = optimizeTrayConfiguration(crop, withReserve);
+
+    const plantingDate = new Date(harvestDate);
+    plantingDate.setDate(plantingDate.getDate() - (crop.days_to_harvest || 10));
+    const plantingDateStr = plantingDate.toISOString().split('T')[0];
+
+    let created = 0;
+    let updated = 0;
+
+    for (const tray of trayConfig) {
+      const { data: existingPlan } = await supabase
+        .from('planting_plans')
+        .select('id, tray_count, seed_amount_grams')
+        .eq('crop_id', crop.id)
+        .eq('sow_date', plantingDateStr)
+        .eq('tray_size', tray.size)
+        .maybeSingle();
+
+      if (existingPlan) {
+        await supabase
+          .from('planting_plans')
+          .update({
+            tray_count: (existingPlan.tray_count || 0) + tray.count,
+            total_seed_grams: ((existingPlan.tray_count || 0) + tray.count) * tray.seedsPerTray,
+          })
+          .eq('id', existingPlan.id);
+        updated++;
+      } else {
+        const { error } = await supabase.from('planting_plans').insert({
+          crop_id: crop.id,
+          sow_date: plantingDateStr,
+          expected_harvest_date: harvestDate,
+          tray_size: tray.size,
+          tray_count: tray.count,
+          seed_amount_grams: tray.seedsPerTray,
+          total_seed_grams: tray.seedsPerTray * tray.count,
+          status: 'planned',
+          notes: `Auto z objednávok (${Math.round(totalRequired)}g požadovaných)`,
+        });
+
+        if (!error) created++;
+      }
+    }
+
+    return { created, updated };
+  }
+
+  function optimizeTrayConfiguration(crop: any, requiredYield: number) {
+    const trayConfigs = crop.tray_configs || {};
+
+    const sizes = ['XL', 'L', 'M', 'S']
+      .map(size => ({
+        name: size,
+        seeds: trayConfigs[size]?.seed_density_grams || trayConfigs[size]?.seed_density || 0,
+        yield: trayConfigs[size]?.yield_grams || trayConfigs[size]?.expected_yield || 0,
+      }))
+      .filter(s => s.seeds > 0 && s.yield > 0);
+
+    if (sizes.length === 0) {
+      return [{
+        size: 'XL',
+        count: Math.ceil(requiredYield / 200),
+        seedsPerTray: 30,
+      }];
+    }
+
+    const result: Array<{ size: string; count: number; seedsPerTray: number }> = [];
+    let remaining = requiredYield;
+
+    for (const size of sizes) {
+      if (remaining >= size.yield) {
+        const count = Math.floor(remaining / size.yield);
+        if (count > 0) {
+          result.push({
+            size: size.name,
+            count,
+            seedsPerTray: size.seeds,
+          });
+          remaining -= count * size.yield;
+        }
+      }
+    }
+
+    if (remaining > 0 && sizes.length > 0) {
+      const smallest = sizes[sizes.length - 1];
+      result.push({
+        size: smallest.name,
+        count: 1,
+        seedsPerTray: smallest.seeds,
+      });
+    }
+
+    return result.length > 0 ? result : [{
+      size: 'XL',
+      count: 1,
+      seedsPerTray: 30,
+    }];
+  }
 
   const handleMarkComplete = async (planId: string) => {
     try {
