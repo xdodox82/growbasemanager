@@ -97,6 +97,26 @@ interface PlantingPlan {
   completed_at?: string;
   crops?: Crop;
   tray_config?: TrayConfig | null;
+  source_orders?: string[] | null;
+}
+
+interface TrayDetail {
+  size: 'XL' | 'L' | 'M' | 'S';
+  count: number;
+  seeds_per_tray: number;
+  total_seeds: number;
+}
+
+interface GroupedPlantingPlan {
+  id: string;
+  crop_id: string;
+  sow_date: string;
+  status: string;
+  completed_at?: string;
+  crops?: Crop;
+  trays: TrayDetail[];
+  source_orders?: string[] | null;
+  total_seed_grams: number;
 }
 
 interface GeneratePlanResult {
@@ -310,6 +330,46 @@ const PlantingPlanPage = () => {
     await fetchPlans();
   }, [fetchPlans]);
 
+  // Group planting plans by crop_id + sow_date for UI display
+  const groupedPlans = useMemo(() => {
+    const grouped = new Map<string, GroupedPlantingPlan>();
+
+    plans.forEach(plan => {
+      const key = `${plan.crop_id}_${plan.sow_date}`;
+
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          id: plan.id, // Use first plan's ID as primary
+          crop_id: plan.crop_id,
+          sow_date: plan.sow_date,
+          status: plan.status,
+          completed_at: plan.completed_at,
+          crops: plan.crops,
+          trays: [],
+          source_orders: plan.source_orders,
+          total_seed_grams: 0
+        });
+      }
+
+      const group = grouped.get(key)!;
+      group.trays.push({
+        size: plan.tray_size,
+        count: plan.tray_count,
+        seeds_per_tray: plan.seed_amount_grams,
+        total_seeds: plan.total_seed_grams
+      });
+      group.total_seed_grams += plan.total_seed_grams;
+
+      // Merge source_orders if multiple plans have them
+      if (plan.source_orders && plan.source_orders.length > 0) {
+        const existingOrders = group.source_orders || [];
+        group.source_orders = [...new Set([...existingOrders, ...plan.source_orders])];
+      }
+    });
+
+    return Array.from(grouped.values());
+  }, [plans]);
+
   const handleGenerate = async () => {
     setGenerating(true);
 
@@ -417,6 +477,7 @@ const PlantingPlanPage = () => {
       crop: any;
       harvestDate: string;
       totalRequired: number;
+      orderIds: string[];
     }>();
 
     orders.forEach(order => {
@@ -430,11 +491,18 @@ const PlantingPlanPage = () => {
             crop: item.crops,
             harvestDate: order.delivery_date,
             totalRequired: 0,
+            orderIds: [],
           });
         }
 
+        const group = groups.get(key)!;
         const grams = parseFloat(item.packaging_size?.replace(/[^0-9.]/g, '') || '0');
-        groups.get(key)!.totalRequired += grams * (item.quantity || 0);
+        group.totalRequired += grams * (item.quantity || 0);
+
+        // Add order ID if not already in the list
+        if (!group.orderIds.includes(order.id)) {
+          group.orderIds.push(order.id);
+        }
       });
     });
 
@@ -445,8 +513,9 @@ const PlantingPlanPage = () => {
     crop: any;
     harvestDate: string;
     totalRequired: number;
+    orderIds: string[];
   }) {
-    const { crop, harvestDate, totalRequired } = group;
+    const { crop, harvestDate, totalRequired, orderIds } = group;
 
     // DB hodnota je v percentách (5 = 5%), konvertuj na desatinné číslo
     const reservePercent = crop.reserved_percentage || 5; // default 5%
@@ -470,18 +539,23 @@ const PlantingPlanPage = () => {
     for (const tray of trayConfig) {
       const { data: existingPlan } = await supabase
         .from('planting_plans')
-        .select('id, tray_count, seed_amount_grams')
+        .select('id, tray_count, seed_amount_grams, source_orders')
         .eq('crop_id', crop.id)
         .eq('sow_date', plantingDateStr)
         .eq('tray_size', tray.size)
         .maybeSingle();
 
       if (existingPlan) {
+        // Merge order IDs with existing ones
+        const existingOrders = existingPlan.source_orders || [];
+        const mergedOrders = [...new Set([...existingOrders, ...orderIds])];
+
         await supabase
           .from('planting_plans')
           .update({
             tray_count: (existingPlan.tray_count || 0) + tray.count,
             total_seed_grams: ((existingPlan.tray_count || 0) + tray.count) * tray.seedsPerTray,
+            source_orders: mergedOrders,
           })
           .eq('id', existingPlan.id);
         updated++;
@@ -496,6 +570,7 @@ const PlantingPlanPage = () => {
           total_seed_grams: tray.seedsPerTray * tray.count,
           status: 'planned',
           notes: `Auto z objednávok (${Math.round(totalRequired)}g požadovaných)`,
+          source_orders: orderIds,
         });
 
         if (!error) created++;
@@ -562,17 +637,32 @@ const PlantingPlanPage = () => {
     }];
   }
 
-  const handleMarkComplete = async (planId: string) => {
+  const handleMarkComplete = async (planId: string, cropId?: string, sowDate?: string) => {
     try {
-      const { error } = await supabase
-        .from('planting_plans')
-        .update({
-          status: 'completed',
-          completed_at: new Date().toISOString()
-        })
-        .eq('id', planId);
+      // If cropId and sowDate provided, update all plans for this group
+      // Otherwise just update the single plan (backward compatibility)
+      if (cropId && sowDate) {
+        const { error } = await supabase
+          .from('planting_plans')
+          .update({
+            status: 'completed',
+            completed_at: new Date().toISOString()
+          })
+          .eq('crop_id', cropId)
+          .eq('sow_date', sowDate);
 
-      if (error) throw error;
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('planting_plans')
+          .update({
+            status: 'completed',
+            completed_at: new Date().toISOString()
+          })
+          .eq('id', planId);
+
+        if (error) throw error;
+      }
 
       toast({
         title: 'Výsev dokončený',
@@ -591,17 +681,32 @@ const PlantingPlanPage = () => {
     }
   };
 
-  const handleMarkPlanned = async (planId: string) => {
+  const handleMarkPlanned = async (planId: string, cropId?: string, sowDate?: string) => {
     try {
-      const { error } = await supabase
-        .from('planting_plans')
-        .update({
-          status: 'planned',
-          completed_at: null
-        })
-        .eq('id', planId);
+      // If cropId and sowDate provided, update all plans for this group
+      // Otherwise just update the single plan (backward compatibility)
+      if (cropId && sowDate) {
+        const { error } = await supabase
+          .from('planting_plans')
+          .update({
+            status: 'planned',
+            completed_at: null
+          })
+          .eq('crop_id', cropId)
+          .eq('sow_date', sowDate);
 
-      if (error) throw error;
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('planting_plans')
+          .update({
+            status: 'planned',
+            completed_at: null
+          })
+          .eq('id', planId);
+
+        if (error) throw error;
+      }
 
       toast({
         title: 'Plán obnovený',
@@ -620,15 +725,11 @@ const PlantingPlanPage = () => {
     }
   };
 
-  const openDetailDialog = (plan: PlantingPlan) => {
+  const openDetailDialog = (plan: GroupedPlantingPlan | PlantingPlan) => {
     console.log('=== OPENING DETAIL DIALOG ===');
     console.log('Plan data:', plan);
-    console.log('seed_amount_grams:', plan.seed_amount_grams);
-    console.log('total_seed_grams:', plan.total_seed_grams);
-    console.log('is_mixed:', (plan as any).is_mixed);
-    console.log('mix_configuration:', (plan as any).mix_configuration);
 
-    setSelectedPlan(plan);
+    setSelectedPlan(plan as any);
     setIsDetailDialogOpen(true);
   };
 
@@ -842,12 +943,12 @@ const PlantingPlanPage = () => {
   };
 
   const filteredPlans = useMemo(() => {
-    if (statusFilter === 'all') return plans;
-    return plans.filter(plan => plan.status === statusFilter);
-  }, [plans, statusFilter]);
+    if (statusFilter === 'all') return groupedPlans;
+    return groupedPlans.filter(plan => plan.status === statusFilter);
+  }, [groupedPlans, statusFilter]);
 
   const plansByDate = useMemo(() => {
-    const grouped: Record<string, PlantingPlan[]> = {};
+    const grouped: Record<string, GroupedPlantingPlan[]> = {};
     filteredPlans.forEach(plan => {
       const date = plan.sow_date;
       if (!grouped[date]) {
@@ -1071,7 +1172,7 @@ const PlantingPlanPage = () => {
                         <Button
                           variant={plan.status === 'completed' ? 'default' : 'outline'}
                           size="sm"
-                          onClick={() => handleMarkComplete(plan.id)}
+                          onClick={() => handleMarkComplete(plan.id, plan.crop_id, plan.sow_date)}
                           disabled={!isAdmin}
                           className={cn(
                             "h-8 px-3 text-xs gap-1.5 rounded-full",
@@ -1092,7 +1193,7 @@ const PlantingPlanPage = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleMarkPlanned(plan.id)}
+                            onClick={() => handleMarkPlanned(plan.id, plan.crop_id, plan.sow_date)}
                             disabled={!isAdmin}
                             className="h-8 px-3 text-xs text-gray-600 hover:text-gray-900"
                           >
@@ -1139,15 +1240,18 @@ const PlantingPlanPage = () => {
                               })()}
                             </div>
                           ) : null}
-                          <p className="text-sm">
-                            {plan.tray_count} × {plan.tray_size}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {(plan as any).is_mixed ? (
-                              <>Mix: {formatGrams(plan.total_seed_grams || 0)}g celkom</>
-                            ) : (
-                              <>{formatGrams(plan.seed_amount_grams || 0)}g/tácka • {formatGrams(plan.total_seed_grams || 0)}g celkom</>
-                            )}
+                          <div className="space-y-1">
+                            {plan.trays.map((tray, idx) => (
+                              <p key={idx} className="text-sm">
+                                {tray.count} × {tray.size}
+                                <span className="text-xs text-muted-foreground ml-2">
+                                  ({formatGrams(tray.seeds_per_tray)}g/tácka)
+                                </span>
+                              </p>
+                            ))}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Celkom: {formatGrams(plan.total_seed_grams || 0)}g
                           </p>
                         </div>
 
@@ -1264,7 +1368,7 @@ const PlantingPlanPage = () => {
                             <Button
                               variant={plan.status === 'completed' ? 'default' : 'outline'}
                               size="sm"
-                              onClick={() => plan.status === 'completed' ? handleMarkPlanned(plan.id) : handleMarkComplete(plan.id)}
+                              onClick={() => plan.status === 'completed' ? handleMarkPlanned(plan.id, plan.crop_id, plan.sow_date) : handleMarkComplete(plan.id, plan.crop_id, plan.sow_date)}
                               disabled={!isAdmin}
                               className={cn(
                                 "h-8 px-3 text-xs gap-1.5 rounded-full",
@@ -1507,13 +1611,35 @@ const PlantingPlanPage = () => {
                   <h4 className="font-semibold text-sm">Kombinácia tácok</h4>
                 </div>
 
-                <p className="text-sm">
-                  {selectedPlan.tray_count} × {selectedPlan.tray_size}
-                </p>
+                {(selectedPlan as GroupedPlantingPlan).trays ? (
+                  <div className="space-y-2">
+                    {(selectedPlan as GroupedPlantingPlan).trays.map((tray, idx) => (
+                      <div key={idx} className="flex justify-between items-center text-sm py-1">
+                        <span className="font-medium">
+                          {tray.count} × {tray.size}
+                        </span>
+                        <span className="text-xs text-gray-600">
+                          {formatGrams(tray.seeds_per_tray)}g/tácka • {formatGrams(tray.total_seeds)}g celkom
+                        </span>
+                      </div>
+                    ))}
+                    <div className="pt-2 border-t">
+                      <p className="text-sm font-semibold">
+                        Celkom semien: {formatGrams(selectedPlan.total_seed_grams || 0)}g
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-sm">
+                      {(selectedPlan as PlantingPlan).tray_count} × {(selectedPlan as PlantingPlan).tray_size}
+                    </p>
 
-                <p className="text-xs text-gray-600">
-                  Hustota: {selectedPlan.seed_amount_grams || 0}g/tácka
-                </p>
+                    <p className="text-xs text-gray-600">
+                      Hustota: {(selectedPlan as PlantingPlan).seed_amount_grams || 0}g/tácka
+                    </p>
+                  </>
+                )}
 
                 {(selectedPlan as any).is_mixed && (selectedPlan as any).mix_configuration && (
                   <div className="mt-3 pt-3 border-t">
@@ -1581,12 +1707,30 @@ const PlantingPlanPage = () => {
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-semibold flex items-center gap-2">
                     <Package className="h-4 w-4" />
-                    Objednávky
+                    Zdroj objednávok
                   </h4>
                 </div>
 
-                <div className="text-sm text-muted-foreground">
-                  <p>Pre tento výsev zatiaľ nie je dostupný detail objednávok.</p>
+                <div className="text-sm">
+                  {selectedPlan.source_orders && selectedPlan.source_orders.length > 0 ? (
+                    <div className="space-y-2">
+                      <p className="text-muted-foreground mb-2">
+                        Tento výsev bol vygenerovaný z {selectedPlan.source_orders.length} objednávok:
+                      </p>
+                      <div className="space-y-1">
+                        {selectedPlan.source_orders.map((orderId, idx) => (
+                          <div key={idx} className="flex items-center gap-2 py-1 px-2 bg-white rounded border text-xs">
+                            <Package className="h-3 w-3 text-blue-500" />
+                            <code className="font-mono">{orderId.substring(0, 8)}...</code>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground">
+                      Manuálne vytvorený výsev (nie z objednávok)
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -1596,14 +1740,14 @@ const PlantingPlanPage = () => {
                 </Button>
                 {selectedPlan.status === 'planned' ? (
                   isAdmin && (
-                    <Button onClick={() => handleMarkComplete(selectedPlan.id)}>
+                    <Button onClick={() => handleMarkComplete(selectedPlan.id, selectedPlan.crop_id, selectedPlan.sow_date)}>
                       <CheckCircle2 className="h-4 w-4 mr-2" />
                       Označiť hotovo
                     </Button>
                   )
                 ) : (
                   isAdmin && (
-                    <Button variant="outline" onClick={() => handleMarkPlanned(selectedPlan.id)}>
+                    <Button variant="outline" onClick={() => handleMarkPlanned(selectedPlan.id, selectedPlan.crop_id, selectedPlan.sow_date)}>
                       <RotateCcw className="h-4 w-4 mr-2" />
                       Vrátiť späť
                     </Button>
