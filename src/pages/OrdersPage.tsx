@@ -2225,7 +2225,7 @@ export default function OrdersPage() {
                         {order.route || '-'}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-1.5">
+                        <div className="flex items-center flex-wrap gap-1.5">
                           <Badge className={`border ${getStatusBadgeClass(order.status)} text-xs font-semibold px-2 py-0.5`}>
                             {getStatusLabel(order.status)}
                           </Badge>
@@ -2299,7 +2299,7 @@ export default function OrdersPage() {
                     </div>
                     <div>
                       <h3 className="font-bold text-base text-gray-900">{order.customer_name || 'Bez názvu'}</h3>
-                      <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      <div className="flex items-center flex-wrap gap-1.5 mt-1.5">
                         <Badge className={`border ${getStatusBadgeClass(order.status)} text-xs font-semibold px-2.5 py-0.5`}>
                           {getStatusLabel(order.status)}
                         </Badge>
@@ -3148,7 +3148,7 @@ export default function OrdersPage() {
                 </div>
                 <div className="col-span-2">
                   <div className="text-sm text-gray-600 mb-1.5">Status</div>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex items-center flex-wrap gap-1.5">
                     <Badge className={`border ${getStatusBadgeClass(selectedOrderDetail.status)} text-xs font-semibold px-2 py-0.5`}>
                       {getStatusLabel(selectedOrderDetail.status)}
                     </Badge>

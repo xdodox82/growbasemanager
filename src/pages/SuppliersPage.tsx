@@ -437,9 +437,9 @@ const SuppliersPage = () => {
                     <Building2 className="h-6 w-6" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg">{supplier.name}</h3>
-                    {supplier.company_name && (
-                      <p className="text-sm text-muted-foreground">{supplier.company_name}</p>
+                    <h3 className="font-semibold text-lg">{supplier.company_name || supplier.name}</h3>
+                    {supplier.company_name && supplier.name && (
+                      <p className="text-sm text-muted-foreground">{supplier.name}</p>
                     )}
                     {supplier.supplier_type && (
                       <Badge variant="outline" className="mt-1">{SUPPLIER_TYPES[supplier.supplier_type]}</Badge>
@@ -536,8 +536,8 @@ const SuppliersPage = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Meno</TableHead>
-                  <TableHead className="hidden sm:table-cell">Firma</TableHead>
+                  <TableHead>Firma</TableHead>
+                  <TableHead className="hidden sm:table-cell">Kontaktná osoba</TableHead>
                   <TableHead className="hidden md:table-cell">Email</TableHead>
                   <TableHead className="hidden lg:table-cell">Telefón</TableHead>
                   <TableHead className="hidden xl:table-cell">Adresa</TableHead>
@@ -551,8 +551,8 @@ const SuppliersPage = () => {
                     className="cursor-pointer hover:bg-gray-50"
                     onClick={() => openEditDialog(supplier)}
                   >
-                    <TableCell className="font-medium">{supplier.name}</TableCell>
-                    <TableCell className="hidden sm:table-cell">{supplier.company_name || '-'}</TableCell>
+                    <TableCell className="font-medium">{supplier.company_name || supplier.name}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{supplier.company_name && supplier.name ? supplier.name : '-'}</TableCell>
                     <TableCell className="hidden md:table-cell" onClick={(e) => e.stopPropagation()}>
                       {supplier.email ? (
                         <div className="flex items-center gap-2">
@@ -656,9 +656,9 @@ const SuppliersPage = () => {
                   <Building2 className="h-8 w-8" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold">{selectedSupplierDetail.name}</h3>
-                  {selectedSupplierDetail.company_name && (
-                    <p className="text-sm text-muted-foreground">{selectedSupplierDetail.company_name}</p>
+                  <h3 className="text-2xl font-bold">{selectedSupplierDetail.company_name || selectedSupplierDetail.name}</h3>
+                  {selectedSupplierDetail.company_name && selectedSupplierDetail.name && (
+                    <p className="text-sm text-muted-foreground">{selectedSupplierDetail.name}</p>
                   )}
                   {selectedSupplierDetail.supplier_type && (
                     <Badge variant="outline" className="mt-1">
