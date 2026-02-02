@@ -448,10 +448,12 @@ const PlantingPlanPage = () => {
   }) {
     const { crop, harvestDate, totalRequired } = group;
 
-    const reserve = crop.reserved_percentage || 0.1;
+    // DB hodnota je v percentách (5 = 5%), konvertuj na desatinné číslo
+    const reservePercent = crop.reserved_percentage || 5; // default 5%
+    const reserve = reservePercent / 100; // 5 → 0.05
     const withReserve = totalRequired * (1 + reserve);
 
-    console.log(`  📊 Požiadavka: ${totalRequired}g + rezerva ${reserve * 100}% = ${withReserve}g`);
+    console.log(`  📊 Požiadavka: ${totalRequired}g + rezerva ${reservePercent}% = ${Math.round(withReserve)}g`);
 
     const trayConfig = optimizeTrayConfiguration(crop, withReserve);
     console.log(`  🎯 Optimalizácia tácok:`, trayConfig);
