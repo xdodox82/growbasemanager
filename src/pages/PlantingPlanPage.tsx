@@ -155,6 +155,10 @@ const PlantingPlanPage = () => {
   const [selectedPlan, setSelectedPlan] = useState<PlantingPlan | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [groupedEditDialog, setGroupedEditDialog] = useState<{
+    open: boolean;
+    plan: GroupedPlantingPlan | null;
+  }>({ open: false, plan: null });
 
   const [newPlantingDialog, setNewPlantingDialog] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -743,11 +747,24 @@ const PlantingPlanPage = () => {
   };
 
   const openEditDialog = async (plan: PlantingPlan | GroupedPlantingPlan) => {
-    // If it's a grouped plan, we need to fetch the first individual plan
+    // Detekuj či je zoskupený plán s viacerými táckami
+    const isGrouped = (plan as GroupedPlantingPlan).trays && (plan as GroupedPlantingPlan).trays.length > 1;
+
+    if (isGrouped) {
+      // Zobraz GroupedPlantingEditDialog pre výber tácky
+      setGroupedEditDialog({
+        open: true,
+        plan: plan as GroupedPlantingPlan
+      });
+      setIsDetailDialogOpen(false);
+      return;
+    }
+
+    // Pre jednoduchú tácku alebo jednotlivý plán
     let actualPlan: PlantingPlan;
 
     if ((plan as GroupedPlantingPlan).trays) {
-      // Fetch first plan for this group
+      // Fetch single plan from DB
       const { data: firstPlan, error } = await supabase
         .from('planting_plans')
         .select('*')
@@ -766,11 +783,6 @@ const PlantingPlanPage = () => {
       }
 
       actualPlan = firstPlan as PlantingPlan;
-
-      toast({
-        title: 'Upozornenie',
-        description: 'Editujete prvý plán z tejto skupiny. Pre zmenu všetkých tácok, upravte každý plán samostatne alebo vytvorte nový výsev.',
-      });
     } else {
       actualPlan = plan as PlantingPlan;
     }
@@ -828,6 +840,81 @@ const PlantingPlanPage = () => {
     setNewPlantingDialog(true);
   };
 
+  const handleEditSpecificTray = async (plan: GroupedPlantingPlan, trayIndex: number) => {
+    // Načítaj konkrétnu tácku z DB
+    const tray = plan.trays[trayIndex];
+
+    const { data: dbPlan, error } = await supabase
+      .from('planting_plans')
+      .select('*')
+      .eq('crop_id', plan.crop_id)
+      .eq('sow_date', plan.sow_date)
+      .eq('tray_size', tray.size)
+      .maybeSingle();
+
+    if (error || !dbPlan) {
+      toast({
+        title: 'Chyba',
+        description: 'Nepodarilo sa načítať plán na úpravu.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Zavri grouped dialog
+    setGroupedEditDialog({ open: false, plan: null });
+
+    // Otvor normálny edit dialog s načítanými dátami
+    setEditingPlan(dbPlan as PlantingPlan);
+
+    // Handle mixed planting
+    if ((dbPlan as any).is_mixed && (dbPlan as any).mix_configuration) {
+      setIsMixedPlanting(true);
+      try {
+        const mixConfig = JSON.parse((dbPlan as any).mix_configuration);
+        setMixCrops(mixConfig.map((item: any) => ({
+          cropId: item.crop_id,
+          percentage: item.percentage
+        })));
+        if (mixConfig.length > 0) {
+          const firstCrop = crops.find((c: any) => c.id === mixConfig[0].crop_id);
+          setSelectedCategory(firstCrop?.category || 'all');
+        }
+      } catch (e) {
+        console.error('Error parsing mix configuration:', e);
+        setMixCrops([{ cropId: '', percentage: 50 }, { cropId: '', percentage: 50 }]);
+      }
+      setSelectedCropId('');
+    } else {
+      setIsMixedPlanting(false);
+      setMixCrops([{ cropId: '', percentage: 50 }, { cropId: '', percentage: 50 }]);
+
+      const crop = crops.find(c => c.id === dbPlan.crop_id);
+      setSelectedCategory(crop?.category || 'all');
+      setSelectedCropId(dbPlan.crop_id);
+
+      if (crop?.tray_configs) {
+        const dbDensity = crop.tray_configs[dbPlan.tray_size]?.seed_density_grams ||
+                          crop.tray_configs[dbPlan.tray_size]?.seed_density || 0;
+
+        if (dbPlan.seed_amount_grams !== dbDensity) {
+          setUseCustomDensity(true);
+          setCustomSeedDensity(dbPlan.seed_amount_grams);
+        } else {
+          setUseCustomDensity(false);
+          setCustomSeedDensity(0);
+        }
+      }
+    }
+
+    setSowDate(dbPlan.sow_date);
+    setSelectedTraySize(dbPlan.tray_size);
+    setTrayCount(dbPlan.tray_count);
+    setIsTest((dbPlan as any).is_test || false);
+    setNotes((dbPlan as any).notes || '');
+
+    setNewPlantingDialog(true);
+  };
 
   const handleCreatePlanting = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1837,6 +1924,57 @@ const PlantingPlanPage = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Grouped Planting Edit Dialog - Choose which tray to edit */}
+      <Dialog open={groupedEditDialog.open} onOpenChange={(open) => {
+        if (!open) {
+          setGroupedEditDialog({ open: false, plan: null });
+        }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Upraviť výsev - {groupedEditDialog.plan?.crops?.name}</DialogTitle>
+            <DialogDescription>
+              Tento výsev má {groupedEditDialog.plan?.trays?.length} tácok. Vyberte ktorú chcete upraviť:
+            </DialogDescription>
+          </DialogHeader>
+
+          {groupedEditDialog.plan && (
+            <div className="space-y-3">
+              {groupedEditDialog.plan.trays.map((tray, idx) => (
+                <div
+                  key={idx}
+                  className="border rounded-lg p-4 flex items-center justify-between hover:border-primary transition-colors"
+                >
+                  <div className="flex-1">
+                    <p className="font-medium text-lg">
+                      {tray.count}×{tray.size}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {tray.seeds_per_tray}g/tácka • {tray.total_seeds}g celkom
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => handleEditSpecificTray(groupedEditDialog.plan!, idx)}
+                    size="sm"
+                  >
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Upraviť
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setGroupedEditDialog({ open: false, plan: null })}
+            >
+              Zrušiť
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={newPlantingDialog} onOpenChange={(open) => {
         setNewPlantingDialog(open);
