@@ -278,6 +278,14 @@ const PlantingPlanPage = () => {
 
       if (error) throw error;
 
+      console.log('🔍 RAW data z DB:', plansData?.length, 'záznamov');
+      console.log('🔍 Unique plodiny:', [...new Set(plansData?.map(p => p.crops?.name))]);
+      console.log('🔍 Detail všetkých plodín:', plansData?.map(p => ({
+        crop: p.crops?.name,
+        date: p.sow_date,
+        size: p.tray_size
+      })));
+
       const plansWithConfig = (plansData || []).map((plan) => {
         let trayConfig = null;
 
@@ -336,6 +344,8 @@ const PlantingPlanPage = () => {
 
   // Group planting plans by crop_id + sow_date for UI display
   const groupedPlans = useMemo(() => {
+    console.log('🔍 PRED grouping:', plans.length, 'plánov');
+
     const grouped = new Map<string, GroupedPlantingPlan>();
 
     plans.forEach(plan => {
@@ -371,7 +381,16 @@ const PlantingPlanPage = () => {
       }
     });
 
-    return Array.from(grouped.values());
+    const result = Array.from(grouped.values());
+
+    console.log('🔍 PO grouping:', result.length, 'skupín');
+    console.log('🔍 Grouped plodiny:', result.map(g => ({
+      crop: g.crops?.name,
+      date: g.sow_date,
+      trays: g.trays?.length
+    })));
+
+    return result;
   }, [plans]);
 
   const handleGenerate = async () => {
@@ -1071,8 +1090,11 @@ const PlantingPlanPage = () => {
   };
 
   const filteredPlans = useMemo(() => {
+    console.log('🔍 PRED filter (statusFilter=' + statusFilter + '):', groupedPlans.length, 'plánov');
     if (statusFilter === 'all') return groupedPlans;
-    return groupedPlans.filter(plan => plan.status === statusFilter);
+    const filtered = groupedPlans.filter(plan => plan.status === statusFilter);
+    console.log('🔍 PO filter:', filtered.length, 'plánov');
+    return filtered;
   }, [groupedPlans, statusFilter]);
 
   const plansByDate = useMemo(() => {
@@ -1145,6 +1167,9 @@ const PlantingPlanPage = () => {
       return new Date();
     }
   };
+
+  console.log('🎨 RENDERUJEM:', filteredPlans.length, 'plánov');
+  console.log('🎨 Dátumy v plansByDate:', Object.keys(plansByDate));
 
   return (
     <MainLayout>
