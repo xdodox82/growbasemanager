@@ -2098,18 +2098,6 @@ export default function OrdersPage() {
             onChange={setFilterCustomerType}
           />
 
-          <Select value={filterCrop} onValueChange={setFilterCrop}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Všetky plodiny" />
-            </SelectTrigger>
-            <SelectContent className="max-h-[300px] overflow-y-auto z-[100]">
-              <SelectItem value="all">Všetky plodiny</SelectItem>
-              {(crops || []).map(crop => (
-                <SelectItem key={crop?.id} value={crop?.name || ''}>{crop?.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
           <Select value={orderCategoryFilter} onValueChange={setOrderCategoryFilter}>
             <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Kategória plodiny" />
@@ -2119,6 +2107,18 @@ export default function OrdersPage() {
               <SelectItem value="mikrozelenina">🌱 Mikrozelenina</SelectItem>
               <SelectItem value="mikrobylinky">🌿 Mikrobylinky</SelectItem>
               <SelectItem value="jedle_kvety">🌸 Jedlé kvety</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={filterCrop} onValueChange={setFilterCrop}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Všetky plodiny" />
+            </SelectTrigger>
+            <SelectContent className="max-h-[300px] overflow-y-auto z-[100]">
+              <SelectItem value="all">Všetky plodiny</SelectItem>
+              {(crops || []).map(crop => (
+                <SelectItem key={crop?.id} value={crop?.name || ''}>{crop?.name}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
 

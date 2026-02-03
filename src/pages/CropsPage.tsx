@@ -290,9 +290,9 @@ const CropsPage = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Všetky kategórie</SelectItem>
-            <SelectItem value="microgreens">Mikrozelenina</SelectItem>
-            <SelectItem value="microherbs">Mikrobylinky</SelectItem>
-            <SelectItem value="edible_flowers">Jedlé kvety</SelectItem>
+            <SelectItem value="microgreens">🌱 Mikrozelenina</SelectItem>
+            <SelectItem value="microherbs">🌿 Mikrobylinky</SelectItem>
+            <SelectItem value="edible_flowers">🌸 Jedlé kvety</SelectItem>
           </SelectContent>
         </Select>
           <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
@@ -336,9 +336,9 @@ const CropsPage = () => {
                   >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="microgreens">Mikrozelenina</SelectItem>
-                      <SelectItem value="microherbs">Mikrobylinky</SelectItem>
-                      <SelectItem value="edible_flowers">Jedlé kvety</SelectItem>
+                      <SelectItem value="microgreens">🌱 Mikrozelenina</SelectItem>
+                      <SelectItem value="microherbs">🌿 Mikrobylinky</SelectItem>
+                      <SelectItem value="edible_flowers">🌸 Jedlé kvety</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -272,8 +272,8 @@ const PlantingPlanPage = () => {
           *,
           crops:crop_id(id, name, color, days_to_harvest, tray_configs)
         `)
-        .gte('harvest_date', startDate)
-        .lte('harvest_date', endDate)
+        .gte('expected_harvest_date', startDate)
+        .lte('expected_harvest_date', endDate)
         .order('sow_date');
 
       if (error) throw error;

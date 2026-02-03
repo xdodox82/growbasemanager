@@ -15,10 +15,10 @@ export function CategoryFilter({ value, onChange }: CategoryFilterProps) {
         className="w-full h-10 px-3 border border-slate-200 rounded-md text-sm bg-white"
       >
         <option value="">Všetky kategórie</option>
-        <option value="Mikrozelenina">Mikrozelenina</option>
-        <option value="Mikrobylinky">Mikrobylinky</option>
-        <option value="Jedlé kvety">Jedlé kvety</option>
-        <option value="Mixy">Mixy</option>
+        <option value="Mikrozelenina">🌱 Mikrozelenina</option>
+        <option value="Mikrobylinky">🌿 Mikrobylinky</option>
+        <option value="Jedlé kvety">🌸 Jedlé kvety</option>
+        <option value="Mixy">🎨 Mixy</option>
       </select>
     </div>
   );
