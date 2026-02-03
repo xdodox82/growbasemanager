@@ -466,21 +466,19 @@ const PlantingPlanPage = () => {
       }
 
       let createdCount = 0;
-      let updatedCount = 0;
 
       for (const group of grouped) {
         console.log(`🌱 Spracovávam skupinu: ${group.crop.name}, zber ${group.harvestDate}, potreba ${group.totalRequired}g, objednávky: ${group.orderIds.join(', ')}`);
-        const result = await createPlantingTasksForGroup(group);
-        console.log(`✅ Vytvorené: ${result.created}, Aktualizované: ${result.updated}`);
-        createdCount += result.created;
-        updatedCount += result.updated;
+        const created = await createPlantingTasksForGroup(group);
+        console.log(`✅ Vytvorené: ${created}`);
+        createdCount += created;
       }
 
-      console.log(`🎉 Celkom vytvorených: ${createdCount}, aktualizovaných: ${updatedCount}`);
+      console.log(`🎉 Celkom vytvorených: ${createdCount}`);
 
       toast({
         title: 'Plán vygenerovaný',
-        description: `Vytvorených ${createdCount} nových výsevov, aktualizovaných ${updatedCount} existujúcich.`,
+        description: `Vytvorených ${createdCount} výsevov.`,
       });
 
       await fetchPlans();
@@ -541,132 +539,133 @@ const PlantingPlanPage = () => {
   }) {
     const { crop, harvestDate, totalRequired, orderIds } = group;
 
-    // DB hodnota je v percentách (5 = 5%), konvertuj na desatinné číslo
-    const reservePercent = crop.reserved_percentage || 5; // default 5%
-    const reserve = reservePercent / 100; // 5 → 0.05
-    const withReserve = totalRequired * (1 + reserve);
-
-    console.log(`  📊 Požiadavka: ${totalRequired}g + rezerva ${reservePercent}% = ${Math.round(withReserve)}g`);
-
-    const trayConfig = optimizeTrayConfiguration(crop, withReserve);
-    console.log(`  🎯 Optimalizácia tácok:`, trayConfig);
-
+    // Vypočítaj dátum sadenia
     const plantingDate = new Date(harvestDate);
     plantingDate.setDate(plantingDate.getDate() - (crop.days_to_harvest || 10));
     const plantingDateStr = plantingDate.toISOString().split('T')[0];
 
-    console.log(`  📅 Dátum sadenia: ${plantingDateStr}, zber: ${harvestDate}`);
+    // Pridaj rezervu
+    const reservePercent = crop.reserved_percentage || 5;
+    const reserve = reservePercent / 100;
+    const withReserve = totalRequired * (1 + reserve);
 
+    console.log(`📊 Požiadavka: ${totalRequired}g + rezerva ${reservePercent}% = ${Math.round(withReserve)}g`);
+
+    // 1. VYMAŽ existujúce AUTO-GENEROVANÉ plány pre túto kombináciu
+    const { error: deleteError } = await supabase
+      .from('planting_plans')
+      .delete()
+      .eq('crop_id', crop.id)
+      .eq('expected_harvest_date', harvestDate)
+      .not('source_orders', 'is', null);
+
+    if (deleteError) {
+      console.error('Chyba pri mazaní:', deleteError);
+    } else {
+      console.log(`🗑️ Vymazané existujúce plány pre ${crop.name}, zberu: ${harvestDate}`);
+    }
+
+    // 2. Optimalizuj tácky
+    const trayConfig = optimizeTrayConfiguration(crop, withReserve);
+
+    console.log(`🎯 Optimalizácia tácok:`, trayConfig);
+
+    // 3. VYTVOR nové plány (INSERT, nie UPDATE)
     let created = 0;
-    let updated = 0;
-
     for (const tray of trayConfig) {
-      const { data: existingPlan } = await supabase
-        .from('planting_plans')
-        .select('id, tray_count, seed_amount_grams, source_orders')
-        .eq('crop_id', crop.id)
-        .eq('sow_date', plantingDateStr)
-        .eq('tray_size', tray.size)
-        .maybeSingle();
+      const { error: insertError } = await supabase.from('planting_plans').insert({
+        crop_id: crop.id,
+        sow_date: plantingDateStr,
+        expected_harvest_date: harvestDate,
+        tray_size: tray.size,
+        tray_count: tray.count,
+        seed_amount_grams: tray.seedsPerTray,
+        total_seed_grams: tray.seedsPerTray * tray.count,
+        status: 'planned',
+        source_orders: orderIds,
+        notes: `Auto z objednávok (${Math.round(totalRequired)}g požadovaných, výnos ${Math.round(tray.yieldPerTray * tray.count)}g)`
+      });
 
-      if (existingPlan) {
-        // Merge order IDs with existing ones
-        const existingOrders = existingPlan.source_orders || [];
-        const mergedOrders = [...new Set([...existingOrders, ...orderIds])];
-
-        console.log(`    🔄 Aktualizujem existujúci plán: ${tray.size}, nové source_orders:`, mergedOrders);
-
-        await supabase
-          .from('planting_plans')
-          .update({
-            tray_count: (existingPlan.tray_count || 0) + tray.count,
-            total_seed_grams: ((existingPlan.tray_count || 0) + tray.count) * tray.seedsPerTray,
-            source_orders: mergedOrders,
-          })
-          .eq('id', existingPlan.id);
-        updated++;
+      if (!insertError) {
+        created++;
+        console.log(`➕ Vytvorený: ${tray.count}×${tray.size}`);
       } else {
-        console.log(`    ➕ Vytváram nový plán: ${tray.size}, source_orders:`, orderIds);
-
-        const { error } = await supabase.from('planting_plans').insert({
-          crop_id: crop.id,
-          sow_date: plantingDateStr,
-          expected_harvest_date: harvestDate,
-          tray_size: tray.size,
-          tray_count: tray.count,
-          seed_amount_grams: tray.seedsPerTray,
-          total_seed_grams: tray.seedsPerTray * tray.count,
-          status: 'planned',
-          notes: `Auto z objednávok (${Math.round(totalRequired)}g požadovaných)`,
-          source_orders: orderIds,
-        });
-
-        if (error) {
-          console.error('    ❌ Chyba pri vytváraní plánu:', error);
-        } else {
-          created++;
-        }
+        console.error(`❌ Chyba pri vytváraní plánu ${tray.size}:`, insertError);
       }
     }
 
-    return { created, updated };
+    return created;
   }
 
   function optimizeTrayConfiguration(crop: any, requiredYield: number) {
     const trayConfigs = crop.tray_configs || {};
 
-    console.log(`    🔧 tray_configs plodiny:`, trayConfigs);
-
-    const sizes = ['XL', 'L', 'M', 'S']
-      .map(size => ({
-        name: size,
-        seeds: trayConfigs[size]?.seed_density_grams || trayConfigs[size]?.seed_density || 0,
-        yield: trayConfigs[size]?.yield_grams || trayConfigs[size]?.expected_yield || 0,
-      }))
-      .filter(s => s.seeds > 0 && s.yield > 0);
-
-    console.log(`    ✅ Dostupné veľkosti:`, sizes);
+    const sizes = [
+      { name: 'XL', seeds: trayConfigs.XL?.seed_density_grams || 0, yield: trayConfigs.XL?.yield_grams || 0 },
+      { name: 'L', seeds: trayConfigs.L?.seed_density_grams || 0, yield: trayConfigs.L?.yield_grams || 0 },
+      { name: 'M', seeds: trayConfigs.M?.seed_density_grams || 0, yield: trayConfigs.M?.yield_grams || 0 },
+      { name: 'S', seeds: trayConfigs.S?.seed_density_grams || 0, yield: trayConfigs.S?.yield_grams || 0 }
+    ].filter(s => s.seeds > 0 && s.yield > 0);
 
     if (sizes.length === 0) {
-      console.log(`    ⚠️ Žiadne tray_configs, použijem default`);
-      return [{
-        size: 'XL',
-        count: Math.ceil(requiredYield / 200),
-        seedsPerTray: 30,
-      }];
+      console.warn('⚠️ Žiadne dostupné veľkosti tácok!');
+      return [];
     }
 
-    const result: Array<{ size: string; count: number; seedsPerTray: number }> = [];
+    console.log(`✅ Dostupné veľkosti:`, sizes);
+
+    const result: Array<{ size: string; count: number; seedsPerTray: number; yieldPerTray: number }> = [];
     let remaining = requiredYield;
 
-    for (const size of sizes) {
-      if (remaining >= size.yield) {
-        const count = Math.floor(remaining / size.yield);
-        if (count > 0) {
-          result.push({
-            size: size.name,
-            count,
-            seedsPerTray: size.seeds,
-          });
-          remaining -= count * size.yield;
-        }
+    // 1. NAJPRV: Maximálny počet XL tácok
+    const xlSize = sizes.find(s => s.name === 'XL');
+    if (xlSize && xlSize.yield > 0) {
+      const xlCount = Math.floor(remaining / xlSize.yield);
+      if (xlCount > 0) {
+        result.push({
+          size: 'XL',
+          count: xlCount,
+          seedsPerTray: xlSize.seeds,
+          yieldPerTray: xlSize.yield
+        });
+        remaining -= xlCount * xlSize.yield;
+        console.log(`  📦 ${xlCount}× XL (${xlSize.yield}g každá, zostáva ${Math.round(remaining)}g)`);
       }
     }
 
-    if (remaining > 0 && sizes.length > 0) {
-      const smallest = sizes[sizes.length - 1];
-      result.push({
-        size: smallest.name,
-        count: 1,
-        seedsPerTray: smallest.seeds,
-      });
+    // 2. POTOM: Zvyšok pokryť jednou menšou táckou (L, M, alebo S)
+    if (remaining > 0) {
+      const otherSizes = sizes.filter(s => s.name !== 'XL');
+
+      // Nájdi najväčšiu tácku ktorá pokryje zvyšok alebo najbližšiu menšiu
+      let selectedSize = null;
+
+      for (const size of otherSizes) {
+        if (size.yield >= remaining) {
+          selectedSize = size;
+          break; // Použij prvú (najväčšiu) ktorá to pokryje
+        }
+      }
+
+      // Ak žiadna nepokryje zvyšok, použi najmenšiu
+      if (!selectedSize && otherSizes.length > 0) {
+        selectedSize = otherSizes[otherSizes.length - 1];
+      }
+
+      if (selectedSize) {
+        result.push({
+          size: selectedSize.name,
+          count: 1,
+          seedsPerTray: selectedSize.seeds,
+          yieldPerTray: selectedSize.yield
+        });
+        console.log(`  📦 1× ${selectedSize.name} (${selectedSize.yield}g)`);
+      }
     }
 
-    return result.length > 0 ? result : [{
-      size: 'XL',
-      count: 1,
-      seedsPerTray: 30,
-    }];
+    console.log(`📊 Výsledná konfigurácia:`, result);
+
+    return result;
   }
 
   const handleMarkComplete = async (planId: string, cropId?: string, sowDate?: string) => {
