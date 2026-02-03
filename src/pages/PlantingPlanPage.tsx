@@ -633,7 +633,24 @@ const PlantingPlanPage = () => {
     const result: Array<{ size: string; count: number; seedsPerTray: number; yieldPerTray: number }> = [];
     let remaining = requiredYield;
 
-    // 1. NAJPRV: Maximálny počet XL tácok
+    // 1. Ak potreba je menšia ako XL, použi jednu tácku čo to najlepšie pokryje
+    if (remaining <= sizes[0].yield) {
+      // Nájdi najmenšiu tácku ktorá pokryje celú potrebu
+      const perfectSize = sizes.find(s => s.yield >= remaining);
+
+      if (perfectSize) {
+        result.push({
+          size: perfectSize.name,
+          count: 1,
+          seedsPerTray: perfectSize.seeds,
+          yieldPerTray: perfectSize.yield
+        });
+        console.log(`  📦 1× ${perfectSize.name} (${perfectSize.yield}g pokryje ${Math.round(remaining)}g)`);
+        return result;
+      }
+    }
+
+    // 2. Ak potreba je väčšia ako XL, najprv maximálny počet XL tácok
     const xlSize = sizes.find(s => s.name === 'XL');
     if (xlSize && xlSize.yield > 0) {
       const xlCount = Math.floor(remaining / xlSize.yield);
@@ -649,23 +666,23 @@ const PlantingPlanPage = () => {
       }
     }
 
-    // 2. POTOM: Zvyšok pokryť jednou menšou táckou (L, M, alebo S)
+    // 3. Zvyšok pokryť najväčšou možnou táckou
     if (remaining > 0) {
       const otherSizes = sizes.filter(s => s.name !== 'XL');
 
-      // Nájdi najväčšiu tácku ktorá pokryje zvyšok alebo najbližšiu menšiu
+      // Nájdi najväčšiu tácku ktorá pokryje zvyšok alebo je najbližšia
       let selectedSize = null;
 
       for (const size of otherSizes) {
         if (size.yield >= remaining) {
           selectedSize = size;
-          break; // Použij prvú (najväčšiu) ktorá to pokryje
+          break; // Prvá (najväčšia) ktorá to pokryje
         }
       }
 
-      // Ak žiadna nepokryje zvyšok, použi najmenšiu
+      // Ak žiadna nepokryje zvyšok, použi najväčšiu dostupnú (NIE najmenšiu!)
       if (!selectedSize && otherSizes.length > 0) {
-        selectedSize = otherSizes[otherSizes.length - 1];
+        selectedSize = otherSizes[0]; // Prvá = najväčšia (L)
       }
 
       if (selectedSize) {
