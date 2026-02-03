@@ -2404,14 +2404,8 @@ export default function OrdersPage() {
                     if (!order.charge_delivery || deliveryFee === 0) {
                       return (
                         <div className="flex justify-between items-center text-sm">
-                          <span className="text-[#10b981] font-medium flex items-center gap-2">
-                            Doprava: Zdarma
-                            {isFreeDelivery && (
-                              <Badge variant="default" className="text-xs bg-green-600 hover:bg-green-700">
-                                Doprava zdarma
-                              </Badge>
-                            )}
-                          </span>
+                          <span className="text-gray-600">Doprava:</span>
+                          <span className="font-semibold text-[#10b981]">Zdarma</span>
                         </div>
                       );
                     }
@@ -3108,6 +3102,12 @@ export default function OrdersPage() {
                             ? 'Doprava zdarma je zapnutá - manuálna suma je deaktivovaná'
                             : 'Nechajte prázdne pre automatický výpočet podľa trasy'}
                         </p>
+                      </div>
+                      <div className="pt-2 border-t space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">Vypočítaná doprava:</span>
+                          <span className="text-lg font-bold text-green-600">{calculatedDeliveryPrice.toFixed(2)} €</span>
+                        </div>
                         {(() => {
                           const currentSubtotal = (orderItems || []).reduce((sum, item) => {
                             const qty = parseFloat(item.quantity?.toString() || '0');
@@ -3118,7 +3118,7 @@ export default function OrdersPage() {
 
                           if (showFreeDeliveryMessage) {
                             return (
-                              <p className="text-sm text-green-600 flex items-center gap-1 mt-2">
+                              <p className="text-sm text-green-600 flex items-center gap-1">
                                 <Check className="h-4 w-4" />
                                 Doprava zdarma - objednávka presiahla limit pre vašu oblasť
                               </p>
@@ -3126,10 +3126,6 @@ export default function OrdersPage() {
                           }
                           return null;
                         })()}
-                      </div>
-                      <div className="flex items-center justify-between pt-2 border-t">
-                        <span className="text-sm font-medium">Vypočítaná doprava:</span>
-                        <span className="text-lg font-bold text-green-600">{calculatedDeliveryPrice.toFixed(2)} €</span>
                       </div>
                     </div>
                   </div>
