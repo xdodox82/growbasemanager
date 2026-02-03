@@ -601,10 +601,26 @@ const PlantingPlanPage = () => {
     const trayConfigs = crop.tray_configs || {};
 
     const sizes = [
-      { name: 'XL', seeds: trayConfigs.XL?.seed_density_grams || 0, yield: trayConfigs.XL?.yield_grams || 0 },
-      { name: 'L', seeds: trayConfigs.L?.seed_density_grams || 0, yield: trayConfigs.L?.yield_grams || 0 },
-      { name: 'M', seeds: trayConfigs.M?.seed_density_grams || 0, yield: trayConfigs.M?.yield_grams || 0 },
-      { name: 'S', seeds: trayConfigs.S?.seed_density_grams || 0, yield: trayConfigs.S?.yield_grams || 0 }
+      {
+        name: 'XL',
+        seeds: trayConfigs.XL?.seed_density_grams || trayConfigs.XL?.seed_density || 0,
+        yield: trayConfigs.XL?.yield_grams || trayConfigs.XL?.expected_yield || 0
+      },
+      {
+        name: 'L',
+        seeds: trayConfigs.L?.seed_density_grams || trayConfigs.L?.seed_density || 0,
+        yield: trayConfigs.L?.yield_grams || trayConfigs.L?.expected_yield || 0
+      },
+      {
+        name: 'M',
+        seeds: trayConfigs.M?.seed_density_grams || trayConfigs.M?.seed_density || 0,
+        yield: trayConfigs.M?.yield_grams || trayConfigs.M?.expected_yield || 0
+      },
+      {
+        name: 'S',
+        seeds: trayConfigs.S?.seed_density_grams || trayConfigs.S?.seed_density || 0,
+        yield: trayConfigs.S?.yield_grams || trayConfigs.S?.expected_yield || 0
+      }
     ].filter(s => s.seeds > 0 && s.yield > 0);
 
     if (sizes.length === 0) {
