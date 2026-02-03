@@ -37,7 +37,8 @@ import {
   Scissors,
   X,
   MapPin,
-  RefreshCw
+  RefreshCw,
+  Check
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -2391,12 +2392,26 @@ export default function OrdersPage() {
                     }
 
                     const deliveryFee = getDeliveryFee(order);
+                    const orderSubtotal = (order.order_items || []).reduce((sum, item) => {
+                      if (!item) return sum;
+                      const qty = parseFloat(item?.quantity?.toString() || '0');
+                      const pricePerUnit = parseFloat((item?.price_per_unit?.toString() || '0').replace(',', '.'));
+                      return sum + (qty * pricePerUnit);
+                    }, 0);
+                    const isFreeDelivery = deliveryFee === 0 && orderSubtotal > 0;
 
                     // If charge_delivery is false or deliveryFee is 0, show free shipping
                     if (!order.charge_delivery || deliveryFee === 0) {
                       return (
                         <div className="flex justify-between items-center text-sm">
-                          <span className="text-[#10b981] font-medium">Doprava: Zdarma</span>
+                          <span className="text-[#10b981] font-medium flex items-center gap-2">
+                            Doprava: Zdarma
+                            {isFreeDelivery && (
+                              <Badge variant="default" className="text-xs bg-green-600 hover:bg-green-700">
+                                Doprava zdarma
+                              </Badge>
+                            )}
+                          </span>
                         </div>
                       );
                     }
@@ -3093,6 +3108,24 @@ export default function OrdersPage() {
                             ? 'Doprava zdarma je zapnutá - manuálna suma je deaktivovaná'
                             : 'Nechajte prázdne pre automatický výpočet podľa trasy'}
                         </p>
+                        {(() => {
+                          const currentSubtotal = (orderItems || []).reduce((sum, item) => {
+                            const qty = parseFloat(item.quantity?.toString() || '0');
+                            const price = parseFloat(item.price_per_unit?.toString().replace(',', '.') || '0');
+                            return sum + (qty * price);
+                          }, 0);
+                          const showFreeDeliveryMessage = calculatedDeliveryPrice === 0 && currentSubtotal > 0 && !freeDelivery;
+
+                          if (showFreeDeliveryMessage) {
+                            return (
+                              <p className="text-sm text-green-600 flex items-center gap-1 mt-2">
+                                <Check className="h-4 w-4" />
+                                Doprava zdarma - objednávka presiahla limit pre vašu oblasť
+                              </p>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
                       <div className="flex items-center justify-between pt-2 border-t">
                         <span className="text-sm font-medium">Vypočítaná doprava:</span>
