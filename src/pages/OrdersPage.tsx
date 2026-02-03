@@ -219,6 +219,7 @@ export default function OrdersPage() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterCustomerType, setFilterCustomerType] = useState<string>('all');
   const [filterCrop, setFilterCrop] = useState('all');
+  const [orderCategoryFilter, setOrderCategoryFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [showArchive, setShowArchive] = useState(false);
@@ -483,6 +484,24 @@ export default function OrdersPage() {
     if (filterCrop !== 'all') {
       const hasCrop = order?.order_items?.some(item => item?.crop_name === filterCrop);
       if (!hasCrop) return false;
+    }
+
+    // Filter podľa kategórie plodiny
+    if (orderCategoryFilter !== 'all') {
+      const hasMatchingCategory = order?.order_items?.some(item => {
+        // Ak je to crop, kontrolujeme category z crops tabuľky
+        if (item?.crop_id) {
+          const crop = crops?.find(c => c.id === item.crop_id);
+          return crop?.category === orderCategoryFilter;
+        }
+        // Ak je to blend, kontrolujeme category z blends tabuľky
+        if (item?.blend_id) {
+          const blend = blends?.find(b => b.id === item.blend_id);
+          return blend?.category === orderCategoryFilter;
+        }
+        return false;
+      });
+      if (!hasMatchingCategory) return false;
     }
 
     if (searchQuery) {
@@ -2088,6 +2107,18 @@ export default function OrdersPage() {
               {(crops || []).map(crop => (
                 <SelectItem key={crop?.id} value={crop?.name || ''}>{crop?.name}</SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={orderCategoryFilter} onValueChange={setOrderCategoryFilter}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Kategória plodiny" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Všetky kategórie</SelectItem>
+              <SelectItem value="mikrozelenina">🌱 Mikrozelenina</SelectItem>
+              <SelectItem value="mikrobylinky">🌿 Mikrobylinky</SelectItem>
+              <SelectItem value="jedle_kvety">🌸 Jedlé kvety</SelectItem>
             </SelectContent>
           </Select>
 
