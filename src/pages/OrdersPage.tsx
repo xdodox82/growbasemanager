@@ -388,38 +388,31 @@ export default function OrdersPage() {
       }
 
       // Calculate subtotal from order items
-      const totalPrice = (orderItems || []).reduce((sum, item) => {
+      const subtotal = (orderItems || []).reduce((sum, item) => {
         const quantity = parseFloat(item.quantity) || 0;
         const price = parseFloat(item.price_per_unit.toString().replace(',', '.')) || 0;
         return sum + (quantity * price);
       }, 0);
 
-      let deliveryFee = 0;
-      let minFreeDelivery = 0;
-
       // Get fee and threshold from route based on customer type
-      if (custType === 'home') {
-        deliveryFee = parseFloat((deliveryRoute?.delivery_fee_home || 0).toString());
-        minFreeDelivery = parseFloat((deliveryRoute?.home_min_free_delivery || 0).toString());
-      } else if (custType === 'gastro') {
-        deliveryFee = parseFloat((deliveryRoute?.delivery_fee_gastro || 0).toString());
-        minFreeDelivery = parseFloat((deliveryRoute?.gastro_min_free_delivery || 0).toString());
-      } else if (custType === 'wholesale') {
-        deliveryFee = parseFloat((deliveryRoute?.delivery_fee_wholesale || 0).toString());
-        minFreeDelivery = parseFloat((deliveryRoute?.wholesale_min_free_delivery || 0).toString());
-      }
+      const fee = custType === 'gastro'
+        ? parseFloat((deliveryRoute?.delivery_fee_gastro || 0).toString())
+        : custType === 'wholesale'
+        ? parseFloat((deliveryRoute?.delivery_fee_wholesale || 0).toString())
+        : parseFloat((deliveryRoute?.delivery_fee_home || 0).toString());
 
-      // SMIŽANY RULE: If min_free_delivery is 0, delivery is automatically free
-      if (minFreeDelivery === 0) {
-        setCalculatedDeliveryPrice(0);
-        console.log('💶 [calculateDelivery] Free delivery (min threshold is 0)');
-      } else if (totalPrice >= minFreeDelivery) {
-        setCalculatedDeliveryPrice(0);
-        console.log('💶 [calculateDelivery] Free delivery (threshold met):', totalPrice, '>=', minFreeDelivery);
-      } else {
-        setCalculatedDeliveryPrice(deliveryFee);
-        console.log('💶 [calculateDelivery] Charging delivery:', deliveryFee, '€ (order:', totalPrice, '€, threshold:', minFreeDelivery, '€)');
-      }
+      const threshold = custType === 'gastro'
+        ? parseFloat((deliveryRoute?.gastro_min_free_delivery || 0).toString())
+        : custType === 'wholesale'
+        ? parseFloat((deliveryRoute?.wholesale_min_free_delivery || 0).toString())
+        : parseFloat((deliveryRoute?.home_min_free_delivery || 0).toString());
+
+      // Ak subtotal presiahol threshold → doprava 0€
+      const finalDeliveryPrice = subtotal >= threshold ? 0 : fee;
+
+      setCalculatedDeliveryPrice(finalDeliveryPrice);
+
+      console.log(`🚚 Prepočet dopravy: Subtotal ${subtotal.toFixed(2)}€, Threshold ${threshold}€, Doprava ${finalDeliveryPrice}€`);
     };
 
     calculateDelivery();
