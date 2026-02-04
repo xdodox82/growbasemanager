@@ -54,7 +54,18 @@ const Dashboard = () => {
   const [showHistory, setShowHistory] = useState(false);
 
   const activeOrders = orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled');
-  
+
+  // Calculate active customers (unique customers with active orders)
+  const activeCustomerIds = new Set(
+    activeOrders.map(o => o.customer_id).filter(Boolean)
+  );
+  const activeCustomersCount = activeCustomerIds.size;
+
+  // Calculate trays in growth (sown + growing status)
+  const traysInGrowth = plantingPlans
+    .filter(p => p.status === 'sown' || p.status === 'growing')
+    .reduce((sum, p) => sum + (p.tray_count || 0), 0);
+
   // Generate daily tasks from planting plans and orders
   const dailyTasks = useMemo(() => {
     const today = startOfDay(new Date());
@@ -122,8 +133,14 @@ const Dashboard = () => {
   const pendingTasks = dailyTasks.filter(t => !t.completed);
   const completedToday = dailyTasks.filter(t => t.completed);
 
-  const totalTrays = plantingPlans.filter(p => p.status !== 'harvested').reduce((acc, p) => acc + (p.tray_count || 1), 0);
   const dateLocale = locales[language as keyof typeof locales] || locales.sk;
+
+  // Debug logs
+  console.log('📊 Dashboard Stats:');
+  console.log(`- Total crops: ${crops.length}`);
+  console.log(`- Active orders: ${activeOrders.length}`);
+  console.log(`- Active customers: ${activeCustomersCount}`);
+  console.log(`- Trays in growth: ${traysInGrowth}`);
 
   // Upcoming notifications - next 3 days
   const upcomingNotifications = useMemo(() => {
@@ -278,12 +295,12 @@ const Dashboard = () => {
         />
         <StatCard
           title={t('dashboard.customers')}
-          value={customers.length}
+          value={activeCustomersCount}
           icon={<Users className="h-6 w-6" />}
         />
         <StatCard
           title={t('dashboard.traysGrowing')}
-          value={totalTrays}
+          value={traysInGrowth}
           icon={<Sprout className="h-6 w-6" />}
         />
       </div>
