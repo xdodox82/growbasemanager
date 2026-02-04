@@ -28,7 +28,7 @@ import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useSeeds, useSuppliers, useCrops, DbSeed } from '@/hooks/useSupabaseData';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, Wheat, CalendarIcon, FileText, Upload, X, ExternalLink, Archive, Undo2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Wheat, CalendarIcon, FileText, Upload, X, ExternalLink, Archive, Undo2, Leaf, Sprout, Flower } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';
@@ -63,6 +63,7 @@ export default function SeedsPage() {
   }, [refetch]);
 
   // Form states
+  const [selectedCategory, setSelectedCategory] = useState<'microgreens' | 'microherbs' | 'edible_flowers'>('microgreens');
   const [cropId, setCropId] = useState('');
   const [purchaseDate, setPurchaseDate] = useState<Date | undefined>(undefined);
   const [stockingDate, setStockingDate] = useState<Date | undefined>(undefined);
@@ -73,6 +74,8 @@ export default function SeedsPage() {
   const [supplierId, setSupplierId] = useState('');
   const [lotNumber, setLotNumber] = useState('');
   const [expiryDate, setExpiryDate] = useState<Date | undefined>(undefined);
+  const [expiryMonth, setExpiryMonth] = useState('');
+  const [expiryYear, setExpiryYear] = useState('');
   const [notes, setNotes] = useState('');
   const [minStock, setMinStock] = useState('');
   const [unitPricePerKg, setUnitPricePerKg] = useState('');
@@ -114,6 +117,7 @@ export default function SeedsPage() {
   }
 
   const resetForm = () => {
+    setSelectedCategory('microgreens');
     setCropId('');
     setPurchaseDate(undefined);
     setStockingDate(undefined);
@@ -124,6 +128,8 @@ export default function SeedsPage() {
     setSupplierId('');
     setLotNumber('');
     setExpiryDate(undefined);
+    setExpiryMonth('');
+    setExpiryYear('');
     setNotes('');
     setMinStock('');
     setUnitPricePerKg('');
@@ -201,6 +207,11 @@ export default function SeedsPage() {
       }
     }
 
+    // Create expiry date from month and year
+    const expiryDateFormatted = expiryMonth && expiryYear
+      ? `${expiryYear}-${expiryMonth}-01`
+      : null;
+
     const formData = {
       crop_id: cropId,
       purchase_date: purchaseDate ? format(purchaseDate, 'yyyy-MM-dd') : null,
@@ -211,7 +222,7 @@ export default function SeedsPage() {
       unit: quantityUnit,
       supplier_id: supplierId || null,
       lot_number: lotNumber || null,
-      expiry_date: expiryDate ? format(expiryDate, 'yyyy-MM-dd') : null,
+      expiry_date: expiryDateFormatted,
       notes: notes || null,
       certificate_url: uploadedCertificateUrl,
       min_stock: minStock ? parseFloat(minStock) : null,
@@ -241,6 +252,13 @@ export default function SeedsPage() {
   const handleEdit = (seed: DbSeed) => {
     const extSeed = seed as unknown as ExtendedSeed;
     setEditingSeed(seed);
+
+    // Set category based on crop
+    const crop = crops.find(c => c.id === seed.crop_id);
+    if (crop && crop.category) {
+      setSelectedCategory(crop.category as 'microgreens' | 'microherbs' | 'edible_flowers');
+    }
+
     setCropId(seed.crop_id || '');
     setPurchaseDate(seed.purchase_date ? new Date(seed.purchase_date) : undefined);
     setStockingDate(extSeed.stocking_date ? new Date(extSeed.stocking_date) : undefined);
@@ -250,7 +268,21 @@ export default function SeedsPage() {
     setQuantityUnit((seed.unit as 'kg' | 'g') || 'kg');
     setSupplierId(seed.supplier_id || '');
     setLotNumber(seed.lot_number || '');
-    setExpiryDate(seed.expiry_date ? new Date(seed.expiry_date) : undefined);
+
+    // Parse expiry date to month and year
+    if (seed.expiry_date) {
+      const expiryDateObj = new Date(seed.expiry_date);
+      const month = (expiryDateObj.getMonth() + 1).toString().padStart(2, '0');
+      const year = expiryDateObj.getFullYear().toString();
+      setExpiryMonth(month);
+      setExpiryYear(year);
+      setExpiryDate(expiryDateObj);
+    } else {
+      setExpiryMonth('');
+      setExpiryYear('');
+      setExpiryDate(undefined);
+    }
+
     setNotes(seed.notes || '');
     setMinStock((seed as any).min_stock?.toString() || '');
     setUnitPricePerKg((seed as any).unit_price_per_kg?.toString() || '');
@@ -569,6 +601,54 @@ export default function SeedsPage() {
               <DialogTitle>{editingSeed ? 'Upraviť záznám' : 'Pridať nové semená'}</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
+              {/* Category Selection */}
+              <div className="space-y-2">
+                <Label>Kategória *</Label>
+                <div className="grid grid-cols-3 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCategory('microgreens')}
+                    className={cn(
+                      "flex flex-col items-center justify-center p-4 border-2 rounded-lg transition-all",
+                      selectedCategory === 'microgreens'
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-border hover:border-green-300'
+                    )}
+                  >
+                    <Leaf className="h-8 w-8 text-green-600 mb-2" />
+                    <span className="text-sm font-medium">Mikrozelenina</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCategory('microherbs')}
+                    className={cn(
+                      "flex flex-col items-center justify-center p-4 border-2 rounded-lg transition-all",
+                      selectedCategory === 'microherbs'
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-border hover:border-green-300'
+                    )}
+                  >
+                    <Sprout className="h-8 w-8 text-green-600 mb-2" />
+                    <span className="text-sm font-medium">Mikrobylinky</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCategory('edible_flowers')}
+                    className={cn(
+                      "flex flex-col items-center justify-center p-4 border-2 rounded-lg transition-all",
+                      selectedCategory === 'edible_flowers'
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-border hover:border-green-300'
+                    )}
+                  >
+                    <Flower className="h-8 w-8 text-green-600 mb-2" />
+                    <span className="text-sm font-medium">Jedlé kvety</span>
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Druh semien *</Label>
@@ -577,11 +657,13 @@ export default function SeedsPage() {
                       <SelectValue placeholder="Vyberte druh" />
                     </SelectTrigger>
                     <SelectContent>
-                      {crops.map((crop) => (
-                        <SelectItem key={crop.id} value={crop.id}>
-                          {crop.name}
-                        </SelectItem>
-                      ))}
+                      {crops
+                        .filter(crop => crop.category === selectedCategory)
+                        .map((crop) => (
+                          <SelectItem key={crop.id} value={crop.id}>
+                            {crop.name}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -650,11 +732,54 @@ export default function SeedsPage() {
                   value={purchaseDate}
                   onChange={setPurchaseDate}
                 />
-                <DatePickerField
-                  label="Dátum expirácie"
-                  value={expiryDate}
-                  onChange={setExpiryDate}
-                />
+                <div className="space-y-2">
+                  <Label>Dátum expirácie</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Select value={expiryMonth} onValueChange={setExpiryMonth}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Mesiac" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">-</SelectItem>
+                        <SelectItem value="01">Január</SelectItem>
+                        <SelectItem value="02">Február</SelectItem>
+                        <SelectItem value="03">Marec</SelectItem>
+                        <SelectItem value="04">Apríl</SelectItem>
+                        <SelectItem value="05">Máj</SelectItem>
+                        <SelectItem value="06">Jún</SelectItem>
+                        <SelectItem value="07">Júl</SelectItem>
+                        <SelectItem value="08">August</SelectItem>
+                        <SelectItem value="09">September</SelectItem>
+                        <SelectItem value="10">Október</SelectItem>
+                        <SelectItem value="11">November</SelectItem>
+                        <SelectItem value="12">December</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select value={expiryYear} onValueChange={setExpiryYear}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Rok" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">-</SelectItem>
+                        {(() => {
+                          const currentYear = new Date().getFullYear();
+                          const years = [];
+                          for (let i = 0; i <= 10; i++) {
+                            years.push(currentYear + i);
+                          }
+                          return years.map(year => (
+                            <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                          ));
+                        })()}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {expiryMonth && expiryYear && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Expirácia: {expiryMonth}/{expiryYear.substring(2)}
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 gap-4">
