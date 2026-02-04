@@ -138,6 +138,21 @@ const TRAY_SIZES = {
   S: 'S',
 } as const;
 
+const TRAY_SIZE_ORDER: Record<string, number> = {
+  'XL': 1,
+  'L': 2,
+  'M': 3,
+  'S': 4
+};
+
+const sortTrayCombinations = (trays: TrayDetail[]): TrayDetail[] => {
+  return [...trays].sort((a, b) => {
+    const orderA = TRAY_SIZE_ORDER[a.size] || 999;
+    const orderB = TRAY_SIZE_ORDER[b.size] || 999;
+    return orderA - orderB;
+  });
+};
+
 type ViewMode = 'cards' | 'list' | 'calendar';
 
 const PlantingPlanPage = () => {
@@ -891,16 +906,14 @@ const PlantingPlanPage = () => {
     setNewPlantingDialog(true);
   };
 
-  const handleEditSpecificTray = async (plan: GroupedPlantingPlan, trayIndex: number) => {
+  const handleEditSpecificTray = async (plan: GroupedPlantingPlan, traySize: string) => {
     // Načítaj konkrétnu tácku z DB
-    const tray = plan.trays[trayIndex];
-
     const { data: dbPlan, error } = await supabase
       .from('planting_plans')
       .select('*')
       .eq('crop_id', plan.crop_id)
       .eq('sow_date', plan.sow_date)
-      .eq('tray_size', tray.size)
+      .eq('tray_size', traySize)
       .maybeSingle();
 
     if (error || !dbPlan) {
@@ -1426,7 +1439,7 @@ const PlantingPlanPage = () => {
                             </div>
                           ) : null}
                           <div className="space-y-1">
-                            {plan.trays.map((tray, idx) => (
+                            {sortTrayCombinations(plan.trays).map((tray, idx) => (
                               <p key={idx} className="text-sm">
                                 {tray.count} × {tray.size}
                                 <span className="text-xs text-muted-foreground ml-2">
@@ -1549,7 +1562,7 @@ const PlantingPlanPage = () => {
                         <TableCell className="text-center align-middle py-3">
                           {plan.trays ? (
                             <div className="flex flex-col gap-1">
-                              {plan.trays.map((tray, idx) => (
+                              {sortTrayCombinations(plan.trays).map((tray, idx) => (
                                 <span key={idx} className="text-sm">
                                   {tray.count}×{tray.size}
                                 </span>
@@ -1562,7 +1575,7 @@ const PlantingPlanPage = () => {
                         <TableCell className="text-center align-middle py-3">
                           {plan.trays ? (
                             <div className="flex flex-col gap-1">
-                              {plan.trays.map((tray, idx) => (
+                              {sortTrayCombinations(plan.trays).map((tray, idx) => (
                                 <span key={idx} className="text-xs text-gray-600">
                                   {formatGrams(tray.seeds_per_tray)}g/tácka
                                 </span>
@@ -1691,7 +1704,7 @@ const PlantingPlanPage = () => {
                                     </p>
                                     <p className="text-xs text-muted-foreground">
                                       {plan.trays ? (
-                                        plan.trays.map((t, i) => `${t.count}×${t.size}`).join(', ')
+                                        sortTrayCombinations(plan.trays).map((t, i) => `${t.count}×${t.size}`).join(', ')
                                       ) : (
                                         `${(plan as any).tray_count}×${(plan as any).tray_size}`
                                       )}
@@ -1829,7 +1842,7 @@ const PlantingPlanPage = () => {
 
                 {(selectedPlan as GroupedPlantingPlan).trays ? (
                   <div className="space-y-2">
-                    {(selectedPlan as GroupedPlantingPlan).trays.map((tray, idx) => (
+                    {sortTrayCombinations((selectedPlan as GroupedPlantingPlan).trays).map((tray, idx) => (
                       <div key={idx} className="flex justify-between items-center text-sm py-1">
                         <span className="font-medium">
                           {tray.count} × {tray.size}
@@ -1997,7 +2010,7 @@ const PlantingPlanPage = () => {
 
           {groupedEditDialog.plan && (
             <div className="space-y-3">
-              {groupedEditDialog.plan.trays.map((tray, idx) => (
+              {sortTrayCombinations(groupedEditDialog.plan.trays).map((tray, idx) => (
                 <div
                   key={idx}
                   className="border rounded-lg p-4 flex items-center justify-between hover:border-primary transition-colors"
@@ -2011,7 +2024,7 @@ const PlantingPlanPage = () => {
                     </p>
                   </div>
                   <Button
-                    onClick={() => handleEditSpecificTray(groupedEditDialog.plan!, idx)}
+                    onClick={() => handleEditSpecificTray(groupedEditDialog.plan!, tray.size)}
                     size="sm"
                   >
                     <Pencil className="h-4 w-4 mr-2" />
