@@ -412,7 +412,16 @@ export default function OrdersPage() {
 
       setCalculatedDeliveryPrice(finalDeliveryPrice);
 
-      console.log(`🚚 Prepočet dopravy: Subtotal ${subtotal.toFixed(2)}€, Threshold ${threshold}€, Doprava ${finalDeliveryPrice}€`);
+      // Enhanced logging pre debugging
+      console.log('═══════════════════════════════════════');
+      console.log('🚚 PREPOČET DOPRAVY');
+      console.log('═══════════════════════════════════════');
+      console.log(`📦 Položky: ${(orderItems || []).length}`);
+      console.log(`💰 Subtotal: ${subtotal.toFixed(2)}€`);
+      console.log(`📊 Threshold (${custType}): ${threshold}€`);
+      console.log(`🚗 Fee: ${fee}€`);
+      console.log(`✅ VÝSLEDNÁ DOPRAVA: ${finalDeliveryPrice.toFixed(2)}€ ${finalDeliveryPrice === 0 ? '🎉 ZDARMA!' : ''}`);
+      console.log('═══════════════════════════════════════');
     };
 
     calculateDelivery();
@@ -863,14 +872,11 @@ export default function OrdersPage() {
       // Invert logic: DB stores charge_delivery (true=charge), UI uses freeDelivery (true=free)
       const shouldBeFree = !(order.charge_delivery ?? true);
       setFreeDelivery(shouldBeFree);
-      // Load manual amount if delivery was charged and has a value
-      if (!shouldBeFree && order.delivery_price && order.delivery_price > 0) {
-        setManualDeliveryAmount(order.delivery_price.toString());
-        setCalculatedDeliveryPrice(order.delivery_price);
-      } else {
-        setManualDeliveryAmount('');
-        setCalculatedDeliveryPrice(0);
-      }
+
+      // CRITICAL FIX: Nechaj manualDeliveryAmount prázdne aby sa doprava prepočítala automaticky v reálnom čase
+      // useEffect automaticky prepočíta doprava z orderItems
+      setManualDeliveryAmount('');
+      setCalculatedDeliveryPrice(0);
 
       // Map order_items to OrderItem interface
       const mappedItems: OrderItem[] = (orderItems || []).map(item => {
@@ -3102,12 +3108,7 @@ export default function OrdersPage() {
                           <span className="text-lg font-bold text-green-600">{calculatedDeliveryPrice.toFixed(2)} €</span>
                         </div>
                         {(() => {
-                          const currentSubtotal = (orderItems || []).reduce((sum, item) => {
-                            const qty = parseFloat(item.quantity?.toString() || '0');
-                            const price = parseFloat(item.price_per_unit?.toString().replace(',', '.') || '0');
-                            return sum + (qty * price);
-                          }, 0);
-                          const showFreeDeliveryMessage = calculatedDeliveryPrice === 0 && currentSubtotal > 0 && !freeDelivery;
+                          const showFreeDeliveryMessage = calculatedDeliveryPrice === 0 && orderItems && orderItems.length > 0 && !freeDelivery;
 
                           if (showFreeDeliveryMessage) {
                             return (
