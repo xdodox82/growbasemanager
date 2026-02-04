@@ -3112,9 +3112,9 @@ export default function OrdersPage() {
 
                           if (showFreeDeliveryMessage) {
                             return (
-                              <p className="text-sm text-green-600 flex items-center gap-1">
+                              <p className="text-sm text-green-600 font-bold flex items-center gap-1">
                                 <Check className="h-4 w-4" />
-                                Doprava zdarma - objednávka presiahla limit pre vašu oblasť
+                                Doprava zdarma
                               </p>
                             );
                           }
