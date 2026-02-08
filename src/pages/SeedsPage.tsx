@@ -991,155 +991,23 @@ export default function SeedsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Detail dialóg */}
+      {/* MINIMÁLNY TEST - LEN TEXT */}
       {selectedSeed && (
-        <>
-          {console.log('📋 Rendering seed detail dialog with:', selectedSeed)}
-          <Dialog open={!!selectedSeed} onOpenChange={() => setSelectedSeed(null)}>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Detail osiva</DialogTitle>
-              </DialogHeader>
-
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Plodina</p>
-                  <p className="font-medium text-lg">{getCropName(selectedSeed?.crop_id) || 'Neznáma plodina'}</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  {selectedSeed?.supplier_id && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Dodávateľ</p>
-                      <p className="font-medium">{getSupplierName(selectedSeed.supplier_id)}</p>
-                    </div>
-                  )}
-
-                  {(selectedSeed?.quantity !== null && selectedSeed?.quantity !== undefined) && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Množstvo</p>
-                      <p className="font-medium">
-                        {selectedSeed.quantity} {selectedSeed?.unit || 'kg'}
-                      </p>
-                    </div>
-                  )}
-
-                  {selectedSeed?.lot_number && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Číslo šarže</p>
-                      <p className="font-medium">{selectedSeed.lot_number}</p>
-                    </div>
-                  )}
-
-                  {selectedSeed?.purchase_date && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Dátum nákupu</p>
-                      <p className="font-medium">
-                        {(() => {
-                          try {
-                            return format(new Date(selectedSeed.purchase_date), 'dd.MM.yyyy', { locale: sk });
-                          } catch (e) {
-                            console.error('Error formatting purchase_date:', e);
-                            return selectedSeed.purchase_date;
-                          }
-                        })()}
-                      </p>
-                    </div>
-                  )}
-
-                  {(selectedSeed as ExtendedSeed)?.stocking_date && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Dátum naskladnenia</p>
-                      <p className="font-medium">
-                        {(() => {
-                          try {
-                            return format(new Date((selectedSeed as ExtendedSeed).stocking_date!), 'dd.MM.yyyy', { locale: sk });
-                          } catch (e) {
-                            console.error('Error formatting stocking_date:', e);
-                            return (selectedSeed as ExtendedSeed).stocking_date;
-                          }
-                        })()}
-                      </p>
-                    </div>
-                  )}
-
-                  {(selectedSeed as ExtendedSeed)?.consumption_start_date && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Začiatok spotreby</p>
-                      <p className="font-medium">
-                        {(() => {
-                          try {
-                            return format(new Date((selectedSeed as ExtendedSeed).consumption_start_date!), 'dd.MM.yyyy', { locale: sk });
-                          } catch (e) {
-                            console.error('Error formatting consumption_start_date:', e);
-                            return (selectedSeed as ExtendedSeed).consumption_start_date;
-                          }
-                        })()}
-                      </p>
-                    </div>
-                  )}
-
-                  {selectedSeed?.expiry_date && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Dátum expirácie</p>
-                      <p className="font-medium">
-                        {(() => {
-                          try {
-                            return format(new Date(selectedSeed.expiry_date), 'dd.MM.yyyy', { locale: sk });
-                          } catch (e) {
-                            console.error('Error formatting expiry_date:', e);
-                            return selectedSeed.expiry_date;
-                          }
-                        })()}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {(selectedSeed as ExtendedSeed)?.certificate_url && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Certifikát</p>
-                    <a
-                      href={(selectedSeed as ExtendedSeed).certificate_url!}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline flex items-center gap-1"
-                    >
-                      <FileText className="h-4 w-4" />
-                      Zobraziť certifikát
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </div>
-                )}
-
-                {selectedSeed?.notes && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Poznámky</p>
-                    <p className="text-sm">{selectedSeed.notes}</p>
-                  </div>
-                )}
-              </div>
-
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    console.log('✏️ Opening edit for seed:', selectedSeed);
-                    const seedToEdit = selectedSeed;
-                    setSelectedSeed(null);
-                    handleEdit(seedToEdit);
-                  }}
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Upraviť
-                </Button>
-                <Button variant="outline" onClick={() => setSelectedSeed(null)}>
-                  Zavrieť
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md">
+            <h2 className="text-xl font-bold mb-4">TEST DIALÓG</h2>
+            <p>Ak toto vidíš, React funguje OK!</p>
+            <pre className="bg-gray-100 p-2 text-xs mt-2 overflow-auto max-h-40">
+              {JSON.stringify(selectedSeed, null, 2)}
+            </pre>
+            <button
+              onClick={() => setSelectedSeed(null)}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded"
+            >
+              Zavrieť
+            </button>
+          </div>
+        </div>
       )}
     </MainLayout>
   );
