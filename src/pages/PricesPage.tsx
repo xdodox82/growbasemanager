@@ -36,7 +36,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Euro, Plus, Pencil, Trash2, Percent, Leaf, Blend, X } from 'lucide-react';
+import { Euro, Plus, Pencil, Trash2, Percent, Leaf, Blend, X, Sprout, Flower } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -477,10 +477,29 @@ const PricesPage = () => {
                       sideOffset={5}
                       className="max-h-[300px]"
                     >
-                      <SelectItem value="all">📋 Všetky kategórie</SelectItem>
-                      <SelectItem value="microgreens">🌿 Mikrozelenina</SelectItem>
-                      <SelectItem value="microherbs">🌱 Mikrobylinky</SelectItem>
-                      <SelectItem value="edible_flowers">🌸 Jedlé kvety</SelectItem>
+                      <SelectItem value="all">
+                        <div className="flex items-center gap-2">
+                          <span>Všetky kategórie</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="microgreens">
+                        <div className="flex items-center gap-2">
+                          <Leaf className="h-4 w-4 text-green-600" />
+                          <span>Mikrozelenina</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="microherbs">
+                        <div className="flex items-center gap-2">
+                          <Sprout className="h-4 w-4 text-green-600" />
+                          <span>Mikrobylinky</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="edible_flowers">
+                        <div className="flex items-center gap-2">
+                          <Flower className="h-4 w-4 text-green-600" />
+                          <span>Jedlé kvety</span>
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
