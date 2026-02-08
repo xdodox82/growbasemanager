@@ -620,23 +620,17 @@ export default function SeedsPage() {
                     sideOffset={5}
                     className="max-h-[300px]"
                   >
-                    <SelectItem value="microgreens">
-                      <div className="flex items-center gap-2">
-                        <Leaf className="h-4 w-4 text-green-600" />
-                        <span>Mikrozelenina</span>
-                      </div>
+                    <SelectItem value="microgreens" className="flex items-center gap-2">
+                      <Leaf className="h-4 w-4 text-green-600 inline-block mr-2" />
+                      Mikrozelenina
                     </SelectItem>
-                    <SelectItem value="microherbs">
-                      <div className="flex items-center gap-2">
-                        <Sprout className="h-4 w-4 text-green-600" />
-                        <span>Mikrobylinky</span>
-                      </div>
+                    <SelectItem value="microherbs" className="flex items-center gap-2">
+                      <Sprout className="h-4 w-4 text-green-600 inline-block mr-2" />
+                      Mikrobylinky
                     </SelectItem>
-                    <SelectItem value="edible_flowers">
-                      <div className="flex items-center gap-2">
-                        <Flower className="h-4 w-4 text-green-600" />
-                        <span>Jedlé kvety</span>
-                      </div>
+                    <SelectItem value="edible_flowers" className="flex items-center gap-2">
+                      <Flower className="h-4 w-4 text-green-600 inline-block mr-2" />
+                      Jedlé kvety
                     </SelectItem>
                   </SelectContent>
                 </Select>

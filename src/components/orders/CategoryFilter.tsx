@@ -21,33 +21,23 @@ export function CategoryFilter({ value, onChange }: CategoryFilterProps) {
           className="max-h-[300px]"
         >
           <SelectItem value="">
-            <div className="flex items-center gap-2">
-              <span>Všetky kategórie</span>
-            </div>
+            Všetky kategórie
           </SelectItem>
-          <SelectItem value="Mikrozelenina">
-            <div className="flex items-center gap-2">
-              <Leaf className="h-4 w-4 text-green-600" />
-              <span>Mikrozelenina</span>
-            </div>
+          <SelectItem value="Mikrozelenina" className="flex items-center gap-2">
+            <Leaf className="h-4 w-4 text-green-600 inline-block mr-2" />
+            Mikrozelenina
           </SelectItem>
-          <SelectItem value="Mikrobylinky">
-            <div className="flex items-center gap-2">
-              <Sprout className="h-4 w-4 text-green-600" />
-              <span>Mikrobylinky</span>
-            </div>
+          <SelectItem value="Mikrobylinky" className="flex items-center gap-2">
+            <Sprout className="h-4 w-4 text-green-600 inline-block mr-2" />
+            Mikrobylinky
           </SelectItem>
-          <SelectItem value="Jedlé kvety">
-            <div className="flex items-center gap-2">
-              <Flower className="h-4 w-4 text-green-600" />
-              <span>Jedlé kvety</span>
-            </div>
+          <SelectItem value="Jedlé kvety" className="flex items-center gap-2">
+            <Flower className="h-4 w-4 text-green-600 inline-block mr-2" />
+            Jedlé kvety
           </SelectItem>
-          <SelectItem value="Mixy">
-            <div className="flex items-center gap-2">
-              <span>🎨</span>
-              <span>Mixy</span>
-            </div>
+          <SelectItem value="Mixy" className="flex items-center gap-2">
+            <span className="inline-block mr-2">🎨</span>
+            Mixy
           </SelectItem>
         </SelectContent>
       </Select>
