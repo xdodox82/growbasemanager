@@ -38,7 +38,10 @@ import {
   X,
   MapPin,
   RefreshCw,
-  Check
+  Check,
+  Leaf,
+  Sprout,
+  Flower
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -2201,11 +2204,17 @@ export default function OrdersPage() {
             <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Kategória plodiny" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent position="popper" sideOffset={5}>
               <SelectItem value="all">Všetky kategórie</SelectItem>
-              <SelectItem value="mikrozelenina">🌱 Mikrozelenina</SelectItem>
-              <SelectItem value="mikrobylinky">🌿 Mikrobylinky</SelectItem>
-              <SelectItem value="jedle_kvety">🌸 Jedlé kvety</SelectItem>
+              <SelectItem value="mikrozelenina">
+                <Leaf className="h-4 w-4 text-green-600 mr-2 inline" />Mikrozelenina
+              </SelectItem>
+              <SelectItem value="mikrobylinky">
+                <Sprout className="h-4 w-4 text-green-600 mr-2 inline" />Mikrobylinky
+              </SelectItem>
+              <SelectItem value="jedle_kvety">
+                <Flower className="h-4 w-4 text-green-600 mr-2 inline" />Jedlé kvety
+              </SelectItem>
             </SelectContent>
           </Select>
 
