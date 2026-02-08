@@ -459,72 +459,62 @@ const PricesPage = () => {
             {/* Filters */}
             {activeTab === 'crops' ? (
               <div className="flex flex-col md:flex-row gap-4">
-                {/* 1. KATEGÓRIA PLODINY */}
+                {/* 1. KATEGÓRIA PLODINY - DROPDOWN */}
                 <div className="flex-1">
                   <label className="block text-sm font-medium mb-2">Kategória plodiny</label>
-                  <div className="grid grid-cols-4 gap-2">
-                    <button
-                      onClick={() => {
-                        setCategoryFilter('all');
-                        setCropFilter('all');
-                      }}
-                      className={`flex flex-col items-center justify-center p-3 border-2 rounded-lg transition-all ${
-                        categoryFilter === 'all'
-                          ? 'border-green-500 bg-green-50'
-                          : 'border-gray-200 hover:border-green-300'
-                      }`}
+                  <Select
+                    value={categoryFilter}
+                    onValueChange={(value: any) => {
+                      setCategoryFilter(value);
+                      setCropFilter('all');
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Všetky kategórie" />
+                    </SelectTrigger>
+                    <SelectContent
+                      position="popper"
+                      sideOffset={5}
+                      className="max-h-[300px]"
                     >
-                      <span className="text-sm font-medium">Všetky</span>
-                    </button>
+                      {/* VŠETKY */}
+                      <SelectItem value="all">
+                        <div className="flex items-center gap-2">
+                          <div className="w-5 h-5 flex items-center justify-center">
+                            <span className="text-lg">📋</span>
+                          </div>
+                          <span>Všetky kategórie</span>
+                        </div>
+                      </SelectItem>
 
-                    <button
-                      onClick={() => {
-                        setCategoryFilter('microgreens');
-                        setCropFilter('all');
-                      }}
-                      className={`flex flex-col items-center justify-center p-3 border-2 rounded-lg transition-all ${
-                        categoryFilter === 'microgreens'
-                          ? 'border-green-500 bg-green-50'
-                          : 'border-gray-200 hover:border-green-300'
-                      }`}
-                    >
-                      <Leaf className="h-5 w-5 text-green-600 mb-1" />
-                      <span className="text-xs font-medium">Mikrozelenina</span>
-                    </button>
+                      {/* MIKROZELENINA */}
+                      <SelectItem value="microgreens">
+                        <div className="flex items-center gap-2">
+                          <Leaf className="h-5 w-5 text-green-600" />
+                          <span>Mikrozelenina</span>
+                        </div>
+                      </SelectItem>
 
-                    <button
-                      onClick={() => {
-                        setCategoryFilter('microherbs');
-                        setCropFilter('all');
-                      }}
-                      className={`flex flex-col items-center justify-center p-3 border-2 rounded-lg transition-all ${
-                        categoryFilter === 'microherbs'
-                          ? 'border-green-500 bg-green-50'
-                          : 'border-gray-200 hover:border-green-300'
-                      }`}
-                    >
-                      <Sprout className="h-5 w-5 text-green-600 mb-1" />
-                      <span className="text-xs font-medium">Mikrobylinky</span>
-                    </button>
+                      {/* MIKROBYLINKY */}
+                      <SelectItem value="microherbs">
+                        <div className="flex items-center gap-2">
+                          <Sprout className="h-5 w-5 text-green-600" />
+                          <span>Mikrobylinky</span>
+                        </div>
+                      </SelectItem>
 
-                    <button
-                      onClick={() => {
-                        setCategoryFilter('edible_flowers');
-                        setCropFilter('all');
-                      }}
-                      className={`flex flex-col items-center justify-center p-3 border-2 rounded-lg transition-all ${
-                        categoryFilter === 'edible_flowers'
-                          ? 'border-green-500 bg-green-50'
-                          : 'border-gray-200 hover:border-green-300'
-                      }`}
-                    >
-                      <Flower className="h-5 w-5 text-green-600 mb-1" />
-                      <span className="text-xs font-medium">Jedlé kvety</span>
-                    </button>
-                  </div>
+                      {/* JEDLÉ KVETY */}
+                      <SelectItem value="edible_flowers">
+                        <div className="flex items-center gap-2">
+                          <Flower className="h-5 w-5 text-green-600" />
+                          <span>Jedlé kvety</span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                {/* 2. PLODINA - OPRAVENÝ DROPDOWN */}
+                {/* 2. PLODINA - DROPDOWN */}
                 <div className="flex-1">
                   <label className="block text-sm font-medium mb-2">Plodina</label>
                   <Select value={cropFilter} onValueChange={setCropFilter}>
@@ -546,7 +536,7 @@ const PricesPage = () => {
                   </Select>
                 </div>
 
-                {/* 3. ZÁKAZNÍK */}
+                {/* 3. ZÁKAZNÍK - DROPDOWN */}
                 <div className="flex-1">
                   <label className="block text-sm font-medium mb-2">Zákazník</label>
                   <Select value={customerTypeFilterView} onValueChange={setCustomerTypeFilterView}>
