@@ -7,9 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Edit, Trash2, Package, AlertTriangle } from 'lucide-react';
+import { Edit, Trash2, Package, AlertTriangle, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
@@ -33,6 +34,7 @@ export default function ConsumableInventoryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [editingItem, setEditingItem] = useState<ConsumableItem | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [showDialog, setShowDialog] = useState(false);
 
   const [category, setCategory] = useState('');
   const [name, setName] = useState('');
@@ -79,6 +81,11 @@ export default function ConsumableInventoryPage() {
     setEditingItem(null);
   };
 
+  const handleOpenDialog = () => {
+    resetForm();
+    setShowDialog(true);
+  };
+
   const handleSubmit = async () => {
     if (!category || !name || !quantity || !unit) {
       toast({ title: 'Chyba', description: 'Vyplňte všetky povinné polia', variant: 'destructive' });
@@ -115,6 +122,7 @@ export default function ConsumableInventoryPage() {
         toast({ title: 'Chyba', description: error.message, variant: 'destructive' });
       } else {
         toast({ title: 'Úspech', description: 'Položka aktualizovaná' });
+        setShowDialog(false);
         resetForm();
         fetchData();
       }
@@ -127,6 +135,7 @@ export default function ConsumableInventoryPage() {
         toast({ title: 'Chyba', description: error.message, variant: 'destructive' });
       } else {
         toast({ title: 'Úspech', description: 'Položka pridaná' });
+        setShowDialog(false);
         resetForm();
         fetchData();
       }
@@ -144,6 +153,7 @@ export default function ConsumableInventoryPage() {
     setPriceIncludesVat((item as any).price_includes_vat ?? true);
     setVatRate((item as any).vat_rate?.toString() || '20');
     setNotes(item.notes || '');
+    setShowDialog(true);
   };
 
   const handleDelete = async () => {
@@ -178,135 +188,13 @@ export default function ConsumableInventoryPage() {
       <PageHeader
         title="Spotrebný materiál"
         description="Evidencia spotrebného materiálu a pomôcok"
+        action={
+          <Button onClick={handleOpenDialog} size="lg">
+            <Plus className="h-5 w-5 mr-2" />
+            Pridať položku
+          </Button>
+        }
       />
-
-      <Card className="p-6 mb-6">
-        <h3 className="text-lg font-semibold mb-4">{editingItem ? 'Upraviť položku' : 'Pridať novú položku'}</h3>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="category">Kategória *</Label>
-            <Input
-              id="category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="napr. Čistiace prostriedky, Rukavice"
-              list="categories"
-            />
-            <datalist id="categories">
-              {categories.map(cat => (
-                <option key={cat} value={cat} />
-              ))}
-            </datalist>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="name">Názov *</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="napr. Dezinfekcia, Jednorázové rukavice"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="quantity">Množstvo *</Label>
-              <Input
-                id="quantity"
-                type="number"
-                step="0.01"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                placeholder="napr. 50"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="unit">Jednotka *</Label>
-              <Input
-                id="unit"
-                value={unit}
-                onChange={(e) => setUnit(e.target.value)}
-                placeholder="ks, kg, l, balenie"
-                list="units"
-              />
-              <datalist id="units">
-                <option value="ks" />
-                <option value="kg" />
-                <option value="l" />
-                <option value="balenie" />
-                <option value="škatuľa" />
-              </datalist>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="minQuantity">Min. množstvo (upozornenie)</Label>
-            <Input
-              id="minQuantity"
-              type="number"
-              step="0.01"
-              value={minQuantity}
-              onChange={(e) => setMinQuantity(e.target.value)}
-              placeholder="napr. 10"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="unitCost">Cena za jednotku (€)</Label>
-            <Input
-              id="unitCost"
-              type="number"
-              step="0.01"
-              value={unitCost}
-              onChange={(e) => setUnitCost(e.target.value)}
-              placeholder="0.00"
-            />
-            <p className="text-xs text-muted-foreground">
-              Nákupná cena za 1 {unit || 'jednotku'}
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="price-includes-vat-consumable"
-                  checked={priceIncludesVat}
-                  onCheckedChange={(checked) => setPriceIncludesVat(checked === true)}
-                />
-                <Label htmlFor="price-includes-vat-consumable" className="cursor-pointer">
-                  Cena je s DPH
-                </Label>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Ak je zaškrtnuté, cena obsahuje DPH
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label>Sadzba DPH (%)</Label>
-              <Input
-                type="number"
-                step="0.1"
-                value={vatRate}
-                onChange={(e) => setVatRate(e.target.value)}
-                placeholder="20"
-              />
-              <p className="text-xs text-muted-foreground">
-                Výška DPH v percentách
-              </p>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="notes">Poznámky</Label>
-            <Textarea
-              id="notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Doplňujúce informácie"
-            />
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={handleSubmit} className="flex-1">{editingItem ? 'Uložiť zmeny' : 'ULOŽIŤ POLOŽKU'}</Button>
-            {editingItem && <Button variant="outline" onClick={resetForm}>Zrušiť úpravu</Button>}
-          </div>
-        </div>
-      </Card>
 
       {lowStockItems.length > 0 && (
         <Card className="p-4 mb-6 bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800">
@@ -349,48 +237,46 @@ export default function ConsumableInventoryPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Názov</TableHead>
-                    <TableHead className="text-right">Množstvo</TableHead>
-                    <TableHead className="text-right">Min. množstvo</TableHead>
-                    <TableHead className="w-[100px]">Akcie</TableHead>
+                    <TableHead>Množstvo</TableHead>
+                    <TableHead>Min. množstvo</TableHead>
+                    <TableHead>Stav</TableHead>
+                    <TableHead className="text-right">Akcie</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {categoryItems.map((item) => {
-                    const isLowStock = item.min_quantity !== null && item.quantity <= item.min_quantity;
-                    return (
-                      <TableRow
-                        key={item.id}
-                        className={`cursor-pointer hover:bg-gray-50 ${isLowStock ? 'bg-yellow-50 dark:bg-yellow-950/20' : ''}`}
-                        onClick={() => handleEdit(item)}
-                      >
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            {isLowStock && <AlertTriangle className="w-4 h-4 text-yellow-600" />}
-                            <div>
-                              <div className="font-medium">{item.name}</div>
-                              {item.notes && <div className="text-sm text-muted-foreground">{item.notes}</div>}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right font-semibold">
-                          {item.quantity} {item.unit}
-                        </TableCell>
-                        <TableCell className="text-right text-muted-foreground">
-                          {item.min_quantity ? `${item.min_quantity} ${item.unit}` : '-'}
-                        </TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="ghost" onClick={() => handleEdit(item)}>
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => setDeleteId(item.id)}>
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                  {categoryItems.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{item.name}</p>
+                          {item.notes && (
+                            <p className="text-sm text-muted-foreground mt-1">{item.notes}</p>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {item.quantity} {item.unit}
+                      </TableCell>
+                      <TableCell>
+                        {item.min_quantity ? `${item.min_quantity} ${item.unit}` : '-'}
+                      </TableCell>
+                      <TableCell>
+                        {item.min_quantity && item.quantity <= item.min_quantity ? (
+                          <Badge variant="destructive">Nízky stav</Badge>
+                        ) : (
+                          <Badge variant="outline">V poriadku</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="sm" onClick={() => handleEdit(item)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setDeleteId(item.id)}>
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             </Card>
@@ -398,17 +284,167 @@ export default function ConsumableInventoryPage() {
         </div>
       )}
 
-      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+      {/* Dialog na pridanie/editáciu */}
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingItem ? 'Upraviť položku' : 'Pridať novú položku'}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="category">Kategória *</Label>
+              <Input
+                id="category"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                placeholder="napr. Čistiace prostriedky, Rukavice"
+                list="categories"
+              />
+              <datalist id="categories">
+                {categories.map(cat => (
+                  <option key={cat} value={cat} />
+                ))}
+              </datalist>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="name">Názov *</Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="napr. Dezinfekcia, Jednorázové rukavice"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="quantity">Množstvo *</Label>
+                <Input
+                  id="quantity"
+                  type="number"
+                  step="0.01"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  placeholder="napr. 50"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="unit">Jednotka *</Label>
+                <Input
+                  id="unit"
+                  value={unit}
+                  onChange={(e) => setUnit(e.target.value)}
+                  placeholder="ks, kg, l, balenie"
+                  list="units"
+                />
+                <datalist id="units">
+                  <option value="ks" />
+                  <option value="kg" />
+                  <option value="l" />
+                  <option value="balenie" />
+                  <option value="škatuľa" />
+                </datalist>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="minQuantity">Min. množstvo (upozornenie)</Label>
+              <Input
+                id="minQuantity"
+                type="number"
+                step="0.01"
+                value={minQuantity}
+                onChange={(e) => setMinQuantity(e.target.value)}
+                placeholder="napr. 10"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="unitCost">Cena za jednotku (€)</Label>
+              <Input
+                id="unitCost"
+                type="number"
+                step="0.01"
+                value={unitCost}
+                onChange={(e) => setUnitCost(e.target.value)}
+                placeholder="0.00"
+              />
+              <p className="text-xs text-muted-foreground">
+                Nákupná cena za 1 {unit || 'jednotku'}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="price-includes-vat-consumable"
+                    checked={priceIncludesVat}
+                    onCheckedChange={(checked) => setPriceIncludesVat(checked === true)}
+                  />
+                  <Label htmlFor="price-includes-vat-consumable" className="cursor-pointer">
+                    Cena je s DPH
+                  </Label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Ak je zaškrtnuté, cena obsahuje DPH
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Sadzba DPH (%)</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={vatRate}
+                  onChange={(e) => setVatRate(e.target.value)}
+                  placeholder="20"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Výška DPH v percentách
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notes">Poznámky</Label>
+              <Textarea
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Doplňujúce informácie"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDialog(false)}>
+              Zrušiť
+            </Button>
+            <Button onClick={handleSubmit}>
+              {editingItem ? 'Uložiť zmeny' : 'Pridať položku'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Alert Dialog na potvrdenie vymazania */}
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Vymazať položku?</AlertDialogTitle>
+            <AlertDialogTitle>Naozaj chcete vymazať túto položku?</AlertDialogTitle>
             <AlertDialogDescription>
-              Táto akcia je nenávratná. Položka bude trvalo odstránená.
+              Táto akcia sa nedá vrátiť späť. Položka bude natrvalo odstránená.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Zrušiť</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Vymazať</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
+              Vymazať
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
