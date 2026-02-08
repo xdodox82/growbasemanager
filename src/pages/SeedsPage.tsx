@@ -740,7 +740,6 @@ export default function SeedsPage() {
                         <SelectValue placeholder="Mesiac" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">-</SelectItem>
                         <SelectItem value="01">Január</SelectItem>
                         <SelectItem value="02">Február</SelectItem>
                         <SelectItem value="03">Marec</SelectItem>
@@ -760,7 +759,6 @@ export default function SeedsPage() {
                         <SelectValue placeholder="Rok" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">-</SelectItem>
                         {(() => {
                           const currentYear = new Date().getFullYear();
                           const years = [];
