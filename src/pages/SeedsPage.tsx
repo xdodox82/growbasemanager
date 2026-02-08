@@ -55,6 +55,7 @@ export default function SeedsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [cropFilter, setCropFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'microgreens' | 'microherbs' | 'edible_flowers'>('all');
   const [archiveFilter, setArchiveFilter] = useState<'current' | 'archived'>('current');
   const [archiveDialogId, setArchiveDialogId] = useState<string | null>(null);
   const [selectedSeed, setSelectedSeed] = useState<DbSeed | null>(null);
@@ -86,14 +87,21 @@ export default function SeedsPage() {
   const [certificateUrl, setCertificateUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Filter seeds by crop and archive status
+  // Filter seeds by crop, category and archive status
   const filteredSeeds = seeds
     .filter(s => {
       const cropMatch = cropFilter === 'all' || s.crop_id === cropFilter;
       const archiveMatch = archiveFilter === 'current'
         ? !(s as any).finished_date
         : !!(s as any).finished_date;
-      return cropMatch && archiveMatch;
+
+      // Category filter
+      const categoryMatch = categoryFilter === 'all' || (() => {
+        const crop = crops.find(c => c.id === s.crop_id);
+        return crop?.category === categoryFilter;
+      })();
+
+      return cropMatch && archiveMatch && categoryMatch;
     });
 
   // Calculate totals by crop type
@@ -910,6 +918,23 @@ export default function SeedsPage() {
             <TabsTrigger value="archived">Archív</TabsTrigger>
           </TabsList>
         </Tabs>
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Kategória plodiny" />
+          </SelectTrigger>
+          <SelectContent position="popper" sideOffset={5}>
+            <SelectItem value="all">Všetky kategórie</SelectItem>
+            <SelectItem value="microgreens">
+              <Leaf className="h-4 w-4 text-green-600 mr-2 inline" />Mikrozelenina
+            </SelectItem>
+            <SelectItem value="microherbs">
+              <Sprout className="h-4 w-4 text-green-600 mr-2 inline" />Mikrobylinky
+            </SelectItem>
+            <SelectItem value="edible_flowers">
+              <Flower className="h-4 w-4 text-green-600 mr-2 inline" />Jedlé kvety
+            </SelectItem>
+          </SelectContent>
+        </Select>
         <Select value={cropFilter} onValueChange={setCropFilter}>
           <SelectTrigger className="w-40">
             <SelectValue placeholder="Filter podľa druhu" />
