@@ -57,6 +57,7 @@ export default function SeedsPage() {
   const [cropFilter, setCropFilter] = useState<string>('all');
   const [archiveFilter, setArchiveFilter] = useState<'current' | 'archived'>('current');
   const [archiveDialogId, setArchiveDialogId] = useState<string | null>(null);
+  const [selectedSeed, setSelectedSeed] = useState<DbSeed | null>(null);
 
   const handleRefresh = useCallback(async () => {
     await refetch();
@@ -370,7 +371,7 @@ export default function SeedsPage() {
       {filteredSeeds.map((seed) => {
         const extSeed = seed as unknown as ExtendedSeed;
         return (
-          <Card key={seed.id} className="p-4 transition-all hover:border-primary/50 hover:shadow-lg">
+          <Card key={seed.id} className="p-4 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer" onClick={() => setSelectedSeed(seed)}>
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -383,7 +384,7 @@ export default function SeedsPage() {
                   </Badge>
                 </div>
               </div>
-              <div className="flex gap-1">
+              <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                 {archiveFilter === 'current' && (
                   <Button
                     variant="ghost"
@@ -986,6 +987,120 @@ export default function SeedsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Detail dialóg */}
+      {selectedSeed && (
+        <Dialog open={!!selectedSeed} onOpenChange={() => setSelectedSeed(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Detail osiva</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Plodina</p>
+                <p className="font-medium text-lg">{getCropName(selectedSeed.crop_id)}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Dodávateľ</p>
+                  <p className="font-medium">{getSupplierName(selectedSeed.supplier_id)}</p>
+                </div>
+
+                <div>
+                  <p className="text-sm text-muted-foreground">Množstvo</p>
+                  <p className="font-medium">
+                    {selectedSeed.quantity} {selectedSeed.unit}
+                  </p>
+                </div>
+
+                {selectedSeed.lot_number && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Číslo šarže</p>
+                    <p className="font-medium">{selectedSeed.lot_number}</p>
+                  </div>
+                )}
+
+                {selectedSeed.purchase_date && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Dátum nákupu</p>
+                    <p className="font-medium">
+                      {format(new Date(selectedSeed.purchase_date), 'dd.MM.yyyy', { locale: sk })}
+                    </p>
+                  </div>
+                )}
+
+                {(selectedSeed as ExtendedSeed).stocking_date && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Dátum naskladnenia</p>
+                    <p className="font-medium">
+                      {format(new Date((selectedSeed as ExtendedSeed).stocking_date!), 'dd.MM.yyyy', { locale: sk })}
+                    </p>
+                  </div>
+                )}
+
+                {(selectedSeed as ExtendedSeed).consumption_start_date && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Začiatok spotreby</p>
+                    <p className="font-medium">
+                      {format(new Date((selectedSeed as ExtendedSeed).consumption_start_date!), 'dd.MM.yyyy', { locale: sk })}
+                    </p>
+                  </div>
+                )}
+
+                {selectedSeed.expiry_date && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Dátum expirácie</p>
+                    <p className="font-medium">
+                      {format(new Date(selectedSeed.expiry_date), 'dd.MM.yyyy', { locale: sk })}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {(selectedSeed as ExtendedSeed).certificate_url && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Certifikát</p>
+                  <a
+                    href={(selectedSeed as ExtendedSeed).certificate_url!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline flex items-center gap-1"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Zobraziť certifikát
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+              )}
+
+              {selectedSeed.notes && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Poznámky</p>
+                  <p className="text-sm">{selectedSeed.notes}</p>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedSeed(null);
+                  handleEdit(selectedSeed);
+                }}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Upraviť
+              </Button>
+              <Button variant="outline" onClick={() => setSelectedSeed(null)}>
+                Zavrieť
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </MainLayout>
   );
 }

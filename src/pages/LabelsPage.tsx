@@ -37,7 +37,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Tag, Plus, Pencil, Trash2, Package } from 'lucide-react';
+import { Tag, Plus, Pencil, Trash2, Package, Edit } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -57,6 +57,7 @@ export default function LabelsPage() {
   const [editingLabel, setEditingLabel] = useState<DbLabel | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [selectedLabel, setSelectedLabel] = useState<DbLabel | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -174,7 +175,7 @@ export default function LabelsPage() {
   const renderGridView = () => (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {labels.map((label) => (
-        <Card key={label.id} className="p-4 transition-all hover:border-primary/50 hover:shadow-lg">
+        <Card key={label.id} className="p-4 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer" onClick={() => setSelectedLabel(label)}>
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -187,7 +188,7 @@ export default function LabelsPage() {
                 </Badge>
               </div>
             </div>
-            <div className="flex gap-1">
+            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(label)}>
                 <Pencil className="h-4 w-4" />
               </Button>
@@ -484,6 +485,87 @@ export default function LabelsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Detail dialóg */}
+      {selectedLabel && (
+        <Dialog open={!!selectedLabel} onOpenChange={() => setSelectedLabel(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Detail etikety</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Názov</p>
+                <p className="font-medium text-lg">{selectedLabel.name}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Typ</p>
+                  <p className="font-medium">{LABEL_TYPES[selectedLabel.type as keyof typeof LABEL_TYPES] || selectedLabel.type}</p>
+                </div>
+
+                {selectedLabel.size && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Veľkosť</p>
+                    <p className="font-medium">{selectedLabel.size}</p>
+                  </div>
+                )}
+
+                <div>
+                  <p className="text-sm text-muted-foreground">Množstvo</p>
+                  <p className="font-medium">{selectedLabel.quantity} ks</p>
+                </div>
+
+                {selectedLabel.min_stock && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Min. stav</p>
+                    <p className="font-medium">{selectedLabel.min_stock} ks</p>
+                  </div>
+                )}
+
+                {selectedLabel.supplier_id && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Dodávateľ</p>
+                    <p className="font-medium">{getSupplierName(selectedLabel.supplier_id)}</p>
+                  </div>
+                )}
+
+                {selectedLabel.unit_cost && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Cena za kus</p>
+                    <p className="font-medium">{selectedLabel.unit_cost}€</p>
+                  </div>
+                )}
+              </div>
+
+              {selectedLabel.notes && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Poznámky</p>
+                  <p className="text-sm">{selectedLabel.notes}</p>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedLabel(null);
+                  openEditDialog(selectedLabel);
+                }}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Upraviť
+              </Button>
+              <Button variant="outline" onClick={() => setSelectedLabel(null)}>
+                Zavrieť
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </MainLayout>
   );
 }

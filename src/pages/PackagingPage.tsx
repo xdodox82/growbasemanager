@@ -45,6 +45,7 @@ export default function PackagingPage() {
   const [editingPackaging, setEditingPackaging] = useState<DbPackaging | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [selectedPackaging, setSelectedPackaging] = useState<DbPackaging | null>(null);
 
   // Form states
   const [name, setName] = useState('');
@@ -160,7 +161,7 @@ export default function PackagingPage() {
   const renderGridView = () => (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {packagings.map((packaging) => (
-        <Card key={packaging.id} className="p-4 transition-all hover:border-primary/50 hover:shadow-lg">
+        <Card key={packaging.id} className="p-4 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer" onClick={() => setSelectedPackaging(packaging)}>
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -182,7 +183,7 @@ export default function PackagingPage() {
                 </div>
               </div>
             </div>
-            <div className="flex gap-1">
+            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(packaging)}>
                 <Edit className="h-4 w-4" />
               </Button>
@@ -508,6 +509,98 @@ export default function PackagingPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Detail dialóg */}
+      {selectedPackaging && (
+        <Dialog open={!!selectedPackaging} onOpenChange={() => setSelectedPackaging(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Detail obalu</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Názov</p>
+                <p className="font-medium text-lg">{selectedPackaging.name}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {selectedPackaging.type && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Typ</p>
+                    <p className="font-medium">{selectedPackaging.type}</p>
+                  </div>
+                )}
+
+                {selectedPackaging.size && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Veľkosť</p>
+                    <p className="font-medium">{selectedPackaging.size}</p>
+                  </div>
+                )}
+
+                <div>
+                  <p className="text-sm text-muted-foreground">Množstvo</p>
+                  <p className="font-medium">{selectedPackaging.quantity} ks</p>
+                </div>
+
+                {selectedPackaging.min_stock && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Min. stav</p>
+                    <p className="font-medium">{selectedPackaging.min_stock} ks</p>
+                  </div>
+                )}
+
+                {selectedPackaging.supplier_id && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Dodávateľ</p>
+                    <p className="font-medium">{getSupplierName(selectedPackaging.supplier_id)}</p>
+                  </div>
+                )}
+
+                {selectedPackaging.price_per_piece && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Cena za kus</p>
+                    <p className="font-medium">{selectedPackaging.price_per_piece}€</p>
+                  </div>
+                )}
+
+                {selectedPackaging.stock_date && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Dátum naskladnenia</p>
+                    <p className="font-medium">
+                      {format(new Date(selectedPackaging.stock_date), 'dd.MM.yyyy', { locale: sk })}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {selectedPackaging.notes && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Poznámky</p>
+                  <p className="text-sm">{selectedPackaging.notes}</p>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedPackaging(null);
+                  handleEdit(selectedPackaging);
+                }}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Upraviť
+              </Button>
+              <Button variant="outline" onClick={() => setSelectedPackaging(null)}>
+                Zavrieť
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </MainLayout>
   );
 }

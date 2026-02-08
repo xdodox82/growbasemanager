@@ -45,6 +45,7 @@ export default function SubstratePage() {
   const [editingSubstrate, setEditingSubstrate] = useState<DbSubstrate | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [selectedSubstrate, setSelectedSubstrate] = useState<DbSubstrate | null>(null);
 
   // Form states
   const [name, setName] = useState('');
@@ -175,7 +176,7 @@ export default function SubstratePage() {
   const renderGridView = () => (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {substrates.map((substrate) => (
-        <Card key={substrate.id} className="p-4 transition-all hover:border-primary/50 hover:shadow-lg">
+        <Card key={substrate.id} className="p-4 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer" onClick={() => setSelectedSubstrate(substrate)}>
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -188,7 +189,7 @@ export default function SubstratePage() {
                 </Badge>
               </div>
             </div>
-            <div className="flex gap-1">
+            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(substrate)}>
                 <Edit className="h-4 w-4" />
               </Button>
@@ -499,6 +500,84 @@ export default function SubstratePage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Detail dialóg */}
+      {selectedSubstrate && (
+        <Dialog open={!!selectedSubstrate} onOpenChange={() => setSelectedSubstrate(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Detail substrátu</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Názov</p>
+                <p className="font-medium text-lg">{selectedSubstrate.name}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Typ</p>
+                  <p className="font-medium">{getTypeName(selectedSubstrate.type)}</p>
+                </div>
+
+                <div>
+                  <p className="text-sm text-muted-foreground">Množstvo</p>
+                  <p className="font-medium">
+                    {selectedSubstrate.quantity} {selectedSubstrate.unit}
+                  </p>
+                </div>
+
+                {selectedSubstrate.supplier_id && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Dodávateľ</p>
+                    <p className="font-medium">{getSupplierName(selectedSubstrate.supplier_id)}</p>
+                  </div>
+                )}
+
+                {selectedSubstrate.unit_cost && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Cena za jednotku</p>
+                    <p className="font-medium">{selectedSubstrate.unit_cost}€</p>
+                  </div>
+                )}
+
+                {selectedSubstrate.stock_date && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Dátum naskladnenia</p>
+                    <p className="font-medium">
+                      {format(new Date(selectedSubstrate.stock_date), 'dd.MM.yyyy', { locale: sk })}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {selectedSubstrate.notes && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Poznámky</p>
+                  <p className="text-sm">{selectedSubstrate.notes}</p>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedSubstrate(null);
+                  handleEdit(selectedSubstrate);
+                }}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Upraviť
+              </Button>
+              <Button variant="outline" onClick={() => setSelectedSubstrate(null)}>
+                Zavrieť
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </MainLayout>
   );
 }
