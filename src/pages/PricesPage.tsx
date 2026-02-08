@@ -138,7 +138,6 @@ const PricesPage = () => {
       result = result.filter(p => p.crop_id === cropFilter);
     } else if (categoryFilter !== 'all') {
       // Ak nie je vybraná konkrétna plodina, filtruj podľa kategórie
-      const crop = crops.find(c => c.id === p.crop_id);
       result = result.filter(p => {
         const crop = crops.find(c => c.id === p.crop_id);
         return crop && crop.category === categoryFilter;
