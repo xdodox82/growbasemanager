@@ -26,7 +26,7 @@ import { ViewToggle, ViewMode } from '@/components/ui/view-toggle';
 import { Checkbox } from '@/components/ui/checkbox';
 import { usePackagings, useSuppliers, DbPackaging } from '@/hooks/useSupabaseData';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, Package, CalendarIcon } from 'lucide-react';
+import { Plus, Edit, Trash2, Package, CalendarIcon, X } from 'lucide-react';
 import { PackagingMappings } from '@/components/PackagingMappings';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { format } from 'date-fns';
@@ -513,110 +513,135 @@ export default function PackagingPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Detail dialóg */}
+      {/* DETAIL DIALÓG - VLASTNÉ RIEŠENIE BEZ SHADCN */}
       {selectedPackaging && (
-        <>
-          {console.log('📋 Rendering packaging detail dialog with:', selectedPackaging)}
-          <Dialog open={!!selectedPackaging} onOpenChange={() => setSelectedPackaging(null)}>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Detail obalu</DialogTitle>
-              </DialogHeader>
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedPackaging(null)}
+        >
+          <div
+            className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center rounded-t-lg">
+              <h2 className="text-xl font-bold">Detail obalu</h2>
+              <button
+                onClick={() => setSelectedPackaging(null)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
 
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Názov</p>
-                  <p className="font-medium text-lg">{selectedPackaging?.name || 'Bez názvu'}</p>
-                </div>
+            {/* Content */}
+            <div className="p-6 space-y-4">
+              {/* Názov */}
+              <div className="bg-orange-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-600 mb-1">Názov</p>
+                <p className="font-bold text-xl text-orange-900">
+                  {selectedPackaging?.name || 'Bez názvu'}
+                </p>
+              </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  {selectedPackaging?.type && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Typ</p>
-                      <p className="font-medium">{selectedPackaging.type}</p>
-                    </div>
-                  )}
+              {/* Grid s detailmi */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Typ */}
+                {selectedPackaging?.type && (
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <p className="text-xs text-gray-500 uppercase mb-1">Typ</p>
+                    <p className="font-medium">{selectedPackaging.type}</p>
+                  </div>
+                )}
 
-                  {selectedPackaging?.size && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Veľkosť</p>
-                      <p className="font-medium">{selectedPackaging.size}</p>
-                    </div>
-                  )}
+                {/* Veľkosť */}
+                {selectedPackaging?.size && (
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <p className="text-xs text-gray-500 uppercase mb-1">Veľkosť</p>
+                    <p className="font-medium">{selectedPackaging.size}</p>
+                  </div>
+                )}
 
-                  {(selectedPackaging?.quantity !== null && selectedPackaging?.quantity !== undefined) && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Množstvo</p>
-                      <p className="font-medium">{selectedPackaging.quantity} ks</p>
-                    </div>
-                  )}
+                {/* Množstvo */}
+                {(selectedPackaging?.quantity !== null && selectedPackaging?.quantity !== undefined) && (
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <p className="text-xs text-gray-500 uppercase mb-1">Množstvo</p>
+                    <p className="font-medium">{selectedPackaging.quantity} ks</p>
+                  </div>
+                )}
 
-                  {selectedPackaging?.min_stock && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Min. stav</p>
-                      <p className="font-medium">{selectedPackaging.min_stock} ks</p>
-                    </div>
-                  )}
+                {/* Min. stav */}
+                {selectedPackaging?.min_stock && (
+                  <div className="border rounded-lg p-3 bg-amber-50 border-amber-200">
+                    <p className="text-xs text-amber-700 uppercase mb-1">Min. stav</p>
+                    <p className="font-medium text-amber-900">{selectedPackaging.min_stock} ks</p>
+                  </div>
+                )}
 
-                  {selectedPackaging?.supplier_id && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Dodávateľ</p>
-                      <p className="font-medium">{getSupplierName(selectedPackaging.supplier_id)}</p>
-                    </div>
-                  )}
+                {/* Dodávateľ */}
+                {selectedPackaging?.supplier_id && (
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <p className="text-xs text-gray-500 uppercase mb-1">Dodávateľ</p>
+                    <p className="font-medium">{getSupplierName(selectedPackaging.supplier_id)}</p>
+                  </div>
+                )}
 
-                  {selectedPackaging?.price_per_piece && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Cena za kus</p>
-                      <p className="font-medium">{selectedPackaging.price_per_piece}€</p>
-                    </div>
-                  )}
+                {/* Cena */}
+                {selectedPackaging?.price_per_piece && (
+                  <div className="border rounded-lg p-3 bg-green-50 border-green-200">
+                    <p className="text-xs text-green-700 uppercase mb-1">Cena za kus</p>
+                    <p className="font-medium text-green-900">{selectedPackaging.price_per_piece}€</p>
+                  </div>
+                )}
 
-                  {selectedPackaging?.stock_date && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Dátum naskladnenia</p>
-                      <p className="font-medium">
-                        {(() => {
-                          try {
-                            return format(new Date(selectedPackaging.stock_date), 'dd.MM.yyyy', { locale: sk });
-                          } catch (e) {
-                            console.error('Error formatting stock_date:', e);
-                            return selectedPackaging.stock_date;
-                          }
-                        })()}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {selectedPackaging?.notes && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Poznámky</p>
-                    <p className="text-sm">{selectedPackaging.notes}</p>
+                {/* Dátum naskladnenia */}
+                {selectedPackaging?.stock_date && (
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <p className="text-xs text-gray-500 uppercase mb-1">Dátum naskladnenia</p>
+                    <p className="font-medium">
+                      {(() => {
+                        try {
+                          return format(new Date(selectedPackaging.stock_date), 'dd.MM.yyyy', { locale: sk });
+                        } catch {
+                          return selectedPackaging.stock_date;
+                        }
+                      })()}
+                    </p>
                   </div>
                 )}
               </div>
 
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    console.log('✏️ Opening edit for packaging:', selectedPackaging);
-                    const packagingToEdit = selectedPackaging;
-                    setSelectedPackaging(null);
-                    handleEdit(packagingToEdit);
-                  }}
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Upraviť
-                </Button>
-                <Button variant="outline" onClick={() => setSelectedPackaging(null)}>
-                  Zavrieť
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </>
+              {/* Poznámky */}
+              {selectedPackaging?.notes && (
+                <div className="border-l-4 border-blue-500 pl-4 py-2 bg-blue-50">
+                  <p className="text-xs text-blue-700 uppercase mb-1">Poznámky</p>
+                  <p className="text-sm text-gray-700">{selectedPackaging.notes}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="sticky bottom-0 bg-gray-50 border-t px-6 py-4 flex justify-end gap-3 rounded-b-lg">
+              <button
+                onClick={() => setSelectedPackaging(null)}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-white transition-colors"
+              >
+                Zavrieť
+              </button>
+              <button
+                onClick={() => {
+                  const packagingToEdit = selectedPackaging;
+                  setSelectedPackaging(null);
+                  setTimeout(() => handleEdit(packagingToEdit), 100);
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <Edit className="h-4 w-4" />
+                Upraviť
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </MainLayout>
   );

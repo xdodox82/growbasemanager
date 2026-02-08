@@ -37,7 +37,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Tag, Plus, Pencil, Trash2, Package, Edit } from 'lucide-react';
+import { Tag, Plus, Pencil, Trash2, Package, Edit, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -489,94 +489,119 @@ export default function LabelsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Detail dialóg */}
+      {/* DETAIL DIALÓG - VLASTNÉ RIEŠENIE BEZ SHADCN */}
       {selectedLabel && (
-        <>
-          {console.log('📋 Rendering label detail dialog with:', selectedLabel)}
-          <Dialog open={!!selectedLabel} onOpenChange={() => setSelectedLabel(null)}>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Detail etikety</DialogTitle>
-              </DialogHeader>
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedLabel(null)}
+        >
+          <div
+            className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center rounded-t-lg">
+              <h2 className="text-xl font-bold">Detail etikety</h2>
+              <button
+                onClick={() => setSelectedLabel(null)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
 
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Názov</p>
-                  <p className="font-medium text-lg">{selectedLabel?.name || 'Bez názvu'}</p>
-                </div>
+            {/* Content */}
+            <div className="p-6 space-y-4">
+              {/* Názov */}
+              <div className="bg-purple-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-600 mb-1">Názov</p>
+                <p className="font-bold text-xl text-purple-900">
+                  {selectedLabel?.name || 'Bez názvu'}
+                </p>
+              </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  {selectedLabel?.type && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Typ</p>
-                      <p className="font-medium">{LABEL_TYPES[selectedLabel.type as keyof typeof LABEL_TYPES] || selectedLabel.type}</p>
-                    </div>
-                  )}
+              {/* Grid s detailmi */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Typ */}
+                {selectedLabel?.type && (
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <p className="text-xs text-gray-500 uppercase mb-1">Typ</p>
+                    <p className="font-medium">{LABEL_TYPES[selectedLabel.type as keyof typeof LABEL_TYPES] || selectedLabel.type}</p>
+                  </div>
+                )}
 
-                  {selectedLabel?.size && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Veľkosť</p>
-                      <p className="font-medium">{selectedLabel.size}</p>
-                    </div>
-                  )}
+                {/* Veľkosť */}
+                {selectedLabel?.size && (
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <p className="text-xs text-gray-500 uppercase mb-1">Veľkosť</p>
+                    <p className="font-medium">{selectedLabel.size}</p>
+                  </div>
+                )}
 
-                  {(selectedLabel?.quantity !== null && selectedLabel?.quantity !== undefined) && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Množstvo</p>
-                      <p className="font-medium">{selectedLabel.quantity} ks</p>
-                    </div>
-                  )}
+                {/* Množstvo */}
+                {(selectedLabel?.quantity !== null && selectedLabel?.quantity !== undefined) && (
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <p className="text-xs text-gray-500 uppercase mb-1">Množstvo</p>
+                    <p className="font-medium">{selectedLabel.quantity} ks</p>
+                  </div>
+                )}
 
-                  {selectedLabel?.min_stock && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Min. stav</p>
-                      <p className="font-medium">{selectedLabel.min_stock} ks</p>
-                    </div>
-                  )}
+                {/* Min. stav */}
+                {selectedLabel?.min_stock && (
+                  <div className="border rounded-lg p-3 bg-amber-50 border-amber-200">
+                    <p className="text-xs text-amber-700 uppercase mb-1">Min. stav</p>
+                    <p className="font-medium text-amber-900">{selectedLabel.min_stock} ks</p>
+                  </div>
+                )}
 
-                  {selectedLabel?.supplier_id && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Dodávateľ</p>
-                      <p className="font-medium">{getSupplierName(selectedLabel.supplier_id)}</p>
-                    </div>
-                  )}
+                {/* Dodávateľ */}
+                {selectedLabel?.supplier_id && (
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <p className="text-xs text-gray-500 uppercase mb-1">Dodávateľ</p>
+                    <p className="font-medium">{getSupplierName(selectedLabel.supplier_id)}</p>
+                  </div>
+                )}
 
-                  {selectedLabel?.unit_cost && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Cena za kus</p>
-                      <p className="font-medium">{selectedLabel.unit_cost}€</p>
-                    </div>
-                  )}
-                </div>
-
-                {selectedLabel?.notes && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Poznámky</p>
-                    <p className="text-sm">{selectedLabel.notes}</p>
+                {/* Cena */}
+                {selectedLabel?.unit_cost && (
+                  <div className="border rounded-lg p-3 bg-green-50 border-green-200">
+                    <p className="text-xs text-green-700 uppercase mb-1">Cena za kus</p>
+                    <p className="font-medium text-green-900">{selectedLabel.unit_cost}€</p>
                   </div>
                 )}
               </div>
 
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    console.log('✏️ Opening edit for label:', selectedLabel);
-                    const labelToEdit = selectedLabel;
-                    setSelectedLabel(null);
-                    openEditDialog(labelToEdit);
-                  }}
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Upraviť
-                </Button>
-                <Button variant="outline" onClick={() => setSelectedLabel(null)}>
-                  Zavrieť
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </>
+              {/* Poznámky */}
+              {selectedLabel?.notes && (
+                <div className="border-l-4 border-blue-500 pl-4 py-2 bg-blue-50">
+                  <p className="text-xs text-blue-700 uppercase mb-1">Poznámky</p>
+                  <p className="text-sm text-gray-700">{selectedLabel.notes}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="sticky bottom-0 bg-gray-50 border-t px-6 py-4 flex justify-end gap-3 rounded-b-lg">
+              <button
+                onClick={() => setSelectedLabel(null)}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-white transition-colors"
+              >
+                Zavrieť
+              </button>
+              <button
+                onClick={() => {
+                  const labelToEdit = selectedLabel;
+                  setSelectedLabel(null);
+                  setTimeout(() => openEditDialog(labelToEdit), 100);
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <Edit className="h-4 w-4" />
+                Upraviť
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </MainLayout>
   );

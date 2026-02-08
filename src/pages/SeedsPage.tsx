@@ -991,21 +991,174 @@ export default function SeedsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* MINIMÁLNY TEST - LEN TEXT */}
+      {/* DETAIL DIALÓG - VLASTNÉ RIEŠENIE BEZ SHADCN */}
       {selectedSeed && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md">
-            <h2 className="text-xl font-bold mb-4">TEST DIALÓG</h2>
-            <p>Ak toto vidíš, React funguje OK!</p>
-            <pre className="bg-gray-100 p-2 text-xs mt-2 overflow-auto max-h-40">
-              {JSON.stringify(selectedSeed, null, 2)}
-            </pre>
-            <button
-              onClick={() => setSelectedSeed(null)}
-              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded"
-            >
-              Zavrieť
-            </button>
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedSeed(null)}
+        >
+          <div
+            className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center rounded-t-lg">
+              <h2 className="text-xl font-bold">Detail položky</h2>
+              <button
+                onClick={() => setSelectedSeed(null)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-4">
+              {/* Názov plodiny */}
+              <div className="bg-green-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-600 mb-1">Plodina</p>
+                <p className="font-bold text-xl text-green-800">
+                  {getCropName(selectedSeed?.crop_id) || 'Neznáma plodina'}
+                </p>
+              </div>
+
+              {/* Grid s detailmi */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Dodávateľ */}
+                {selectedSeed?.supplier_id && (
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <p className="text-xs text-gray-500 uppercase mb-1">Dodávateľ</p>
+                    <p className="font-medium">{getSupplierName(selectedSeed.supplier_id)}</p>
+                  </div>
+                )}
+
+                {/* Množstvo */}
+                {(selectedSeed?.quantity !== null && selectedSeed?.quantity !== undefined) && (
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <p className="text-xs text-gray-500 uppercase mb-1">Množstvo</p>
+                    <p className="font-medium">{selectedSeed.quantity} {selectedSeed.unit || 'kg'}</p>
+                  </div>
+                )}
+
+                {/* Šarža */}
+                {selectedSeed?.lot_number && (
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <p className="text-xs text-gray-500 uppercase mb-1">Číslo šarže</p>
+                    <p className="font-medium">{selectedSeed.lot_number}</p>
+                  </div>
+                )}
+
+                {/* Dátum nákupu */}
+                {selectedSeed?.purchase_date && (
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <p className="text-xs text-gray-500 uppercase mb-1">Dátum nákupu</p>
+                    <p className="font-medium">
+                      {(() => {
+                        try {
+                          return format(new Date(selectedSeed.purchase_date), 'dd.MM.yyyy', { locale: sk });
+                        } catch {
+                          return selectedSeed.purchase_date;
+                        }
+                      })()}
+                    </p>
+                  </div>
+                )}
+
+                {/* Dátum naskladnenia */}
+                {(selectedSeed as ExtendedSeed)?.stocking_date && (
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <p className="text-xs text-gray-500 uppercase mb-1">Dátum naskladnenia</p>
+                    <p className="font-medium">
+                      {(() => {
+                        try {
+                          return format(new Date((selectedSeed as ExtendedSeed).stocking_date!), 'dd.MM.yyyy', { locale: sk });
+                        } catch {
+                          return (selectedSeed as ExtendedSeed).stocking_date;
+                        }
+                      })()}
+                    </p>
+                  </div>
+                )}
+
+                {/* Začiatok spotreby */}
+                {(selectedSeed as ExtendedSeed)?.consumption_start_date && (
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <p className="text-xs text-gray-500 uppercase mb-1">Začiatok spotreby</p>
+                    <p className="font-medium">
+                      {(() => {
+                        try {
+                          return format(new Date((selectedSeed as ExtendedSeed).consumption_start_date!), 'dd.MM.yyyy', { locale: sk });
+                        } catch {
+                          return (selectedSeed as ExtendedSeed).consumption_start_date;
+                        }
+                      })()}
+                    </p>
+                  </div>
+                )}
+
+                {/* Dátum expirácie */}
+                {selectedSeed?.expiry_date && (
+                  <div className="border rounded-lg p-3 bg-amber-50 border-amber-200">
+                    <p className="text-xs text-amber-700 uppercase mb-1">Dátum expirácie</p>
+                    <p className="font-medium text-amber-900">
+                      {(() => {
+                        try {
+                          return format(new Date(selectedSeed.expiry_date), 'dd.MM.yyyy', { locale: sk });
+                        } catch {
+                          return selectedSeed.expiry_date;
+                        }
+                      })()}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Certifikát */}
+              {(selectedSeed as ExtendedSeed)?.certificate_url && (
+                <div className="border-l-4 border-purple-500 pl-4 py-2 bg-purple-50">
+                  <p className="text-xs text-purple-700 uppercase mb-1">Certifikát</p>
+                  <a
+                    href={(selectedSeed as ExtendedSeed).certificate_url!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline flex items-center gap-1"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Zobraziť certifikát
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+              )}
+
+              {/* Poznámky */}
+              {selectedSeed?.notes && (
+                <div className="border-l-4 border-blue-500 pl-4 py-2 bg-blue-50">
+                  <p className="text-xs text-blue-700 uppercase mb-1">Poznámky</p>
+                  <p className="text-sm text-gray-700">{selectedSeed.notes}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="sticky bottom-0 bg-gray-50 border-t px-6 py-4 flex justify-end gap-3 rounded-b-lg">
+              <button
+                onClick={() => setSelectedSeed(null)}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-white transition-colors"
+              >
+                Zavrieť
+              </button>
+              <button
+                onClick={() => {
+                  const seedToEdit = selectedSeed;
+                  setSelectedSeed(null);
+                  setTimeout(() => handleEdit(seedToEdit), 100);
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <Edit className="h-4 w-4" />
+                Upraviť
+              </button>
+            </div>
           </div>
         </div>
       )}

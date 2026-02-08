@@ -25,7 +25,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ViewToggle, ViewMode } from '@/components/ui/view-toggle';
 import { useSubstrates, useSuppliers, DbSubstrate } from '@/hooks/useSupabaseData';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, Layers, CalendarIcon } from 'lucide-react';
+import { Plus, Edit, Trash2, Layers, CalendarIcon, X } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';
 import { sk } from 'date-fns/locale';
@@ -504,98 +504,119 @@ export default function SubstratePage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Detail dialóg */}
+      {/* DETAIL DIALÓG - VLASTNÉ RIEŠENIE BEZ SHADCN */}
       {selectedSubstrate && (
-        <>
-          {console.log('📋 Rendering substrate detail dialog with:', selectedSubstrate)}
-          <Dialog open={!!selectedSubstrate} onOpenChange={() => setSelectedSubstrate(null)}>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Detail substrátu</DialogTitle>
-              </DialogHeader>
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedSubstrate(null)}
+        >
+          <div
+            className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center rounded-t-lg">
+              <h2 className="text-xl font-bold">Detail substrátu</h2>
+              <button
+                onClick={() => setSelectedSubstrate(null)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
 
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Názov</p>
-                  <p className="font-medium text-lg">{selectedSubstrate?.name || 'Bez názvu'}</p>
-                </div>
+            {/* Content */}
+            <div className="p-6 space-y-4">
+              {/* Názov */}
+              <div className="bg-amber-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-600 mb-1">Názov</p>
+                <p className="font-bold text-xl text-amber-900">
+                  {selectedSubstrate?.name || 'Bez názvu'}
+                </p>
+              </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  {selectedSubstrate?.type && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Typ</p>
-                      <p className="font-medium">{getTypeName(selectedSubstrate.type)}</p>
-                    </div>
-                  )}
+              {/* Grid s detailmi */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Typ */}
+                {selectedSubstrate?.type && (
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <p className="text-xs text-gray-500 uppercase mb-1">Typ</p>
+                    <p className="font-medium">{getTypeName(selectedSubstrate.type)}</p>
+                  </div>
+                )}
 
-                  {(selectedSubstrate?.quantity !== null && selectedSubstrate?.quantity !== undefined) && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Množstvo</p>
-                      <p className="font-medium">
-                        {selectedSubstrate.quantity} {selectedSubstrate?.unit || 'kg'}
-                      </p>
-                    </div>
-                  )}
+                {/* Množstvo */}
+                {(selectedSubstrate?.quantity !== null && selectedSubstrate?.quantity !== undefined) && (
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <p className="text-xs text-gray-500 uppercase mb-1">Množstvo</p>
+                    <p className="font-medium">{selectedSubstrate.quantity} {selectedSubstrate?.unit || 'kg'}</p>
+                  </div>
+                )}
 
-                  {selectedSubstrate?.supplier_id && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Dodávateľ</p>
-                      <p className="font-medium">{getSupplierName(selectedSubstrate.supplier_id)}</p>
-                    </div>
-                  )}
+                {/* Dodávateľ */}
+                {selectedSubstrate?.supplier_id && (
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <p className="text-xs text-gray-500 uppercase mb-1">Dodávateľ</p>
+                    <p className="font-medium">{getSupplierName(selectedSubstrate.supplier_id)}</p>
+                  </div>
+                )}
 
-                  {selectedSubstrate?.unit_cost && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Cena za jednotku</p>
-                      <p className="font-medium">{selectedSubstrate.unit_cost}€</p>
-                    </div>
-                  )}
+                {/* Cena */}
+                {selectedSubstrate?.unit_cost && (
+                  <div className="border rounded-lg p-3 bg-green-50 border-green-200">
+                    <p className="text-xs text-green-700 uppercase mb-1">Cena za jednotku</p>
+                    <p className="font-medium text-green-900">{selectedSubstrate.unit_cost}€</p>
+                  </div>
+                )}
 
-                  {selectedSubstrate?.stock_date && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Dátum naskladnenia</p>
-                      <p className="font-medium">
-                        {(() => {
-                          try {
-                            return format(new Date(selectedSubstrate.stock_date), 'dd.MM.yyyy', { locale: sk });
-                          } catch (e) {
-                            console.error('Error formatting stock_date:', e);
-                            return selectedSubstrate.stock_date;
-                          }
-                        })()}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {selectedSubstrate?.notes && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Poznámky</p>
-                    <p className="text-sm">{selectedSubstrate.notes}</p>
+                {/* Dátum naskladnenia */}
+                {selectedSubstrate?.stock_date && (
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <p className="text-xs text-gray-500 uppercase mb-1">Dátum naskladnenia</p>
+                    <p className="font-medium">
+                      {(() => {
+                        try {
+                          return format(new Date(selectedSubstrate.stock_date), 'dd.MM.yyyy', { locale: sk });
+                        } catch {
+                          return selectedSubstrate.stock_date;
+                        }
+                      })()}
+                    </p>
                   </div>
                 )}
               </div>
 
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    console.log('✏️ Opening edit for substrate:', selectedSubstrate);
-                    const substrateToEdit = selectedSubstrate;
-                    setSelectedSubstrate(null);
-                    handleEdit(substrateToEdit);
-                  }}
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Upraviť
-                </Button>
-                <Button variant="outline" onClick={() => setSelectedSubstrate(null)}>
-                  Zavrieť
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </>
+              {/* Poznámky */}
+              {selectedSubstrate?.notes && (
+                <div className="border-l-4 border-blue-500 pl-4 py-2 bg-blue-50">
+                  <p className="text-xs text-blue-700 uppercase mb-1">Poznámky</p>
+                  <p className="text-sm text-gray-700">{selectedSubstrate.notes}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="sticky bottom-0 bg-gray-50 border-t px-6 py-4 flex justify-end gap-3 rounded-b-lg">
+              <button
+                onClick={() => setSelectedSubstrate(null)}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-white transition-colors"
+              >
+                Zavrieť
+              </button>
+              <button
+                onClick={() => {
+                  const substrateToEdit = selectedSubstrate;
+                  setSelectedSubstrate(null);
+                  setTimeout(() => handleEdit(substrateToEdit), 100);
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <Edit className="h-4 w-4" />
+                Upraviť
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </MainLayout>
   );
