@@ -36,7 +36,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Euro, Plus, Pencil, Trash2, Percent, Leaf, Blend, X } from 'lucide-react';
+import { Euro, Plus, Pencil, Trash2, Percent, Leaf, Blend, X, Sprout, Flower } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -78,6 +78,7 @@ const PricesPage = () => {
   const [editingPrice, setEditingPrice] = useState<DbPrice | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('crops');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'microgreens' | 'microherbs' | 'edible_flowers'>('all');
   const [cropFilter, setCropFilter] = useState<string>('all');
   const [customerTypeFilterView, setCustomerTypeFilterView] = useState<string>('all');
   
@@ -114,6 +115,11 @@ const PricesPage = () => {
     });
   }, [crops]);
 
+  const filteredCropsByCategory = useMemo(() => {
+    if (categoryFilter === 'all') return sortedCrops;
+    return sortedCrops.filter(crop => crop.category === categoryFilter);
+  }, [sortedCrops, categoryFilter]);
+
   const cropPrices = useMemo(() => {
     if (!prices || prices.length === 0) return [];
     return prices.filter(p => p.crop_id !== null);
@@ -126,14 +132,26 @@ const PricesPage = () => {
 
   const filteredCropPrices = useMemo(() => {
     let result = cropPrices;
+
+    // Crop filter
     if (cropFilter !== 'all') {
       result = result.filter(p => p.crop_id === cropFilter);
+    } else if (categoryFilter !== 'all') {
+      // Ak nie je vybraná konkrétna plodina, filtruj podľa kategórie
+      const crop = crops.find(c => c.id === p.crop_id);
+      result = result.filter(p => {
+        const crop = crops.find(c => c.id === p.crop_id);
+        return crop && crop.category === categoryFilter;
+      });
     }
+
+    // Customer filter
     if (customerTypeFilterView !== 'all') {
       result = result.filter(p => p.customer_type === customerTypeFilterView);
     }
+
     return result;
-  }, [cropPrices, cropFilter, customerTypeFilterView]);
+  }, [cropPrices, cropFilter, customerTypeFilterView, categoryFilter, crops]);
 
   const filteredBlendPrices = useMemo(() => {
     let result = blendPrices;
@@ -439,35 +457,136 @@ const PricesPage = () => {
             </div>
 
             {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-              {activeTab === 'crops' && (
-                <Select value={cropFilter} onValueChange={setCropFilter}>
+            {activeTab === 'crops' ? (
+              <div className="flex flex-col md:flex-row gap-4">
+                {/* 1. KATEGÓRIA PLODINY */}
+                <div className="flex-1">
+                  <label className="block text-sm font-medium mb-2">Kategória plodiny</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    <button
+                      onClick={() => {
+                        setCategoryFilter('all');
+                        setCropFilter('all');
+                      }}
+                      className={`flex flex-col items-center justify-center p-3 border-2 rounded-lg transition-all ${
+                        categoryFilter === 'all'
+                          ? 'border-green-500 bg-green-50'
+                          : 'border-gray-200 hover:border-green-300'
+                      }`}
+                    >
+                      <span className="text-sm font-medium">Všetky</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setCategoryFilter('microgreens');
+                        setCropFilter('all');
+                      }}
+                      className={`flex flex-col items-center justify-center p-3 border-2 rounded-lg transition-all ${
+                        categoryFilter === 'microgreens'
+                          ? 'border-green-500 bg-green-50'
+                          : 'border-gray-200 hover:border-green-300'
+                      }`}
+                    >
+                      <Leaf className="h-5 w-5 text-green-600 mb-1" />
+                      <span className="text-xs font-medium">Mikrozelenina</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setCategoryFilter('microherbs');
+                        setCropFilter('all');
+                      }}
+                      className={`flex flex-col items-center justify-center p-3 border-2 rounded-lg transition-all ${
+                        categoryFilter === 'microherbs'
+                          ? 'border-green-500 bg-green-50'
+                          : 'border-gray-200 hover:border-green-300'
+                      }`}
+                    >
+                      <Sprout className="h-5 w-5 text-green-600 mb-1" />
+                      <span className="text-xs font-medium">Mikrobylinky</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setCategoryFilter('edible_flowers');
+                        setCropFilter('all');
+                      }}
+                      className={`flex flex-col items-center justify-center p-3 border-2 rounded-lg transition-all ${
+                        categoryFilter === 'edible_flowers'
+                          ? 'border-green-500 bg-green-50'
+                          : 'border-gray-200 hover:border-green-300'
+                      }`}
+                    >
+                      <Flower className="h-5 w-5 text-green-600 mb-1" />
+                      <span className="text-xs font-medium">Jedlé kvety</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 2. PLODINA - OPRAVENÝ DROPDOWN */}
+                <div className="flex-1">
+                  <label className="block text-sm font-medium mb-2">Plodina</label>
+                  <Select value={cropFilter} onValueChange={setCropFilter}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Všetky plodiny" />
+                    </SelectTrigger>
+                    <SelectContent
+                      position="popper"
+                      sideOffset={5}
+                      className="max-h-[300px]"
+                    >
+                      <SelectItem value="all">Všetky plodiny</SelectItem>
+                      {filteredCropsByCategory.map(crop => (
+                        <SelectItem key={crop.id} value={crop.id}>
+                          {crop.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* 3. ZÁKAZNÍK */}
+                <div className="flex-1">
+                  <label className="block text-sm font-medium mb-2">Zákazník</label>
+                  <Select value={customerTypeFilterView} onValueChange={setCustomerTypeFilterView}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Všetci zákazníci" />
+                    </SelectTrigger>
+                    <SelectContent
+                      position="popper"
+                      sideOffset={5}
+                      className="max-h-[300px]"
+                    >
+                      {CUSTOMER_TYPES.map(type => (
+                        <SelectItem key={type.value} value={type.value}>
+                          {type.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                <Select value={customerTypeFilterView} onValueChange={setCustomerTypeFilterView}>
                   <SelectTrigger className="w-full sm:w-[200px]">
-                    <SelectValue placeholder="Filter podľa plodiny" />
+                    <SelectValue placeholder="Filter podľa typu zákazníka" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Všetky plodiny</SelectItem>
-                    {sortedCrops.map(crop => (
-                      <SelectItem key={crop.id} value={crop.id}>
-                        {crop.name}
+                  <SelectContent
+                    position="popper"
+                    sideOffset={5}
+                    className="max-h-[300px]"
+                  >
+                    {CUSTOMER_TYPES.map(type => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              )}
-              <Select value={customerTypeFilterView} onValueChange={setCustomerTypeFilterView}>
-                <SelectTrigger className="w-full sm:w-[200px]">
-                  <SelectValue placeholder="Filter podľa typu zákazníka" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CUSTOMER_TYPES.map(type => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              </div>
+            )}
           </div>
 
           <TabsContent value="crops">

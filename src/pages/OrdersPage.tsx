@@ -213,6 +213,7 @@ export default function OrdersPage() {
   const [prices, setPrices] = useState<Price[]>([]);
   const [packagings, setPackagings] = useState<Packaging[]>([]);
   const [deliveryDays, setDeliveryDays] = useState<DeliveryDay[]>([]);
+  const [plantings, setPlantings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dataLoaded, setDataLoaded] = useState(false);
 
@@ -276,6 +277,16 @@ export default function OrdersPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Sledovanie zmien pre kontrolu kapacity
+  useEffect(() => {
+    if (deliveryDate && orderItems && orderItems.length > 0) {
+      const issues = checkCapacityForOrder(deliveryDate, orderItems);
+      if (issues.length > 0) {
+        console.log('⚠️ Capacity issues detected:', issues);
+      }
+    }
+  }, [deliveryDate, orderItems]);
 
   useEffect(() => {
     if (customerId && customers) {
@@ -431,7 +442,7 @@ export default function OrdersPage() {
     try {
       setLoading(true);
       setDataLoaded(false);
-      const [ordersRes, customersRes, cropsRes, blendsRes, routesRes, pricesRes, packagingsRes, deliveryDaysRes, profileRes] = await Promise.all([
+      const [ordersRes, customersRes, cropsRes, blendsRes, routesRes, pricesRes, packagingsRes, deliveryDaysRes, profileRes, plantingsRes] = await Promise.all([
         supabase.from('orders').select('*, order_items(*)').order('created_at', { ascending: false }),
         supabase.from('customers').select('*').order('name'),
         supabase.from('products').select('*').order('name'),
@@ -441,6 +452,7 @@ export default function OrdersPage() {
         supabase.from('packagings').select('*').order('name'),
         supabase.from('delivery_days').select('*').order('day_of_week'),
         supabase.from('profiles').select('delivery_settings').maybeSingle(),
+        supabase.from('planting_plans').select('*').order('harvest_date'),
       ]);
 
       if (ordersRes.data) setOrders(ordersRes.data as Order[]);
@@ -451,6 +463,7 @@ export default function OrdersPage() {
       if (pricesRes.data) setPrices(pricesRes.data);
       if (packagingsRes.data) setPackagings(packagingsRes.data);
       if (deliveryDaysRes.data) setDeliveryDays(deliveryDaysRes.data);
+      if (plantingsRes.data) setPlantings(plantingsRes.data);
       if (profileRes.data?.delivery_settings) {
         console.log('✅ Delivery settings loaded:', profileRes.data.delivery_settings);
         setDeliverySettings(profileRes.data.delivery_settings);
@@ -1076,6 +1089,92 @@ export default function OrdersPage() {
 
   const removeItem = (index: number) => {
     setOrderItems((orderItems || []).filter((_, i) => i !== index));
+  };
+
+  const checkCapacityForOrder = (orderDate: string, items: OrderItem[]) => {
+    console.log('🔍 Kontrolujem kapacitu pre objednávku:', { orderDate, items });
+
+    // Získaj harvest date (objednávka môže byť deň zberu alebo deň po zbere)
+    const orderDateObj = new Date(orderDate);
+    const harvestDate1 = new Date(orderDateObj);
+    harvestDate1.setDate(harvestDate1.getDate() - 1); // deň pred
+    const harvestDate2 = orderDateObj; // ten istý deň
+
+    const harvestDate1Str = harvestDate1.toISOString().split('T')[0];
+    const harvestDate2Str = harvestDate2.toISOString().split('T')[0];
+
+    // Nájdi relevantné výsevy
+    const relevantPlantings = plantings.filter(p => {
+      if (p.status !== 'planted' && p.status !== 'sown') return false;
+      const pHarvest = new Date(p.harvest_date).toISOString().split('T')[0];
+      return pHarvest === harvestDate1Str || pHarvest === harvestDate2Str;
+    });
+
+    console.log(`📅 Relevantné výsevy pre ${orderDate}:`, relevantPlantings.length);
+
+    // Vypočítaj kapacitu pre každú plodinu+package_size
+    const capacity: Record<string, number> = {};
+    relevantPlantings.forEach(p => {
+      if (p.tray_combinations && Array.isArray(p.tray_combinations)) {
+        p.tray_combinations.forEach((combo: any) => {
+          const key = `${p.crop_id}_${combo.package_size || p.package_size}`;
+          if (!capacity[key]) capacity[key] = 0;
+          capacity[key] += combo.quantity * (combo.capacity || p.tray_capacity || 0);
+        });
+      }
+    });
+
+    // Nájdi už existujúce objednávky na tento deň (okrem editovanej)
+    const existingOrders = orders.filter(o => {
+      if (o.status === 'delivered' || o.status === 'cancelled') return false;
+      if (editingOrder && o.id === editingOrder.id) return false; // preskočiť editovanú
+      const oDate = (o.delivery_date || '').split('T')[0];
+      return oDate === orderDate.split('T')[0];
+    });
+
+    // Vypočítaj už objednané množstvo
+    const ordered: Record<string, number> = {};
+    existingOrders.forEach(order => {
+      if (order.order_items && Array.isArray(order.order_items)) {
+        order.order_items.forEach((item: any) => {
+          const key = `${item.crop_id}_${item.package_size}`;
+          if (!ordered[key]) ordered[key] = 0;
+          ordered[key] += item.quantity * item.package_size;
+        });
+      }
+    });
+
+    // Kontroluj každú položku v novej objednávke
+    const issues: Array<{
+      cropName: string;
+      packageSize: number;
+      needed: number;
+      capacity: number;
+      ordered: number;
+      shortage: number;
+    }> = [];
+
+    items.forEach(item => {
+      const key = `${item.crop_id}_${item.package_size}`;
+      const itemNeeded = item.quantity * (parseFloat(item.packaging_size) || 0);
+      const itemCapacity = capacity[key] || 0;
+      const itemOrdered = ordered[key] || 0;
+      const availableCapacity = itemCapacity - itemOrdered;
+
+      if (itemNeeded > availableCapacity) {
+        issues.push({
+          cropName: item.crop_name || 'Neznáma plodina',
+          packageSize: parseFloat(item.packaging_size) || 0,
+          needed: itemNeeded,
+          capacity: itemCapacity,
+          ordered: itemOrdered,
+          shortage: itemNeeded - availableCapacity
+        });
+      }
+    });
+
+    console.log('📊 Kontrola kapacity:', { capacity, ordered, issues });
+    return issues;
   };
 
   const saveOrder = async () => {
@@ -3123,6 +3222,65 @@ export default function OrdersPage() {
                       </div>
                     </div>
                   </div>
+
+                  {/* CAPACITY WARNING */}
+                  {(() => {
+                    if (!deliveryDate || !orderItems || orderItems.length === 0) {
+                      return null;
+                    }
+
+                    const capacityIssues = checkCapacityForOrder(deliveryDate, orderItems);
+
+                    if (capacityIssues.length === 0) return null;
+
+                    return (
+                      <div className="mb-4 p-4 bg-red-50 border-2 border-red-300 rounded-lg">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-shrink-0 mt-0.5">
+                            <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-red-800 mb-2">⚠️ NEDOSTATOK KAPACITY</h3>
+                            <p className="text-sm text-red-700 mb-3">
+                              Na dátum {new Date(deliveryDate).toLocaleDateString('sk-SK')} nemáte dostatok vysadených plodín:
+                            </p>
+                            <div className="space-y-2">
+                              {capacityIssues.map((issue, idx) => (
+                                <div key={idx} className="bg-white border border-red-200 rounded p-3 text-sm">
+                                  <p className="font-semibold text-red-900 mb-1">
+                                    {issue.cropName} - {issue.packageSize}g
+                                  </p>
+                                  <div className="grid grid-cols-2 gap-2 text-xs">
+                                    <div>
+                                      <span className="text-gray-600">Kapacita:</span>
+                                      <span className="font-medium ml-1">{issue.capacity}g</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-gray-600">Už objednané:</span>
+                                      <span className="font-medium ml-1">{issue.ordered}g</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-gray-600">Chcete pridať:</span>
+                                      <span className="font-medium ml-1">{issue.needed}g</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-red-700 font-semibold">Chýba:</span>
+                                      <span className="font-bold text-red-700 ml-1">{issue.shortage}g</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            <p className="text-xs text-red-600 mt-3">
+                              Môžete zvoliť iný dátum alebo pridať objednávku aj tak (na vlastné riziko).
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
