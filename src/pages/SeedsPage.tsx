@@ -54,7 +54,6 @@ export default function SeedsPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [cropFilter, setCropFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'microgreens' | 'microherbs' | 'edible_flowers'>('all');
   const [archiveFilter, setArchiveFilter] = useState<'current' | 'archived'>('current');
   const [archiveDialogId, setArchiveDialogId] = useState<string | null>(null);
@@ -87,10 +86,9 @@ export default function SeedsPage() {
   const [certificateUrl, setCertificateUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Filter seeds by crop, category and archive status
+  // Filter seeds by category and archive status
   const filteredSeeds = seeds
     .filter(s => {
-      const cropMatch = cropFilter === 'all' || s.crop_id === cropFilter;
       const archiveMatch = archiveFilter === 'current'
         ? !(s as any).finished_date
         : !!(s as any).finished_date;
@@ -101,7 +99,7 @@ export default function SeedsPage() {
         return crop?.category === categoryFilter;
       })();
 
-      return cropMatch && archiveMatch && categoryMatch;
+      return archiveMatch && categoryMatch;
     });
 
   // Calculate totals by crop type
@@ -933,17 +931,6 @@ export default function SeedsPage() {
             <SelectItem value="edible_flowers">
               <Flower className="h-4 w-4 text-green-600 mr-2 inline" />Jedlé kvety
             </SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={cropFilter} onValueChange={setCropFilter}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Filter podľa druhu" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Všetky druhy</SelectItem>
-            {crops.map((crop) => (
-              <SelectItem key={crop.id} value={crop.id}>{crop.name}</SelectItem>
-            ))}
           </SelectContent>
         </Select>
       </PageHeader>
