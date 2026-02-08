@@ -20,25 +20,17 @@ export function CategoryFilter({ value, onChange }: CategoryFilterProps) {
           sideOffset={5}
           className="max-h-[300px]"
         >
-          <SelectItem value="">
-            Všetky kategórie
+          <SelectItem value="">Všetky kategórie</SelectItem>
+          <SelectItem value="Mikrozelenina">
+            <Leaf className="h-4 w-4 text-green-600 mr-2 inline" />Mikrozelenina
           </SelectItem>
-          <SelectItem value="Mikrozelenina" className="flex items-center gap-2">
-            <Leaf className="h-4 w-4 text-green-600 inline-block mr-2" />
-            Mikrozelenina
+          <SelectItem value="Mikrobylinky">
+            <Sprout className="h-4 w-4 text-green-600 mr-2 inline" />Mikrobylinky
           </SelectItem>
-          <SelectItem value="Mikrobylinky" className="flex items-center gap-2">
-            <Sprout className="h-4 w-4 text-green-600 inline-block mr-2" />
-            Mikrobylinky
+          <SelectItem value="Jedlé kvety">
+            <Flower className="h-4 w-4 text-green-600 mr-2 inline" />Jedlé kvety
           </SelectItem>
-          <SelectItem value="Jedlé kvety" className="flex items-center gap-2">
-            <Flower className="h-4 w-4 text-green-600 inline-block mr-2" />
-            Jedlé kvety
-          </SelectItem>
-          <SelectItem value="Mixy" className="flex items-center gap-2">
-            <span className="inline-block mr-2">🎨</span>
-            Mixy
-          </SelectItem>
+          <SelectItem value="Mixy">🎨 Mixy</SelectItem>
         </SelectContent>
       </Select>
     </div>

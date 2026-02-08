@@ -477,20 +477,15 @@ const PricesPage = () => {
                       sideOffset={5}
                       className="max-h-[300px]"
                     >
-                      <SelectItem value="all">
-                        Všetky kategórie
+                      <SelectItem value="all">Všetky kategórie</SelectItem>
+                      <SelectItem value="microgreens">
+                        <Leaf className="h-4 w-4 text-green-600 mr-2 inline" />Mikrozelenina
                       </SelectItem>
-                      <SelectItem value="microgreens" className="flex items-center gap-2">
-                        <Leaf className="h-4 w-4 text-green-600 inline-block mr-2" />
-                        Mikrozelenina
+                      <SelectItem value="microherbs">
+                        <Sprout className="h-4 w-4 text-green-600 mr-2 inline" />Mikrobylinky
                       </SelectItem>
-                      <SelectItem value="microherbs" className="flex items-center gap-2">
-                        <Sprout className="h-4 w-4 text-green-600 inline-block mr-2" />
-                        Mikrobylinky
-                      </SelectItem>
-                      <SelectItem value="edible_flowers" className="flex items-center gap-2">
-                        <Flower className="h-4 w-4 text-green-600 inline-block mr-2" />
-                        Jedlé kvety
+                      <SelectItem value="edible_flowers">
+                        <Flower className="h-4 w-4 text-green-600 mr-2 inline" />Jedlé kvety
                       </SelectItem>
                     </SelectContent>
                   </Select>
