@@ -21,16 +21,16 @@ export function CategoryFilter({ value, onChange }: CategoryFilterProps) {
           className="max-h-[300px]"
         >
           <SelectItem value="">Všetky kategórie</SelectItem>
-          <SelectItem value="Mikrozelenina">
+          <SelectItem value="microgreens">
             <Leaf className="h-4 w-4 text-green-600 mr-2 inline" />Mikrozelenina
           </SelectItem>
-          <SelectItem value="Mikrobylinky">
+          <SelectItem value="microherbs">
             <Sprout className="h-4 w-4 text-green-600 mr-2 inline" />Mikrobylinky
           </SelectItem>
-          <SelectItem value="Jedlé kvety">
+          <SelectItem value="edible_flowers">
             <Flower className="h-4 w-4 text-green-600 mr-2 inline" />Jedlé kvety
           </SelectItem>
-          <SelectItem value="Mixy">🎨 Mixy</SelectItem>
+          <SelectItem value="mix">🎨 Mixy</SelectItem>
         </SelectContent>
       </Select>
     </div>

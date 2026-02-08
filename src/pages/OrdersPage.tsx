@@ -508,15 +508,14 @@ export default function OrdersPage() {
     // Filter podľa kategórie plodiny
     if (orderCategoryFilter !== 'all') {
       const hasMatchingCategory = order?.order_items?.some(item => {
+        // Ak je to blend (mix), kontrolujeme či filter je nastavený na 'mix'
+        if (item?.blend_id) {
+          return orderCategoryFilter === 'mix';
+        }
         // Ak je to crop, kontrolujeme category z crops tabuľky
         if (item?.crop_id) {
           const crop = crops?.find(c => c.id === item.crop_id);
           return crop?.category === orderCategoryFilter;
-        }
-        // Ak je to blend, kontrolujeme category z blends tabuľky
-        if (item?.blend_id) {
-          const blend = blends?.find(b => b.id === item.blend_id);
-          return blend?.category === orderCategoryFilter;
         }
         return false;
       });
@@ -594,26 +593,18 @@ export default function OrdersPage() {
   const filteredCropsByCategory = useMemo(() => {
     if (!categoryFilter) return crops;
 
-    // If "Mixy" category is selected, return empty array (blends are shown separately)
-    if (categoryFilter === 'Mixy') {
+    // If "mix" category is selected, return empty array (blends are shown separately)
+    if (categoryFilter === 'mix') {
       return [];
     }
 
-    const categoryMap: { [key: string]: string } = {
-      'Mikrozelenina': 'microgreens',
-      'Mikrobylinky': 'microherbs',
-      'Jedlé kvety': 'edible_flowers'
-    };
-
-    const categoryKey = categoryMap[categoryFilter];
-    if (!categoryKey) return crops;
-
-    return crops.filter(crop => crop.category === categoryKey);
+    // Now categoryFilter uses database values directly: 'microgreens', 'microherbs', 'edible_flowers'
+    return crops.filter(crop => crop.category === categoryFilter);
   }, [crops, categoryFilter]);
 
   const filteredBlendsByCategory = useMemo(() => {
-    // Only show blends when "Mixy" category is selected
-    if (categoryFilter === 'Mixy') {
+    // Only show blends when "mix" category is selected
+    if (categoryFilter === 'mix') {
       return blends;
     }
     // If no category filter, show blends in "Mixy" group
@@ -2206,14 +2197,17 @@ export default function OrdersPage() {
             </SelectTrigger>
             <SelectContent position="popper" sideOffset={5}>
               <SelectItem value="all">Všetky kategórie</SelectItem>
-              <SelectItem value="mikrozelenina">
+              <SelectItem value="microgreens">
                 <Leaf className="h-4 w-4 text-green-600 mr-2 inline" />Mikrozelenina
               </SelectItem>
-              <SelectItem value="mikrobylinky">
+              <SelectItem value="microherbs">
                 <Sprout className="h-4 w-4 text-green-600 mr-2 inline" />Mikrobylinky
               </SelectItem>
-              <SelectItem value="jedle_kvety">
+              <SelectItem value="edible_flowers">
                 <Flower className="h-4 w-4 text-green-600 mr-2 inline" />Jedlé kvety
+              </SelectItem>
+              <SelectItem value="mix">
+                🎨 Mixy
               </SelectItem>
             </SelectContent>
           </Select>
