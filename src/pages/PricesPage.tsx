@@ -36,7 +36,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Euro, Plus, Pencil, Trash2, Percent, Leaf, Blend, X, Sprout, Flower } from 'lucide-react';
+import { Euro, Plus, Pencil, Trash2, Percent, Leaf, Blend, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -477,39 +477,10 @@ const PricesPage = () => {
                       sideOffset={5}
                       className="max-h-[300px]"
                     >
-                      {/* VŠETKY */}
-                      <SelectItem value="all">
-                        <div className="flex items-center gap-2">
-                          <div className="w-5 h-5 flex items-center justify-center">
-                            <span className="text-lg">📋</span>
-                          </div>
-                          <span>Všetky kategórie</span>
-                        </div>
-                      </SelectItem>
-
-                      {/* MIKROZELENINA */}
-                      <SelectItem value="microgreens">
-                        <div className="flex items-center gap-2">
-                          <Leaf className="h-5 w-5 text-green-600" />
-                          <span>Mikrozelenina</span>
-                        </div>
-                      </SelectItem>
-
-                      {/* MIKROBYLINKY */}
-                      <SelectItem value="microherbs">
-                        <div className="flex items-center gap-2">
-                          <Sprout className="h-5 w-5 text-green-600" />
-                          <span>Mikrobylinky</span>
-                        </div>
-                      </SelectItem>
-
-                      {/* JEDLÉ KVETY */}
-                      <SelectItem value="edible_flowers">
-                        <div className="flex items-center gap-2">
-                          <Flower className="h-5 w-5 text-green-600" />
-                          <span>Jedlé kvety</span>
-                        </div>
-                      </SelectItem>
+                      <SelectItem value="all">📋 Všetky kategórie</SelectItem>
+                      <SelectItem value="microgreens">🌿 Mikrozelenina</SelectItem>
+                      <SelectItem value="microherbs">🌱 Mikrobylinky</SelectItem>
+                      <SelectItem value="edible_flowers">🌸 Jedlé kvety</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

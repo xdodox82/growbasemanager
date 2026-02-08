@@ -28,7 +28,7 @@ import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useSeeds, useSuppliers, useCrops, DbSeed } from '@/hooks/useSupabaseData';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, Wheat, CalendarIcon, FileText, Upload, X, ExternalLink, Archive, Undo2, Leaf, Sprout, Flower } from 'lucide-react';
+import { Plus, Edit, Trash2, Wheat, CalendarIcon, FileText, Upload, X, ExternalLink, Archive, Undo2 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';
@@ -608,49 +608,23 @@ export default function SeedsPage() {
               {/* Category Selection */}
               <div className="space-y-2">
                 <Label>Kategória *</Label>
-                <div className="grid grid-cols-3 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCategory('microgreens')}
-                    className={cn(
-                      "flex flex-col items-center justify-center p-4 border-2 rounded-lg transition-all",
-                      selectedCategory === 'microgreens'
-                        ? 'border-green-500 bg-green-50'
-                        : 'border-border hover:border-green-300'
-                    )}
+                <Select
+                  value={selectedCategory}
+                  onValueChange={(value: 'microgreens' | 'microherbs' | 'edible_flowers') => setSelectedCategory(value)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Vyberte kategóriu" />
+                  </SelectTrigger>
+                  <SelectContent
+                    position="popper"
+                    sideOffset={5}
+                    className="max-h-[300px]"
                   >
-                    <Leaf className="h-8 w-8 text-green-600 mb-2" />
-                    <span className="text-sm font-medium">Mikrozelenina</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCategory('microherbs')}
-                    className={cn(
-                      "flex flex-col items-center justify-center p-4 border-2 rounded-lg transition-all",
-                      selectedCategory === 'microherbs'
-                        ? 'border-green-500 bg-green-50'
-                        : 'border-border hover:border-green-300'
-                    )}
-                  >
-                    <Sprout className="h-8 w-8 text-green-600 mb-2" />
-                    <span className="text-sm font-medium">Mikrobylinky</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCategory('edible_flowers')}
-                    className={cn(
-                      "flex flex-col items-center justify-center p-4 border-2 rounded-lg transition-all",
-                      selectedCategory === 'edible_flowers'
-                        ? 'border-green-500 bg-green-50'
-                        : 'border-border hover:border-green-300'
-                    )}
-                  >
-                    <Flower className="h-8 w-8 text-green-600 mb-2" />
-                    <span className="text-sm font-medium">Jedlé kvety</span>
-                  </button>
-                </div>
+                    <SelectItem value="microgreens">🌿 Mikrozelenina</SelectItem>
+                    <SelectItem value="microherbs">🌱 Mikrobylinky</SelectItem>
+                    <SelectItem value="edible_flowers">🌸 Jedlé kvety</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
