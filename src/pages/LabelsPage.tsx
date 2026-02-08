@@ -175,7 +175,10 @@ export default function LabelsPage() {
   const renderGridView = () => (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {labels.map((label) => (
-        <Card key={label.id} className="p-4 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer" onClick={() => setSelectedLabel(label)}>
+        <Card key={label.id} className="p-4 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer" onClick={() => {
+          console.log('🔍 Opening detail for label:', label);
+          setSelectedLabel(label);
+        }}>
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -488,83 +491,92 @@ export default function LabelsPage() {
 
       {/* Detail dialóg */}
       {selectedLabel && (
-        <Dialog open={!!selectedLabel} onOpenChange={() => setSelectedLabel(null)}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Detail etikety</DialogTitle>
-            </DialogHeader>
+        <>
+          {console.log('📋 Rendering label detail dialog with:', selectedLabel)}
+          <Dialog open={!!selectedLabel} onOpenChange={() => setSelectedLabel(null)}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Detail etikety</DialogTitle>
+              </DialogHeader>
 
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Názov</p>
-                <p className="font-medium text-lg">{selectedLabel.name}</p>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Názov</p>
+                  <p className="font-medium text-lg">{selectedLabel?.name || 'Bez názvu'}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  {selectedLabel?.type && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Typ</p>
+                      <p className="font-medium">{LABEL_TYPES[selectedLabel.type as keyof typeof LABEL_TYPES] || selectedLabel.type}</p>
+                    </div>
+                  )}
+
+                  {selectedLabel?.size && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Veľkosť</p>
+                      <p className="font-medium">{selectedLabel.size}</p>
+                    </div>
+                  )}
+
+                  {(selectedLabel?.quantity !== null && selectedLabel?.quantity !== undefined) && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Množstvo</p>
+                      <p className="font-medium">{selectedLabel.quantity} ks</p>
+                    </div>
+                  )}
+
+                  {selectedLabel?.min_stock && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Min. stav</p>
+                      <p className="font-medium">{selectedLabel.min_stock} ks</p>
+                    </div>
+                  )}
+
+                  {selectedLabel?.supplier_id && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Dodávateľ</p>
+                      <p className="font-medium">{getSupplierName(selectedLabel.supplier_id)}</p>
+                    </div>
+                  )}
+
+                  {selectedLabel?.unit_cost && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Cena za kus</p>
+                      <p className="font-medium">{selectedLabel.unit_cost}€</p>
+                    </div>
+                  )}
+                </div>
+
+                {selectedLabel?.notes && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Poznámky</p>
+                    <p className="text-sm">{selectedLabel.notes}</p>
+                  </div>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Typ</p>
-                  <p className="font-medium">{LABEL_TYPES[selectedLabel.type as keyof typeof LABEL_TYPES] || selectedLabel.type}</p>
-                </div>
-
-                {selectedLabel.size && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Veľkosť</p>
-                    <p className="font-medium">{selectedLabel.size}</p>
-                  </div>
-                )}
-
-                <div>
-                  <p className="text-sm text-muted-foreground">Množstvo</p>
-                  <p className="font-medium">{selectedLabel.quantity} ks</p>
-                </div>
-
-                {selectedLabel.min_stock && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Min. stav</p>
-                    <p className="font-medium">{selectedLabel.min_stock} ks</p>
-                  </div>
-                )}
-
-                {selectedLabel.supplier_id && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Dodávateľ</p>
-                    <p className="font-medium">{getSupplierName(selectedLabel.supplier_id)}</p>
-                  </div>
-                )}
-
-                {selectedLabel.unit_cost && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Cena za kus</p>
-                    <p className="font-medium">{selectedLabel.unit_cost}€</p>
-                  </div>
-                )}
-              </div>
-
-              {selectedLabel.notes && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Poznámky</p>
-                  <p className="text-sm">{selectedLabel.notes}</p>
-                </div>
-              )}
-            </div>
-
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSelectedLabel(null);
-                  openEditDialog(selectedLabel);
-                }}
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                Upraviť
-              </Button>
-              <Button variant="outline" onClick={() => setSelectedLabel(null)}>
-                Zavrieť
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    console.log('✏️ Opening edit for label:', selectedLabel);
+                    const labelToEdit = selectedLabel;
+                    setSelectedLabel(null);
+                    openEditDialog(labelToEdit);
+                  }}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Upraviť
+                </Button>
+                <Button variant="outline" onClick={() => setSelectedLabel(null)}>
+                  Zavrieť
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
       )}
     </MainLayout>
   );

@@ -252,7 +252,10 @@ export default function ConsumableInventoryPage() {
                 </TableHeader>
                 <TableBody>
                   {categoryItems.map((item) => (
-                    <TableRow key={item.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedItem(item)}>
+                    <TableRow key={item.id} className="cursor-pointer hover:bg-muted/50" onClick={() => {
+                      console.log('🔍 Opening detail for consumable item:', item);
+                      setSelectedItem(item);
+                    }}>
                       <TableCell>
                         <div>
                           <p className="font-medium">{item.name}</p>
@@ -458,82 +461,91 @@ export default function ConsumableInventoryPage() {
 
       {/* Detail dialóg */}
       {selectedItem && (
-        <Dialog open={!!selectedItem} onOpenChange={() => setSelectedItem(null)}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Detail položky</DialogTitle>
-            </DialogHeader>
+        <>
+          {console.log('📋 Rendering consumable detail dialog with:', selectedItem)}
+          <Dialog open={!!selectedItem} onOpenChange={() => setSelectedItem(null)}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Detail položky</DialogTitle>
+              </DialogHeader>
 
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Názov</p>
-                <p className="font-medium text-lg">{selectedItem.name}</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">Kategória</p>
-                  <p className="font-medium">{selectedItem.category}</p>
+                  <p className="text-sm text-muted-foreground">Názov</p>
+                  <p className="font-medium text-lg">{selectedItem?.name || 'Bez názvu'}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  {selectedItem?.category && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Kategória</p>
+                      <p className="font-medium">{selectedItem.category}</p>
+                    </div>
+                  )}
+
+                  {(selectedItem?.quantity !== null && selectedItem?.quantity !== undefined) && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Množstvo</p>
+                      <p className="font-medium">
+                        {selectedItem.quantity} {selectedItem?.unit || 'ks'}
+                      </p>
+                    </div>
+                  )}
+
+                  {selectedItem?.min_quantity && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Min. množstvo</p>
+                      <p className="font-medium">
+                        {selectedItem.min_quantity} {selectedItem?.unit || 'ks'}
+                      </p>
+                    </div>
+                  )}
+
+                  {(selectedItem as any)?.unit_cost && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Cena za jednotku</p>
+                      <p className="font-medium">{(selectedItem as any).unit_cost}€</p>
+                    </div>
+                  )}
                 </div>
 
                 <div>
-                  <p className="text-sm text-muted-foreground">Množstvo</p>
-                  <p className="font-medium">
-                    {selectedItem.quantity} {selectedItem.unit}
-                  </p>
+                  <p className="text-sm text-muted-foreground">Stav</p>
+                  {selectedItem?.min_quantity && selectedItem?.quantity !== undefined && selectedItem.quantity <= selectedItem.min_quantity ? (
+                    <Badge variant="destructive">Nízky stav</Badge>
+                  ) : (
+                    <Badge variant="outline">V poriadku</Badge>
+                  )}
                 </div>
 
-                {selectedItem.min_quantity && (
+                {selectedItem?.notes && (
                   <div>
-                    <p className="text-sm text-muted-foreground">Min. množstvo</p>
-                    <p className="font-medium">
-                      {selectedItem.min_quantity} {selectedItem.unit}
-                    </p>
+                    <p className="text-sm text-muted-foreground">Poznámky</p>
+                    <p className="text-sm">{selectedItem.notes}</p>
                   </div>
                 )}
-
-                {(selectedItem as any).unit_cost && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Cena za jednotku</p>
-                    <p className="font-medium">{(selectedItem as any).unit_cost}€</p>
-                  </div>
-                )}
               </div>
 
-              <div>
-                <p className="text-sm text-muted-foreground">Stav</p>
-                {selectedItem.min_quantity && selectedItem.quantity <= selectedItem.min_quantity ? (
-                  <Badge variant="destructive">Nízky stav</Badge>
-                ) : (
-                  <Badge variant="outline">V poriadku</Badge>
-                )}
-              </div>
-
-              {selectedItem.notes && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Poznámky</p>
-                  <p className="text-sm">{selectedItem.notes}</p>
-                </div>
-              )}
-            </div>
-
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSelectedItem(null);
-                  handleEdit(selectedItem);
-                }}
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                Upraviť
-              </Button>
-              <Button variant="outline" onClick={() => setSelectedItem(null)}>
-                Zavrieť
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    console.log('✏️ Opening edit for consumable:', selectedItem);
+                    const itemToEdit = selectedItem;
+                    setSelectedItem(null);
+                    handleEdit(itemToEdit);
+                  }}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Upraviť
+                </Button>
+                <Button variant="outline" onClick={() => setSelectedItem(null)}>
+                  Zavrieť
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
       )}
     </MainLayout>
   );

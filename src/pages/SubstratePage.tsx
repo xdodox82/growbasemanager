@@ -176,7 +176,10 @@ export default function SubstratePage() {
   const renderGridView = () => (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {substrates.map((substrate) => (
-        <Card key={substrate.id} className="p-4 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer" onClick={() => setSelectedSubstrate(substrate)}>
+        <Card key={substrate.id} className="p-4 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer" onClick={() => {
+          console.log('🔍 Opening detail for substrate:', substrate);
+          setSelectedSubstrate(substrate);
+        }}>
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -503,80 +506,96 @@ export default function SubstratePage() {
 
       {/* Detail dialóg */}
       {selectedSubstrate && (
-        <Dialog open={!!selectedSubstrate} onOpenChange={() => setSelectedSubstrate(null)}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Detail substrátu</DialogTitle>
-            </DialogHeader>
+        <>
+          {console.log('📋 Rendering substrate detail dialog with:', selectedSubstrate)}
+          <Dialog open={!!selectedSubstrate} onOpenChange={() => setSelectedSubstrate(null)}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Detail substrátu</DialogTitle>
+              </DialogHeader>
 
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Názov</p>
-                <p className="font-medium text-lg">{selectedSubstrate.name}</p>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Názov</p>
+                  <p className="font-medium text-lg">{selectedSubstrate?.name || 'Bez názvu'}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  {selectedSubstrate?.type && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Typ</p>
+                      <p className="font-medium">{getTypeName(selectedSubstrate.type)}</p>
+                    </div>
+                  )}
+
+                  {(selectedSubstrate?.quantity !== null && selectedSubstrate?.quantity !== undefined) && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Množstvo</p>
+                      <p className="font-medium">
+                        {selectedSubstrate.quantity} {selectedSubstrate?.unit || 'kg'}
+                      </p>
+                    </div>
+                  )}
+
+                  {selectedSubstrate?.supplier_id && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Dodávateľ</p>
+                      <p className="font-medium">{getSupplierName(selectedSubstrate.supplier_id)}</p>
+                    </div>
+                  )}
+
+                  {selectedSubstrate?.unit_cost && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Cena za jednotku</p>
+                      <p className="font-medium">{selectedSubstrate.unit_cost}€</p>
+                    </div>
+                  )}
+
+                  {selectedSubstrate?.stock_date && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Dátum naskladnenia</p>
+                      <p className="font-medium">
+                        {(() => {
+                          try {
+                            return format(new Date(selectedSubstrate.stock_date), 'dd.MM.yyyy', { locale: sk });
+                          } catch (e) {
+                            console.error('Error formatting stock_date:', e);
+                            return selectedSubstrate.stock_date;
+                          }
+                        })()}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {selectedSubstrate?.notes && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Poznámky</p>
+                    <p className="text-sm">{selectedSubstrate.notes}</p>
+                  </div>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Typ</p>
-                  <p className="font-medium">{getTypeName(selectedSubstrate.type)}</p>
-                </div>
-
-                <div>
-                  <p className="text-sm text-muted-foreground">Množstvo</p>
-                  <p className="font-medium">
-                    {selectedSubstrate.quantity} {selectedSubstrate.unit}
-                  </p>
-                </div>
-
-                {selectedSubstrate.supplier_id && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Dodávateľ</p>
-                    <p className="font-medium">{getSupplierName(selectedSubstrate.supplier_id)}</p>
-                  </div>
-                )}
-
-                {selectedSubstrate.unit_cost && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Cena za jednotku</p>
-                    <p className="font-medium">{selectedSubstrate.unit_cost}€</p>
-                  </div>
-                )}
-
-                {selectedSubstrate.stock_date && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Dátum naskladnenia</p>
-                    <p className="font-medium">
-                      {format(new Date(selectedSubstrate.stock_date), 'dd.MM.yyyy', { locale: sk })}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {selectedSubstrate.notes && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Poznámky</p>
-                  <p className="text-sm">{selectedSubstrate.notes}</p>
-                </div>
-              )}
-            </div>
-
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSelectedSubstrate(null);
-                  handleEdit(selectedSubstrate);
-                }}
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                Upraviť
-              </Button>
-              <Button variant="outline" onClick={() => setSelectedSubstrate(null)}>
-                Zavrieť
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    console.log('✏️ Opening edit for substrate:', selectedSubstrate);
+                    const substrateToEdit = selectedSubstrate;
+                    setSelectedSubstrate(null);
+                    handleEdit(substrateToEdit);
+                  }}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Upraviť
+                </Button>
+                <Button variant="outline" onClick={() => setSelectedSubstrate(null)}>
+                  Zavrieť
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
       )}
     </MainLayout>
   );

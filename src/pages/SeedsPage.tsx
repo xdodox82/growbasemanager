@@ -371,7 +371,10 @@ export default function SeedsPage() {
       {filteredSeeds.map((seed) => {
         const extSeed = seed as unknown as ExtendedSeed;
         return (
-          <Card key={seed.id} className="p-4 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer" onClick={() => setSelectedSeed(seed)}>
+          <Card key={seed.id} className="p-4 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer" onClick={() => {
+            console.log('🔍 Opening detail for seed:', seed);
+            setSelectedSeed(seed);
+          }}>
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -990,116 +993,153 @@ export default function SeedsPage() {
 
       {/* Detail dialóg */}
       {selectedSeed && (
-        <Dialog open={!!selectedSeed} onOpenChange={() => setSelectedSeed(null)}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Detail osiva</DialogTitle>
-            </DialogHeader>
+        <>
+          {console.log('📋 Rendering seed detail dialog with:', selectedSeed)}
+          <Dialog open={!!selectedSeed} onOpenChange={() => setSelectedSeed(null)}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Detail osiva</DialogTitle>
+              </DialogHeader>
 
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Plodina</p>
-                <p className="font-medium text-lg">{getCropName(selectedSeed.crop_id)}</p>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Plodina</p>
+                  <p className="font-medium text-lg">{getCropName(selectedSeed?.crop_id) || 'Neznáma plodina'}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  {selectedSeed?.supplier_id && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Dodávateľ</p>
+                      <p className="font-medium">{getSupplierName(selectedSeed.supplier_id)}</p>
+                    </div>
+                  )}
+
+                  {(selectedSeed?.quantity !== null && selectedSeed?.quantity !== undefined) && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Množstvo</p>
+                      <p className="font-medium">
+                        {selectedSeed.quantity} {selectedSeed?.unit || 'kg'}
+                      </p>
+                    </div>
+                  )}
+
+                  {selectedSeed?.lot_number && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Číslo šarže</p>
+                      <p className="font-medium">{selectedSeed.lot_number}</p>
+                    </div>
+                  )}
+
+                  {selectedSeed?.purchase_date && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Dátum nákupu</p>
+                      <p className="font-medium">
+                        {(() => {
+                          try {
+                            return format(new Date(selectedSeed.purchase_date), 'dd.MM.yyyy', { locale: sk });
+                          } catch (e) {
+                            console.error('Error formatting purchase_date:', e);
+                            return selectedSeed.purchase_date;
+                          }
+                        })()}
+                      </p>
+                    </div>
+                  )}
+
+                  {(selectedSeed as ExtendedSeed)?.stocking_date && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Dátum naskladnenia</p>
+                      <p className="font-medium">
+                        {(() => {
+                          try {
+                            return format(new Date((selectedSeed as ExtendedSeed).stocking_date!), 'dd.MM.yyyy', { locale: sk });
+                          } catch (e) {
+                            console.error('Error formatting stocking_date:', e);
+                            return (selectedSeed as ExtendedSeed).stocking_date;
+                          }
+                        })()}
+                      </p>
+                    </div>
+                  )}
+
+                  {(selectedSeed as ExtendedSeed)?.consumption_start_date && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Začiatok spotreby</p>
+                      <p className="font-medium">
+                        {(() => {
+                          try {
+                            return format(new Date((selectedSeed as ExtendedSeed).consumption_start_date!), 'dd.MM.yyyy', { locale: sk });
+                          } catch (e) {
+                            console.error('Error formatting consumption_start_date:', e);
+                            return (selectedSeed as ExtendedSeed).consumption_start_date;
+                          }
+                        })()}
+                      </p>
+                    </div>
+                  )}
+
+                  {selectedSeed?.expiry_date && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Dátum expirácie</p>
+                      <p className="font-medium">
+                        {(() => {
+                          try {
+                            return format(new Date(selectedSeed.expiry_date), 'dd.MM.yyyy', { locale: sk });
+                          } catch (e) {
+                            console.error('Error formatting expiry_date:', e);
+                            return selectedSeed.expiry_date;
+                          }
+                        })()}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {(selectedSeed as ExtendedSeed)?.certificate_url && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Certifikát</p>
+                    <a
+                      href={(selectedSeed as ExtendedSeed).certificate_url!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline flex items-center gap-1"
+                    >
+                      <FileText className="h-4 w-4" />
+                      Zobraziť certifikát
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                )}
+
+                {selectedSeed?.notes && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Poznámky</p>
+                    <p className="text-sm">{selectedSeed.notes}</p>
+                  </div>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Dodávateľ</p>
-                  <p className="font-medium">{getSupplierName(selectedSeed.supplier_id)}</p>
-                </div>
-
-                <div>
-                  <p className="text-sm text-muted-foreground">Množstvo</p>
-                  <p className="font-medium">
-                    {selectedSeed.quantity} {selectedSeed.unit}
-                  </p>
-                </div>
-
-                {selectedSeed.lot_number && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Číslo šarže</p>
-                    <p className="font-medium">{selectedSeed.lot_number}</p>
-                  </div>
-                )}
-
-                {selectedSeed.purchase_date && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Dátum nákupu</p>
-                    <p className="font-medium">
-                      {format(new Date(selectedSeed.purchase_date), 'dd.MM.yyyy', { locale: sk })}
-                    </p>
-                  </div>
-                )}
-
-                {(selectedSeed as ExtendedSeed).stocking_date && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Dátum naskladnenia</p>
-                    <p className="font-medium">
-                      {format(new Date((selectedSeed as ExtendedSeed).stocking_date!), 'dd.MM.yyyy', { locale: sk })}
-                    </p>
-                  </div>
-                )}
-
-                {(selectedSeed as ExtendedSeed).consumption_start_date && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Začiatok spotreby</p>
-                    <p className="font-medium">
-                      {format(new Date((selectedSeed as ExtendedSeed).consumption_start_date!), 'dd.MM.yyyy', { locale: sk })}
-                    </p>
-                  </div>
-                )}
-
-                {selectedSeed.expiry_date && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Dátum expirácie</p>
-                    <p className="font-medium">
-                      {format(new Date(selectedSeed.expiry_date), 'dd.MM.yyyy', { locale: sk })}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {(selectedSeed as ExtendedSeed).certificate_url && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Certifikát</p>
-                  <a
-                    href={(selectedSeed as ExtendedSeed).certificate_url!}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline flex items-center gap-1"
-                  >
-                    <FileText className="h-4 w-4" />
-                    Zobraziť certifikát
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                </div>
-              )}
-
-              {selectedSeed.notes && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Poznámky</p>
-                  <p className="text-sm">{selectedSeed.notes}</p>
-                </div>
-              )}
-            </div>
-
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSelectedSeed(null);
-                  handleEdit(selectedSeed);
-                }}
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                Upraviť
-              </Button>
-              <Button variant="outline" onClick={() => setSelectedSeed(null)}>
-                Zavrieť
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    console.log('✏️ Opening edit for seed:', selectedSeed);
+                    const seedToEdit = selectedSeed;
+                    setSelectedSeed(null);
+                    handleEdit(seedToEdit);
+                  }}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Upraviť
+                </Button>
+                <Button variant="outline" onClick={() => setSelectedSeed(null)}>
+                  Zavrieť
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
       )}
     </MainLayout>
   );
