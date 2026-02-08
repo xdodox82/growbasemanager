@@ -41,7 +41,8 @@ import {
   Check,
   Leaf,
   Sprout,
-  Flower
+  Flower,
+  Palette
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -2207,7 +2208,7 @@ export default function OrdersPage() {
                 <Flower className="h-4 w-4 text-green-600 mr-2 inline" />Jedlé kvety
               </SelectItem>
               <SelectItem value="mix">
-                🎨 Mixy
+                <Palette className="h-4 w-4 text-green-600 mr-2 inline" />Mixy
               </SelectItem>
             </SelectContent>
           </Select>

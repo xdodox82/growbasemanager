@@ -1,6 +1,6 @@
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Leaf, Sprout, Flower } from 'lucide-react';
+import { Leaf, Sprout, Flower, Palette } from 'lucide-react';
 
 interface CategoryFilterProps {
   value: string;
@@ -30,7 +30,9 @@ export function CategoryFilter({ value, onChange }: CategoryFilterProps) {
           <SelectItem value="edible_flowers">
             <Flower className="h-4 w-4 text-green-600 mr-2 inline" />Jedlé kvety
           </SelectItem>
-          <SelectItem value="mix">🎨 Mixy</SelectItem>
+          <SelectItem value="mix">
+            <Palette className="h-4 w-4 text-green-600 mr-2 inline" />Mixy
+          </SelectItem>
         </SelectContent>
       </Select>
     </div>
