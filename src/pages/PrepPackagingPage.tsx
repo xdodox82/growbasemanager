@@ -1,15 +1,16 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { PageHeader, EmptyState } from '@/components/ui/page-components';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Package, Calendar, Check, RotateCcw, Home, Utensils, Tag } from 'lucide-react';
-import { format, addDays } from 'date-fns';
+import { Package, Check, RotateCcw, Home, Utensils, Tag, ChevronLeft, ChevronRight } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, addMonths, subMonths } from 'date-fns';
 import { sk } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { useOrders, useCustomers, useCrops, useBlends } from '@/hooks/useSupabaseData';
+import { supabase } from '@/integrations/supabase/client';
 
 interface GroupedItem {
   crop_name: string;
@@ -35,35 +36,68 @@ export default function PrepPackagingPage() {
   const { data: blends } = useBlends();
   const { toast } = useToast();
 
-  const [dateFilter, setDateFilter] = useState<'today' | 'tomorrow' | 'custom'>('today');
-  const [customDate, setCustomDate] = useState('');
-  const [customerTypeFilter, setCustomerTypeFilter] = useState<string>('all');
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
+  const [customerTypeFilter, setCustomerTypeFilter] = useState<'all' | 'home' | 'gastro' | 'wholesale'>('all');
   const [packageTypeFilter, setPackageTypeFilter] = useState('rPET');
   const [packageSizeFilter, setPackageSizeFilter] = useState('all');
   const [cropFilter, setCropFilter] = useState('all');
-  const [labelFilter, setLabelFilter] = useState<string>('all');
+  const [labelFilter, setLabelFilter] = useState<'all' | 'with' | 'without'>('all');
   const [preparedItems, setPreparedItems] = useState<Set<string>>(new Set());
+  const [deliverySettings, setDeliverySettings] = useState<any>(null);
 
-  const getSelectedDate = () => {
-    const today = new Date();
-    switch (dateFilter) {
-      case 'today':
-        return format(today, 'yyyy-MM-dd');
-      case 'tomorrow':
-        return format(addDays(today, 1), 'yyyy-MM-dd');
-      case 'custom':
-        return customDate;
-      default:
-        return format(today, 'yyyy-MM-dd');
+  useEffect(() => {
+    loadDeliverySettings();
+  }, []);
+
+  const loadDeliverySettings = async () => {
+    const { data } = await supabase
+      .from('delivery_days_settings')
+      .select('*')
+      .single();
+
+    setDeliverySettings(data);
+  };
+
+  const isDeliveryDay = (date: Date) => {
+    if (!deliverySettings) return false;
+
+    const dayOfWeek = getDay(date);
+
+    switch(dayOfWeek) {
+      case 0: return deliverySettings.sunday;
+      case 1: return deliverySettings.monday;
+      case 2: return deliverySettings.tuesday;
+      case 3: return deliverySettings.wednesday;
+      case 4: return deliverySettings.thursday;
+      case 5: return deliverySettings.friday;
+      case 6: return deliverySettings.saturday;
+      default: return false;
     }
   };
+
+  const hasOrdersOnDate = (date: Date) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    return orders?.some(order => order.delivery_date === dateStr) || false;
+  };
+
+  const getOrderCountOnDate = (date: Date) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    return orders?.filter(order => order.delivery_date === dateStr).length || 0;
+  };
+
+  const daysInMonth = useMemo(() => {
+    const start = startOfMonth(currentMonth);
+    const end = endOfMonth(currentMonth);
+    return eachDayOfInterval({ start, end });
+  }, [currentMonth]);
 
   const filteredOrders = useMemo(() => {
     let filtered = orders || [];
 
-    const selectedDate = getSelectedDate();
     if (selectedDate) {
-      filtered = filtered.filter(order => order.delivery_date === selectedDate);
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      filtered = filtered.filter(order => order.delivery_date === dateStr);
     }
 
     if (customerTypeFilter !== 'all') {
@@ -104,7 +138,7 @@ export default function PrepPackagingPage() {
     );
 
     return filtered;
-  }, [orders, customers, dateFilter, customDate, customerTypeFilter, packageTypeFilter, packageSizeFilter, cropFilter, labelFilter]);
+  }, [orders, customers, selectedDate, customerTypeFilter, packageTypeFilter, packageSizeFilter, cropFilter, labelFilter]);
 
   const groupedItems = useMemo(() => {
     const groups: Record<string, GroupedItem> = {};
@@ -202,124 +236,205 @@ export default function PrepPackagingPage() {
           icon={<Package className="h-6 w-6" />}
         />
 
+        <div className="flex gap-2 mb-6">
+          <button
+            onClick={() => setCustomerTypeFilter('all')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
+              customerTypeFilter === 'all'
+                ? 'bg-green-600 text-white border-green-600'
+                : 'bg-white border-gray-300 hover:border-green-600'
+            }`}
+          >
+            <Check className="h-4 w-4" />
+            Všetci
+          </button>
+
+          <button
+            onClick={() => setCustomerTypeFilter('home')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
+              customerTypeFilter === 'home'
+                ? 'bg-green-600 text-white border-green-600'
+                : 'bg-white border-gray-300 hover:border-green-600'
+            }`}
+          >
+            <Home className="h-4 w-4" />
+            Domáci
+          </button>
+
+          <button
+            onClick={() => setCustomerTypeFilter('gastro')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
+              customerTypeFilter === 'gastro'
+                ? 'bg-green-600 text-white border-green-600'
+                : 'bg-white border-gray-300 hover:border-green-600'
+            }`}
+          >
+            <Utensils className="h-4 w-4" />
+            Gastro
+          </button>
+
+          <button
+            onClick={() => setCustomerTypeFilter('wholesale')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
+              customerTypeFilter === 'wholesale'
+                ? 'bg-green-600 text-white border-green-600'
+                : 'bg-white border-gray-300 hover:border-green-600'
+            }`}
+          >
+            <Package className="h-4 w-4" />
+            VO
+          </button>
+        </div>
+
+        <div className="bg-white border rounded-lg p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <button
+              onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+              className="p-2 hover:bg-gray-100 rounded"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+
+            <h3 className="text-lg font-bold">
+              {format(currentMonth, 'LLLL yyyy', { locale: sk }).toUpperCase()}
+            </h3>
+
+            <button
+              onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+              className="p-2 hover:bg-gray-100 rounded"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-7 gap-2 mb-2">
+            {['Po', 'Ut', 'St', 'Št', 'Pi', 'So', 'Ne'].map(day => (
+              <div key={day} className="text-center text-sm font-medium text-gray-500">
+                {day}
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-2">
+            {Array.from({ length: (getDay(daysInMonth[0]) + 6) % 7 }).map((_, i) => (
+              <div key={`empty-${i}`} />
+            ))}
+
+            {daysInMonth.map(day => {
+              const isDelivery = isDeliveryDay(day);
+              const hasOrders = hasOrdersOnDate(day);
+              const orderCount = getOrderCountOnDate(day);
+              const isToday = isSameDay(day, new Date());
+              const isSelected = selectedDate && isSameDay(day, selectedDate);
+
+              let bgColor = 'bg-white';
+              if (isDelivery) {
+                bgColor = 'bg-green-200';
+              } else if (hasOrders) {
+                bgColor = 'bg-yellow-300';
+              }
+
+              return (
+                <button
+                  key={day.toString()}
+                  onClick={() => setSelectedDate(day)}
+                  className={`
+                    relative
+                    w-10 h-10
+                    rounded-full
+                    flex items-center justify-center
+                    transition-all
+                    ${bgColor}
+                    ${isToday ? 'ring-2 ring-green-600 ring-offset-2' : ''}
+                    ${isSelected ? 'ring-2 ring-blue-600 ring-offset-2' : ''}
+                    ${hasOrders || isDelivery ? 'hover:opacity-80' : 'hover:bg-gray-100'}
+                    ${!hasOrders && !isDelivery ? 'text-gray-400' : 'text-gray-900 font-medium'}
+                  `}
+                >
+                  {format(day, 'd')}
+                  {orderCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                      {orderCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-4 pt-4 border-t flex gap-4 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full bg-green-200 border" />
+              <span>Rozvozový deň</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full bg-yellow-300 border" />
+              <span>Objednávky mimo rozvozu</span>
+            </div>
+          </div>
+        </div>
+
         <Card className="p-4">
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Dátum zberu/dodania</label>
-                <Select value={dateFilter} onValueChange={(v: any) => setDateFilter(v)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="today">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
-                        Dnes ({format(new Date(), 'dd.MM', { locale: sk })})
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="tomorrow">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
-                        Zajtra ({format(addDays(new Date(), 1), 'dd.MM', { locale: sk })})
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="custom">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
-                        Vlastný dátum...
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-
-                {dateFilter === 'custom' && (
-                  <input
-                    type="date"
-                    value={customDate}
-                    onChange={(e) => setCustomDate(e.target.value)}
-                    className="mt-2 w-full px-3 py-2 border rounded-lg"
-                  />
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Typ zákazníka</label>
-                <Select value={customerTypeFilter} onValueChange={setCustomerTypeFilter}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Všetci zákazníci</SelectItem>
-                    <SelectItem value="home">Domáci</SelectItem>
-                    <SelectItem value="gastro">Gastro</SelectItem>
-                    <SelectItem value="wholesale">Veľkoobchod</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <Select value={cropFilter} onValueChange={setCropFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Plodina / Mix" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Všetky plodiny</SelectItem>
+                  {crops.map(crop => (
+                    <SelectItem key={crop.id} value={crop.id}>{crop.name}</SelectItem>
+                  ))}
+                  {blends.map(blend => (
+                    <SelectItem key={blend.id} value={blend.id}>{blend.name} (Mix)</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <Select value={cropFilter} onValueChange={setCropFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Plodina / Mix" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Všetky plodiny</SelectItem>
-                    {crops.map(crop => (
-                      <SelectItem key={crop.id} value={crop.id}>{crop.name}</SelectItem>
-                    ))}
-                    {blends.map(blend => (
-                      <SelectItem key={blend.id} value={blend.id}>{blend.name} (Mix)</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <Select value={packageSizeFilter} onValueChange={setPackageSizeFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Všetky veľkosti" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Všetky veľkosti</SelectItem>
+                  <SelectItem value="250ml">250ml</SelectItem>
+                  <SelectItem value="500ml">500ml</SelectItem>
+                  <SelectItem value="750ml">750ml</SelectItem>
+                  <SelectItem value="1000ml">1000ml</SelectItem>
+                  <SelectItem value="1200ml">1200ml</SelectItem>
+                  <SelectItem value="1500ml">1500ml</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-              <div>
-                <Select value={packageSizeFilter} onValueChange={setPackageSizeFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Všetky veľkosti" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Všetky veľkosti</SelectItem>
-                    <SelectItem value="250ml">250ml</SelectItem>
-                    <SelectItem value="500ml">500ml</SelectItem>
-                    <SelectItem value="750ml">750ml</SelectItem>
-                    <SelectItem value="1000ml">1000ml</SelectItem>
-                    <SelectItem value="1200ml">1200ml</SelectItem>
-                    <SelectItem value="1500ml">1500ml</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <Select value={labelFilter} onValueChange={setLabelFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Etiketa" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Všetko</SelectItem>
+                  <SelectItem value="with">S etiketou</SelectItem>
+                  <SelectItem value="without">Bez etikety</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-              <div>
-                <Select value={labelFilter} onValueChange={setLabelFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Etiketa" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Všetko</SelectItem>
-                    <SelectItem value="with">S etiketou</SelectItem>
-                    <SelectItem value="without">Bez etikety</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Select value={packageTypeFilter} onValueChange={setPackageTypeFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Typ krabičky" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Všetky typy</SelectItem>
-                    <SelectItem value="PET">PET</SelectItem>
-                    <SelectItem value="rPET">rPET</SelectItem>
-                    <SelectItem value="EKO">EKO</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <Select value={packageTypeFilter} onValueChange={setPackageTypeFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Typ krabičky" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Všetky typy</SelectItem>
+                  <SelectItem value="PET">PET</SelectItem>
+                  <SelectItem value="rPET">rPET</SelectItem>
+                  <SelectItem value="EKO">EKO</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </Card>
