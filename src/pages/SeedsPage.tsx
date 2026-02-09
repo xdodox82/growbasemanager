@@ -327,26 +327,6 @@ export default function SeedsPage() {
     setArchiveDialogId(null);
   };
 
-  const handleDeleteCertificate = async (seedId: string) => {
-    if (!confirm('Naozaj chcete vymazať certifikát?')) return;
-
-    const { error } = await supabase
-      .from('seeds')
-      .update({ certificate_url: null })
-      .eq('id', seedId);
-
-    if (error) {
-      toast({
-        title: 'Chyba',
-        description: 'Nepodarilo sa vymazať certifikát',
-        variant: 'destructive'
-      });
-    } else {
-      toast({ title: 'Úspech', description: 'Certifikát vymazaný' });
-      refetch();
-    }
-  };
-
   const getSupplierName = (supplierId: string | null) => {
     if (!supplierId) return '-';
     const supplier = suppliers.find(s => s.id === supplierId);
@@ -499,9 +479,40 @@ export default function SeedsPage() {
                       Zobraziť
                     </a>
                     <button
-                      onClick={(e) => {
+                      onClick={async (e) => {
+                        e.preventDefault();
                         e.stopPropagation();
-                        handleDeleteCertificate(seed.id);
+
+                        console.log('🗑️ DELETE CLICKED');
+                        console.log('Seed:', seed);
+
+                        if (!confirm('Naozaj vymazať certifikát?')) {
+                          console.log('❌ Cancelled');
+                          return;
+                        }
+
+                        console.log('✅ Confirmed');
+
+                        try {
+                          const { data, error } = await supabase
+                            .from('seeds')
+                            .update({ certificate_url: null })
+                            .eq('id', seed.id);
+
+                          console.log('📊 Response:', { data, error });
+
+                          if (error) {
+                            console.error('❌ Error:', error);
+                            toast({ title: 'Chyba', description: error.message, variant: 'destructive' });
+                            return;
+                          }
+
+                          toast({ title: 'Úspech', description: 'Certifikát vymazaný' });
+                          refetch();
+
+                        } catch (err) {
+                          console.error('💥 Error:', err);
+                        }
                       }}
                       className="p-1 text-red-600 hover:bg-red-50 rounded"
                       title="Vymazať certifikát"
@@ -567,9 +578,40 @@ export default function SeedsPage() {
                             Zobraziť certifikát
                           </a>
                           <button
-                            onClick={(e) => {
+                            onClick={async (e) => {
+                              e.preventDefault();
                               e.stopPropagation();
-                              handleDeleteCertificate(seed.id);
+
+                              console.log('🗑️ DELETE CLICKED');
+                              console.log('Seed:', seed);
+
+                              if (!confirm('Naozaj vymazať certifikát?')) {
+                                console.log('❌ Cancelled');
+                                return;
+                              }
+
+                              console.log('✅ Confirmed');
+
+                              try {
+                                const { data, error } = await supabase
+                                  .from('seeds')
+                                  .update({ certificate_url: null })
+                                  .eq('id', seed.id);
+
+                                console.log('📊 Response:', { data, error });
+
+                                if (error) {
+                                  console.error('❌ Error:', error);
+                                  toast({ title: 'Chyba', description: error.message, variant: 'destructive' });
+                                  return;
+                                }
+
+                                toast({ title: 'Úspech', description: 'Certifikát vymazaný' });
+                                refetch();
+
+                              } catch (err) {
+                                console.error('💥 Error:', err);
+                              }
                             }}
                             className="p-1 text-red-600 hover:bg-red-50 rounded"
                             title="Vymazať certifikát"
@@ -604,9 +646,40 @@ export default function SeedsPage() {
                           PDF
                         </a>
                         <button
-                          onClick={(e) => {
+                          onClick={async (e) => {
+                            e.preventDefault();
                             e.stopPropagation();
-                            handleDeleteCertificate(seed.id);
+
+                            console.log('🗑️ DELETE CLICKED');
+                            console.log('Seed:', seed);
+
+                            if (!confirm('Naozaj vymazať certifikát?')) {
+                              console.log('❌ Cancelled');
+                              return;
+                            }
+
+                            console.log('✅ Confirmed');
+
+                            try {
+                              const { data, error } = await supabase
+                                .from('seeds')
+                                .update({ certificate_url: null })
+                                .eq('id', seed.id);
+
+                              console.log('📊 Response:', { data, error });
+
+                              if (error) {
+                                console.error('❌ Error:', error);
+                                toast({ title: 'Chyba', description: error.message, variant: 'destructive' });
+                                return;
+                              }
+
+                              toast({ title: 'Úspech', description: 'Certifikát vymazaný' });
+                              refetch();
+
+                            } catch (err) {
+                              console.error('💥 Error:', err);
+                            }
                           }}
                           className="p-1 text-red-600 hover:bg-red-50 rounded"
                           title="Vymazať certifikát"
@@ -887,10 +960,42 @@ export default function SeedsPage() {
                         variant="ghost"
                         size="icon"
                         className="h-6 w-6"
-                        onClick={() => {
-                          if (editingSeed) {
-                            handleDeleteCertificate(editingSeed.id);
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+
+                          if (!editingSeed) return;
+
+                          console.log('🗑️ DELETE CLICKED');
+                          console.log('Seed:', editingSeed);
+
+                          if (!confirm('Naozaj vymazať certifikát?')) {
+                            console.log('❌ Cancelled');
+                            return;
+                          }
+
+                          console.log('✅ Confirmed');
+
+                          try {
+                            const { data, error } = await supabase
+                              .from('seeds')
+                              .update({ certificate_url: null })
+                              .eq('id', editingSeed.id);
+
+                            console.log('📊 Response:', { data, error });
+
+                            if (error) {
+                              console.error('❌ Error:', error);
+                              toast({ title: 'Chyba', description: error.message, variant: 'destructive' });
+                              return;
+                            }
+
+                            toast({ title: 'Úspech', description: 'Certifikát vymazaný' });
                             setCertificateUrl(null);
+                            refetch();
+
+                          } catch (err) {
+                            console.error('💥 Error:', err);
                           }
                         }}
                         title="Vymazať certifikát"
@@ -1192,7 +1297,41 @@ export default function SeedsPage() {
                       <ExternalLink className="h-3 w-3" />
                     </a>
                     <button
-                      onClick={() => handleDeleteCertificate(selectedSeed.id)}
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        console.log('🗑️ DELETE CLICKED');
+                        console.log('Seed:', selectedSeed);
+
+                        if (!confirm('Naozaj vymazať certifikát?')) {
+                          console.log('❌ Cancelled');
+                          return;
+                        }
+
+                        console.log('✅ Confirmed');
+
+                        try {
+                          const { data, error } = await supabase
+                            .from('seeds')
+                            .update({ certificate_url: null })
+                            .eq('id', selectedSeed.id);
+
+                          console.log('📊 Response:', { data, error });
+
+                          if (error) {
+                            console.error('❌ Error:', error);
+                            toast({ title: 'Chyba', description: error.message, variant: 'destructive' });
+                            return;
+                          }
+
+                          toast({ title: 'Úspech', description: 'Certifikát vymazaný' });
+                          refetch();
+
+                        } catch (err) {
+                          console.error('💥 Error:', err);
+                        }
+                      }}
                       className="p-1 text-red-600 hover:bg-red-50 rounded"
                       title="Vymazať certifikát"
                     >
