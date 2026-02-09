@@ -63,6 +63,7 @@ export function DeliverySettings() {
       const { error } = await supabase
         .from('delivery_routes')
         .update({
+          name: editValues.name,
           delivery_fee_home: editValues.delivery_fee_home,
           delivery_fee_gastro: editValues.delivery_fee_gastro,
           delivery_fee_wholesale: editValues.delivery_fee_wholesale,
@@ -244,8 +245,8 @@ export function DeliverySettings() {
                   <Input
                     type="text"
                     inputMode="decimal"
-                    placeholder="0.00"
-                    value={editValues.delivery_fee_home === 0 ? '' : editValues.delivery_fee_home}
+                    placeholder="0,00"
+                    value={editValues.delivery_fee_home === 0 ? '' : String(editValues.delivery_fee_home).replace('.', ',')}
                     onChange={(e) => {
                       let value = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.');
                       const parts = value.split('.');
@@ -257,8 +258,8 @@ export function DeliverySettings() {
                   <Input
                     type="text"
                     inputMode="decimal"
-                    placeholder="0.00"
-                    value={editValues.home_min_free_delivery === 0 ? '' : editValues.home_min_free_delivery}
+                    placeholder="0,00"
+                    value={editValues.home_min_free_delivery === 0 ? '' : String(editValues.home_min_free_delivery).replace('.', ',')}
                     onChange={(e) => {
                       let value = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.');
                       const parts = value.split('.');
@@ -274,8 +275,8 @@ export function DeliverySettings() {
                   <Input
                     type="text"
                     inputMode="decimal"
-                    placeholder="0.00"
-                    value={editValues.delivery_fee_gastro === 0 ? '' : editValues.delivery_fee_gastro}
+                    placeholder="0,00"
+                    value={editValues.delivery_fee_gastro === 0 ? '' : String(editValues.delivery_fee_gastro).replace('.', ',')}
                     onChange={(e) => {
                       let value = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.');
                       const parts = value.split('.');
@@ -287,8 +288,8 @@ export function DeliverySettings() {
                   <Input
                     type="text"
                     inputMode="decimal"
-                    placeholder="0.00"
-                    value={editValues.gastro_min_free_delivery === 0 ? '' : editValues.gastro_min_free_delivery}
+                    placeholder="0,00"
+                    value={editValues.gastro_min_free_delivery === 0 ? '' : String(editValues.gastro_min_free_delivery).replace('.', ',')}
                     onChange={(e) => {
                       let value = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.');
                       const parts = value.split('.');
@@ -304,8 +305,8 @@ export function DeliverySettings() {
                   <Input
                     type="text"
                     inputMode="decimal"
-                    placeholder="0.00"
-                    value={editValues.delivery_fee_wholesale === 0 ? '' : editValues.delivery_fee_wholesale}
+                    placeholder="0,00"
+                    value={editValues.delivery_fee_wholesale === 0 ? '' : String(editValues.delivery_fee_wholesale).replace('.', ',')}
                     onChange={(e) => {
                       let value = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.');
                       const parts = value.split('.');
@@ -317,8 +318,8 @@ export function DeliverySettings() {
                   <Input
                     type="text"
                     inputMode="decimal"
-                    placeholder="0.00"
-                    value={editValues.wholesale_min_free_delivery === 0 ? '' : editValues.wholesale_min_free_delivery}
+                    placeholder="0,00"
+                    value={editValues.wholesale_min_free_delivery === 0 ? '' : String(editValues.wholesale_min_free_delivery).replace('.', ',')}
                     onChange={(e) => {
                       let value = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.');
                       const parts = value.split('.');
@@ -355,6 +356,15 @@ export function DeliverySettings() {
 
             {editingRoute === route.id ? (
               <div className="space-y-4">
+                <div className="space-y-2 mb-4">
+                  <Label>Názov trasy</Label>
+                  <Input
+                    type="text"
+                    value={editValues.name || ''}
+                    onChange={(e) => setEditValues({ ...editValues, name: e.target.value })}
+                    placeholder="Zadajte názov trasy"
+                  />
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Badge variant="outline" className="mb-2">Domáci zákazníci</Badge>
@@ -362,8 +372,8 @@ export function DeliverySettings() {
                     <Input
                       type="text"
                       inputMode="decimal"
-                      placeholder="0.00"
-                      value={editValues.delivery_fee_home === 0 ? '' : editValues.delivery_fee_home}
+                      placeholder="0,00"
+                      value={editValues.delivery_fee_home === 0 ? '' : String(editValues.delivery_fee_home).replace('.', ',')}
                       onChange={(e) => {
                         let value = e.target.value.replace(',', '.');
                         value = value.replace(/[^0-9.]/g, '');
@@ -378,8 +388,8 @@ export function DeliverySettings() {
                     <Input
                       type="text"
                       inputMode="decimal"
-                      placeholder="0.00"
-                      value={editValues.home_min_free_delivery === 0 ? '' : editValues.home_min_free_delivery}
+                      placeholder="0,00"
+                      value={editValues.home_min_free_delivery === 0 ? '' : String(editValues.home_min_free_delivery).replace('.', ',')}
                       onChange={(e) => {
                         let value = e.target.value.replace(',', '.');
                         value = value.replace(/[^0-9.]/g, '');
@@ -398,8 +408,8 @@ export function DeliverySettings() {
                     <Input
                       type="text"
                       inputMode="decimal"
-                      placeholder="0.00"
-                      value={editValues.delivery_fee_gastro === 0 ? '' : editValues.delivery_fee_gastro}
+                      placeholder="0,00"
+                      value={editValues.delivery_fee_gastro === 0 ? '' : String(editValues.delivery_fee_gastro).replace('.', ',')}
                       onChange={(e) => {
                         let value = e.target.value.replace(',', '.');
                         value = value.replace(/[^0-9.]/g, '');
@@ -414,8 +424,8 @@ export function DeliverySettings() {
                     <Input
                       type="text"
                       inputMode="decimal"
-                      placeholder="0.00"
-                      value={editValues.gastro_min_free_delivery === 0 ? '' : editValues.gastro_min_free_delivery}
+                      placeholder="0,00"
+                      value={editValues.gastro_min_free_delivery === 0 ? '' : String(editValues.gastro_min_free_delivery).replace('.', ',')}
                       onChange={(e) => {
                         let value = e.target.value.replace(',', '.');
                         value = value.replace(/[^0-9.]/g, '');
@@ -434,8 +444,8 @@ export function DeliverySettings() {
                     <Input
                       type="text"
                       inputMode="decimal"
-                      placeholder="0.00"
-                      value={editValues.delivery_fee_wholesale === 0 ? '' : editValues.delivery_fee_wholesale}
+                      placeholder="0,00"
+                      value={editValues.delivery_fee_wholesale === 0 ? '' : String(editValues.delivery_fee_wholesale).replace('.', ',')}
                       onChange={(e) => {
                         let value = e.target.value.replace(',', '.');
                         value = value.replace(/[^0-9.]/g, '');
@@ -450,8 +460,8 @@ export function DeliverySettings() {
                     <Input
                       type="text"
                       inputMode="decimal"
-                      placeholder="0.00"
-                      value={editValues.wholesale_min_free_delivery === 0 ? '' : editValues.wholesale_min_free_delivery}
+                      placeholder="0,00"
+                      value={editValues.wholesale_min_free_delivery === 0 ? '' : String(editValues.wholesale_min_free_delivery).replace('.', ',')}
                       onChange={(e) => {
                         let value = e.target.value.replace(',', '.');
                         value = value.replace(/[^0-9.]/g, '');
@@ -479,18 +489,18 @@ export function DeliverySettings() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                   <div>
                     <Badge variant="outline" className="mb-2">Domáci</Badge>
-                    <p className="text-muted-foreground">Poplatok: {route.delivery_fee_home}€</p>
-                    <p className="text-muted-foreground">Min. zdarma: {route.home_min_free_delivery}€</p>
+                    <p className="text-muted-foreground">Poplatok: {Number(route.delivery_fee_home).toFixed(2).replace('.', ',')}€</p>
+                    <p className="text-muted-foreground">Min. zdarma: {Number(route.home_min_free_delivery).toFixed(2).replace('.', ',')}€</p>
                   </div>
                   <div>
                     <Badge variant="outline" className="mb-2">Gastro</Badge>
-                    <p className="text-muted-foreground">Poplatok: {route.delivery_fee_gastro}€</p>
-                    <p className="text-muted-foreground">Min. zdarma: {route.gastro_min_free_delivery}€</p>
+                    <p className="text-muted-foreground">Poplatok: {Number(route.delivery_fee_gastro).toFixed(2).replace('.', ',')}€</p>
+                    <p className="text-muted-foreground">Min. zdarma: {Number(route.gastro_min_free_delivery).toFixed(2).replace('.', ',')}€</p>
                   </div>
                   <div>
                     <Badge variant="outline" className="mb-2">Veľkoobchod</Badge>
-                    <p className="text-muted-foreground">Poplatok: {route.delivery_fee_wholesale}€</p>
-                    <p className="text-muted-foreground">Min. zdarma: {route.wholesale_min_free_delivery}€</p>
+                    <p className="text-muted-foreground">Poplatok: {Number(route.delivery_fee_wholesale).toFixed(2).replace('.', ',')}€</p>
+                    <p className="text-muted-foreground">Min. zdarma: {Number(route.wholesale_min_free_delivery).toFixed(2).replace('.', ',')}€</p>
                   </div>
                 </div>
                 <div className="flex justify-end mt-3 pt-3 border-t">
