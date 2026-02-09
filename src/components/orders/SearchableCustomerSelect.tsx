@@ -65,7 +65,7 @@ export function SearchableCustomerSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-full p-0" align="start">
-        <Command shouldFilter={false} className="overflow-visible">
+        <Command className="overflow-visible">
           <CommandInput placeholder="Hľadať zákazníka..." />
           <CommandEmpty>Žiadny zákazník nebol nájdený.</CommandEmpty>
           <div
@@ -82,6 +82,7 @@ export function SearchableCustomerSelect({
                   key={customer.id}
                   value={`${customer.name} ${customer.company_name} ${customer.customer_type}`}
                   onSelect={() => {
+                    console.log('🔍 Customer selected:', customer.company_name || customer.name);
                     onChange(customer.id);
                     setOpen(false);
                   }}

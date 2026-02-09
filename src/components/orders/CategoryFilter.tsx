@@ -11,7 +11,13 @@ export function CategoryFilter({ value, onChange }: CategoryFilterProps) {
   return (
     <div className="space-y-2">
       <Label>Kategória</Label>
-      <Select value={value} onValueChange={onChange}>
+      <Select
+        value={value}
+        onValueChange={(newValue) => {
+          console.log('📁 Category changed:', newValue);
+          onChange(newValue);
+        }}
+      >
         <SelectTrigger className="w-full">
           <SelectValue placeholder="Všetky kategórie" />
         </SelectTrigger>

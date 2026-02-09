@@ -227,7 +227,7 @@ export default function OrdersPage() {
   const [filterCrop, setFilterCrop] = useState('all');
   const [orderCategoryFilter, setOrderCategoryFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [showArchive, setShowArchive] = useState(false);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -592,7 +592,7 @@ export default function OrdersPage() {
   });
 
   const filteredCropsByCategory = useMemo(() => {
-    if (!categoryFilter) return crops;
+    if (!categoryFilter || categoryFilter === 'all') return crops;
 
     // If "mix" category is selected, return empty array (blends are shown separately)
     if (categoryFilter === 'mix') {
@@ -608,8 +608,8 @@ export default function OrdersPage() {
     if (categoryFilter === 'mix') {
       return blends;
     }
-    // If no category filter, show blends in "Mixy" group
-    if (!categoryFilter) {
+    // If no category filter or "all", show blends in "Mixy" group
+    if (!categoryFilter || categoryFilter === 'all') {
       return blends;
     }
     // Otherwise don't show blends
@@ -810,6 +810,7 @@ export default function OrdersPage() {
       setWeekCount(1);
       setRoute('');
       setOrderNotes('');
+      setCategoryFilter('all'); // Reset category filter to "all"
       setFreeDelivery(false); // Default: OFF = calculate delivery
       setManualDeliveryAmount(''); // Clear manual amount
       setCalculatedDeliveryPrice(0);
