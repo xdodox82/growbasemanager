@@ -632,6 +632,12 @@ export default function OrdersPage() {
         return 0;
       }
 
+      // Osobný odber je vždy zdarma
+      if (order.route === 'Osobný odber') {
+        console.log('[getDeliveryFee] Personal pickup - free');
+        return 0;
+      }
+
       const customer = customers?.find(c => c.id === order.customer_id);
       if (!customer || customer?.free_delivery) {
         return 0;
@@ -2672,10 +2678,17 @@ export default function OrdersPage() {
                     </span>
                   </div>
                   {order.route && (
-                    <div className="flex items-center gap-2">
-                      <Truck className="h-4 w-4 text-gray-400" />
-                      <span className="text-sm">Trasa: {order.route}</span>
-                    </div>
+                    order.route === 'Osobný odber' ? (
+                      <div className="flex items-center gap-2 text-green-600">
+                        <Store className="h-4 w-4" />
+                        <span className="text-sm font-medium">Osobný odber</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <Truck className="h-4 w-4" />
+                        <span className="text-sm">Trasa: {order.route}</span>
+                      </div>
+                    )
                   )}
                 </div>
 
@@ -3575,7 +3588,17 @@ export default function OrdersPage() {
                 </div>
                 <div>
                   <div className="text-sm text-gray-600">Trasa</div>
-                  <div className="font-semibold text-gray-900">{selectedOrderDetail.route || '-'}</div>
+                  {selectedOrderDetail.route === 'Osobný odber' ? (
+                    <div className="flex items-center gap-2 text-green-600">
+                      <Store className="h-4 w-4" />
+                      <span className="font-semibold">Osobný odber</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Truck className="h-4 w-4" />
+                      <span className="font-semibold text-gray-900">{selectedOrderDetail.route || '-'}</span>
+                    </div>
+                  )}
                 </div>
                 <div className="col-span-2">
                   <div className="text-sm text-gray-600 mb-1.5">Status</div>
