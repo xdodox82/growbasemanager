@@ -89,6 +89,11 @@ interface Order {
   recurrence_pattern?: string;
   recurring_weeks?: number;
   parent_order_id?: string;
+  recurring_order_id?: string;
+  recurring_start_date?: string;
+  recurring_end_date?: string;
+  recurring_total_weeks?: number;
+  recurring_current_week?: number;
   created_at: string;
   order_items?: OrderItem[];
 }
@@ -3407,6 +3412,39 @@ export default function OrdersPage() {
                   </div>
                 </div>
               </div>
+
+              {/* ========== RECURRING ORDER INFO ========== */}
+              {selectedOrderDetail?.is_recurring && selectedOrderDetail?.recurring_end_date && (
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <RefreshCw className="h-5 w-5 text-blue-600" />
+                    <span className="font-semibold text-blue-900">Opakovaná objednávka</span>
+                  </div>
+
+                  <div className="space-y-2 text-sm">
+                    {/* Obdobie */}
+                    <div className="flex items-start gap-2">
+                      <span className="text-gray-600 min-w-[80px]">📅 Obdobie:</span>
+                      <span className="font-medium text-gray-900">
+                        {selectedOrderDetail.recurring_start_date && format(new Date(selectedOrderDetail.recurring_start_date), 'dd.MM.yyyy')}
+                        {' → '}
+                        {format(new Date(selectedOrderDetail.recurring_end_date), 'dd.MM.yyyy')}
+                      </span>
+                    </div>
+
+                    {/* Týždeň */}
+                    {selectedOrderDetail.recurring_current_week && selectedOrderDetail.recurring_total_weeks && (
+                      <div className="flex items-start gap-2">
+                        <span className="text-gray-600 min-w-[80px]">🔢 Týždeň:</span>
+                        <span className="font-medium text-gray-900">
+                          {selectedOrderDetail.recurring_current_week} / {selectedOrderDetail.recurring_total_weeks}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              {/* ========== KONIEC RECURRING INFO ========== */}
 
               {selectedOrderDetail.notes && (
                 <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
