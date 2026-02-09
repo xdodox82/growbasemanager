@@ -327,6 +327,26 @@ export default function SeedsPage() {
     setArchiveDialogId(null);
   };
 
+  const handleDeleteCertificate = async (seedId: string) => {
+    if (!confirm('Naozaj chcete vymazať certifikát?')) return;
+
+    const { error } = await supabase
+      .from('seeds')
+      .update({ certificate_url: null })
+      .eq('id', seedId);
+
+    if (error) {
+      toast({
+        title: 'Chyba',
+        description: 'Nepodarilo sa vymazať certifikát',
+        variant: 'destructive'
+      });
+    } else {
+      toast({ title: 'Úspech', description: 'Certifikát vymazaný' });
+      refetch();
+    }
+  };
+
   const getSupplierName = (supplierId: string | null) => {
     if (!supplierId) return '-';
     const supplier = suppliers.find(s => s.id === supplierId);
@@ -468,15 +488,27 @@ export default function SeedsPage() {
               {extSeed.certificate_url && (
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Certifikát:</span>
-                  <a 
-                    href={extSeed.certificate_url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline flex items-center gap-1"
-                  >
-                    <FileText className="h-3 w-3" />
-                    Zobraziť
-                  </a>
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={extSeed.certificate_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline flex items-center gap-1"
+                    >
+                      <FileText className="h-3 w-3" />
+                      Zobraziť
+                    </a>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteCertificate(seed.id);
+                      }}
+                      className="p-1 text-red-600 hover:bg-red-50 rounded"
+                      title="Vymazať certifikát"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -524,16 +556,26 @@ export default function SeedsPage() {
                       <ExpandedDetail label="Naskladnenie" value={extSeed.stocking_date ? format(new Date(extSeed.stocking_date), 'dd.MM.yyyy') : '-'} />
                       <ExpandedDetail label="Expirácia" value={seed.expiry_date ? format(new Date(seed.expiry_date), 'dd.MM.yyyy') : '-'} />
                       {extSeed.certificate_url && (
-                        <div className="pt-2">
-                          <a 
-                            href={extSeed.certificate_url} 
-                            target="_blank" 
+                        <div className="pt-2 flex items-center gap-2">
+                          <a
+                            href={extSeed.certificate_url}
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="text-primary hover:underline flex items-center gap-1"
                           >
                             <ExternalLink className="h-4 w-4" />
                             Zobraziť certifikát
                           </a>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteCertificate(seed.id);
+                            }}
+                            className="p-1 text-red-600 hover:bg-red-50 rounded"
+                            title="Vymazať certifikát"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </div>
                       )}
                     </>
@@ -551,15 +593,27 @@ export default function SeedsPage() {
                   </MobileTableCell>
                   <MobileTableCell hideOnMobile>
                     {extSeed.certificate_url ? (
-                      <a 
-                        href={extSeed.certificate_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline flex items-center gap-1"
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                        PDF
-                      </a>
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={extSeed.certificate_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline flex items-center gap-1"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          PDF
+                        </a>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteCertificate(seed.id);
+                          }}
+                          className="p-1 text-red-600 hover:bg-red-50 rounded"
+                          title="Vymazať certifikát"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
                     ) : '-'}
                   </MobileTableCell>
                   <MobileTableCell className="text-right" onClick={(e) => e.stopPropagation()}>
@@ -818,15 +872,32 @@ export default function SeedsPage() {
                     </div>
                   )}
                   {!certificateFile && certificateUrl && (
-                    <a 
-                      href={certificateUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-sm text-primary hover:underline flex items-center gap-1"
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                      Aktuálny certifikát
-                    </a>
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={certificateUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-primary hover:underline flex items-center gap-1"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        Aktuálny certifikát
+                      </a>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => {
+                          if (editingSeed) {
+                            handleDeleteCertificate(editingSeed.id);
+                            setCertificateUrl(null);
+                          }
+                        }}
+                        title="Vymazať certifikát"
+                      >
+                        <Trash2 className="h-3 w-3 text-red-600" />
+                      </Button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -1109,16 +1180,25 @@ export default function SeedsPage() {
               {(selectedSeed as ExtendedSeed)?.certificate_url && (
                 <div className="border-l-4 border-purple-500 pl-4 py-2 bg-purple-50">
                   <p className="text-xs text-purple-700 uppercase mb-1">Certifikát</p>
-                  <a
-                    href={(selectedSeed as ExtendedSeed).certificate_url!}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline flex items-center gap-1"
-                  >
-                    <FileText className="h-4 w-4" />
-                    Zobraziť certifikát
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={(selectedSeed as ExtendedSeed).certificate_url!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline flex items-center gap-1"
+                    >
+                      <FileText className="h-4 w-4" />
+                      Zobraziť certifikát
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                    <button
+                      onClick={() => handleDeleteCertificate(selectedSeed.id)}
+                      className="p-1 text-red-600 hover:bg-red-50 rounded"
+                      title="Vymazať certifikát"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               )}
 
