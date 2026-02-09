@@ -793,35 +793,49 @@ export default function OrdersPage() {
     : '';
 
   const openNew = () => {
-    setEditingOrder(null);
-    setCustomerType('home');
-    setCustomerId('');
-    setDeliveryDate('');
-    setStatus('cakajuca');
-    setOrderType('jednorazova');
-    setWeekCount(1);
-    setRoute('');
-    setOrderNotes('');
-    setFreeDelivery(false); // Default: OFF = calculate delivery
-    setManualDeliveryAmount(''); // Clear manual amount
-    setCalculatedDeliveryPrice(0);
-    setOrderItems([]);
-    setCurrentItem({
-      crop_name: '',
-      quantity: 1,
-      unit: 'ks',
-      packaging_size: '',
-      delivery_form: 'rezana',
-      packaging_type: 'rPET',
-      packaging_volume_ml: 250,
-      has_label: false,
-      notes: '',
-      special_requirements: '',
-      price_per_unit: '',
-      is_special_item: false,
-      custom_crop_name: ''
-    });
-    setIsDialogOpen(true);
+    console.log('🔍 CRASH DIAGNOSTIKA - Nová objednávka');
+    console.log('- Existuje dialog state?', typeof setIsDialogOpen === 'function');
+    console.log('- Existuje setIsDialogOpen?', typeof setIsDialogOpen);
+    console.log('- customers array length:', customers?.length || 0);
+    console.log('- crops array length:', crops?.length || 0);
+    console.log('- blends array length:', blends?.length || 0);
+
+    try {
+      setEditingOrder(null);
+      setCustomerType('home');
+      setCustomerId('');
+      setDeliveryDate('');
+      setStatus('cakajuca');
+      setOrderType('jednorazova');
+      setWeekCount(1);
+      setRoute('');
+      setOrderNotes('');
+      setFreeDelivery(false); // Default: OFF = calculate delivery
+      setManualDeliveryAmount(''); // Clear manual amount
+      setCalculatedDeliveryPrice(0);
+      setOrderItems([]);
+      setCurrentItem({
+        crop_name: '',
+        quantity: 1,
+        unit: 'ks',
+        packaging_size: '',
+        delivery_form: 'rezana',
+        packaging_type: 'rPET',
+        packaging_volume_ml: 250,
+        has_label: false,
+        notes: '',
+        special_requirements: '',
+        price_per_unit: '',
+        is_special_item: false,
+        custom_crop_name: ''
+      });
+      console.log('✅ Všetky state premenné nastavené');
+      setIsDialogOpen(true);
+      console.log('✅ Dialog otvorený');
+    } catch (error) {
+      console.error('❌ Error v openNew:', error);
+      toast({ title: 'Chyba', description: 'Nepodarilo sa otvoriť formulár', variant: 'destructive' });
+    }
   };
 
   const openEdit = async (order: Order) => {
@@ -2547,6 +2561,21 @@ export default function OrdersPage() {
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto z-[60]">
           {(() => {
             try {
+              // Zabezpečenie: Ensure arrays exist
+              const safeCustomers = customers || [];
+              const safeCrops = crops || [];
+              const safeBlends = blends || [];
+              const safeRoutes = routes || [];
+              const safePrices = prices || [];
+              const safePackagings = packagings || [];
+
+              console.log('🎨 Dialog rendering with:', {
+                customers: safeCustomers.length,
+                crops: safeCrops.length,
+                blends: safeBlends.length,
+                routes: safeRoutes.length
+              });
+
               return (
                 <>
                   <DialogHeader>
@@ -2628,13 +2657,13 @@ export default function OrdersPage() {
                         <Label className="text-sm">Zákazník *</Label>
                         <div className="mt-0.5">
                           <SearchableCustomerSelect
-                            customers={customers}
+                            customers={safeCustomers}
                             value={customerId || ''}
                             onChange={(newCustomerId) => {
                               setCustomerId(newCustomerId);
-                              const selectedCustomer = customers.find(c => c.id === newCustomerId);
+                              const selectedCustomer = safeCustomers.find(c => c.id === newCustomerId);
                               if (selectedCustomer && (selectedCustomer as any).delivery_route_id) {
-                                const customerRoute = routes?.find(r => r.id === (selectedCustomer as any).delivery_route_id);
+                                const customerRoute = safeRoutes.find(r => r.id === (selectedCustomer as any).delivery_route_id);
                                 if (customerRoute) {
                                   setRoute(customerRoute.name);
                                 }
