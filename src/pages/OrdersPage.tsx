@@ -2836,7 +2836,10 @@ export default function OrdersPage() {
                         <div className="space-y-2">
                           <CategoryFilter
                             value={categoryFilter}
-                            onChange={setCategoryFilter}
+                            onChange={(newValue) => {
+                              console.log('🔄 OrdersPage received category change:', newValue);
+                              setCategoryFilter(newValue);
+                            }}
                           />
                         </div>
 

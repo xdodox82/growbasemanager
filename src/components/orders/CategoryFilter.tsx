@@ -8,15 +8,19 @@ interface CategoryFilterProps {
 }
 
 export function CategoryFilter({ value, onChange }: CategoryFilterProps) {
+  console.log('🎨 CategoryFilter render - value:', value);
+
+  const handleChange = (newValue: string) => {
+    console.log('📁 Category onChange triggered - old:', value, '→ new:', newValue);
+    onChange(newValue);
+  };
+
   return (
     <div className="space-y-2">
       <Label>Kategória</Label>
       <Select
         value={value}
-        onValueChange={(newValue) => {
-          console.log('📁 Category changed:', newValue);
-          onChange(newValue);
-        }}
+        onValueChange={handleChange}
       >
         <SelectTrigger className="w-full">
           <SelectValue placeholder="Všetky kategórie" />
@@ -24,20 +28,36 @@ export function CategoryFilter({ value, onChange }: CategoryFilterProps) {
         <SelectContent
           position="popper"
           sideOffset={5}
-          className="max-h-[300px]"
+          className="max-h-[300px] !z-[100]"
         >
-          <SelectItem value="all">Všetky kategórie</SelectItem>
+          <SelectItem value="all">
+            <div className="flex items-center gap-2">
+              <span>Všetky kategórie</span>
+            </div>
+          </SelectItem>
           <SelectItem value="microgreens">
-            <Leaf className="h-4 w-4 text-green-600 mr-2 inline" />Mikrozelenina
+            <div className="flex items-center gap-2">
+              <Leaf className="h-4 w-4 text-green-600" />
+              <span>Mikrozelenina</span>
+            </div>
           </SelectItem>
           <SelectItem value="microherbs">
-            <Sprout className="h-4 w-4 text-green-600 mr-2 inline" />Mikrobylinky
+            <div className="flex items-center gap-2">
+              <Sprout className="h-4 w-4 text-green-600" />
+              <span>Mikrobylinky</span>
+            </div>
           </SelectItem>
           <SelectItem value="edible_flowers">
-            <Flower className="h-4 w-4 text-green-600 mr-2 inline" />Jedlé kvety
+            <div className="flex items-center gap-2">
+              <Flower className="h-4 w-4 text-green-600" />
+              <span>Jedlé kvety</span>
+            </div>
           </SelectItem>
           <SelectItem value="mix">
-            <Palette className="h-4 w-4 text-green-600 mr-2 inline" />Mixy
+            <div className="flex items-center gap-2">
+              <Palette className="h-4 w-4 text-green-600" />
+              <span>Mixy</span>
+            </div>
           </SelectItem>
         </SelectContent>
       </Select>
