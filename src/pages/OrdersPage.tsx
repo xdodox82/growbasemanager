@@ -17,6 +17,7 @@ import { CategoryFilter } from '@/components/orders/CategoryFilter';
 import { CustomerTypeFilter } from '@/components/filters/CustomerTypeFilter';
 import { RecurringOrderEditDialog } from '@/components/orders/RecurringOrderEditDialog';
 import { RecurringOrderDeleteDialog } from '@/components/orders/RecurringOrderDeleteDialog';
+import { RecurringOrderExtendDialog } from '@/components/orders/RecurringOrderExtendDialog';
 import { useDeliveryDays } from '@/hooks/useDeliveryDays';
 import {
   ShoppingCart,
@@ -46,7 +47,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { format, parseISO, getDay } from 'date-fns';
+import { format, parseISO, getDay, addWeeks } from 'date-fns';
 import { sk } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
@@ -243,6 +244,10 @@ export default function OrdersPage() {
   }>({ open: false, order: null });
   const [updateAllFutureOrders, setUpdateAllFutureOrders] = useState(false);
   const [recurringDeleteDialog, setRecurringDeleteDialog] = useState<{
+    open: boolean;
+    order: Order | null;
+  }>({ open: false, order: null });
+  const [extendDialog, setExtendDialog] = useState<{
     open: boolean;
     order: Order | null;
   }>({ open: false, order: null });
@@ -968,6 +973,173 @@ export default function OrdersPage() {
         title: 'Chyba',
         description: 'Nepodarilo sa načítať objednávku',
         variant: 'destructive'
+      });
+    }
+  };
+
+  const openExtendDialog = (order: Order) => {
+    setExtendDialog({ open: true, order });
+  };
+
+  const handleExtendConfirm = async (additionalWeeks: number) => {
+    if (!extendDialog.order) return;
+
+    try {
+      const order = extendDialog.order;
+      const parentId = order.recurring_order_id || order.parent_order_id || order.id;
+
+      console.log('=== EXTENDING RECURRING ORDER ===');
+      console.log('Parent ID:', parentId);
+      console.log('Additional weeks:', additionalWeeks);
+      console.log('Current end date:', order.recurring_end_date);
+
+      // Calculate new end date
+      const currentEndDate = order.recurring_end_date ? new Date(order.recurring_end_date) : new Date();
+      const newEndDate = addWeeks(currentEndDate, additionalWeeks);
+
+      console.log('New end date:', format(newEndDate, 'yyyy-MM-dd'));
+
+      // Find all related orders in this recurring series
+      const { data: relatedOrders, error: fetchError } = await supabase
+        .from('orders')
+        .select('*')
+        .or(`id.eq.${parentId},parent_order_id.eq.${parentId},recurring_order_id.eq.${parentId}`)
+        .order('delivery_date', { ascending: true });
+
+      if (fetchError) throw fetchError;
+
+      if (!relatedOrders || relatedOrders.length === 0) {
+        throw new Error('Nenašli sa žiadne súvisiace objednávky');
+      }
+
+      console.log('Found related orders:', relatedOrders.length);
+
+      // Get the last order to use as template
+      const lastOrder = relatedOrders[relatedOrders.length - 1];
+      const currentTotalWeeks = order.recurring_total_weeks || relatedOrders.length;
+      const newTotalWeeks = currentTotalWeeks + additionalWeeks;
+
+      console.log('Last order date:', lastOrder.delivery_date);
+      console.log('Current total weeks:', currentTotalWeeks);
+      console.log('New total weeks:', newTotalWeeks);
+
+      // Update all existing orders with new end date and total weeks
+      const updatePromises = relatedOrders.map(ro =>
+        supabase
+          .from('orders')
+          .update({
+            recurring_end_date: format(newEndDate, 'yyyy-MM-dd'),
+            recurring_total_weeks: newTotalWeeks
+          })
+          .eq('id', ro.id)
+      );
+
+      await Promise.all(updatePromises);
+
+      // Load order items from the last order
+      const { data: lastOrderItems, error: itemsError } = await supabase
+        .from('order_items')
+        .select('*')
+        .eq('order_id', lastOrder.id);
+
+      if (itemsError) throw itemsError;
+
+      // Create new orders for additional weeks
+      let lastDeliveryDate = new Date(lastOrder.delivery_date);
+      const newOrdersData = [];
+
+      for (let i = 1; i <= additionalWeeks; i++) {
+        lastDeliveryDate = addWeeks(lastDeliveryDate, 1);
+        const weekNumber = currentTotalWeeks + i;
+
+        const newOrder = {
+          customer_id: lastOrder.customer_id,
+          customer_name: lastOrder.customer_name,
+          customer_type: lastOrder.customer_type,
+          delivery_date: format(lastDeliveryDate, 'yyyy-MM-dd'),
+          status: 'pending',
+          order_type: lastOrder.order_type,
+          route: lastOrder.route,
+          charge_delivery: lastOrder.charge_delivery,
+          delivery_price: lastOrder.delivery_price,
+          notes: lastOrder.notes,
+          is_recurring: true,
+          recurring_weeks: 1,
+          parent_order_id: parentId,
+          recurring_order_id: parentId,
+          recurring_start_date: order.recurring_start_date,
+          recurring_end_date: format(newEndDate, 'yyyy-MM-dd'),
+          recurring_current_week: weekNumber,
+          recurring_total_weeks: newTotalWeeks,
+        };
+
+        newOrdersData.push(newOrder);
+      }
+
+      console.log('Creating new orders:', newOrdersData.length);
+
+      // Insert new orders
+      const { data: insertedOrders, error: insertError } = await supabase
+        .from('orders')
+        .insert(newOrdersData)
+        .select();
+
+      if (insertError) throw insertError;
+
+      console.log('Inserted orders:', insertedOrders);
+
+      // Clone order items for each new order
+      if (lastOrderItems && lastOrderItems.length > 0 && insertedOrders) {
+        const newOrderItems = [];
+
+        for (const newOrder of insertedOrders) {
+          for (const item of lastOrderItems) {
+            const newItem = {
+              order_id: newOrder.id,
+              crop_id: item.crop_id,
+              crop_name: item.crop_name,
+              blend_id: item.blend_id,
+              quantity: item.quantity,
+              unit: item.unit,
+              packaging_size: item.packaging_size,
+              delivery_form: item.delivery_form,
+              packaging_type: item.packaging_type,
+              packaging_volume_ml: item.packaging_volume_ml,
+              packaging_id: item.packaging_id,
+              has_label: item.has_label,
+              notes: item.notes,
+              special_requirements: item.special_requirements,
+              price_per_unit: item.price_per_unit,
+              total_price: item.total_price,
+              is_special_item: item.is_special_item,
+              custom_crop_name: item.custom_crop_name,
+            };
+            newOrderItems.push(newItem);
+          }
+        }
+
+        const { error: itemsInsertError } = await supabase
+          .from('order_items')
+          .insert(newOrderItems);
+
+        if (itemsInsertError) throw itemsInsertError;
+
+        console.log('Inserted order items:', newOrderItems.length);
+      }
+
+      toast({
+        title: 'Úspech',
+        description: `Objednávka predĺžená o ${additionalWeeks} ${additionalWeeks === 1 ? 'týždeň' : additionalWeeks < 5 ? 'týždne' : 'týždňov'}`,
+      });
+
+      setExtendDialog({ open: false, order: null });
+      await loadData();
+    } catch (error) {
+      console.error('Error extending recurring order:', error);
+      toast({
+        title: 'Chyba',
+        description: 'Nepodarilo sa predĺžiť objednávku',
+        variant: 'destructive',
       });
     }
   };
@@ -3378,6 +3550,13 @@ export default function OrdersPage() {
         orderDate={recurringDeleteDialog.order?.delivery_date || ''}
       />
 
+      <RecurringOrderExtendDialog
+        open={extendDialog.open}
+        onClose={() => setExtendDialog({ open: false, order: null })}
+        onConfirm={handleExtendConfirm}
+        currentEndDate={extendDialog.order?.recurring_end_date}
+      />
+
       <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -3441,6 +3620,19 @@ export default function OrdersPage() {
                         </span>
                       </div>
                     )}
+
+                    {/* Tlačidlo predĺžiť */}
+                    <div className="pt-3 mt-2 border-t border-blue-200">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openExtendDialog(selectedOrderDetail);
+                        }}
+                        className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                      >
+                        ➕ Predĺžiť objednávku
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
