@@ -20,7 +20,7 @@ export function CategoryFilter({ value, onChange }: CategoryFilterProps) {
           sideOffset={5}
           className="max-h-[300px]"
         >
-          <SelectItem value="">Všetky kategórie</SelectItem>
+          <SelectItem value="all">Všetky kategórie</SelectItem>
           <SelectItem value="microgreens">
             <Leaf className="h-4 w-4 text-green-600 mr-2 inline" />Mikrozelenina
           </SelectItem>
