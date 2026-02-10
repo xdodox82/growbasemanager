@@ -1,15 +1,15 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { PageHeader, EmptyState } from '@/components/ui/page-components';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Package, Check, RotateCcw, Home, Utensils, Tag, ChevronLeft, ChevronRight, Leaf, Sprout, Flower, Grid3x3 } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, addMonths, subMonths, isToday } from 'date-fns';
+import { CalendarIcon, Package, Check, RotateCcw, Home, Utensils, Tag, ChevronLeft, ChevronRight, Leaf, Sprout, Flower, Grid3x3 } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, isToday } from 'date-fns';
 import { sk } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
-import { useOrders, useCustomers, useCrops, useBlends } from '@/hooks/useSupabaseData';
 import { supabase } from '@/integrations/supabase/client';
 
 interface GroupedItem {
@@ -30,172 +30,285 @@ interface GroupedItem {
 }
 
 export default function PrepPackagingPage() {
-  const { data: orders } = useOrders();
-  const { data: customers } = useCustomers();
-  const { data: crops } = useCrops();
-  const { data: blends } = useBlends();
   const { toast } = useToast();
 
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
-  const [customerTypeFilter, setCustomerTypeFilter] = useState<'all' | 'home' | 'gastro' | 'wholesale'>('all');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [packageTypeFilter, setPackageTypeFilter] = useState('rPET');
-  const [packageSizeFilter, setPackageSizeFilter] = useState('all');
-  const [cropFilter, setCropFilter] = useState('all');
-  const [labelFilter, setLabelFilter] = useState<'all' | 'with' | 'without'>('all');
-  const [preparedItems, setPreparedItems] = useState<Set<string>>(new Set());
+  const [sizeFilter, setSizeFilter] = useState<string>('all');
+  const [labelFilter, setLabelFilter] = useState<string>('all');
+  const [packagingTypeFilter, setPackagingTypeFilter] = useState<string>('rPET');
+  const [customerTypeFilter, setCustomerTypeFilter] = useState<string>('all');
   const [deliverySettings, setDeliverySettings] = useState<any>(null);
+  const [ordersForCalendar, setOrdersForCalendar] = useState<any[]>([]);
+  const [allOrders, setAllOrders] = useState<any[]>([]);
+  const [filteredOrders, setFilteredOrders] = useState<any[]>([]);
+  const [preparedItems, setPreparedItems] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    loadDeliverySettings();
+    const fetchDeliverySettings = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from('delivery_days_settings')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (data) setDeliverySettings(data);
+    };
+
+    fetchDeliverySettings();
   }, []);
 
-  const loadDeliverySettings = async () => {
-    const { data } = await supabase
-      .from('delivery_days_settings')
-      .select('*')
-      .single();
+  useEffect(() => {
+    const fetchOrdersForCalendar = async () => {
+      const start = startOfMonth(calendarMonth);
+      const end = endOfMonth(calendarMonth);
 
-    setDeliverySettings(data);
-  };
+      const { data } = await supabase
+        .from('orders')
+        .select('delivery_date')
+        .gte('delivery_date', format(start, 'yyyy-MM-dd'))
+        .lte('delivery_date', format(end, 'yyyy-MM-dd'));
 
-  const isDeliveryDay = (date: Date) => {
-    if (!deliverySettings) return false;
+      if (data) setOrdersForCalendar(data);
+    };
 
-    const dayOfWeek = getDay(date);
-
-    switch(dayOfWeek) {
-      case 0: return deliverySettings.sunday;
-      case 1: return deliverySettings.monday;
-      case 2: return deliverySettings.tuesday;
-      case 3: return deliverySettings.wednesday;
-      case 4: return deliverySettings.thursday;
-      case 5: return deliverySettings.friday;
-      case 6: return deliverySettings.saturday;
-      default: return false;
+    if (deliverySettings) {
+      fetchOrdersForCalendar();
     }
-  };
+  }, [calendarMonth, deliverySettings]);
 
-  const hasOrdersOnDate = (date: Date) => {
-    const dateStr = format(date, 'yyyy-MM-dd');
-    return orders?.some(order => order.delivery_date === dateStr) || false;
-  };
+  useEffect(() => {
+    const fetchOrders = async () => {
+      const { data } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          customer:customers(*),
+          items:order_items(
+            *,
+            crop:crops(name, category),
+            blend:blends(name)
+          )
+        `)
+        .eq('delivery_date', format(selectedDate, 'yyyy-MM-dd'))
+        .order('customer_name');
 
-  const getOrderCountOnDate = (date: Date) => {
-    const dateStr = format(date, 'yyyy-MM-dd');
-    return orders?.filter(order => order.delivery_date === dateStr).length || 0;
-  };
+      if (data) {
+        setAllOrders(data);
+      }
+    };
 
-  const daysInMonth = useMemo(() => {
-    const start = startOfMonth(currentMonth);
-    const end = endOfMonth(currentMonth);
-    return eachDayOfInterval({ start, end });
-  }, [currentMonth]);
+    fetchOrders();
+  }, [selectedDate]);
 
-  const filteredOrders = useMemo(() => {
-    let filtered = orders || [];
-
-    if (selectedDate) {
-      const dateStr = format(selectedDate, 'yyyy-MM-dd');
-      filtered = filtered.filter(order => order.delivery_date === dateStr);
-    }
+  useEffect(() => {
+    let filtered = [...allOrders];
 
     if (customerTypeFilter !== 'all') {
-      filtered = filtered.filter(order => {
-        const customer = customers.find(c => c.id === order.customer_id);
-        return customer?.customer_type === customerTypeFilter;
-      });
+      filtered = filtered.filter(order => order.customer_type === customerTypeFilter);
     }
 
     if (categoryFilter !== 'all') {
       if (categoryFilter === 'blends') {
-        filtered = filtered.filter(order => order.blend_id !== null && order.blend_id !== undefined);
+        filtered = filtered.filter(order =>
+          order.items?.some((item: any) => item.blend_id !== null)
+        );
       } else {
-        filtered = filtered.filter(order => {
-          const crop = crops.find(c => c.id === order.crop_id);
-          return crop?.category === categoryFilter;
-        });
+        filtered = filtered.filter(order =>
+          order.items?.some((item: any) => item.crop?.category === categoryFilter)
+        );
       }
     }
 
-    if (packageTypeFilter !== 'all') {
-      filtered = filtered.filter(order => {
-        if ((order as any).packaging_type === packageTypeFilter) return true;
-        return false;
-      });
+    if (sizeFilter !== 'all') {
+      filtered = filtered.filter(order =>
+        order.items?.some((item: any) => item.packaging_size === sizeFilter)
+      );
     }
 
-    if (packageSizeFilter !== 'all') {
-      filtered = filtered.filter(order => {
-        const size = order.packaging_size;
-        return size === packageSizeFilter;
-      });
+    if (labelFilter !== 'all') {
+      const needsLabel = labelFilter === 'yes';
+      filtered = filtered.filter(order =>
+        order.items?.some((item: any) => item.needs_label === needsLabel)
+      );
     }
 
-    if (cropFilter !== 'all') {
-      filtered = filtered.filter(order => {
-        return order.crop_id === cropFilter || order.blend_id === cropFilter;
-      });
+    if (packagingTypeFilter !== 'all') {
+      filtered = filtered.filter(order =>
+        order.items?.some((item: any) => item.packaging_type === packagingTypeFilter)
+      );
     }
 
-    if (labelFilter === 'with') {
-      filtered = filtered.filter(order => order.has_label === true);
-    } else if (labelFilter === 'without') {
-      filtered = filtered.filter(order => order.has_label === false);
-    }
+    setFilteredOrders(filtered);
+  }, [allOrders, customerTypeFilter, categoryFilter, sizeFilter, labelFilter, packagingTypeFilter]);
 
-    filtered = filtered.filter(order =>
-      order.status === 'pending' || order.status === 'confirmed' || order.status === 'ready'
+  const isDeliveryDay = (date: Date): boolean => {
+    if (!deliverySettings) return false;
+    const dayOfWeek = getDay(date);
+
+    switch (dayOfWeek) {
+      case 0: return deliverySettings.sunday || false;
+      case 1: return deliverySettings.monday || false;
+      case 2: return deliverySettings.tuesday || false;
+      case 3: return deliverySettings.wednesday || false;
+      case 4: return deliverySettings.thursday || false;
+      case 5: return deliverySettings.friday || false;
+      case 6: return deliverySettings.saturday || false;
+      default: return false;
+    }
+  };
+
+  const hasOrdersOnDate = (date: Date): boolean => {
+    return ordersForCalendar.some(order =>
+      isSameDay(new Date(order.delivery_date), date)
     );
+  };
 
-    return filtered;
-  }, [orders, customers, crops, selectedDate, customerTypeFilter, categoryFilter, packageTypeFilter, packageSizeFilter, cropFilter, labelFilter]);
+  const goToPreviousMonth = () => {
+    setCalendarMonth(prev => {
+      const newDate = new Date(prev);
+      newDate.setMonth(newDate.getMonth() - 1);
+      return newDate;
+    });
+  };
 
-  const groupedItems = useMemo(() => {
+  const goToNextMonth = () => {
+    setCalendarMonth(prev => {
+      const newDate = new Date(prev);
+      newDate.setMonth(newDate.getMonth() + 1);
+      return newDate;
+    });
+  };
+
+  const CalendarGrid = () => {
+    const start = startOfMonth(calendarMonth);
+    const end = endOfMonth(calendarMonth);
+    const days = eachDayOfInterval({ start, end });
+
+    const firstDayOfWeek = getDay(start);
+    const paddingDays = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
+
+    return (
+      <div className="w-[320px] p-4">
+        <div className="flex items-center justify-between mb-4">
+          <Button variant="ghost" size="sm" onClick={goToPreviousMonth}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <h3 className="font-semibold text-base">
+            {format(calendarMonth, 'MMMM yyyy', { locale: sk })}
+          </h3>
+          <Button variant="ghost" size="sm" onClick={goToNextMonth}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1 mb-2">
+          {['Po', 'Ut', 'St', 'Št', 'Pi', 'So', 'Ne'].map(day => (
+            <div key={day} className="text-center text-xs font-medium text-gray-600 w-9 h-6 flex items-center justify-center">
+              {day}
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7 gap-1">
+          {Array.from({ length: paddingDays }).map((_, i) => (
+            <div key={`pad-${i}`} className="w-9 h-9" />
+          ))}
+
+          {days.map(day => {
+            const isDelivery = isDeliveryDay(day);
+            const hasOrders = hasOrdersOnDate(day);
+            const today = isToday(day);
+            const selected = isSameDay(day, selectedDate);
+
+            let bgColor = 'bg-white hover:bg-gray-50';
+
+            if (isDelivery) {
+              bgColor = 'bg-green-200 hover:bg-green-300';
+            } else if (hasOrders) {
+              bgColor = 'bg-yellow-300 hover:bg-yellow-400';
+            }
+
+            return (
+              <button
+                key={day.toISOString()}
+                onClick={() => setSelectedDate(day)}
+                className={`
+                  ${bgColor}
+                  ${today ? 'ring-2 ring-green-600' : ''}
+                  ${selected ? 'ring-2 ring-blue-500' : ''}
+                  rounded-full w-9 h-9 flex items-center justify-center
+                  text-sm font-medium cursor-pointer transition-all
+                `}
+              >
+                {day.getDate()}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-4 space-y-2 text-xs">
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-full bg-green-200 border border-gray-300" />
+            <span className="text-gray-600">Rozvozový deň</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-full bg-yellow-300 border border-gray-300" />
+            <span className="text-gray-600">Objednávky mimo rozvozu</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const groupedItems = (() => {
     const groups: Record<string, GroupedItem> = {};
 
     filteredOrders.forEach(order => {
-      const customer = customers.find(c => c.id === order.customer_id);
-      const customerName = customer?.customer_type === 'home'
-        ? customer?.name
-        : ((customer as any)?.company_name || customer?.name);
+      if (!order.items || order.items.length === 0) return;
 
-      const packageSize = order.packaging_size;
-      if (!packageSize || !packageSize.includes('ml')) return;
+      order.items.forEach((item: any) => {
+        const customerName = order.customer_type === 'home'
+          ? order.customer_name
+          : (order.customer?.company_name || order.customer_name);
 
-      const crop = crops.find(c => c.id === order.crop_id);
-      const blend = blends.find(b => b.id === order.blend_id);
-      const cropName = crop?.name || blend?.name || 'Neznáme';
+        const packageSize = item.packaging_size;
+        if (!packageSize || !packageSize.includes('ml')) return;
 
-      const packageType = (order as any).packaging_type || 'rPET';
-      const hasLabel = order.has_label !== false;
+        const cropName = item.crop?.name || item.blend?.name || 'Neznáme';
+        const packageType = item.packaging_type || 'rPET';
+        const hasLabel = item.needs_label !== false;
 
-      const key = `${cropName}-${packageSize}-${hasLabel}`;
+        const key = `${cropName}-${packageSize}-${hasLabel}`;
 
-      if (!groups[key]) {
-        groups[key] = {
-          crop_name: cropName,
-          package_ml: packageSize,
-          package_type: packageType,
-          has_label: hasLabel,
-          total_pieces: 0,
-          customers: [],
-        };
-      }
+        if (!groups[key]) {
+          groups[key] = {
+            crop_name: cropName,
+            package_ml: packageSize,
+            package_type: packageType,
+            has_label: hasLabel,
+            total_pieces: 0,
+            customers: [],
+          };
+        }
 
-      const itemId = `${order.id}`;
-      const pieces = Math.ceil(order.quantity || 1);
+        const itemId = `${order.id}-${item.id}`;
+        const pieces = Math.ceil(item.quantity || 1);
 
-      groups[key].total_pieces += pieces;
-      groups[key].customers.push({
-        id: itemId,
-        order_id: order.id,
-        order_item_id: order.id,
-        name: customerName || 'Neznámy',
-        type: customer?.customer_type || 'home',
-        pieces: pieces,
-        prepared: preparedItems.has(itemId),
+        groups[key].total_pieces += pieces;
+        groups[key].customers.push({
+          id: itemId,
+          order_id: order.id,
+          order_item_id: item.id,
+          name: customerName || 'Neznámy',
+          type: order.customer_type || 'home',
+          pieces: pieces,
+          prepared: preparedItems.has(itemId),
+        });
       });
     });
 
@@ -204,7 +317,7 @@ export default function PrepPackagingPage() {
       if (!a.has_label && b.has_label) return 1;
       return a.crop_name.localeCompare(b.crop_name);
     });
-  }, [filteredOrders, customers, crops, blends, preparedItems]);
+  })();
 
   const unpreparedGroups = groupedItems
     .map(group => ({
@@ -248,263 +361,166 @@ export default function PrepPackagingPage() {
           icon={<Package className="h-6 w-6" />}
         />
 
-        <div className="flex gap-2 mb-6">
-          <button
-            onClick={() => setCustomerTypeFilter('all')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
-              customerTypeFilter === 'all'
-                ? 'bg-green-600 text-white border-green-600'
-                : 'bg-white border-gray-300 hover:border-green-600'
-            }`}
-          >
-            <Check className="h-4 w-4" />
-            Všetci
-          </button>
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h2 className="text-lg font-semibold mb-4">Filtre</h2>
 
-          <button
-            onClick={() => setCustomerTypeFilter('home')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
-              customerTypeFilter === 'home'
-                ? 'bg-green-600 text-white border-green-600'
-                : 'bg-white border-gray-300 hover:border-green-600'
-            }`}
-          >
-            <Home className="h-4 w-4" />
-            Domáci
-          </button>
-
-          <button
-            onClick={() => setCustomerTypeFilter('gastro')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
-              customerTypeFilter === 'gastro'
-                ? 'bg-green-600 text-white border-green-600'
-                : 'bg-white border-gray-300 hover:border-green-600'
-            }`}
-          >
-            <Utensils className="h-4 w-4" />
-            Gastro
-          </button>
-
-          <button
-            onClick={() => setCustomerTypeFilter('wholesale')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
-              customerTypeFilter === 'wholesale'
-                ? 'bg-green-600 text-white border-green-600'
-                : 'bg-white border-gray-300 hover:border-green-600'
-            }`}
-          >
-            <Package className="h-4 w-4" />
-            VO
-          </button>
-        </div>
-
-        <div className="bg-white border rounded-lg p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <button
-              onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-              className="p-2 hover:bg-gray-100 rounded"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-
-            <h3 className="text-lg font-bold">
-              {format(currentMonth, 'LLLL yyyy', { locale: sk }).toUpperCase()}
-            </h3>
-
-            <button
-              onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-              className="p-2 hover:bg-gray-100 rounded"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-7 gap-2 mb-2">
-            {['Po', 'Ut', 'St', 'Št', 'Pi', 'So', 'Ne'].map(day => (
-              <div key={day} className="text-center text-sm font-medium text-gray-500">
-                {day}
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-7 gap-2">
-            {Array.from({ length: (getDay(daysInMonth[0]) + 6) % 7 }).map((_, i) => (
-              <div key={`empty-${i}`} />
-            ))}
-
-            {daysInMonth.map(day => {
-              const isDelivery = isDeliveryDay(day);
-              const hasOrders = hasOrdersOnDate(day);
-              const orderCount = getOrderCountOnDate(day);
-              const today = isToday(day);
-              const isSelected = selectedDate && isSameDay(day, selectedDate);
-
-              let bgColor = 'bg-white';
-              if (isDelivery) {
-                bgColor = 'bg-green-200';
-              } else if (hasOrders) {
-                bgColor = 'bg-yellow-300';
-              }
-
-              return (
-                <button
-                  key={day.toString()}
-                  onClick={() => setSelectedDate(day)}
-                  className={`
-                    relative
-                    w-10 h-10
-                    rounded-full
-                    flex items-center justify-center
-                    transition-all
-                    ${bgColor}
-                    ${today ? 'ring-2 ring-green-600 ring-offset-2' : ''}
-                    ${isSelected ? 'ring-2 ring-blue-600 ring-offset-2' : ''}
-                    ${hasOrders || isDelivery ? 'hover:opacity-80' : 'hover:bg-gray-100'}
-                    ${!hasOrders && !isDelivery ? 'text-gray-400' : 'text-gray-900 font-medium'}
-                  `}
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Typ zákazníka
+              </label>
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant={customerTypeFilter === 'all' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setCustomerTypeFilter('all')}
                 >
-                  {format(day, 'd')}
-                  {orderCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                      {orderCount}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="mt-4 pt-4 border-t flex gap-4 text-sm">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-green-200 border" />
-              <span>Rozvozový deň</span>
+                  <Check className="h-4 w-4 mr-2" />
+                  Všetci
+                </Button>
+                <Button
+                  variant={customerTypeFilter === 'home' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setCustomerTypeFilter('home')}
+                >
+                  <Home className="h-4 w-4 mr-2" />
+                  Domáci
+                </Button>
+                <Button
+                  variant={customerTypeFilter === 'gastro' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setCustomerTypeFilter('gastro')}
+                >
+                  <Utensils className="h-4 w-4 mr-2" />
+                  Gastro
+                </Button>
+                <Button
+                  variant={customerTypeFilter === 'wholesale' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setCustomerTypeFilter('wholesale')}
+                >
+                  <Package className="h-4 w-4 mr-2" />
+                  VO
+                </Button>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-yellow-300 border" />
-              <span>Objednávky mimo rozvozu</span>
+
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Dátum
+                </label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {format(selectedDate, 'dd.MM.yyyy')}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarGrid />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Kategória
+                </label>
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Kategória" />
+                  </SelectTrigger>
+                  <SelectContent position="popper" sideOffset={5} className="!z-[100]">
+                    <SelectItem value="all">
+                      <div className="flex items-center gap-2">
+                        <Check className="h-4 w-4" />
+                        Všetky kategórie
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="microgreens">
+                      <div className="flex items-center gap-2">
+                        <Leaf className="h-4 w-4 text-green-600" />
+                        Mikrozelenina
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="microherbs">
+                      <div className="flex items-center gap-2">
+                        <Sprout className="h-4 w-4 text-green-600" />
+                        Mikrobylinky
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="edible_flowers">
+                      <div className="flex items-center gap-2">
+                        <Flower className="h-4 w-4 text-pink-500" />
+                        Jedlé kvety
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="blends">
+                      <div className="flex items-center gap-2">
+                        <Grid3x3 className="h-4 w-4 text-blue-600" />
+                        Mixy
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Veľkosť
+                </label>
+                <Select value={sizeFilter} onValueChange={setSizeFilter}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Všetky" />
+                  </SelectTrigger>
+                  <SelectContent position="popper" sideOffset={5} className="!z-[100]">
+                    <SelectItem value="all">Všetky</SelectItem>
+                    <SelectItem value="250ml">250ml</SelectItem>
+                    <SelectItem value="500ml">500ml</SelectItem>
+                    <SelectItem value="750ml">750ml</SelectItem>
+                    <SelectItem value="1000ml">1000ml</SelectItem>
+                    <SelectItem value="1200ml">1200ml</SelectItem>
+                    <SelectItem value="1500ml">1500ml</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Etiketa
+                </label>
+                <Select value={labelFilter} onValueChange={setLabelFilter}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Všetko" />
+                  </SelectTrigger>
+                  <SelectContent position="popper" sideOffset={5} className="!z-[100]">
+                    <SelectItem value="all">Všetko</SelectItem>
+                    <SelectItem value="yes">Áno</SelectItem>
+                    <SelectItem value="no">Nie</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Druh obalu
+                </label>
+                <Select value={packagingTypeFilter} onValueChange={setPackagingTypeFilter}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Typ" />
+                  </SelectTrigger>
+                  <SelectContent position="popper" sideOffset={5} className="!z-[100]">
+                    <SelectItem value="all">Všetky</SelectItem>
+                    <SelectItem value="rPET">rPET</SelectItem>
+                    <SelectItem value="PET">PET</SelectItem>
+                    <SelectItem value="EKO">EKO</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
         </div>
-
-        <Card className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Kategória
-              </label>
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Kategória" />
-                </SelectTrigger>
-                <SelectContent position="popper" sideOffset={5} className="!z-[100]">
-                  <SelectItem value="all">
-                    <div className="flex items-center gap-2">
-                      <Check className="h-4 w-4" />
-                      Všetky kategórie
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="microgreens">
-                    <div className="flex items-center gap-2">
-                      <Leaf className="h-4 w-4 text-green-600" />
-                      Mikrozelenina
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="microherbs">
-                    <div className="flex items-center gap-2">
-                      <Sprout className="h-4 w-4 text-green-600" />
-                      Mikrobylinky
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="edible_flowers">
-                    <div className="flex items-center gap-2">
-                      <Flower className="h-4 w-4 text-pink-500" />
-                      Jedlé kvety
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="blends">
-                    <div className="flex items-center gap-2">
-                      <Grid3x3 className="h-4 w-4 text-blue-600" />
-                      Mixy
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Veľkosť
-              </label>
-              <Select value={packageSizeFilter} onValueChange={setPackageSizeFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Všetky" />
-                </SelectTrigger>
-                <SelectContent position="popper" sideOffset={5} className="!z-[100]">
-                  <SelectItem value="all">Všetky</SelectItem>
-                  <SelectItem value="250ml">250ml</SelectItem>
-                  <SelectItem value="500ml">500ml</SelectItem>
-                  <SelectItem value="750ml">750ml</SelectItem>
-                  <SelectItem value="1000ml">1000ml</SelectItem>
-                  <SelectItem value="1200ml">1200ml</SelectItem>
-                  <SelectItem value="1500ml">1500ml</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Etiketa
-              </label>
-              <Select value={labelFilter} onValueChange={setLabelFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Všetko" />
-                </SelectTrigger>
-                <SelectContent position="popper" sideOffset={5} className="!z-[100]">
-                  <SelectItem value="all">Všetko</SelectItem>
-                  <SelectItem value="with">Áno</SelectItem>
-                  <SelectItem value="without">Nie</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Druh obalu
-              </label>
-              <Select value={packageTypeFilter} onValueChange={setPackageTypeFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Typ" />
-                </SelectTrigger>
-                <SelectContent position="popper" sideOffset={5} className="!z-[100]">
-                  <SelectItem value="all">Všetky</SelectItem>
-                  <SelectItem value="rPET">rPET</SelectItem>
-                  <SelectItem value="PET">PET</SelectItem>
-                  <SelectItem value="EKO">EKO</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Plodina / Mix
-              </label>
-              <Select value={cropFilter} onValueChange={setCropFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Všetky" />
-                </SelectTrigger>
-                <SelectContent position="popper" sideOffset={5} className="!z-[100]">
-                  <SelectItem value="all">Všetky</SelectItem>
-                  {crops.map(crop => (
-                    <SelectItem key={crop.id} value={crop.id}>{crop.name}</SelectItem>
-                  ))}
-                  {blends.map(blend => (
-                    <SelectItem key={blend.id} value={blend.id}>{blend.name} (Mix)</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </Card>
 
         {unpreparedGroups.length === 0 && preparedGroups.length === 0 ? (
           <EmptyState
