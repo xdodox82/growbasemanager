@@ -34,6 +34,7 @@ export default function PrepPackagingPage() {
 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [sizeFilter, setSizeFilter] = useState<string>('all');
   const [labelFilter, setLabelFilter] = useState<string>('all');
@@ -154,12 +155,18 @@ export default function PrepPackagingPage() {
 
     if (packagingTypeFilter !== 'all') {
       console.log('  🔍 Packaging filter:', packagingTypeFilter);
-      console.log('  🔍 Items packaging types:',
-        allOrders.flatMap(o => o.items || []).map(i => i.packaging_type)
+      console.log('  🔍 Items packaging_material:',
+        allOrders.flatMap(o => o.items || []).map(i => i.packaging_material)
+      );
+      console.log('  🔍 Items package_type:',
+        allOrders.flatMap(o => o.items || []).map(i => i.package_type)
       );
 
       filtered = filtered.filter(order =>
-        order.items?.some((item: any) => item.packaging_type === packagingTypeFilter)
+        order.items?.some((item: any) =>
+          item.packaging_material === packagingTypeFilter ||
+          item.package_type === packagingTypeFilter
+        )
       );
       console.log('  After packaging filter:', filtered.length);
     }
@@ -258,7 +265,10 @@ export default function PrepPackagingPage() {
             return (
               <button
                 key={day.toISOString()}
-                onClick={() => setSelectedDate(day)}
+                onClick={() => {
+                  setSelectedDate(day);
+                  setCalendarOpen(false);
+                }}
                 className={`
                   ${bgColor}
                   ${today ? 'ring-2 ring-green-600' : ''}
@@ -444,7 +454,7 @@ export default function PrepPackagingPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
                   Dátum
                 </label>
-                <Popover>
+                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-start">
                       <CalendarIcon className="mr-2 h-4 w-4" />
