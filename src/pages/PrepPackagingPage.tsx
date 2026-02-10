@@ -299,8 +299,8 @@ export default function PrepPackagingPage() {
           : (order.customer?.company_name || order.customer_name);
 
         const packageSize = item.packaging_size;
-        if (!packageSize || !packageSize.includes('ml')) {
-          console.log('    ⚠️ Item has invalid packaging_size:', packageSize, 'skipping');
+        if (!packageSize) {
+          console.log('    ⚠️ Item has no packaging_size, skipping');
           return;
         }
 
