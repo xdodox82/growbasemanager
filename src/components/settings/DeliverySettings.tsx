@@ -55,22 +55,32 @@ export function DeliverySettings() {
 
   const handleEdit = (route: DeliveryRoute) => {
     setEditingRoute(route.id);
-    setEditValues(route);
+    setEditValues({
+      name: route.name,
+      delivery_fee_home: String(route.delivery_fee_home || ''),
+      delivery_fee_gastro: String(route.delivery_fee_gastro || ''),
+      delivery_fee_wholesale: String(route.delivery_fee_wholesale || ''),
+      home_min_free_delivery: String(route.home_min_free_delivery || ''),
+      gastro_min_free_delivery: String(route.gastro_min_free_delivery || ''),
+      wholesale_min_free_delivery: String(route.wholesale_min_free_delivery || ''),
+    });
   };
 
   const handleSave = async (routeId: string) => {
     try {
+      const numericValues = {
+        name: editValues.name,
+        delivery_fee_home: parseFloat(String(editValues.delivery_fee_home).replace(',', '.')) || 0,
+        delivery_fee_gastro: parseFloat(String(editValues.delivery_fee_gastro).replace(',', '.')) || 0,
+        delivery_fee_wholesale: parseFloat(String(editValues.delivery_fee_wholesale).replace(',', '.')) || 0,
+        home_min_free_delivery: parseFloat(String(editValues.home_min_free_delivery).replace(',', '.')) || 0,
+        gastro_min_free_delivery: parseFloat(String(editValues.gastro_min_free_delivery).replace(',', '.')) || 0,
+        wholesale_min_free_delivery: parseFloat(String(editValues.wholesale_min_free_delivery).replace(',', '.')) || 0,
+      };
+
       const { error } = await supabase
         .from('delivery_routes')
-        .update({
-          name: editValues.name,
-          delivery_fee_home: editValues.delivery_fee_home,
-          delivery_fee_gastro: editValues.delivery_fee_gastro,
-          delivery_fee_wholesale: editValues.delivery_fee_wholesale,
-          home_min_free_delivery: editValues.home_min_free_delivery,
-          gastro_min_free_delivery: editValues.gastro_min_free_delivery,
-          wholesale_min_free_delivery: editValues.wholesale_min_free_delivery,
-        })
+        .update(numericValues)
         .eq('id', routeId);
 
       if (error) throw error;
@@ -103,12 +113,12 @@ export function DeliverySettings() {
     setEditingRoute('new');
     setEditValues({
       name: '',
-      delivery_fee_home: 0,
-      delivery_fee_gastro: 0,
-      delivery_fee_wholesale: 0,
-      home_min_free_delivery: 0,
-      gastro_min_free_delivery: 0,
-      wholesale_min_free_delivery: 0,
+      delivery_fee_home: '',
+      delivery_fee_gastro: '',
+      delivery_fee_wholesale: '',
+      home_min_free_delivery: '',
+      gastro_min_free_delivery: '',
+      wholesale_min_free_delivery: '',
     });
   };
 
@@ -127,12 +137,12 @@ export function DeliverySettings() {
         .from('delivery_routes')
         .insert({
           name: editValues.name.trim(),
-          delivery_fee_home: editValues.delivery_fee_home || 0,
-          delivery_fee_gastro: editValues.delivery_fee_gastro || 0,
-          delivery_fee_wholesale: editValues.delivery_fee_wholesale || 0,
-          home_min_free_delivery: editValues.home_min_free_delivery || 0,
-          gastro_min_free_delivery: editValues.gastro_min_free_delivery || 0,
-          wholesale_min_free_delivery: editValues.wholesale_min_free_delivery || 0,
+          delivery_fee_home: parseFloat(String(editValues.delivery_fee_home).replace(',', '.')) || 0,
+          delivery_fee_gastro: parseFloat(String(editValues.delivery_fee_gastro).replace(',', '.')) || 0,
+          delivery_fee_wholesale: parseFloat(String(editValues.delivery_fee_wholesale).replace(',', '.')) || 0,
+          home_min_free_delivery: parseFloat(String(editValues.home_min_free_delivery).replace(',', '.')) || 0,
+          gastro_min_free_delivery: parseFloat(String(editValues.gastro_min_free_delivery).replace(',', '.')) || 0,
+          wholesale_min_free_delivery: parseFloat(String(editValues.wholesale_min_free_delivery).replace(',', '.')) || 0,
         });
 
       if (error) throw error;
@@ -246,12 +256,16 @@ export function DeliverySettings() {
                     type="text"
                     inputMode="decimal"
                     placeholder="0,00"
-                    value={editValues.delivery_fee_home === 0 ? '' : String(editValues.delivery_fee_home).replace('.', ',')}
+                    value={editValues.delivery_fee_home}
                     onChange={(e) => {
-                      let value = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.');
-                      const parts = value.split('.');
-                      if (parts.length > 2) value = parts[0] + '.' + parts.slice(1).join('');
-                      setEditValues({ ...editValues, delivery_fee_home: value === '' ? 0 : parseFloat(value) || 0 });
+                      let value = e.target.value;
+                      value = value.replace(/[^0-9.,]/g, '');
+                      value = value.replace('.', ',');
+                      const parts = value.split(',');
+                      if (parts.length > 2) {
+                        value = parts[0] + ',' + parts.slice(1).join('');
+                      }
+                      setEditValues({ ...editValues, delivery_fee_home: value });
                     }}
                   />
                   <Label>Min. objednávka pre dopravu zdarma (€)</Label>
@@ -259,12 +273,16 @@ export function DeliverySettings() {
                     type="text"
                     inputMode="decimal"
                     placeholder="0,00"
-                    value={editValues.home_min_free_delivery === 0 ? '' : String(editValues.home_min_free_delivery).replace('.', ',')}
+                    value={editValues.home_min_free_delivery}
                     onChange={(e) => {
-                      let value = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.');
-                      const parts = value.split('.');
-                      if (parts.length > 2) value = parts[0] + '.' + parts.slice(1).join('');
-                      setEditValues({ ...editValues, home_min_free_delivery: value === '' ? 0 : parseFloat(value) || 0 });
+                      let value = e.target.value;
+                      value = value.replace(/[^0-9.,]/g, '');
+                      value = value.replace('.', ',');
+                      const parts = value.split(',');
+                      if (parts.length > 2) {
+                        value = parts[0] + ',' + parts.slice(1).join('');
+                      }
+                      setEditValues({ ...editValues, home_min_free_delivery: value });
                     }}
                   />
                 </div>
@@ -276,12 +294,16 @@ export function DeliverySettings() {
                     type="text"
                     inputMode="decimal"
                     placeholder="0,00"
-                    value={editValues.delivery_fee_gastro === 0 ? '' : String(editValues.delivery_fee_gastro).replace('.', ',')}
+                    value={editValues.delivery_fee_gastro}
                     onChange={(e) => {
-                      let value = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.');
-                      const parts = value.split('.');
-                      if (parts.length > 2) value = parts[0] + '.' + parts.slice(1).join('');
-                      setEditValues({ ...editValues, delivery_fee_gastro: value === '' ? 0 : parseFloat(value) || 0 });
+                      let value = e.target.value;
+                      value = value.replace(/[^0-9.,]/g, '');
+                      value = value.replace('.', ',');
+                      const parts = value.split(',');
+                      if (parts.length > 2) {
+                        value = parts[0] + ',' + parts.slice(1).join('');
+                      }
+                      setEditValues({ ...editValues, delivery_fee_gastro: value });
                     }}
                   />
                   <Label>Min. objednávka pre dopravu zdarma (€)</Label>
@@ -289,12 +311,16 @@ export function DeliverySettings() {
                     type="text"
                     inputMode="decimal"
                     placeholder="0,00"
-                    value={editValues.gastro_min_free_delivery === 0 ? '' : String(editValues.gastro_min_free_delivery).replace('.', ',')}
+                    value={editValues.gastro_min_free_delivery}
                     onChange={(e) => {
-                      let value = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.');
-                      const parts = value.split('.');
-                      if (parts.length > 2) value = parts[0] + '.' + parts.slice(1).join('');
-                      setEditValues({ ...editValues, gastro_min_free_delivery: value === '' ? 0 : parseFloat(value) || 0 });
+                      let value = e.target.value;
+                      value = value.replace(/[^0-9.,]/g, '');
+                      value = value.replace('.', ',');
+                      const parts = value.split(',');
+                      if (parts.length > 2) {
+                        value = parts[0] + ',' + parts.slice(1).join('');
+                      }
+                      setEditValues({ ...editValues, gastro_min_free_delivery: value });
                     }}
                   />
                 </div>
@@ -306,12 +332,16 @@ export function DeliverySettings() {
                     type="text"
                     inputMode="decimal"
                     placeholder="0,00"
-                    value={editValues.delivery_fee_wholesale === 0 ? '' : String(editValues.delivery_fee_wholesale).replace('.', ',')}
+                    value={editValues.delivery_fee_wholesale}
                     onChange={(e) => {
-                      let value = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.');
-                      const parts = value.split('.');
-                      if (parts.length > 2) value = parts[0] + '.' + parts.slice(1).join('');
-                      setEditValues({ ...editValues, delivery_fee_wholesale: value === '' ? 0 : parseFloat(value) || 0 });
+                      let value = e.target.value;
+                      value = value.replace(/[^0-9.,]/g, '');
+                      value = value.replace('.', ',');
+                      const parts = value.split(',');
+                      if (parts.length > 2) {
+                        value = parts[0] + ',' + parts.slice(1).join('');
+                      }
+                      setEditValues({ ...editValues, delivery_fee_wholesale: value });
                     }}
                   />
                   <Label>Min. objednávka pre dopravu zdarma (€)</Label>
@@ -319,12 +349,16 @@ export function DeliverySettings() {
                     type="text"
                     inputMode="decimal"
                     placeholder="0,00"
-                    value={editValues.wholesale_min_free_delivery === 0 ? '' : String(editValues.wholesale_min_free_delivery).replace('.', ',')}
+                    value={editValues.wholesale_min_free_delivery}
                     onChange={(e) => {
-                      let value = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.');
-                      const parts = value.split('.');
-                      if (parts.length > 2) value = parts[0] + '.' + parts.slice(1).join('');
-                      setEditValues({ ...editValues, wholesale_min_free_delivery: value === '' ? 0 : parseFloat(value) || 0 });
+                      let value = e.target.value;
+                      value = value.replace(/[^0-9.,]/g, '');
+                      value = value.replace('.', ',');
+                      const parts = value.split(',');
+                      if (parts.length > 2) {
+                        value = parts[0] + ',' + parts.slice(1).join('');
+                      }
+                      setEditValues({ ...editValues, wholesale_min_free_delivery: value });
                     }}
                   />
                 </div>
@@ -373,15 +407,16 @@ export function DeliverySettings() {
                       type="text"
                       inputMode="decimal"
                       placeholder="0,00"
-                      value={editValues.delivery_fee_home === 0 ? '' : String(editValues.delivery_fee_home).replace('.', ',')}
+                      value={editValues.delivery_fee_home}
                       onChange={(e) => {
-                        let value = e.target.value.replace(',', '.');
-                        value = value.replace(/[^0-9.]/g, '');
-                        const parts = value.split('.');
+                        let value = e.target.value;
+                        value = value.replace(/[^0-9.,]/g, '');
+                        value = value.replace('.', ',');
+                        const parts = value.split(',');
                         if (parts.length > 2) {
-                          value = parts[0] + '.' + parts.slice(1).join('');
+                          value = parts[0] + ',' + parts.slice(1).join('');
                         }
-                        setEditValues({ ...editValues, delivery_fee_home: value === '' ? 0 : parseFloat(value) || 0 });
+                        setEditValues({ ...editValues, delivery_fee_home: value });
                       }}
                     />
                     <Label>Min. objednávka pre dopravu zdarma (€)</Label>
@@ -389,15 +424,16 @@ export function DeliverySettings() {
                       type="text"
                       inputMode="decimal"
                       placeholder="0,00"
-                      value={editValues.home_min_free_delivery === 0 ? '' : String(editValues.home_min_free_delivery).replace('.', ',')}
+                      value={editValues.home_min_free_delivery}
                       onChange={(e) => {
-                        let value = e.target.value.replace(',', '.');
-                        value = value.replace(/[^0-9.]/g, '');
-                        const parts = value.split('.');
+                        let value = e.target.value;
+                        value = value.replace(/[^0-9.,]/g, '');
+                        value = value.replace('.', ',');
+                        const parts = value.split(',');
                         if (parts.length > 2) {
-                          value = parts[0] + '.' + parts.slice(1).join('');
+                          value = parts[0] + ',' + parts.slice(1).join('');
                         }
-                        setEditValues({ ...editValues, home_min_free_delivery: value === '' ? 0 : parseFloat(value) || 0 });
+                        setEditValues({ ...editValues, home_min_free_delivery: value });
                       }}
                     />
                   </div>
@@ -409,15 +445,16 @@ export function DeliverySettings() {
                       type="text"
                       inputMode="decimal"
                       placeholder="0,00"
-                      value={editValues.delivery_fee_gastro === 0 ? '' : String(editValues.delivery_fee_gastro).replace('.', ',')}
+                      value={editValues.delivery_fee_gastro}
                       onChange={(e) => {
-                        let value = e.target.value.replace(',', '.');
-                        value = value.replace(/[^0-9.]/g, '');
-                        const parts = value.split('.');
+                        let value = e.target.value;
+                        value = value.replace(/[^0-9.,]/g, '');
+                        value = value.replace('.', ',');
+                        const parts = value.split(',');
                         if (parts.length > 2) {
-                          value = parts[0] + '.' + parts.slice(1).join('');
+                          value = parts[0] + ',' + parts.slice(1).join('');
                         }
-                        setEditValues({ ...editValues, delivery_fee_gastro: value === '' ? 0 : parseFloat(value) || 0 });
+                        setEditValues({ ...editValues, delivery_fee_gastro: value });
                       }}
                     />
                     <Label>Min. objednávka pre dopravu zdarma (€)</Label>
@@ -425,15 +462,16 @@ export function DeliverySettings() {
                       type="text"
                       inputMode="decimal"
                       placeholder="0,00"
-                      value={editValues.gastro_min_free_delivery === 0 ? '' : String(editValues.gastro_min_free_delivery).replace('.', ',')}
+                      value={editValues.gastro_min_free_delivery}
                       onChange={(e) => {
-                        let value = e.target.value.replace(',', '.');
-                        value = value.replace(/[^0-9.]/g, '');
-                        const parts = value.split('.');
+                        let value = e.target.value;
+                        value = value.replace(/[^0-9.,]/g, '');
+                        value = value.replace('.', ',');
+                        const parts = value.split(',');
                         if (parts.length > 2) {
-                          value = parts[0] + '.' + parts.slice(1).join('');
+                          value = parts[0] + ',' + parts.slice(1).join('');
                         }
-                        setEditValues({ ...editValues, gastro_min_free_delivery: value === '' ? 0 : parseFloat(value) || 0 });
+                        setEditValues({ ...editValues, gastro_min_free_delivery: value });
                       }}
                     />
                   </div>
@@ -445,15 +483,16 @@ export function DeliverySettings() {
                       type="text"
                       inputMode="decimal"
                       placeholder="0,00"
-                      value={editValues.delivery_fee_wholesale === 0 ? '' : String(editValues.delivery_fee_wholesale).replace('.', ',')}
+                      value={editValues.delivery_fee_wholesale}
                       onChange={(e) => {
-                        let value = e.target.value.replace(',', '.');
-                        value = value.replace(/[^0-9.]/g, '');
-                        const parts = value.split('.');
+                        let value = e.target.value;
+                        value = value.replace(/[^0-9.,]/g, '');
+                        value = value.replace('.', ',');
+                        const parts = value.split(',');
                         if (parts.length > 2) {
-                          value = parts[0] + '.' + parts.slice(1).join('');
+                          value = parts[0] + ',' + parts.slice(1).join('');
                         }
-                        setEditValues({ ...editValues, delivery_fee_wholesale: value === '' ? 0 : parseFloat(value) || 0 });
+                        setEditValues({ ...editValues, delivery_fee_wholesale: value });
                       }}
                     />
                     <Label>Min. objednávka pre dopravu zdarma (€)</Label>
@@ -461,15 +500,16 @@ export function DeliverySettings() {
                       type="text"
                       inputMode="decimal"
                       placeholder="0,00"
-                      value={editValues.wholesale_min_free_delivery === 0 ? '' : String(editValues.wholesale_min_free_delivery).replace('.', ',')}
+                      value={editValues.wholesale_min_free_delivery}
                       onChange={(e) => {
-                        let value = e.target.value.replace(',', '.');
-                        value = value.replace(/[^0-9.]/g, '');
-                        const parts = value.split('.');
+                        let value = e.target.value;
+                        value = value.replace(/[^0-9.,]/g, '');
+                        value = value.replace('.', ',');
+                        const parts = value.split(',');
                         if (parts.length > 2) {
-                          value = parts[0] + '.' + parts.slice(1).join('');
+                          value = parts[0] + ',' + parts.slice(1).join('');
                         }
-                        setEditValues({ ...editValues, wholesale_min_free_delivery: value === '' ? 0 : parseFloat(value) || 0 });
+                        setEditValues({ ...editValues, wholesale_min_free_delivery: value });
                       }}
                     />
                   </div>
