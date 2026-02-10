@@ -92,7 +92,7 @@ export default function PrepPackagingPage() {
           customer:customers(*),
           items:order_items(
             *,
-            crop:crops(name, category),
+            crop:products(name, category),
             blend:blends(name)
           )
         `)
