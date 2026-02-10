@@ -153,6 +153,11 @@ export default function PrepPackagingPage() {
     }
 
     if (packagingTypeFilter !== 'all') {
+      console.log('  🔍 Packaging filter:', packagingTypeFilter);
+      console.log('  🔍 Items packaging types:',
+        allOrders.flatMap(o => o.items || []).map(i => i.packaging_type)
+      );
+
       filtered = filtered.filter(order =>
         order.items?.some((item: any) => item.packaging_type === packagingTypeFilter)
       );
