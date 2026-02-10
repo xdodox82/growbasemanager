@@ -139,6 +139,11 @@ export default function PrepPackagingPage() {
     }
 
     if (sizeFilter !== 'all') {
+      console.log('  🔍 Size filter:', sizeFilter);
+      console.log('  🔍 Items packaging_size:',
+        allOrders.flatMap(o => o.items || []).map(i => i.packaging_size)
+      );
+
       filtered = filtered.filter(order =>
         order.items?.some((item: any) => item.packaging_size === sizeFilter)
       );
@@ -146,9 +151,19 @@ export default function PrepPackagingPage() {
     }
 
     if (labelFilter !== 'all') {
+      console.log('  🔍 Label filter:', labelFilter);
+      console.log('  🔍 Items has_label_req:',
+        allOrders.flatMap(o => o.items || []).map(i => i.has_label_req)
+      );
+      console.log('  🔍 Items needs_label:',
+        allOrders.flatMap(o => o.items || []).map(i => i.needs_label)
+      );
+
       const needsLabel = labelFilter === 'yes';
       filtered = filtered.filter(order =>
-        order.items?.some((item: any) => item.needs_label === needsLabel)
+        order.items?.some((item: any) =>
+          item.has_label_req === needsLabel || item.needs_label === needsLabel
+        )
       );
       console.log('  After label filter:', filtered.length);
     }
