@@ -604,6 +604,8 @@ export default function OrdersPage() {
   const filteredCropsByCategory = useMemo(() => {
     console.log('🔍 Filtering crops by category:', categoryFilter);
     console.log('📊 Total crops:', crops?.length);
+    console.log('📊 All crop categories in DB:', [...new Set(crops?.map(c => c.category))]);
+    console.log('📊 Sample crops with categories:', crops?.slice(0, 5).map(c => ({ name: c.name, category: c.category })));
 
     if (!categoryFilter || categoryFilter === 'all') {
       console.log('✅ Returning all crops');
@@ -617,7 +619,11 @@ export default function OrdersPage() {
     }
 
     // Now categoryFilter uses database values directly: 'microgreens', 'microherbs', 'edible_flowers'
-    const filtered = crops.filter(crop => crop.category === categoryFilter);
+    const filtered = crops.filter(crop => {
+      const matches = crop.category === categoryFilter;
+      console.log(`  Crop "${crop.name}" category="${crop.category}" matches filter "${categoryFilter}": ${matches}`);
+      return matches;
+    });
     console.log(`✅ Filtered crops (${categoryFilter}):`, filtered.length, filtered.map(c => c.name));
     return filtered;
   }, [crops, categoryFilter]);
@@ -3120,6 +3126,15 @@ export default function OrdersPage() {
                               <SelectValue placeholder="Vyberte plodinu alebo mix" />
                             </SelectTrigger>
                             <SelectContent className="bg-white z-[9999]">
+                              {(() => {
+                                console.log('🌾 All crops count:', crops?.length);
+                                console.log('🔍 Category filter:', categoryFilter);
+                                console.log('✅ Filtered crops count:', filteredCropsByCategory?.length);
+                                console.log('✅ Filtered crops:', filteredCropsByCategory?.map(c => c.name));
+                                console.log('🎨 Filtered blends count:', filteredBlendsByCategory?.length);
+                                console.log('🎨 Filtered blends:', filteredBlendsByCategory?.map(b => b.name));
+                                return null;
+                              })()}
                               {filteredCropsByCategory.length > 0 && (
                                 <SelectGroup>
                                   <SelectLabel>Samostatné plodiny</SelectLabel>
