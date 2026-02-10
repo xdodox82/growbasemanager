@@ -83,7 +83,9 @@ export default function PrepPackagingPage() {
 
   useEffect(() => {
     const fetchOrders = async () => {
-      const { data } = await supabase
+      console.log('🔍 Fetching orders for date:', format(selectedDate, 'yyyy-MM-dd'));
+
+      const { data, error } = await supabase
         .from('orders')
         .select(`
           *,
@@ -97,7 +99,11 @@ export default function PrepPackagingPage() {
         .eq('delivery_date', format(selectedDate, 'yyyy-MM-dd'))
         .order('customer_name');
 
+      console.log('📊 Fetched orders:', data);
+      console.log('❌ Error:', error);
+
       if (data) {
+        console.log('✅ Setting allOrders, count:', data.length);
         setAllOrders(data);
       }
     };
@@ -106,10 +112,16 @@ export default function PrepPackagingPage() {
   }, [selectedDate]);
 
   useEffect(() => {
+    console.log('🔧 Applying filters...');
+    console.log('  allOrders count:', allOrders.length);
+    console.log('  customerTypeFilter:', customerTypeFilter);
+    console.log('  categoryFilter:', categoryFilter);
+
     let filtered = [...allOrders];
 
     if (customerTypeFilter !== 'all') {
       filtered = filtered.filter(order => order.customer_type === customerTypeFilter);
+      console.log('  After customer filter:', filtered.length);
     }
 
     if (categoryFilter !== 'all') {
@@ -122,12 +134,14 @@ export default function PrepPackagingPage() {
           order.items?.some((item: any) => item.crop?.category === categoryFilter)
         );
       }
+      console.log('  After category filter:', filtered.length);
     }
 
     if (sizeFilter !== 'all') {
       filtered = filtered.filter(order =>
         order.items?.some((item: any) => item.packaging_size === sizeFilter)
       );
+      console.log('  After size filter:', filtered.length);
     }
 
     if (labelFilter !== 'all') {
@@ -135,14 +149,17 @@ export default function PrepPackagingPage() {
       filtered = filtered.filter(order =>
         order.items?.some((item: any) => item.needs_label === needsLabel)
       );
+      console.log('  After label filter:', filtered.length);
     }
 
     if (packagingTypeFilter !== 'all') {
       filtered = filtered.filter(order =>
         order.items?.some((item: any) => item.packaging_type === packagingTypeFilter)
       );
+      console.log('  After packaging filter:', filtered.length);
     }
 
+    console.log('✅ Final filteredOrders count:', filtered.length);
     setFilteredOrders(filtered);
   }, [allOrders, customerTypeFilter, categoryFilter, sizeFilter, labelFilter, packagingTypeFilter]);
 
@@ -266,10 +283,15 @@ export default function PrepPackagingPage() {
   };
 
   const groupedItems = (() => {
+    console.log('📦 Creating groupedItems from filteredOrders:', filteredOrders.length);
     const groups: Record<string, GroupedItem> = {};
 
     filteredOrders.forEach(order => {
-      if (!order.items || order.items.length === 0) return;
+      console.log('  Processing order:', order.id, 'items count:', order.items?.length);
+      if (!order.items || order.items.length === 0) {
+        console.log('    ⚠️ Order has no items, skipping');
+        return;
+      }
 
       order.items.forEach((item: any) => {
         const customerName = order.customer_type === 'home'
@@ -277,13 +299,17 @@ export default function PrepPackagingPage() {
           : (order.customer?.company_name || order.customer_name);
 
         const packageSize = item.packaging_size;
-        if (!packageSize || !packageSize.includes('ml')) return;
+        if (!packageSize || !packageSize.includes('ml')) {
+          console.log('    ⚠️ Item has invalid packaging_size:', packageSize, 'skipping');
+          return;
+        }
 
         const cropName = item.crop?.name || item.blend?.name || 'Neznáme';
         const packageType = item.packaging_type || 'rPET';
         const hasLabel = item.needs_label !== false;
 
         const key = `${cropName}-${packageSize}-${hasLabel}`;
+        console.log('    ✓ Item:', cropName, packageSize, 'label:', hasLabel);
 
         if (!groups[key]) {
           groups[key] = {
@@ -312,11 +338,14 @@ export default function PrepPackagingPage() {
       });
     });
 
-    return Object.values(groups).sort((a, b) => {
+    const result = Object.values(groups).sort((a, b) => {
       if (a.has_label && !b.has_label) return -1;
       if (!a.has_label && b.has_label) return 1;
       return a.crop_name.localeCompare(b.crop_name);
     });
+
+    console.log('📦 Final groupedItems count:', result.length);
+    return result;
   })();
 
   const unpreparedGroups = groupedItems
@@ -407,7 +436,7 @@ export default function PrepPackagingPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
                   Dátum
                 </label>
                 <Popover>
@@ -424,7 +453,7 @@ export default function PrepPackagingPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
                   Kategória
                 </label>
                 <Select value={categoryFilter} onValueChange={setCategoryFilter}>
@@ -467,7 +496,7 @@ export default function PrepPackagingPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
                   Veľkosť
                 </label>
                 <Select value={sizeFilter} onValueChange={setSizeFilter}>
@@ -487,7 +516,7 @@ export default function PrepPackagingPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
                   Etiketa
                 </label>
                 <Select value={labelFilter} onValueChange={setLabelFilter}>
@@ -503,7 +532,7 @@ export default function PrepPackagingPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
                   Druh obalu
                 </label>
                 <Select value={packagingTypeFilter} onValueChange={setPackagingTypeFilter}>
@@ -523,11 +552,21 @@ export default function PrepPackagingPage() {
         </div>
 
         {unpreparedGroups.length === 0 && preparedGroups.length === 0 ? (
-          <EmptyState
-            icon={<Package className="h-12 w-12" />}
-            title="Žiadne objednávky na prípravu"
-            description="Pre zvolený dátum a typ zákazníka nie sú naplánované žiadne objednávky."
-          />
+          <div className="text-center py-12 bg-white rounded-lg shadow">
+            <Package className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              Žiadne objednávky pre vybraný deň
+            </h3>
+            <p className="text-gray-600 mb-2">
+              Vybraný dátum: <span className="font-semibold">{format(selectedDate, 'dd.MM.yyyy (EEEE)', { locale: sk })}</span>
+            </p>
+            <p className="text-sm text-gray-500 mt-4">
+              Pre tento dátum a zvolenú kombináciu filtrov nie sú naplánované žiadne objednávky.
+            </p>
+            <p className="text-xs text-gray-400 mt-2">
+              Počet načítaných objednávok: {allOrders.length} | Po filtrovaní: {filteredOrders.length}
+            </p>
+          </div>
         ) : (
           <>
             {unpreparedGroups.length > 0 && (
