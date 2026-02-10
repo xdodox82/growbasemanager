@@ -602,27 +602,42 @@ export default function OrdersPage() {
   });
 
   const filteredCropsByCategory = useMemo(() => {
-    if (!categoryFilter || categoryFilter === 'all') return crops;
+    console.log('🔍 Filtering crops by category:', categoryFilter);
+    console.log('📊 Total crops:', crops?.length);
+
+    if (!categoryFilter || categoryFilter === 'all') {
+      console.log('✅ Returning all crops');
+      return crops;
+    }
 
     // If "mix" category is selected, return empty array (blends are shown separately)
     if (categoryFilter === 'mix') {
+      console.log('🎨 Mix category selected - hiding crops');
       return [];
     }
 
     // Now categoryFilter uses database values directly: 'microgreens', 'microherbs', 'edible_flowers'
-    return crops.filter(crop => crop.category === categoryFilter);
+    const filtered = crops.filter(crop => crop.category === categoryFilter);
+    console.log(`✅ Filtered crops (${categoryFilter}):`, filtered.length, filtered.map(c => c.name));
+    return filtered;
   }, [crops, categoryFilter]);
 
   const filteredBlendsByCategory = useMemo(() => {
+    console.log('🔍 Filtering blends by category:', categoryFilter);
+    console.log('📊 Total blends:', blends?.length);
+
     // Only show blends when "mix" category is selected
     if (categoryFilter === 'mix') {
+      console.log('✅ Showing blends for mix category:', blends?.length);
       return blends;
     }
     // If no category filter or "all", show blends in "Mixy" group
     if (!categoryFilter || categoryFilter === 'all') {
+      console.log('✅ Showing all blends:', blends?.length);
       return blends;
     }
     // Otherwise don't show blends
+    console.log('❌ Hiding blends for category:', categoryFilter);
     return [];
   }, [blends, categoryFilter]);
 
