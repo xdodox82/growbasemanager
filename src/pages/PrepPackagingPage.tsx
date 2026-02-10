@@ -154,17 +154,8 @@ export default function PrepPackagingPage() {
     }
 
     if (packagingTypeFilter !== 'all') {
-      console.log('  🔍 Packaging filter:', packagingTypeFilter);
-      console.log('  🔍 Items packaging_material:',
-        allOrders.flatMap(o => o.items || []).map(i => i.packaging_material)
-      );
-      console.log('  🔍 Items package_type:',
-        allOrders.flatMap(o => o.items || []).map(i => i.package_type)
-      );
-
       filtered = filtered.filter(order =>
         order.items?.some((item: any) =>
-          item.packaging_material === packagingTypeFilter ||
           item.package_type === packagingTypeFilter
         )
       );
@@ -559,6 +550,7 @@ export default function PrepPackagingPage() {
                     <SelectItem value="rPET">rPET</SelectItem>
                     <SelectItem value="PET">PET</SelectItem>
                     <SelectItem value="EKO">EKO</SelectItem>
+                    <SelectItem value="Vrátny obal">Vrátny obal</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
