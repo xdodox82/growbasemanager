@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Package, Check, RotateCcw, Home, Utensils, Tag, ChevronLeft, ChevronRight } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, addMonths, subMonths } from 'date-fns';
+import { Package, Check, RotateCcw, Home, Utensils, Tag, ChevronLeft, ChevronRight, Leaf, Sprout, Flower, Grid3x3 } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, addMonths, subMonths, isToday } from 'date-fns';
 import { sk } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { useOrders, useCustomers, useCrops, useBlends } from '@/hooks/useSupabaseData';
@@ -39,6 +39,7 @@ export default function PrepPackagingPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [customerTypeFilter, setCustomerTypeFilter] = useState<'all' | 'home' | 'gastro' | 'wholesale'>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [packageTypeFilter, setPackageTypeFilter] = useState('rPET');
   const [packageSizeFilter, setPackageSizeFilter] = useState('all');
   const [cropFilter, setCropFilter] = useState('all');
@@ -107,6 +108,17 @@ export default function PrepPackagingPage() {
       });
     }
 
+    if (categoryFilter !== 'all') {
+      if (categoryFilter === 'blends') {
+        filtered = filtered.filter(order => order.blend_id !== null && order.blend_id !== undefined);
+      } else {
+        filtered = filtered.filter(order => {
+          const crop = crops.find(c => c.id === order.crop_id);
+          return crop?.category === categoryFilter;
+        });
+      }
+    }
+
     if (packageTypeFilter !== 'all') {
       filtered = filtered.filter(order => {
         if ((order as any).packaging_type === packageTypeFilter) return true;
@@ -138,7 +150,7 @@ export default function PrepPackagingPage() {
     );
 
     return filtered;
-  }, [orders, customers, selectedDate, customerTypeFilter, packageTypeFilter, packageSizeFilter, cropFilter, labelFilter]);
+  }, [orders, customers, crops, selectedDate, customerTypeFilter, categoryFilter, packageTypeFilter, packageSizeFilter, cropFilter, labelFilter]);
 
   const groupedItems = useMemo(() => {
     const groups: Record<string, GroupedItem> = {};
@@ -324,7 +336,7 @@ export default function PrepPackagingPage() {
               const isDelivery = isDeliveryDay(day);
               const hasOrders = hasOrdersOnDate(day);
               const orderCount = getOrderCountOnDate(day);
-              const isToday = isSameDay(day, new Date());
+              const today = isToday(day);
               const isSelected = selectedDate && isSameDay(day, selectedDate);
 
               let bgColor = 'bg-white';
@@ -345,7 +357,7 @@ export default function PrepPackagingPage() {
                     flex items-center justify-center
                     transition-all
                     ${bgColor}
-                    ${isToday ? 'ring-2 ring-green-600 ring-offset-2' : ''}
+                    ${today ? 'ring-2 ring-green-600 ring-offset-2' : ''}
                     ${isSelected ? 'ring-2 ring-blue-600 ring-offset-2' : ''}
                     ${hasOrders || isDelivery ? 'hover:opacity-80' : 'hover:bg-gray-100'}
                     ${!hasOrders && !isDelivery ? 'text-gray-400' : 'text-gray-900 font-medium'}
@@ -375,31 +387,60 @@ export default function PrepPackagingPage() {
         </div>
 
         <Card className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
-              <Select value={cropFilter} onValueChange={setCropFilter}>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Kategória
+              </label>
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Plodina / Mix" />
+                  <SelectValue placeholder="Kategória" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Všetky plodiny</SelectItem>
-                  {crops.map(crop => (
-                    <SelectItem key={crop.id} value={crop.id}>{crop.name}</SelectItem>
-                  ))}
-                  {blends.map(blend => (
-                    <SelectItem key={blend.id} value={blend.id}>{blend.name} (Mix)</SelectItem>
-                  ))}
+                <SelectContent position="popper" sideOffset={5} className="!z-[100]">
+                  <SelectItem value="all">
+                    <div className="flex items-center gap-2">
+                      <Check className="h-4 w-4" />
+                      Všetky kategórie
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="microgreens">
+                    <div className="flex items-center gap-2">
+                      <Leaf className="h-4 w-4 text-green-600" />
+                      Mikrozelenina
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="microherbs">
+                    <div className="flex items-center gap-2">
+                      <Sprout className="h-4 w-4 text-green-600" />
+                      Mikrobylinky
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="edible_flowers">
+                    <div className="flex items-center gap-2">
+                      <Flower className="h-4 w-4 text-pink-500" />
+                      Jedlé kvety
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="blends">
+                    <div className="flex items-center gap-2">
+                      <Grid3x3 className="h-4 w-4 text-blue-600" />
+                      Mixy
+                    </div>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Veľkosť
+              </label>
               <Select value={packageSizeFilter} onValueChange={setPackageSizeFilter}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Všetky veľkosti" />
+                  <SelectValue placeholder="Všetky" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Všetky veľkosti</SelectItem>
+                <SelectContent position="popper" sideOffset={5} className="!z-[100]">
+                  <SelectItem value="all">Všetky</SelectItem>
                   <SelectItem value="250ml">250ml</SelectItem>
                   <SelectItem value="500ml">500ml</SelectItem>
                   <SelectItem value="750ml">750ml</SelectItem>
@@ -411,28 +452,54 @@ export default function PrepPackagingPage() {
             </div>
 
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Etiketa
+              </label>
               <Select value={labelFilter} onValueChange={setLabelFilter}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Etiketa" />
+                  <SelectValue placeholder="Všetko" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper" sideOffset={5} className="!z-[100]">
                   <SelectItem value="all">Všetko</SelectItem>
-                  <SelectItem value="with">S etiketou</SelectItem>
-                  <SelectItem value="without">Bez etikety</SelectItem>
+                  <SelectItem value="with">Áno</SelectItem>
+                  <SelectItem value="without">Nie</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Druh obalu
+              </label>
               <Select value={packageTypeFilter} onValueChange={setPackageTypeFilter}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Typ krabičky" />
+                  <SelectValue placeholder="Typ" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Všetky typy</SelectItem>
-                  <SelectItem value="PET">PET</SelectItem>
+                <SelectContent position="popper" sideOffset={5} className="!z-[100]">
+                  <SelectItem value="all">Všetky</SelectItem>
                   <SelectItem value="rPET">rPET</SelectItem>
+                  <SelectItem value="PET">PET</SelectItem>
                   <SelectItem value="EKO">EKO</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Plodina / Mix
+              </label>
+              <Select value={cropFilter} onValueChange={setCropFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Všetky" />
+                </SelectTrigger>
+                <SelectContent position="popper" sideOffset={5} className="!z-[100]">
+                  <SelectItem value="all">Všetky</SelectItem>
+                  {crops.map(crop => (
+                    <SelectItem key={crop.id} value={crop.id}>{crop.name}</SelectItem>
+                  ))}
+                  {blends.map(blend => (
+                    <SelectItem key={blend.id} value={blend.id}>{blend.name} (Mix)</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
