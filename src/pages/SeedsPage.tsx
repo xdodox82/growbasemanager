@@ -462,7 +462,7 @@ export default function SeedsPage() {
               {seed.expiry_date && (
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Expirácia:</span>
-                  <span>{format(new Date(seed.expiry_date), 'dd.MM.yyyy')}</span>
+                  <span>{format(new Date(seed.expiry_date), 'LLLL yyyy', { locale: sk })}</span>
                 </div>
               )}
               {extSeed.certificate_url && (
@@ -565,7 +565,7 @@ export default function SeedsPage() {
                       <ExpandedDetail label="Dodávateľ" value={getSupplierName(seed.supplier_id)} />
                       <ExpandedDetail label="Šarža" value={seed.lot_number || '-'} />
                       <ExpandedDetail label="Naskladnenie" value={extSeed.stocking_date ? format(new Date(extSeed.stocking_date), 'dd.MM.yyyy') : '-'} />
-                      <ExpandedDetail label="Expirácia" value={seed.expiry_date ? format(new Date(seed.expiry_date), 'dd.MM.yyyy') : '-'} />
+                      <ExpandedDetail label="Expirácia" value={seed.expiry_date ? format(new Date(seed.expiry_date), 'LLLL yyyy', { locale: sk }) : '-'} />
                       {extSeed.certificate_url && (
                         <div className="pt-2 flex items-center gap-2">
                           <a
@@ -631,7 +631,7 @@ export default function SeedsPage() {
                     {extSeed.stocking_date ? format(new Date(extSeed.stocking_date), 'dd.MM.yyyy') : '-'}
                   </MobileTableCell>
                   <MobileTableCell hideOnMobile>
-                    {seed.expiry_date ? format(new Date(seed.expiry_date), 'dd.MM.yyyy') : '-'}
+                    {seed.expiry_date ? format(new Date(seed.expiry_date), 'LLLL yyyy', { locale: sk }) : '-'}
                   </MobileTableCell>
                   <MobileTableCell hideOnMobile>
                     {extSeed.certificate_url ? (
@@ -1271,7 +1271,7 @@ export default function SeedsPage() {
                     <p className="font-medium text-amber-900">
                       {(() => {
                         try {
-                          return format(new Date(selectedSeed.expiry_date), 'dd.MM.yyyy', { locale: sk });
+                          return format(new Date(selectedSeed.expiry_date), 'LLLL yyyy', { locale: sk });
                         } catch {
                           return selectedSeed.expiry_date;
                         }
