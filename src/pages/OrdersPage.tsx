@@ -2447,12 +2447,23 @@ export default function OrdersPage() {
               {(() => {
                 console.log('🌾 HLAVNÁ STRÁNKA - Rendering crop dropdown');
                 console.log('  Category filter:', orderCategoryFilter);
+
+                // AK JE KATEGÓRIA "MIX", ZOBRAZ BLENDS
+                if (orderCategoryFilter === 'mix') {
+                  console.log('  🎨 All blends:', blends?.length);
+                  console.log('  🎨 Blend names:', blends?.map(b => b.name));
+                  return blends?.map(blend => (
+                    <SelectItem key={blend.id} value={blend.name}>
+                      {blend.name}
+                    </SelectItem>
+                  ));
+                }
+
+                // INAK ZOBRAZ CROPS
                 console.log('  All crops:', crops?.length);
 
-                // PRIDANÉ: Filtruj plodiny podľa kategórie
                 const filteredCrops = crops?.filter(crop => {
                   if (!orderCategoryFilter || orderCategoryFilter === 'all') return true;
-                  if (orderCategoryFilter === 'mix') return false;
                   return crop.category === orderCategoryFilter;
                 });
 
