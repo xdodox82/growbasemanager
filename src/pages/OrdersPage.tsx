@@ -2448,8 +2448,18 @@ export default function OrdersPage() {
                 console.log('🌾 HLAVNÁ STRÁNKA - Rendering crop dropdown');
                 console.log('  Category filter:', orderCategoryFilter);
                 console.log('  All crops:', crops?.length);
-                console.log('  Crop names:', crops?.map(c => c.name));
-                return (crops || []).map(crop => (
+
+                // PRIDANÉ: Filtruj plodiny podľa kategórie
+                const filteredCrops = crops?.filter(crop => {
+                  if (!orderCategoryFilter || orderCategoryFilter === 'all') return true;
+                  if (orderCategoryFilter === 'mix') return false;
+                  return crop.category === orderCategoryFilter;
+                });
+
+                console.log('  ✅ Filtered crops:', filteredCrops?.length);
+                console.log('  ✅ Crop names:', filteredCrops?.map(c => c.name));
+
+                return filteredCrops?.map(crop => (
                   <SelectItem key={crop?.id} value={crop?.name || ''}>{crop?.name}</SelectItem>
                 ));
               })()}
