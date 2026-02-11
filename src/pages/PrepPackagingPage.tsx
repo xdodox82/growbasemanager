@@ -140,12 +140,15 @@ export default function PrepPackagingPage() {
 
     if (sizeFilter !== 'all') {
       console.log('  🔍 Size filter:', sizeFilter);
-      console.log('  🔍 Items packaging_size:',
-        allOrders.flatMap(o => o.items || []).map(i => i.packaging_size)
+      console.log('  🔍 Items package_ml:',
+        allOrders.flatMap(o => o.items || []).map(i => i.package_ml)
       );
 
+      // Preveď filter hodnotu na číslo (napr. "750ml" → 750)
+      const filterValue = parseInt(sizeFilter.replace('ml', ''));
+
       filtered = filtered.filter(order =>
-        order.items?.some((item: any) => item.packaging_size === sizeFilter)
+        order.items?.some((item: any) => item.package_ml === filterValue)
       );
       console.log('  After size filter:', filtered.length);
     }
