@@ -526,10 +526,6 @@ export default function PrepPackagingPage() {
                   </SelectTrigger>
                   <SelectContent position="popper" sideOffset={5} className="!z-[100]">
                     <SelectItem value="all">Všetky</SelectItem>
-                    <SelectItem value="50">50g</SelectItem>
-                    <SelectItem value="60">60g</SelectItem>
-                    <SelectItem value="70">70g</SelectItem>
-                    <SelectItem value="100">100g</SelectItem>
                     <SelectItem value="250ml">250ml</SelectItem>
                     <SelectItem value="500ml">500ml</SelectItem>
                     <SelectItem value="750ml">750ml</SelectItem>
