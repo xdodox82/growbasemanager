@@ -2411,7 +2411,10 @@ export default function OrdersPage() {
             onChange={setFilterCustomerType}
           />
 
-          <Select value={orderCategoryFilter} onValueChange={setOrderCategoryFilter}>
+          <Select value={orderCategoryFilter} onValueChange={(value) => {
+            console.log('🏠 HLAVNÁ STRÁNKA - Category changed:', value);
+            setOrderCategoryFilter(value);
+          }}>
             <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Kategória plodiny" />
             </SelectTrigger>
@@ -2432,15 +2435,24 @@ export default function OrdersPage() {
             </SelectContent>
           </Select>
 
-          <Select value={filterCrop} onValueChange={setFilterCrop}>
+          <Select value={filterCrop} onValueChange={(value) => {
+            console.log('🌾 HLAVNÁ STRÁNKA - Crop filter changed:', value);
+            setFilterCrop(value);
+          }}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Všetky plodiny" />
             </SelectTrigger>
             <SelectContent className="max-h-[300px] overflow-y-auto z-[100]">
               <SelectItem value="all">Všetky plodiny</SelectItem>
-              {(crops || []).map(crop => (
-                <SelectItem key={crop?.id} value={crop?.name || ''}>{crop?.name}</SelectItem>
-              ))}
+              {(() => {
+                console.log('🌾 HLAVNÁ STRÁNKA - Rendering crop dropdown');
+                console.log('  Category filter:', orderCategoryFilter);
+                console.log('  All crops:', crops?.length);
+                console.log('  Crop names:', crops?.map(c => c.name));
+                return (crops || []).map(crop => (
+                  <SelectItem key={crop?.id} value={crop?.name || ''}>{crop?.name}</SelectItem>
+                ));
+              })()}
             </SelectContent>
           </Select>
 
