@@ -148,7 +148,18 @@ export default function PrepPackagingPage() {
 
     if (customerTypeFilter !== 'all') {
       filtered = filtered.filter(order => order.customer_type === customerTypeFilter);
-      console.log('  After customer filter:', filtered.length);
+      console.log('  After customer type filter:', filtered.length);
+    }
+
+    console.log('  customerFilter:', customerFilter);
+    if (customerFilter && customerFilter !== 'all') {
+      console.log('  🎯 Filtering by specific customer:', customerFilter);
+      filtered = filtered.filter(order => {
+        const matches = order.customer_id === customerFilter;
+        console.log(`    Order ${order.id} customer_id="${order.customer_id}" matches "${customerFilter}": ${matches}`);
+        return matches;
+      });
+      console.log('  After specific customer filter:', filtered.length);
     }
 
     if (categoryFilter !== 'all') {
@@ -208,7 +219,7 @@ export default function PrepPackagingPage() {
 
     console.log('✅ Final filteredOrders count:', filtered.length);
     setFilteredOrders(filtered);
-  }, [allOrders, customerTypeFilter, categoryFilter, sizeFilter, labelFilter, packagingTypeFilter]);
+  }, [allOrders, customerTypeFilter, customerFilter, categoryFilter, sizeFilter, labelFilter, packagingTypeFilter]);
 
   const isDeliveryDay = (date: Date): boolean => {
     if (!deliverySettings) return false;
