@@ -485,10 +485,27 @@ export default function PrepPackagingPage() {
                     console.log('👤 Customer filter changed:', value);
                     setCustomerFilter(value);
                   }}
-                  customers={customers?.filter(c => {
-                    if (customerTypeFilter === 'all') return true;
-                    return c.customer_type === customerTypeFilter;
-                  })}
+                  customers={(() => {
+                    console.log('👥 DIAGNOSTIKA ZÁKAZNÍK FILTER:');
+                    console.log('  All customers count:', customers?.length);
+                    console.log('  customerTypeFilter:', customerTypeFilter);
+                    console.log('  Sample customers:', customers?.slice(0, 3).map(c => ({
+                      name: c.name,
+                      customer_type: c.customer_type
+                    })));
+
+                    const filtered = customers?.filter(c => {
+                      if (customerTypeFilter === 'all') return true;
+                      const matches = c.customer_type === customerTypeFilter;
+                      console.log(`  Customer "${c.name}" type="${c.customer_type}" matches "${customerTypeFilter}": ${matches}`);
+                      return matches;
+                    });
+
+                    console.log('  ✅ Filtered customers count:', filtered?.length);
+                    console.log('  ✅ Filtered customer names:', filtered?.map(c => c.name));
+
+                    return filtered;
+                  })()}
                   placeholder="Všetci zákazníci"
                   allowAll={true}
                 />
