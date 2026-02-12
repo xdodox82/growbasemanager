@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CalendarIcon, Package, Check, RotateCcw, Home, Utensils, Tag, ChevronLeft, ChevronRight, Leaf, Sprout, Flower, Grid3x3 } from 'lucide-react';
+import { SearchableCustomerSelect } from '@/components/orders/SearchableCustomerSelect';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, isToday } from 'date-fns';
 import { sk } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
@@ -40,7 +41,9 @@ export default function PrepPackagingPage() {
   const [labelFilter, setLabelFilter] = useState<string>('all');
   const [packagingTypeFilter, setPackagingTypeFilter] = useState<string>('rPET');
   const [customerTypeFilter, setCustomerTypeFilter] = useState<string>('all');
+  const [customerFilter, setCustomerFilter] = useState<string>('all');
   const [deliverySettings, setDeliverySettings] = useState<any>(null);
+  const [customers, setCustomers] = useState<any[]>([]);
   const [ordersForCalendar, setOrdersForCalendar] = useState<any[]>([]);
   const [allOrders, setAllOrders] = useState<any[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<any[]>([]);
@@ -61,6 +64,19 @@ export default function PrepPackagingPage() {
     };
 
     fetchDeliverySettings();
+  }, []);
+
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      const { data } = await supabase
+        .from('customers')
+        .select('*')
+        .order('customer_name');
+
+      if (data) setCustomers(data);
+    };
+
+    fetchCustomers();
   }, []);
 
   useEffect(() => {
@@ -418,43 +434,64 @@ export default function PrepPackagingPage() {
           <h2 className="text-lg font-semibold mb-4">Filtre</h2>
 
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Typ zákazníka
-              </label>
-              <div className="flex gap-2 flex-wrap">
-                <Button
-                  variant={customerTypeFilter === 'all' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setCustomerTypeFilter('all')}
-                >
-                  <Check className="h-4 w-4 mr-2" />
-                  Všetci
-                </Button>
-                <Button
-                  variant={customerTypeFilter === 'home' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setCustomerTypeFilter('home')}
-                >
-                  <Home className="h-4 w-4 mr-2" />
-                  Domáci
-                </Button>
-                <Button
-                  variant={customerTypeFilter === 'gastro' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setCustomerTypeFilter('gastro')}
-                >
-                  <Utensils className="h-4 w-4 mr-2" />
-                  Gastro
-                </Button>
-                <Button
-                  variant={customerTypeFilter === 'wholesale' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setCustomerTypeFilter('wholesale')}
-                >
-                  <Package className="h-4 w-4 mr-2" />
-                  VO
-                </Button>
+            <div className="flex gap-4 items-start">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Typ zákazníka
+                </label>
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    variant={customerTypeFilter === 'all' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setCustomerTypeFilter('all')}
+                  >
+                    <Check className="h-4 w-4 mr-2" />
+                    Všetci
+                  </Button>
+                  <Button
+                    variant={customerTypeFilter === 'home' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setCustomerTypeFilter('home')}
+                  >
+                    <Home className="h-4 w-4 mr-2" />
+                    Domáci
+                  </Button>
+                  <Button
+                    variant={customerTypeFilter === 'gastro' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setCustomerTypeFilter('gastro')}
+                  >
+                    <Utensils className="h-4 w-4 mr-2" />
+                    Gastro
+                  </Button>
+                  <Button
+                    variant={customerTypeFilter === 'wholesale' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setCustomerTypeFilter('wholesale')}
+                  >
+                    <Package className="h-4 w-4 mr-2" />
+                    VO
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex-1 max-w-xs">
+                <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
+                  Zákazník
+                </label>
+                <SearchableCustomerSelect
+                  value={customerFilter}
+                  onValueChange={(value) => {
+                    console.log('👤 Customer filter changed:', value);
+                    setCustomerFilter(value);
+                  }}
+                  customers={customers?.filter(c => {
+                    if (customerTypeFilter === 'all') return true;
+                    return c.customer_type === customerTypeFilter;
+                  })}
+                  placeholder="Všetci zákazníci"
+                  allowAll={true}
+                />
               </div>
             </div>
 
