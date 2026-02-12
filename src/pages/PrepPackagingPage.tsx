@@ -367,10 +367,10 @@ export default function PrepPackagingPage() {
 
         const cropName = item.crop?.name || item.blend?.name || 'Neznáme';
         const packageType = item.packaging_type || 'rPET';
-        const hasLabel = item.needs_label !== false;
+        const hasLabel = item.has_label_req === true;
 
         const key = `${cropName}-${packageSize}-${hasLabel}`;
-        console.log('    ✓ Item:', cropName, packageSize, 'label:', hasLabel);
+        console.log('    ✓ Item:', cropName, packageSize, 'label:', hasLabel, 'has_label_req:', item.has_label_req);
 
         if (!groups[key]) {
           groups[key] = {
