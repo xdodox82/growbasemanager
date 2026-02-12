@@ -233,6 +233,7 @@ export default function OrdersPage() {
   const [filterCrop, setFilterCrop] = useState('all');
   const [orderCategoryFilter, setOrderCategoryFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [customerFilter, setCustomerFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [showArchive, setShowArchive] = useState(false);
 
@@ -301,6 +302,18 @@ export default function OrdersPage() {
       }
     }
   }, [deliveryDate, orderItems]);
+
+  // Monitor customer filter changes
+  useEffect(() => {
+    console.log('🔍 OrdersPage customer filter:', customerFilter);
+    console.log('🔍 OrdersPage customer type filter:', filterCustomerType);
+  }, [customerFilter, filterCustomerType]);
+
+  // Reset customer filter when customer type filter changes
+  useEffect(() => {
+    console.log('🔄 OrdersPage - Customer type changed, resetting customer filter');
+    setCustomerFilter('all');
+  }, [filterCustomerType]);
 
   useEffect(() => {
     if (customerId && customers) {
@@ -509,6 +522,11 @@ export default function OrdersPage() {
     if (filterCustomerType !== 'all') {
       const customer = customers?.find(c => c.id === order.customer_id);
       if (customer?.customer_type !== filterCustomerType) return false;
+    }
+
+    // Filter by specific customer
+    if (customerFilter && customerFilter !== 'all') {
+      if (order.customer_id !== customerFilter) return false;
     }
 
     if (filterCrop !== 'all') {
@@ -2391,6 +2409,20 @@ export default function OrdersPage() {
             value={searchQuery}
             onChange={setSearchQuery}
             placeholder="Hľadať podľa mena zákazníka..."
+          />
+
+          <SearchableCustomerSelect
+            value={customerFilter}
+            onValueChange={(value) => {
+              console.log('👤 OrdersPage - Customer filter changed:', value);
+              setCustomerFilter(value);
+            }}
+            customers={customers?.filter(c => {
+              if (filterCustomerType === 'all') return true;
+              return c.customer_type === filterCustomerType;
+            })}
+            placeholder="Všetci zákazníci"
+            allowAll={true}
           />
 
           <Select value={filterStatus} onValueChange={setFilterStatus}>
