@@ -25,17 +25,19 @@ interface Customer {
 interface SearchableCustomerSelectProps {
   customers: Customer[];
   value: string;
-  onChange: (value: string) => void;
+  onValueChange: (value: string) => void;
   filterByType?: string;
   placeholder?: string;
+  allowAll?: boolean;
 }
 
 export function SearchableCustomerSelect({
   customers,
   value,
-  onChange,
+  onValueChange,
   filterByType,
-  placeholder = 'Vyberte zákazníka'
+  placeholder = 'Vyberte zákazníka',
+  allowAll = false
 }: SearchableCustomerSelectProps) {
   const [open, setOpen] = useState(false);
 
@@ -47,7 +49,9 @@ export function SearchableCustomerSelect({
   }, [customers, filterByType]);
 
   const selectedCustomer = customers.find(c => c.id === value);
-  const displayName = selectedCustomer?.company_name || selectedCustomer?.name || placeholder;
+  const displayName = value === 'all'
+    ? 'Všetci zákazníci'
+    : (selectedCustomer?.company_name || selectedCustomer?.name || placeholder);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -77,13 +81,31 @@ export function SearchableCustomerSelect({
             }}
           >
             <CommandGroup>
+              {allowAll && (
+                <CommandItem
+                  value="všetci zákazníci all"
+                  onSelect={() => {
+                    console.log('🔍 Customer selected: ALL');
+                    onValueChange('all');
+                    setOpen(false);
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      'mr-2 h-4 w-4',
+                      value === 'all' ? 'opacity-100' : 'opacity-0'
+                    )}
+                  />
+                  <span className="font-medium">Všetci zákazníci</span>
+                </CommandItem>
+              )}
               {filteredCustomers.map((customer) => (
                 <CommandItem
                   key={customer.id}
                   value={`${customer.name} ${customer.company_name} ${customer.customer_type}`}
                   onSelect={() => {
                     console.log('🔍 Customer selected:', customer.company_name || customer.name);
-                    onChange(customer.id);
+                    onValueChange(customer.id);
                     setOpen(false);
                   }}
                 >
