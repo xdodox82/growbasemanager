@@ -68,12 +68,22 @@ export default function PrepPackagingPage() {
 
   useEffect(() => {
     const fetchCustomers = async () => {
-      const { data } = await supabase
+      console.log('👥 Fetching customers...');
+      const { data, error } = await supabase
         .from('customers')
         .select('*')
-        .order('customer_name');
+        .order('name');
 
-      if (data) setCustomers(data);
+      if (error) {
+        console.error('❌ Error fetching customers:', error);
+      } else {
+        console.log('✅ Customers loaded:', data?.length);
+        console.log('   Sample customers:', data?.slice(0, 3).map(c => ({
+          name: c.name,
+          customer_type: c.customer_type
+        })));
+        setCustomers(data || []);
+      }
     };
 
     fetchCustomers();
