@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Switch } from '@/components/ui/switch';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { OrderSearchBar } from '@/components/orders/OrderSearchBar';
 import { SearchableCustomerSelect } from '@/components/orders/SearchableCustomerSelect';
 import { CategoryFilter } from '@/components/orders/CategoryFilter';
 import { CustomerTypeFilter } from '@/components/filters/CustomerTypeFilter';
@@ -232,7 +231,6 @@ export default function OrdersPage() {
   const [filterCustomerType, setFilterCustomerType] = useState<string>('all');
   const [filterCrop, setFilterCrop] = useState('all');
   const [orderCategoryFilter, setOrderCategoryFilter] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState('');
   const [customerFilter, setCustomerFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [showArchive, setShowArchive] = useState(false);
@@ -549,16 +547,6 @@ export default function OrdersPage() {
         return false;
       });
       if (!hasMatchingCategory) return false;
-    }
-
-    if (searchQuery) {
-      const customer = customers?.find(c => c.id === order.customer_id);
-      const searchLower = searchQuery.toLowerCase();
-      const customerName = (customer?.name || '').toLowerCase();
-      const companyName = (customer?.company_name || '').toLowerCase();
-      if (!customerName.includes(searchLower) && !companyName.includes(searchLower)) {
-        return false;
-      }
     }
 
     // Archive filter: if showArchive is false, only show active orders (not completed)
@@ -2405,43 +2393,26 @@ export default function OrdersPage() {
         </div>
 
         <div className="flex flex-wrap gap-3 items-center">
-          <OrderSearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Hľadať podľa mena zákazníka..."
-          />
-
-          <SearchableCustomerSelect
-            value={customerFilter}
-            onValueChange={(value) => {
-              console.log('👤 OrdersPage - Customer filter changed:', value);
-              setCustomerFilter(value);
-            }}
-            customers={customers?.filter(c => {
-              if (filterCustomerType === 'all') return true;
-              return c.customer_type === filterCustomerType;
-            })}
-            placeholder="Všetci zákazníci"
-            allowAll={true}
-          />
-
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Všetky stavy" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Všetky stavy</SelectItem>
-              <SelectItem value="cakajuca">Čakajúca</SelectItem>
-              <SelectItem value="potvrdena">Potvrdená</SelectItem>
-              <SelectItem value="pripravena">Pripravená</SelectItem>
-              <SelectItem value="dorucena">Doručená</SelectItem>
-            </SelectContent>
-          </Select>
-
           <CustomerTypeFilter
             value={filterCustomerType}
             onChange={setFilterCustomerType}
           />
+
+          <div className="w-[280px]">
+            <SearchableCustomerSelect
+              value={customerFilter}
+              onValueChange={(value) => {
+                console.log('👤 OrdersPage - Customer filter changed:', value);
+                setCustomerFilter(value);
+              }}
+              customers={customers?.filter(c => {
+                if (filterCustomerType === 'all') return true;
+                return c.customer_type === filterCustomerType;
+              })}
+              placeholder="Hľadať zákazníka..."
+              allowAll={true}
+            />
+          </div>
 
           <Select value={orderCategoryFilter} onValueChange={(value) => {
             console.log('🏠 HLAVNÁ STRÁNKA - Category changed:', value);
@@ -2520,6 +2491,19 @@ export default function OrdersPage() {
               <SelectItem value="last_week">Minulý týždeň</SelectItem>
               <SelectItem value="last_2_weeks">Pred 2 týždňami</SelectItem>
               <SelectItem value="last_month">Minulý mesiac</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Všetky stavy" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Všetky stavy</SelectItem>
+              <SelectItem value="cakajuca">Čakajúca</SelectItem>
+              <SelectItem value="potvrdena">Potvrdená</SelectItem>
+              <SelectItem value="pripravena">Pripravená</SelectItem>
+              <SelectItem value="dorucena">Doručená</SelectItem>
             </SelectContent>
           </Select>
 
