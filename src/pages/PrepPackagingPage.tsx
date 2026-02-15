@@ -6,7 +6,10 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CalendarIcon, Package, Check, RotateCcw, Home, Utensils, Tag, ChevronLeft, ChevronRight, Leaf, Sprout, Flower, Grid3x3 } from 'lucide-react';
+import { CalendarIcon, Package, Check, RotateCcw, Home, Utensils, Tag, ChevronLeft, ChevronRight, Leaf, Sprout, Flower, Grid3x3, GripVertical } from 'lucide-react';
+import { DndContext, closestCenter, DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { SearchableCustomerSelect } from '@/components/orders/SearchableCustomerSelect';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, isToday } from 'date-fns';
 import { sk } from 'date-fns/locale';
@@ -62,6 +65,15 @@ export default function PrepPackagingPage() {
   const [allOrders, setAllOrders] = useState<any[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<any[]>([]);
   const [preparedItems, setPreparedItems] = useState<Set<string>>(new Set());
+
+  const [cropOrder, setCropOrder] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem('prep_packaging_order');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
 
   useEffect(() => {
     const fetchDeliverySettings = async () => {
@@ -487,6 +499,52 @@ export default function PrepPackagingPage() {
     })
     .filter(g => g.itemsWithLabel.length > 0 || g.itemsWithoutLabel.length > 0);
 
+  const saveCropOrder = (order: Record<string, number>) => {
+    localStorage.setItem('prep_packaging_order', JSON.stringify(order));
+    console.log('✅ Crop order saved:', order);
+  };
+
+  const sortGroupsByCropOrder = (groups: typeof unpreparedGroups) => {
+    return [...groups].sort((a, b) => {
+      const nameA = a.crop_name || '';
+      const nameB = b.crop_name || '';
+      const orderA = cropOrder[nameA] ?? 999;
+      const orderB = cropOrder[nameB] ?? 999;
+
+      if (orderA !== 999 && orderB !== 999) return orderA - orderB;
+      if (orderA !== 999) return -1;
+      if (orderB !== 999) return 1;
+      return nameA.localeCompare(nameB, 'sk');
+    });
+  };
+
+  const sortedUnpreparedGroups = sortGroupsByCropOrder(unpreparedGroups);
+  const sortedPreparedGroups = sortGroupsByCropOrder(preparedGroups);
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const currentGroups = sortedUnpreparedGroups.length > 0 ? sortedUnpreparedGroups : sortedPreparedGroups;
+
+    const oldIndex = currentGroups.findIndex(item => item.crop_name === active.id);
+    const newIndex = currentGroups.findIndex(item => item.crop_name === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reorderedItems = [...currentGroups];
+    const [movedItem] = reorderedItems.splice(oldIndex, 1);
+    reorderedItems.splice(newIndex, 0, movedItem);
+
+    const newOrder: Record<string, number> = {};
+    reorderedItems.forEach((item, index) => {
+      newOrder[item.crop_name || ''] = index;
+    });
+
+    setCropOrder(newOrder);
+    saveCropOrder(newOrder);
+  };
+
   const markAsPrepared = (itemId: string) => {
     setPreparedItems(prev => new Set(prev).add(itemId));
     toast({ title: 'Označené', description: 'Položka pripravená' });
@@ -503,6 +561,41 @@ export default function PrepPackagingPage() {
 
   const totalUnprepared = unpreparedGroups.reduce((sum, g) => sum + g.itemsWithLabel.length + g.itemsWithoutLabel.length, 0);
   const totalPrepared = preparedGroups.reduce((sum, g) => sum + g.itemsWithLabel.length + g.itemsWithoutLabel.length, 0);
+
+  const SortableCard = ({ item, children, isPrepared = false }: { item: any, children: React.ReactNode, isPrepared?: boolean }) => {
+    const cropName = item.crop_name || '';
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+      useSortable({ id: cropName });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
+
+    const cardClasses = isPrepared
+      ? "bg-green-50 rounded-lg border border-green-200 shadow-sm p-4 mb-3 max-w-4xl"
+      : "bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-3 max-w-4xl";
+
+    const headerClasses = isPrepared
+      ? "text-base font-semibold text-green-900 mb-3 pb-2 border-b border-green-100 flex items-center gap-2"
+      : "text-base font-semibold text-gray-900 mb-3 pb-2 border-b border-gray-100 flex items-center gap-2";
+
+    return (
+      <div ref={setNodeRef} style={style} className={cardClasses}>
+        <div className={headerClasses}>
+          <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 p-1">
+            <GripVertical className="w-5 h-5" />
+          </button>
+          {isPrepared && <Check className="h-5 w-5" />}
+          <h3 className="flex-1">
+            {cropName}
+          </h3>
+        </div>
+        {children}
+      </div>
+    );
+  };
 
   return (
     <MainLayout>
@@ -739,17 +832,11 @@ export default function PrepPackagingPage() {
                 </h2>
 
                 <div className="space-y-4">
-                  {unpreparedGroups.map((group, idx) => (
-                    <div
-                      key={idx}
-                      className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-3 max-w-4xl"
-                    >
-                      {/* HEADER - len názov plodiny */}
-                      <h3 className="text-base font-semibold text-gray-900 mb-3 pb-2 border-b border-gray-100">
-                        {group.crop_name}
-                      </h3>
-
-                      <div className="space-y-1.5">
+                  <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                    <SortableContext items={sortedUnpreparedGroups.map(g => g.crop_name || '')} strategy={verticalListSortingStrategy}>
+                      {sortedUnpreparedGroups.map((group, idx) => (
+                        <SortableCard key={group.crop_name || idx} item={group}>
+                          <div className="space-y-1.5">
                         {/* POLOŽKY S ETIKETOU */}
                         {group.itemsWithLabel?.map((item) => (
                           <div key={item.id} className="flex items-center justify-between py-1.5 hover:bg-gray-50 rounded px-2">
@@ -819,9 +906,11 @@ export default function PrepPackagingPage() {
                             </button>
                           </div>
                         ))}
-                      </div>
-                    </div>
-                  ))}
+                          </div>
+                        </SortableCard>
+                      ))}
+                    </SortableContext>
+                  </DndContext>
                 </div>
               </div>
             )}
@@ -837,18 +926,11 @@ export default function PrepPackagingPage() {
                   </h2>
 
                   <div className="space-y-4">
-                    {preparedGroups.map((group, idx) => (
-                      <div
-                        key={idx}
-                        className="bg-green-50 rounded-lg border border-green-200 shadow-sm p-4 mb-3 max-w-4xl"
-                      >
-                        {/* HEADER - len názov plodiny */}
-                        <h3 className="text-base font-semibold text-green-900 mb-3 pb-2 border-b border-green-100 flex items-center gap-2">
-                          <Check className="h-5 w-5" />
-                          {group.crop_name}
-                        </h3>
-
-                        <div className="space-y-1.5">
+                    <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                      <SortableContext items={sortedPreparedGroups.map(g => g.crop_name || '')} strategy={verticalListSortingStrategy}>
+                        {sortedPreparedGroups.map((group, idx) => (
+                          <SortableCard key={group.crop_name || idx} item={group} isPrepared={true}>
+                            <div className="space-y-1.5">
                           {/* POLOŽKY S ETIKETOU */}
                           {group.itemsWithLabel?.map((item) => (
                             <div key={item.id} className="flex items-center justify-between py-1.5 bg-white rounded px-2">
@@ -918,9 +1000,11 @@ export default function PrepPackagingPage() {
                               </button>
                             </div>
                           ))}
-                        </div>
-                      </div>
-                    ))}
+                            </div>
+                          </SortableCard>
+                        ))}
+                      </SortableContext>
+                    </DndContext>
                   </div>
                 </div>
               </>
