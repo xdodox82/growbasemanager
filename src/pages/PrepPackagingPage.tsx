@@ -777,7 +777,7 @@ export default function PrepPackagingPage() {
                             </div>
                             <button
                               onClick={() => markAsPrepared(item.id)}
-                              className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded transition-colors shrink-0 ml-4"
+                              className="px-3 py-1.5 text-sm font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-4"
                             >
                               ✓ Hotovo
                             </button>
@@ -813,7 +813,7 @@ export default function PrepPackagingPage() {
                             </div>
                             <button
                               onClick={() => markAsPrepared(item.id)}
-                              className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded transition-colors shrink-0 ml-4"
+                              className="px-3 py-1.5 text-sm font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-4"
                             >
                               ✓ Hotovo
                             </button>
@@ -876,7 +876,7 @@ export default function PrepPackagingPage() {
                               </div>
                               <button
                                 onClick={() => markAsUnprepared(item.id)}
-                                className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded transition-colors shrink-0 ml-4"
+                                className="px-3 py-1.5 text-sm font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-4"
                               >
                                 ↩ Vrátiť
                               </button>
@@ -912,7 +912,7 @@ export default function PrepPackagingPage() {
                               </div>
                               <button
                                 onClick={() => markAsUnprepared(item.id)}
-                                className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded transition-colors shrink-0 ml-4"
+                                className="px-3 py-1.5 text-sm font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-4"
                               >
                                 ↩ Vrátiť
                               </button>
