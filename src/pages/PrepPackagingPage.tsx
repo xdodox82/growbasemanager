@@ -711,7 +711,7 @@ export default function PrepPackagingPage() {
                   Kategória
                 </label>
                 <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full text-center">
                     <SelectValue placeholder="Kategória" />
                   </SelectTrigger>
                   <SelectContent position="popper" sideOffset={5} className="!z-[100]">
@@ -754,7 +754,7 @@ export default function PrepPackagingPage() {
                   Veľkosť
                 </label>
                 <Select value={sizeFilter} onValueChange={setSizeFilter}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full text-center">
                     <SelectValue placeholder="Všetky" />
                   </SelectTrigger>
                   <SelectContent position="popper" sideOffset={5} className="!z-[100]">
@@ -774,7 +774,7 @@ export default function PrepPackagingPage() {
                   Etiketa
                 </label>
                 <Select value={labelFilter} onValueChange={setLabelFilter}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full text-center">
                     <SelectValue placeholder="Všetko" />
                   </SelectTrigger>
                   <SelectContent position="popper" sideOffset={5} className="!z-[100]">
@@ -790,7 +790,7 @@ export default function PrepPackagingPage() {
                   Druh obalu
                 </label>
                 <Select value={packagingTypeFilter} onValueChange={setPackagingTypeFilter}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full text-center">
                     <SelectValue placeholder="Typ" />
                   </SelectTrigger>
                   <SelectContent position="popper" sideOffset={5} className="!z-[100]">
