@@ -578,8 +578,8 @@ export default function PrepPackagingPage() {
       : "bg-white rounded-lg border border-gray-200 shadow-sm p-3 mb-2 max-w-4xl";
 
     const headerClasses = isPrepared
-      ? "text-sm font-semibold text-green-900 mb-2 pb-1.5 border-b border-green-100 flex items-center gap-2"
-      : "text-sm font-semibold text-gray-900 mb-2 pb-1.5 border-b border-gray-100 flex items-center gap-2";
+      ? "text-base font-semibold text-green-900 mb-2 pb-1.5 border-b border-green-100 flex items-center gap-2"
+      : "text-base font-semibold text-gray-900 mb-2 pb-1.5 border-b border-gray-100 flex items-center gap-2";
 
     return (
       <div ref={setNodeRef} style={style} className={cardClasses}>
@@ -841,7 +841,7 @@ export default function PrepPackagingPage() {
                         {group.itemsWithLabel?.map((item) => (
                           <div key={item.id} className="flex items-center justify-between py-1 hover:bg-gray-50 rounded px-2">
                             <div className="flex items-center gap-1.5 flex-1">
-                              <span className="text-sm">
+                              <span className="text-base">
                                 {item.type === 'gastro' ? '🍴' :
                                  item.type === 'wholesale' ? '📦' : '🏠'}
                               </span>
@@ -864,7 +864,7 @@ export default function PrepPackagingPage() {
                             </div>
                             <button
                               onClick={() => markAsPrepared(item.id)}
-                              className="px-2.5 py-1 text-xs font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-4"
+                              className="px-2.5 py-1 text-sm font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-4"
                             >
                               ✓ Hotovo
                             </button>
@@ -880,7 +880,7 @@ export default function PrepPackagingPage() {
                         {group.itemsWithoutLabel?.map((item) => (
                           <div key={item.id} className="flex items-center justify-between py-1 hover:bg-gray-50 rounded px-2">
                             <div className="flex items-center gap-1.5 flex-1">
-                              <span className="text-sm">
+                              <span className="text-base">
                                 {item.type === 'gastro' ? '🍴' :
                                  item.type === 'wholesale' ? '📦' : '🏠'}
                               </span>
@@ -900,7 +900,7 @@ export default function PrepPackagingPage() {
                             </div>
                             <button
                               onClick={() => markAsPrepared(item.id)}
-                              className="px-2.5 py-1 text-xs font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-4"
+                              className="px-2.5 py-1 text-sm font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-4"
                             >
                               ✓ Hotovo
                             </button>
@@ -935,7 +935,7 @@ export default function PrepPackagingPage() {
                           {group.itemsWithLabel?.map((item) => (
                             <div key={item.id} className="flex items-center justify-between py-1 bg-white rounded px-2">
                               <div className="flex items-center gap-1.5 flex-1">
-                                <span className="text-sm">
+                                <span className="text-base">
                                   {item.type === 'gastro' ? '🍴' :
                                    item.type === 'wholesale' ? '📦' : '🏠'}
                                 </span>
@@ -958,7 +958,7 @@ export default function PrepPackagingPage() {
                               </div>
                               <button
                                 onClick={() => markAsUnprepared(item.id)}
-                                className="px-2.5 py-1 text-xs font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-4"
+                                className="px-2.5 py-1 text-sm font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-4"
                               >
                                 ↩ Vrátiť
                               </button>
@@ -974,7 +974,7 @@ export default function PrepPackagingPage() {
                           {group.itemsWithoutLabel?.map((item) => (
                             <div key={item.id} className="flex items-center justify-between py-1 bg-white rounded px-2">
                               <div className="flex items-center gap-1.5 flex-1">
-                                <span className="text-sm">
+                                <span className="text-base">
                                   {item.type === 'gastro' ? '🍴' :
                                    item.type === 'wholesale' ? '📦' : '🏠'}
                                 </span>
@@ -994,7 +994,7 @@ export default function PrepPackagingPage() {
                               </div>
                               <button
                                 onClick={() => markAsUnprepared(item.id)}
-                                className="px-2.5 py-1 text-xs font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-4"
+                                className="px-2.5 py-1 text-sm font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-4"
                               >
                                 ↩ Vrátiť
                               </button>
