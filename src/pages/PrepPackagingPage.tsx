@@ -578,8 +578,8 @@ export default function PrepPackagingPage() {
       : "bg-white rounded-lg border border-gray-200 shadow-sm p-3 mb-2 max-w-4xl";
 
     const headerClasses = isPrepared
-      ? "text-base font-semibold text-green-900 mb-2 pb-1.5 border-b border-green-100 flex items-center gap-2"
-      : "text-base font-semibold text-gray-900 mb-2 pb-1.5 border-b border-gray-100 flex items-center gap-2";
+      ? "text-base font-semibold text-green-900 mb-1.5 pb-1 border-b border-green-100 flex items-center gap-2"
+      : "text-base font-semibold text-gray-900 mb-1.5 pb-1 border-b border-gray-100 flex items-center gap-2";
 
     return (
       <div ref={setNodeRef} style={style} className={cardClasses}>
@@ -836,10 +836,10 @@ export default function PrepPackagingPage() {
                     <SortableContext items={sortedUnpreparedGroups.map(g => g.crop_name || '')} strategy={verticalListSortingStrategy}>
                       {sortedUnpreparedGroups.map((group, idx) => (
                         <SortableCard key={group.crop_name || idx} item={group}>
-                          <div className="space-y-0.5">
+                          <div className="space-y-0 -my-0.5">
                         {/* POLOŽKY S ETIKETOU */}
                         {group.itemsWithLabel?.map((item) => (
-                          <div key={item.id} className="flex items-center justify-between py-1 hover:bg-gray-50 rounded px-2">
+                          <div key={item.id} className="flex items-center justify-between py-0.5 leading-tight hover:bg-gray-50 rounded px-2">
                             <div className="flex items-center gap-1.5 flex-1">
                               <span className="text-base">
                                 {item.type === 'gastro' ? '🍴' :
@@ -873,12 +873,12 @@ export default function PrepPackagingPage() {
 
                         {/* ODDEĽOVACIA ČIARA (ak sú obe sekcie) */}
                         {group.itemsWithLabel?.length > 0 && group.itemsWithoutLabel?.length > 0 && (
-                          <div className="border-t border-gray-100 my-1.5"></div>
+                          <div className="border-t border-gray-100 my-1"></div>
                         )}
 
                         {/* POLOŽKY BEZ ETIKETY */}
                         {group.itemsWithoutLabel?.map((item) => (
-                          <div key={item.id} className="flex items-center justify-between py-1 hover:bg-gray-50 rounded px-2">
+                          <div key={item.id} className="flex items-center justify-between py-0.5 leading-tight hover:bg-gray-50 rounded px-2">
                             <div className="flex items-center gap-1.5 flex-1">
                               <span className="text-base">
                                 {item.type === 'gastro' ? '🍴' :
@@ -930,10 +930,10 @@ export default function PrepPackagingPage() {
                       <SortableContext items={sortedPreparedGroups.map(g => g.crop_name || '')} strategy={verticalListSortingStrategy}>
                         {sortedPreparedGroups.map((group, idx) => (
                           <SortableCard key={group.crop_name || idx} item={group} isPrepared={true}>
-                            <div className="space-y-0.5">
+                            <div className="space-y-0 -my-0.5">
                           {/* POLOŽKY S ETIKETOU */}
                           {group.itemsWithLabel?.map((item) => (
-                            <div key={item.id} className="flex items-center justify-between py-1 bg-white rounded px-2">
+                            <div key={item.id} className="flex items-center justify-between py-0.5 leading-tight bg-white rounded px-2">
                               <div className="flex items-center gap-1.5 flex-1">
                                 <span className="text-base">
                                   {item.type === 'gastro' ? '🍴' :
@@ -967,12 +967,12 @@ export default function PrepPackagingPage() {
 
                           {/* ODDEĽOVACIA ČIARA (ak sú obe sekcie) */}
                           {group.itemsWithLabel?.length > 0 && group.itemsWithoutLabel?.length > 0 && (
-                            <div className="border-t border-green-100 my-1.5"></div>
+                            <div className="border-t border-green-100 my-1"></div>
                           )}
 
                           {/* POLOŽKY BEZ ETIKETY */}
                           {group.itemsWithoutLabel?.map((item) => (
-                            <div key={item.id} className="flex items-center justify-between py-1 bg-white rounded px-2">
+                            <div key={item.id} className="flex items-center justify-between py-0.5 leading-tight bg-white rounded px-2">
                               <div className="flex items-center gap-1.5 flex-1">
                                 <span className="text-base">
                                   {item.type === 'gastro' ? '🍴' :
