@@ -574,8 +574,8 @@ export default function PrepPackagingPage() {
     };
 
     const cardClasses = isPrepared
-      ? "bg-green-50 rounded-lg border border-green-200 shadow-sm p-3 mb-2 max-w-4xl"
-      : "bg-white rounded-lg border border-gray-200 shadow-sm p-3 mb-2 max-w-4xl";
+      ? "bg-green-50 rounded-lg border border-green-200 shadow-sm p-3 mb-2"
+      : "bg-white rounded-lg border border-gray-200 shadow-sm p-3 mb-2";
 
     const headerClasses = isPrepared
       ? "text-base font-semibold text-green-900 mb-1.5 pb-1 border-b border-green-100 flex items-center gap-2"
@@ -852,8 +852,13 @@ export default function PrepPackagingPage() {
                                 ({item.type === 'gastro' ? 'Gastro' :
                                    item.type === 'wholesale' ? 'VO' : 'Domáci'})
                               </span>
-                              <span className="text-sm text-gray-600 ml-2">
-                                {item.pieces} × {item.packaging_size}g ({item.package_ml}ml)
+                              <span className="ml-2">
+                                <span className="text-sm text-gray-900 font-medium">
+                                  {item.pieces} × {item.packaging_size}g
+                                </span>
+                                <span className="text-sm text-gray-600">
+                                  {' '}({item.package_ml}ml)
+                                </span>
                               </span>
                               <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
                                 {item.package_type}
@@ -864,7 +869,7 @@ export default function PrepPackagingPage() {
                             </div>
                             <button
                               onClick={() => markAsPrepared(item.id)}
-                              className="px-2.5 py-1 text-sm font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-4"
+                              className="px-4 py-2 text-sm font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-4"
                             >
                               ✓ Hotovo
                             </button>
@@ -891,8 +896,13 @@ export default function PrepPackagingPage() {
                                 ({item.type === 'gastro' ? 'Gastro' :
                                    item.type === 'wholesale' ? 'VO' : 'Domáci'})
                               </span>
-                              <span className="text-sm text-gray-600 ml-2">
-                                {item.pieces} × {item.packaging_size}g ({item.package_ml}ml)
+                              <span className="ml-2">
+                                <span className="text-sm text-gray-900 font-medium">
+                                  {item.pieces} × {item.packaging_size}g
+                                </span>
+                                <span className="text-sm text-gray-600">
+                                  {' '}({item.package_ml}ml)
+                                </span>
                               </span>
                               <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
                                 {item.package_type}
@@ -900,7 +910,7 @@ export default function PrepPackagingPage() {
                             </div>
                             <button
                               onClick={() => markAsPrepared(item.id)}
-                              className="px-2.5 py-1 text-sm font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-4"
+                              className="px-4 py-2 text-sm font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-4"
                             >
                               ✓ Hotovo
                             </button>
@@ -946,8 +956,13 @@ export default function PrepPackagingPage() {
                                   ({item.type === 'gastro' ? 'Gastro' :
                                      item.type === 'wholesale' ? 'VO' : 'Domáci'})
                                 </span>
-                                <span className="text-sm text-gray-600 ml-2">
-                                  {item.pieces} × {item.packaging_size}g ({item.package_ml}ml)
+                                <span className="ml-2">
+                                  <span className="text-sm text-gray-900 font-medium">
+                                    {item.pieces} × {item.packaging_size}g
+                                  </span>
+                                  <span className="text-sm text-gray-600">
+                                    {' '}({item.package_ml}ml)
+                                  </span>
                                 </span>
                                 <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
                                   {item.package_type}
@@ -958,7 +973,7 @@ export default function PrepPackagingPage() {
                               </div>
                               <button
                                 onClick={() => markAsUnprepared(item.id)}
-                                className="px-2.5 py-1 text-sm font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-4"
+                                className="px-4 py-2 text-sm font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-4"
                               >
                                 ↩ Vrátiť
                               </button>
@@ -985,8 +1000,13 @@ export default function PrepPackagingPage() {
                                   ({item.type === 'gastro' ? 'Gastro' :
                                      item.type === 'wholesale' ? 'VO' : 'Domáci'})
                                 </span>
-                                <span className="text-sm text-gray-600 ml-2">
-                                  {item.pieces} × {item.packaging_size}g ({item.package_ml}ml)
+                                <span className="ml-2">
+                                  <span className="text-sm text-gray-900 font-medium">
+                                    {item.pieces} × {item.packaging_size}g
+                                  </span>
+                                  <span className="text-sm text-gray-600">
+                                    {' '}({item.package_ml}ml)
+                                  </span>
                                 </span>
                                 <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
                                   {item.package_type}
@@ -994,7 +1014,7 @@ export default function PrepPackagingPage() {
                               </div>
                               <button
                                 onClick={() => markAsUnprepared(item.id)}
-                                className="px-2.5 py-1 text-sm font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-4"
+                                className="px-4 py-2 text-sm font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-4"
                               >
                                 ↩ Vrátiť
                               </button>
