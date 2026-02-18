@@ -2920,7 +2920,9 @@ export default function OrdersPage() {
                           <SearchableCustomerSelect
                             customers={safeCustomers}
                             value={customerId || ''}
-                            onChange={(newCustomerId) => {
+                            onValueChange={(newCustomerId) => {
+                              console.log('🔍 Dialog - Customer selected:', newCustomerId);
+                              console.log('🔍 Dialog - Customer object:', safeCustomers.find(c => c.id === newCustomerId));
                               setCustomerId(newCustomerId);
                               const selectedCustomer = safeCustomers.find(c => c.id === newCustomerId);
                               if (selectedCustomer && (selectedCustomer as any).delivery_route_id) {
@@ -2932,6 +2934,7 @@ export default function OrdersPage() {
                             }}
                             filterByType={customerType}
                             placeholder="Vyberte zákazníka"
+                            allowAll={false}
                           />
                         </div>
                       </div>
