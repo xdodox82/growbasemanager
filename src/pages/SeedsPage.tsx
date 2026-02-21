@@ -55,6 +55,7 @@ export default function SeedsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'microgreens' | 'microherbs' | 'edible_flowers'>('all');
+  const [cropFilter, setCropFilter] = useState<string>('all');
   const [archiveFilter, setArchiveFilter] = useState<'current' | 'archived'>('current');
   const [archiveDialogId, setArchiveDialogId] = useState<string | null>(null);
   const [selectedSeed, setSelectedSeed] = useState<DbSeed | null>(null);
@@ -86,7 +87,12 @@ export default function SeedsPage() {
   const [certificateUrl, setCertificateUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Filter seeds by category and archive status
+  // Get crops filtered by selected category
+  const availableCrops = categoryFilter === 'all'
+    ? crops
+    : crops.filter(c => c.category === categoryFilter);
+
+  // Filter seeds by category, crop and archive status
   const filteredSeeds = seeds
     .filter(s => {
       const archiveMatch = archiveFilter === 'current'
@@ -99,7 +105,10 @@ export default function SeedsPage() {
         return crop?.category === categoryFilter;
       })();
 
-      return archiveMatch && categoryMatch;
+      // Crop filter
+      const cropMatch = cropFilter === 'all' || s.crop_id === cropFilter;
+
+      return archiveMatch && categoryMatch && cropMatch;
     });
 
   // Calculate totals by crop type
@@ -1092,7 +1101,13 @@ export default function SeedsPage() {
             <TabsTrigger value="archived">Archív</TabsTrigger>
           </TabsList>
         </Tabs>
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+        <Select
+          value={categoryFilter}
+          onValueChange={(value) => {
+            setCategoryFilter(value);
+            setCropFilter('all');
+          }}
+        >
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Kategória plodiny" />
           </SelectTrigger>
@@ -1107,6 +1122,19 @@ export default function SeedsPage() {
             <SelectItem value="edible_flowers">
               <Flower className="h-4 w-4 text-green-600 mr-2 inline" />Jedlé kvety
             </SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={cropFilter} onValueChange={setCropFilter}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Plodina" />
+          </SelectTrigger>
+          <SelectContent position="popper" sideOffset={5}>
+            <SelectItem value="all">Všetky plodiny</SelectItem>
+            {availableCrops.map((crop) => (
+              <SelectItem key={crop.id} value={crop.id}>
+                {crop.name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </PageHeader>
