@@ -15,7 +15,7 @@ type Crop = {
   id: string;
   name: string;
   type: 'crop' | 'blend';
-  mappings?: { weight_g: number; volume: string }[];
+  mappings?: { weight_g: number; volume: string; sku?: string }[];
 };
 
 type Packaging = {
@@ -23,6 +23,7 @@ type Packaging = {
   name: string;
   type: string;
   size: string;
+  sku?: string;
 };
 
 const STANDARD_WEIGHTS = [25, 50, 60, 70, 100, 120, 150];
@@ -105,7 +106,7 @@ export function PackagingMappings() {
       const [cropsRes, blendsRes, packagingsRes] = await Promise.all([
         supabase.from('products').select('id, name').order('name'),
         supabase.from('blends').select('id, name').order('name'),
-        supabase.from('packagings').select('id, name, type, size').order('name'),
+        supabase.from('packagings').select('id, name, type, size, sku').order('name'),
       ]);
 
       console.log('📦 Loaded packagings:', packagingsRes.data);
@@ -118,13 +119,14 @@ export function PackagingMappings() {
           cropsRes.data.map(async (crop) => {
             const { data: mappings } = await supabase
               .from('packaging_mappings')
-              .select('weight_g, packaging_id, packagings(id, name, size)')
+              .select('weight_g, packaging_id, packagings(id, name, size, sku)')
               .eq('crop_id', crop.id);
 
             console.log(`📋 Mappings for ${crop.name}:`, mappings);
             const formattedMappings = (mappings || []).map((m: any) => ({
               weight_g: m.weight_g,
-              volume: m.packagings?.size || ''
+              volume: m.packagings?.size || '',
+              sku: m.packagings?.sku || ''
             }));
             return {
               ...crop,
@@ -142,13 +144,14 @@ export function PackagingMappings() {
           blendsRes.data.map(async (blend) => {
             const { data: mappings } = await supabase
               .from('packaging_mappings')
-              .select('weight_g, packaging_id, packagings(id, name, size)')
+              .select('weight_g, packaging_id, packagings(id, name, size, sku)')
               .eq('blend_id', blend.id);
 
             console.log(`📋 Mappings for ${blend.name} (Mix):`, mappings);
             const formattedMappings = (mappings || []).map((m: any) => ({
               weight_g: m.weight_g,
-              volume: m.packagings?.size || ''
+              volume: m.packagings?.size || '',
+              sku: m.packagings?.sku || ''
             }));
             return {
               ...blend,
@@ -343,7 +346,7 @@ export function PackagingMappings() {
     }
   };
 
-  const formatMappings = (mappings?: { weight_g: number; volume: string }[]) => {
+  const formatMappings = (mappings?: { weight_g: number; volume: string; sku?: string }[]) => {
     if (!mappings || mappings.length === 0) {
       return <span className="text-muted-foreground text-sm">Žiadne nastavenie</span>;
     }
@@ -357,7 +360,7 @@ export function PackagingMappings() {
               key={idx}
               className="inline-flex items-center px-2 py-1 rounded-md bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs font-medium"
             >
-              {m.weight_g}g → {m.volume}
+              {m.weight_g}g → {m.volume} {m.sku ? `(${m.sku})` : ''}
             </span>
           ))}
       </div>
@@ -557,7 +560,7 @@ export function PackagingMappings() {
                               })
                               .map((packaging) => (
                                 <SelectItem key={packaging.id} value={packaging.id}>
-                                  {packaging.size || packaging.name}
+                                  {packaging.size || packaging.name} {packaging.sku ? `(${packaging.sku})` : ''}
                                 </SelectItem>
                               ));
                           })()}
@@ -583,7 +586,7 @@ export function PackagingMappings() {
                           key={weight}
                           className="inline-flex items-center px-3 py-2 rounded-md bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-sm font-medium"
                         >
-                          {weight}g → {packaging?.size || packaging?.name || 'N/A'}
+                          {weight}g → {packaging?.size || packaging?.name || 'N/A'} {packaging?.sku ? `(${packaging.sku})` : ''}
                         </span>
                       );
                     })}
