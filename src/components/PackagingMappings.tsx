@@ -23,7 +23,6 @@ type Packaging = {
   name: string;
   type: string;
   size: string;
-  sku?: string;
 };
 
 const STANDARD_WEIGHTS = [25, 50, 60, 70, 100, 120, 150];
@@ -106,7 +105,7 @@ export function PackagingMappings() {
       const [cropsRes, blendsRes, packagingsRes] = await Promise.all([
         supabase.from('products').select('id, name').order('name'),
         supabase.from('blends').select('id, name').order('name'),
-        supabase.from('packagings').select('id, name, type, size, sku').order('name'),
+        supabase.from('packagings').select('id, name, type, size').order('name'),
       ]);
 
       console.log('📦 Loaded packagings:', packagingsRes.data);
@@ -119,14 +118,14 @@ export function PackagingMappings() {
           cropsRes.data.map(async (crop) => {
             const { data: mappings } = await supabase
               .from('packaging_mappings')
-              .select('weight_g, packaging_id, packagings(id, name, size, sku)')
+              .select('weight_g, packaging_id, sku, packagings(id, name, size)')
               .eq('crop_id', crop.id);
 
             console.log(`📋 Mappings for ${crop.name}:`, mappings);
             const formattedMappings = (mappings || []).map((m: any) => ({
               weight_g: m.weight_g,
               volume: m.packagings?.size || '',
-              sku: m.packagings?.sku || ''
+              sku: m.sku || ''
             }));
             return {
               ...crop,
@@ -144,14 +143,14 @@ export function PackagingMappings() {
           blendsRes.data.map(async (blend) => {
             const { data: mappings } = await supabase
               .from('packaging_mappings')
-              .select('weight_g, packaging_id, packagings(id, name, size, sku)')
+              .select('weight_g, packaging_id, sku, packagings(id, name, size)')
               .eq('blend_id', blend.id);
 
             console.log(`📋 Mappings for ${blend.name} (Mix):`, mappings);
             const formattedMappings = (mappings || []).map((m: any) => ({
               weight_g: m.weight_g,
               volume: m.packagings?.size || '',
-              sku: m.packagings?.sku || ''
+              sku: m.sku || ''
             }));
             return {
               ...blend,
@@ -247,83 +246,56 @@ export function PackagingMappings() {
     setIsSaving(true);
 
     try {
-      const mappingsToInsert = Object.entries(packagingIdMappings)
-        .filter(([weight, packagingId]) => enabledWeights[parseInt(weight)] && packagingId && packagingId !== '')
-        .map(([weight, packagingId]) => {
-          const baseMapping = {
-            weight_g: parseInt(weight),
-            packaging_id: packagingId,
-          };
+      // First delete existing mappings
+      const deleteQuery = supabase.from('packaging_mappings').delete();
 
-          // Add either crop_id or blend_id based on the item type
-          if (editingCrop.type === 'crop') {
-            return { ...baseMapping, crop_id: editingCrop.id, blend_id: null };
-          } else {
-            return { ...baseMapping, blend_id: editingCrop.id, crop_id: null };
-          }
-        });
+      if (editingCrop.type === 'crop') {
+        deleteQuery.eq('crop_id', editingCrop.id);
+      } else {
+        deleteQuery.eq('blend_id', editingCrop.id);
+      }
+
+      const { error: deleteError } = await deleteQuery;
+      if (deleteError) throw deleteError;
+
+      // Generate mappings with SKU
+      const mappingsToInsert = await Promise.all(
+        Object.entries(packagingIdMappings)
+          .filter(([weight, packagingId]) => enabledWeights[parseInt(weight)] && packagingId && packagingId !== '')
+          .map(async ([weight, packagingId]) => {
+            // Generate SKU for this mapping
+            const sku = await generatePackagingSKU(
+              editingCrop.type === 'crop' ? editingCrop.id : null,
+              editingCrop.type === 'blend' ? editingCrop.id : null,
+              parseInt(weight)
+            );
+
+            const baseMapping = {
+              weight_g: parseInt(weight),
+              packaging_id: packagingId,
+              sku: sku,
+            };
+
+            // Add either crop_id or blend_id based on the item type
+            if (editingCrop.type === 'crop') {
+              return { ...baseMapping, crop_id: editingCrop.id, blend_id: null };
+            } else {
+              return { ...baseMapping, blend_id: editingCrop.id, crop_id: null };
+            }
+          })
+      );
 
       console.log('💾 Saving mappings for', editingCrop.name, `(${editingCrop.type}):`, mappingsToInsert);
 
-      if (mappingsToInsert.length === 0) {
-        console.log('⚠️ No mappings to save (empty array)');
-        // If no mappings, delete all for this crop/blend
-        const deleteQuery = supabase.from('packaging_mappings').delete();
-
-        if (editingCrop.type === 'crop') {
-          deleteQuery.eq('crop_id', editingCrop.id);
-        } else {
-          deleteQuery.eq('blend_id', editingCrop.id);
-        }
-
-        const { error: deleteError } = await deleteQuery;
-        if (deleteError) throw deleteError;
-      } else {
-        // First delete existing mappings
-        const deleteQuery = supabase.from('packaging_mappings').delete();
-
-        if (editingCrop.type === 'crop') {
-          deleteQuery.eq('crop_id', editingCrop.id);
-        } else {
-          deleteQuery.eq('blend_id', editingCrop.id);
-        }
-
-        const { error: deleteError } = await deleteQuery;
-        if (deleteError) throw deleteError;
-
-        // Then insert new mappings
+      if (mappingsToInsert.length > 0) {
+        // Insert new mappings with SKU
         const { error: insertError } = await supabase
           .from('packaging_mappings')
           .insert(mappingsToInsert);
 
         if (insertError) throw insertError;
 
-        console.log('✅ Mappings saved successfully');
-
-        // Generate and update SKU for each packaging
-        for (const [weight, packagingId] of Object.entries(packagingIdMappings)) {
-          if (!enabledWeights[parseInt(weight)] || !packagingId || packagingId === '') continue;
-
-          const sku = await generatePackagingSKU(
-            editingCrop.type === 'crop' ? editingCrop.id : null,
-            editingCrop.type === 'blend' ? editingCrop.id : null,
-            parseInt(weight)
-          );
-
-          if (sku) {
-            console.log(`📝 Updating packaging ${packagingId} with SKU: ${sku}`);
-            const { error: updateError } = await supabase
-              .from('packagings')
-              .update({ sku })
-              .eq('id', packagingId);
-
-            if (updateError) {
-              console.error(`❌ Error updating SKU for packaging ${packagingId}:`, updateError);
-            } else {
-              console.log(`✅ SKU updated for packaging ${packagingId}`);
-            }
-          }
-        }
+        console.log('✅ Mappings saved successfully with SKUs');
       }
 
       toast({
@@ -560,7 +532,7 @@ export function PackagingMappings() {
                               })
                               .map((packaging) => (
                                 <SelectItem key={packaging.id} value={packaging.id}>
-                                  {packaging.size || packaging.name} {packaging.sku ? `(${packaging.sku})` : ''}
+                                  {packaging.size || packaging.name}
                                 </SelectItem>
                               ));
                           })()}
@@ -586,7 +558,7 @@ export function PackagingMappings() {
                           key={weight}
                           className="inline-flex items-center px-3 py-2 rounded-md bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-sm font-medium"
                         >
-                          {weight}g → {packaging?.size || packaging?.name || 'N/A'} {packaging?.sku ? `(${packaging.sku})` : ''}
+                          {weight}g → {packaging?.size || packaging?.name || 'N/A'}
                         </span>
                       );
                     })}
