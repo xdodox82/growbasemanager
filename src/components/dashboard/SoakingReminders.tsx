@@ -180,7 +180,7 @@ export default function SoakingReminders() {
         <CardTitle className="flex items-center gap-2">
           <Droplets className="h-5 w-5 text-warning" />
           Namočiť semená
-          <Badge variant="destructive" className="ml-auto">
+          <Badge variant="secondary" className="ml-auto">
             {reminders.length}
           </Badge>
         </CardTitle>
