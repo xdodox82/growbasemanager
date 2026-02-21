@@ -57,10 +57,12 @@ const BlendsPage = () => {
   const [formData, setFormData] = useState<{
     name: string;
     notes: string;
+    sku_prefix: string;
     crops: CropPercentage[];
   }>({
     name: '',
     notes: '',
+    sku_prefix: '',
     crops: [],
   });
 
@@ -103,6 +105,7 @@ const BlendsPage = () => {
     setFormData({
       name: '',
       notes: '',
+      sku_prefix: '',
       crops: [],
     });
     setEditingBlend(null);
@@ -113,6 +116,7 @@ const BlendsPage = () => {
     setFormData({
       name: blend.name,
       notes: (blend as any).notes || '',
+      sku_prefix: (blend as any).sku_prefix || '',
       crops: getBlendCrops(blend),
     });
     setIsDialogOpen(true);
@@ -292,6 +296,21 @@ const BlendsPage = () => {
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="napr. Šalátový mix"
                   />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="sku_prefix">SKU prefix (katalógové číslo)</Label>
+                  <Input
+                    id="sku_prefix"
+                    value={formData.sku_prefix || ''}
+                    onChange={(e) => setFormData({ ...formData, sku_prefix: e.target.value.toUpperCase() })}
+                    placeholder="napr. CLA, RED, SAL"
+                    maxLength={10}
+                    className="uppercase font-mono"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    3-4 znaky. Len pre štandardné mixy určené do e-shopu.
+                  </p>
                 </div>
 
                 <div className="grid gap-2">

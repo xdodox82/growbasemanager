@@ -197,6 +197,12 @@ export default function PackagingPage() {
           </div>
 
           <div className="mt-4 space-y-2">
+            {(packaging as any).sku && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">SKU:</span>
+                <span className="font-mono font-semibold">{(packaging as any).sku}</span>
+              </div>
+            )}
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Počet:</span>
               <span className="font-semibold">{packaging.quantity} ks</span>
@@ -225,6 +231,7 @@ export default function PackagingPage() {
         <TableHeader>
           <TableRow>
             <TableHead>Druh obalu</TableHead>
+            <TableHead className="hidden md:table-cell">SKU</TableHead>
             <TableHead>Typ</TableHead>
             <TableHead>Veľkosť</TableHead>
             <TableHead className="hidden md:table-cell">Dodávateľ</TableHead>
@@ -241,6 +248,13 @@ export default function PackagingPage() {
               onClick={() => handleEdit(packaging)}
             >
               <TableCell className="font-medium">{packaging.name}</TableCell>
+              <TableCell className="hidden md:table-cell">
+                {(packaging as any).sku ? (
+                  <span className="font-mono text-sm">{(packaging as any).sku}</span>
+                ) : (
+                  <span className="text-gray-400">–</span>
+                )}
+              </TableCell>
               <TableCell>{packaging.type || '-'}</TableCell>
               <TableCell>{packaging.size || '-'}</TableCell>
               <TableCell className="hidden md:table-cell">{getSupplierName(packaging.supplier_id)}</TableCell>

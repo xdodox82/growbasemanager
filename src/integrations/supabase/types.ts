@@ -56,6 +56,7 @@ export interface Database {
           crop_percentages: Json | null
           notes: string | null
           user_id: string | null
+          sku_prefix: string | null
         }
         Insert: {
           id?: string
@@ -65,6 +66,7 @@ export interface Database {
           crop_percentages?: Json | null
           notes?: string | null
           user_id?: string | null
+          sku_prefix?: string | null
         }
         Update: {
           id?: string
@@ -74,6 +76,7 @@ export interface Database {
           crop_percentages?: Json | null
           notes?: string | null
           user_id?: string | null
+          sku_prefix?: string | null
         }
       }
       car_service_costs: {
@@ -906,6 +909,7 @@ export interface Database {
           vat_rate: number | null
           supplier: string | null
           stock_date: string | null
+          sku: string | null
         }
         Insert: {
           id?: string
@@ -923,6 +927,7 @@ export interface Database {
           vat_rate?: number | null
           supplier?: string | null
           stock_date?: string | null
+          sku?: string | null
         }
         Update: {
           id?: string
@@ -940,6 +945,7 @@ export interface Database {
           vat_rate?: number | null
           supplier?: string | null
           stock_date?: string | null
+          sku?: string | null
         }
       }
       planting_plans: {
@@ -1072,6 +1078,7 @@ export interface Database {
           tray_configs: Json | null
           default_substrate_type: string | null
           default_substrate_note: string | null
+          sku_prefix: string | null
         }
         Insert: {
           id?: string
@@ -1099,6 +1106,7 @@ export interface Database {
           tray_configs?: Json | null
           default_substrate_type?: string | null
           default_substrate_note?: string | null
+          sku_prefix?: string | null
         }
         Update: {
           id?: string
@@ -1125,6 +1133,7 @@ export interface Database {
           safety_buffer_percent?: number | null
           tray_configs?: Json | null
           default_substrate_type?: string | null
+          sku_prefix?: string | null
           default_substrate_note?: string | null
         }
       }

@@ -27,6 +27,59 @@ type Packaging = {
 
 const STANDARD_WEIGHTS = [25, 50, 60, 70, 100, 120, 150];
 
+const generatePackagingSKU = async (
+  cropId: string | null,
+  blendId: string | null,
+  weightG: number
+): Promise<string | null> => {
+  try {
+    let skuPrefix = null;
+    let categoryCode = null;
+
+    if (cropId) {
+      const { data: product } = await supabase
+        .from('products')
+        .select('sku_prefix, category')
+        .eq('id', cropId)
+        .single();
+
+      if (!product?.sku_prefix) {
+        console.log(`⚠️ Product ${cropId} has no SKU prefix`);
+        return null;
+      }
+
+      skuPrefix = product.sku_prefix;
+      categoryCode = product.category === 'microgreens' ? 'MZ'
+        : product.category === 'microherbs' ? 'MB'
+        : product.category === 'edible_flowers' ? 'JK'
+        : 'XX';
+    } else if (blendId) {
+      const { data: blend } = await supabase
+        .from('blends')
+        .select('sku_prefix')
+        .eq('id', blendId)
+        .single();
+
+      if (!blend?.sku_prefix) {
+        console.log(`⚠️ Blend ${blendId} has no SKU prefix`);
+        return null;
+      }
+
+      skuPrefix = blend.sku_prefix;
+      categoryCode = 'MX';
+    }
+
+    if (!skuPrefix || !categoryCode) return null;
+
+    const generatedSKU = `${categoryCode}-${skuPrefix}-${weightG}`;
+    console.log(`✨ Generated SKU: ${generatedSKU}`);
+    return generatedSKU;
+  } catch (error) {
+    console.error('Error generating SKU:', error);
+    return null;
+  }
+};
+
 export function PackagingMappings() {
   const { toast } = useToast();
   const {
@@ -243,6 +296,31 @@ export function PackagingMappings() {
         if (insertError) throw insertError;
 
         console.log('✅ Mappings saved successfully');
+
+        // Generate and update SKU for each packaging
+        for (const [weight, packagingId] of Object.entries(packagingIdMappings)) {
+          if (!enabledWeights[parseInt(weight)] || !packagingId || packagingId === '') continue;
+
+          const sku = await generatePackagingSKU(
+            editingCrop.type === 'crop' ? editingCrop.id : null,
+            editingCrop.type === 'blend' ? editingCrop.id : null,
+            parseInt(weight)
+          );
+
+          if (sku) {
+            console.log(`📝 Updating packaging ${packagingId} with SKU: ${sku}`);
+            const { error: updateError } = await supabase
+              .from('packagings')
+              .update({ sku })
+              .eq('id', packagingId);
+
+            if (updateError) {
+              console.error(`❌ Error updating SKU for packaging ${packagingId}:`, updateError);
+            } else {
+              console.log(`✅ SKU updated for packaging ${packagingId}`);
+            }
+          }
+        }
       }
 
       toast({

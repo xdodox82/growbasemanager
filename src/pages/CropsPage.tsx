@@ -87,6 +87,7 @@ const CropsPage = () => {
     name: '',
     variety: '',
     category: 'microgreens' as string,
+    sku_prefix: '',
     days_to_harvest: 8,
     days_to_germination: 3,
     germination_type: 'warm' as string,
@@ -159,6 +160,7 @@ const CropsPage = () => {
       name: crop.name,
       variety: crop.variety || '',
       category: crop.category || 'microgreens',
+      sku_prefix: (crop as any).sku_prefix || '',
       days_to_harvest: crop.days_to_harvest,
       days_to_germination: crop.days_to_germination || 2,
       germination_type: crop.germination_type || 'warm',
@@ -336,8 +338,8 @@ const CropsPage = () => {
 
                 <div className="grid gap-2">
                   <Label>Kategória</Label>
-                  <Select 
-                    value={formData.category} 
+                  <Select
+                    value={formData.category}
                     onValueChange={(value) => setFormData({ ...formData, category: value })}
                   >
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -353,6 +355,21 @@ const CropsPage = () => {
                       </SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="sku_prefix">SKU prefix (katalógové číslo)</Label>
+                  <Input
+                    id="sku_prefix"
+                    value={formData.sku_prefix || ''}
+                    onChange={(e) => setFormData({ ...formData, sku_prefix: e.target.value.toUpperCase() })}
+                    placeholder="napr. BRC, HAF, MIZC"
+                    maxLength={10}
+                    className="uppercase font-mono"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    3-4 znaky pre jednoznačnú identifikáciu. Použije sa v e-shope.
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-4 gap-4">
