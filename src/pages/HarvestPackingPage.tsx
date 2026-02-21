@@ -153,17 +153,48 @@ export default function HarvestPackingPage() {
     const end = endOfMonth(calendarMonth);
 
     const { data } = await supabase
-      .from('orders')
-      .select('delivery_date')
-      .gte('delivery_date', format(start, 'yyyy-MM-dd'))
-      .lte('delivery_date', format(end, 'yyyy-MM-dd'));
+      .from('planting_plans')
+      .select('actual_harvest_date')
+      .gte('actual_harvest_date', format(start, 'yyyy-MM-dd'))
+      .lte('actual_harvest_date', format(end, 'yyyy-MM-dd'))
+      .not('actual_harvest_date', 'is', null);
 
-    if (data) setOrdersForCalendar(data);
+    if (data) {
+      setOrdersForCalendar(data.map(pp => ({ delivery_date: pp.actual_harvest_date })));
+    }
   };
 
   const loadOrdersForDate = async () => {
     try {
-      console.log('📅 Loading orders for date:', format(selectedDate, 'yyyy-MM-dd'));
+      console.log('📅 Loading orders for actual_harvest_date:', format(selectedDate, 'yyyy-MM-dd'));
+
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+
+      const { data: plantingPlans, error: ppError } = await supabase
+        .from('planting_plans')
+        .select('order_id')
+        .eq('actual_harvest_date', dateStr);
+
+      if (ppError) {
+        console.error('❌ Error loading planting plans:', ppError);
+        return;
+      }
+
+      if (!plantingPlans || plantingPlans.length === 0) {
+        console.log('ℹ️ No planting plans for this harvest date');
+        setOrders([]);
+        return;
+      }
+
+      const orderIds = plantingPlans
+        .map(pp => pp.order_id)
+        .filter((id): id is string => id !== null);
+
+      if (orderIds.length === 0) {
+        console.log('ℹ️ No orders linked to planting plans');
+        setOrders([]);
+        return;
+      }
 
       const { data, error } = await supabase
         .from('orders')
@@ -176,7 +207,7 @@ export default function HarvestPackingPage() {
             blend:blends(id, name)
           )
         `)
-        .eq('delivery_date', format(selectedDate, 'yyyy-MM-dd'))
+        .in('id', orderIds)
         .order('customer_type', { ascending: false });
 
       if (error) {
@@ -184,7 +215,7 @@ export default function HarvestPackingPage() {
         return;
       }
 
-      console.log('✅ Loaded orders:', data?.length);
+      console.log('✅ Loaded orders for harvest date:', data?.length);
       setOrders(data || []);
 
     } catch (error) {
