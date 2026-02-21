@@ -197,7 +197,7 @@ export default function SoakingReminders() {
                 urgency === 'today'
                   ? 'bg-destructive/10 border-destructive'
                   : urgency === 'tomorrow'
-                  ? 'bg-warning/10 border-warning'
+                  ? 'bg-red-50 border-red-300'
                   : 'bg-secondary/50 border-border'
               }`}
             >
@@ -208,7 +208,7 @@ export default function SoakingReminders() {
                       urgency === 'today'
                         ? 'text-destructive'
                         : urgency === 'tomorrow'
-                        ? 'text-warning'
+                        ? 'text-red-600'
                         : 'text-muted-foreground'
                     }`}
                   />
