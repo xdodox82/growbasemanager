@@ -14,8 +14,7 @@ import CustomersPage from "./pages/CustomersPage";
 import SuppliersPage from "./pages/SuppliersPage";
 import OrdersPage from "./pages/OrdersPage";
 import PlantingPlanPage from "./pages/PlantingPlanPage";
-import HarvestPage from "./pages/HarvestPage";
-import BaleniePage from "./pages/BaleniePage";
+import HarvestPackingPage from "./pages/HarvestPackingPage";
 import BlendsPage from "./pages/BlendsPage";
 import SeedsPage from "./pages/SeedsPage";
 import PackagingPage from "./pages/PackagingPage";
@@ -62,8 +61,7 @@ const App = () => (
               <Route path="/planting" element={<ProtectedRoute><ErrorBoundary fallbackMessage="Chyba pri načítaní Plánu sadenia"><PlantingPlanPage /></ErrorBoundary></ProtectedRoute>} />
               <Route path="/prep-planting" element={<ProtectedRoute><PrepPlantingPage /></ProtectedRoute>} />
               <Route path="/prep-packaging" element={<ProtectedRoute><PrepPackagingPage /></ProtectedRoute>} />
-              <Route path="/harvest" element={<ProtectedRoute><HarvestPage /></ProtectedRoute>} />
-              <Route path="/balenie" element={<ProtectedRoute><BaleniePage /></ProtectedRoute>} />
+              <Route path="/harvest-packing" element={<ProtectedRoute><HarvestPackingPage /></ProtectedRoute>} />
               <Route path="/delivery" element={<ProtectedRoute><DeliveryPage /></ProtectedRoute>} />
               <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
               <Route path="/inventory/seeds" element={<ProtectedRoute><SeedsPage /></ProtectedRoute>} />

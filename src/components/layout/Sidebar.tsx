@@ -116,9 +116,8 @@ export function Sidebar() {
     { id: 'blends', name: t('nav.blends'), href: '/blends', icon: Blend },
     { id: 'planting', name: t('nav.planting'), href: '/planting', icon: Calendar },
     { id: 'prep-planting', name: 'Príprava na sadenie', href: '/prep-planting', icon: Box },
-    { id: 'harvest', name: t('nav.harvest'), href: '/harvest', icon: Scissors },
+    { id: 'harvest-packing', name: 'Zber a balenie', href: '/harvest-packing', icon: Scissors },
     { id: 'prep-packaging', name: 'Príprava obalov', href: '/prep-packaging', icon: Tag },
-    { id: 'balenie', name: t('nav.balenie'), href: '/balenie', icon: Package },
     { id: 'delivery', name: t('nav.delivery'), href: '/delivery', icon: Truck },
     { id: 'calendar', name: t('nav.calendar'), href: '/calendar', icon: Calendar },
   ].filter(item => isItemVisible(item.id));
