@@ -2,13 +2,12 @@ import { useState, useEffect, useMemo } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { PageHeader } from '@/components/ui/page-components';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CustomerTypeFilter } from '@/components/filters/CustomerTypeFilter';
 import { CategoryFilter } from '@/components/orders/CategoryFilter';
 import { SearchableCustomerSelect } from '@/components/orders/SearchableCustomerSelect';
-import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -18,13 +17,13 @@ import {
   Home,
   Utensils,
   Store,
-  Calendar,
+  Calendar as CalendarIcon,
   Leaf,
-  Sprout,
-  Flower,
-  Palette
+  Palette,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
-import { format, addDays, startOfWeek } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, isToday } from 'date-fns';
 import { sk } from 'date-fns/locale';
 
 interface Customer {
@@ -54,16 +53,19 @@ interface OrderItem {
   package_ml?: number;
   package_type?: string;
   notes?: string;
+  crop?: Crop;
+  blend?: Blend;
 }
 
 interface Order {
   id: string;
   customer_id: string;
+  customer_name: string;
+  customer_type: string;
   delivery_date: string;
-  actual_harvest_date?: string;
   status: string;
   customer?: Customer;
-  order_items?: OrderItem[];
+  items?: OrderItem[];
 }
 
 interface ProductGroup {
@@ -71,7 +73,10 @@ interface ProductGroup {
   productName: string;
   productType: 'crop' | 'blend';
   category?: string;
-  orders: Order[];
+  orders: {
+    order: Order;
+    items: OrderItem[];
+  }[];
 }
 
 export default function HarvestPackingPage() {
@@ -82,63 +87,57 @@ export default function HarvestPackingPage() {
   const [crops, setCrops] = useState<Crop[]>([]);
   const [blends, setBlends] = useState<Blend[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deliverySettings, setDeliverySettings] = useState<any>(null);
+  const [ordersForCalendar, setOrdersForCalendar] = useState<any[]>([]);
 
-  const [selectedHarvestDate, setSelectedHarvestDate] = useState<string>('');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [customerTypeFilter, setCustomerTypeFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [cropFilter, setCropFilter] = useState<string>('all');
   const [customerFilter, setCustomerFilter] = useState<string>('all');
   const [completedProducts, setCompletedProducts] = useState<Set<string>>(new Set());
 
-  const harvestDates = useMemo(() => {
-    const dates: string[] = [];
-    const startDate = startOfWeek(new Date(), { weekStartsOn: 1 });
-
-    for (let week = 0; week < 4; week++) {
-      const tuesday = addDays(startDate, week * 7 + 1);
-      const thursday = addDays(startDate, week * 7 + 3);
-      dates.push(format(tuesday, 'yyyy-MM-dd'));
-      dates.push(format(thursday, 'yyyy-MM-dd'));
-    }
-
-    return dates;
+  useEffect(() => {
+    loadInitialData();
   }, []);
 
   useEffect(() => {
-    if (harvestDates.length > 0) {
-      setSelectedHarvestDate(harvestDates[0]);
+    if (deliverySettings) {
+      loadOrdersForCalendar();
     }
-  }, [harvestDates]);
+  }, [calendarMonth, deliverySettings]);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    loadOrdersForDate();
+  }, [selectedDate]);
 
-  const loadData = async () => {
+  const loadInitialData = async () => {
     try {
       setLoading(true);
 
-      const [ordersRes, customersRes, cropsRes, blendsRes] = await Promise.all([
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const [deliverySettingsRes, customersRes, cropsRes, blendsRes] = await Promise.all([
         supabase
-          .from('orders')
-          .select(`
-            *,
-            customer:customers(id, name, customer_type),
-            order_items(*)
-          `)
-          .order('delivery_date', { ascending: true }),
-        supabase.from('customers').select('*'),
-        supabase.from('crops').select('*'),
-        supabase.from('blends').select('*')
+          .from('delivery_days_settings')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle(),
+        supabase.from('customers').select('*').order('name'),
+        supabase.from('products').select('*').order('name'),
+        supabase.from('blends').select('*').order('name')
       ]);
 
-      if (ordersRes.data) setOrders(ordersRes.data as any);
+      if (deliverySettingsRes.data) setDeliverySettings(deliverySettingsRes.data);
       if (customersRes.data) setCustomers(customersRes.data);
       if (cropsRes.data) setCrops(cropsRes.data);
       if (blendsRes.data) setBlends(blendsRes.data);
 
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Error loading initial data:', error);
       toast({
         title: 'Chyba',
         description: 'Nepodarilo sa načítať dáta',
@@ -149,17 +148,68 @@ export default function HarvestPackingPage() {
     }
   };
 
+  const loadOrdersForCalendar = async () => {
+    const start = startOfMonth(calendarMonth);
+    const end = endOfMonth(calendarMonth);
+
+    const { data } = await supabase
+      .from('orders')
+      .select('delivery_date')
+      .gte('delivery_date', format(start, 'yyyy-MM-dd'))
+      .lte('delivery_date', format(end, 'yyyy-MM-dd'));
+
+    if (data) setOrdersForCalendar(data);
+  };
+
+  const loadOrdersForDate = async () => {
+    try {
+      console.log('📅 Loading orders for date:', format(selectedDate, 'yyyy-MM-dd'));
+
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          customer:customers(*),
+          items:order_items(
+            *,
+            crop:products(id, name, category),
+            blend:blends(id, name)
+          )
+        `)
+        .eq('delivery_date', format(selectedDate, 'yyyy-MM-dd'))
+        .order('customer_type', { ascending: false });
+
+      if (error) {
+        console.error('❌ Error loading orders:', error);
+        return;
+      }
+
+      console.log('✅ Loaded orders:', data?.length);
+      setOrders(data || []);
+
+    } catch (error) {
+      console.error('Error loading orders:', error);
+    }
+  };
+
   const filteredCrops = useMemo(() => {
     if (categoryFilter === 'all') return crops;
     if (categoryFilter === 'mix') return [];
     return crops.filter(c => c.category === categoryFilter);
   }, [crops, categoryFilter]);
 
-  const filteredOrders = useMemo(() => {
-    return orders.filter(order => {
-      if (order.actual_harvest_date !== selectedHarvestDate) return false;
+  const filteredBlends = useMemo(() => {
+    if (categoryFilter === 'all' || categoryFilter === 'mix') return blends;
+    return [];
+  }, [blends, categoryFilter]);
 
-      if (customerTypeFilter !== 'all' && order.customer?.customer_type !== customerTypeFilter) {
+  const filteredOrders = useMemo(() => {
+    console.log('🔍 Filtering orders...');
+    console.log('  Total orders:', orders.length);
+    console.log('  Filters:', { customerTypeFilter, categoryFilter, cropFilter, customerFilter });
+
+    return orders.filter(order => {
+      if (customerTypeFilter !== 'all' && order.customer_type !== customerTypeFilter) {
         return false;
       }
 
@@ -167,28 +217,44 @@ export default function HarvestPackingPage() {
         return false;
       }
 
+      if (categoryFilter !== 'all' || cropFilter !== 'all') {
+        const hasMatchingItem = order.items?.some(item => {
+          const crop = crops.find(c => c.id === item.crop_id);
+          const isBlend = !!item.blend_id;
+
+          if (categoryFilter === 'mix') {
+            return isBlend && (cropFilter === 'all' || item.blend_id === cropFilter);
+          }
+
+          if (categoryFilter !== 'all' && crop?.category !== categoryFilter) {
+            return false;
+          }
+
+          if (cropFilter !== 'all') {
+            return item.crop_id === cropFilter || item.blend_id === cropFilter;
+          }
+
+          return true;
+        });
+
+        if (!hasMatchingItem) return false;
+      }
+
       return true;
     });
-  }, [orders, selectedHarvestDate, customerTypeFilter, customerFilter]);
+  }, [orders, customerTypeFilter, customerFilter, categoryFilter, cropFilter, crops]);
 
   const groupedByProduct = useMemo(() => {
     const groups: Record<string, ProductGroup> = {};
 
     filteredOrders.forEach(order => {
-      order.order_items?.forEach(item => {
+      order.items?.forEach(item => {
         const productId = item.crop_id || item.blend_id || 'unknown';
         const productType = item.crop_id ? 'crop' : 'blend';
-        const crop = crops.find(c => c.id === item.crop_id);
-        const blend = blends.find(b => b.id === item.blend_id);
+        const crop = item.crop || crops.find(c => c.id === item.crop_id);
+        const blend = item.blend || blends.find(b => b.id === item.blend_id);
         const productName = crop?.name || blend?.name || item.crop_name || 'Neznámy produkt';
         const category = crop?.category;
-
-        if (categoryFilter !== 'all') {
-          if (categoryFilter === 'mix' && productType !== 'blend') return;
-          if (categoryFilter !== 'mix' && category !== categoryFilter) return;
-        }
-
-        if (cropFilter !== 'all' && productId !== cropFilter) return;
 
         if (!groups[productId]) {
           groups[productId] = {
@@ -200,17 +266,25 @@ export default function HarvestPackingPage() {
           };
         }
 
-        groups[productId].orders.push(order);
+        const existingOrder = groups[productId].orders.find(o => o.order.id === order.id);
+        if (existingOrder) {
+          existingOrder.items.push(item);
+        } else {
+          groups[productId].orders.push({
+            order,
+            items: [item]
+          });
+        }
       });
     });
 
     return Object.values(groups);
-  }, [filteredOrders, crops, blends, categoryFilter, cropFilter]);
+  }, [filteredOrders, crops, blends]);
 
   const singleProducts = groupedByProduct.filter(g => g.productType === 'crop');
   const mixProducts = groupedByProduct.filter(g => g.productType === 'blend');
 
-  const allSingleComplete = singleProducts.every(p => completedProducts.has(p.productId));
+  const allSingleComplete = singleProducts.length > 0 && singleProducts.every(p => completedProducts.has(p.productId));
 
   const handleMarkComplete = (productId: string) => {
     setCompletedProducts(prev => {
@@ -224,7 +298,7 @@ export default function HarvestPackingPage() {
     });
 
     toast({
-      title: 'Označené',
+      title: completedProducts.has(productId) ? 'Zrušené' : 'Označené',
       description: completedProducts.has(productId) ? 'Zrušené dokončenie' : 'Označené ako dokončené'
     });
   };
@@ -247,30 +321,132 @@ export default function HarvestPackingPage() {
     }
   };
 
-  const sortOrdersByCustomerType = (orders: Order[]) => {
+  const sortOrdersByCustomerType = (orders: { order: Order; items: OrderItem[] }[]) => {
     const typeOrder = { gastro: 1, wholesale: 2, home: 3 };
     return [...orders].sort((a, b) => {
-      const aType = a.customer?.customer_type || 'home';
-      const bType = b.customer?.customer_type || 'home';
+      const aType = a.order.customer_type || 'home';
+      const bType = b.order.customer_type || 'home';
       return (typeOrder[aType as keyof typeof typeOrder] || 99) - (typeOrder[bType as keyof typeof typeOrder] || 99);
     });
   };
 
-  const groupByDeliveryDate = (orders: Order[]) => {
-    const groups: Record<string, Order[]> = {};
-    orders.forEach(order => {
-      const date = order.delivery_date || 'unknown';
-      if (!groups[date]) groups[date] = [];
-      groups[date].push(order);
-    });
-    return groups;
+  const isDeliveryDay = (date: Date) => {
+    if (!deliverySettings) return false;
+    const dayOfWeek = getDay(date);
+    const dayMap: Record<number, string> = {
+      1: 'monday', 2: 'tuesday', 3: 'wednesday',
+      4: 'thursday', 5: 'friday', 6: 'saturday', 0: 'sunday'
+    };
+    return deliverySettings[dayMap[dayOfWeek]] === true;
+  };
+
+  const hasOrdersOnDate = (date: Date) => {
+    return ordersForCalendar.some(order =>
+      isSameDay(new Date(order.delivery_date), date)
+    );
+  };
+
+  const goToPreviousMonth = () => {
+    setCalendarMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  };
+
+  const goToNextMonth = () => {
+    setCalendarMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  };
+
+  const renderCalendar = () => {
+    const start = startOfMonth(calendarMonth);
+    const end = endOfMonth(calendarMonth);
+    const days = eachDayOfInterval({ start, end });
+
+    const firstDayOfWeek = getDay(start);
+    const paddingDays = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
+
+    return (
+      <div className="w-[320px] p-4">
+        <div className="flex items-center justify-between mb-4">
+          <Button variant="ghost" size="sm" onClick={goToPreviousMonth}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <h3 className="font-semibold text-base">
+            {format(calendarMonth, 'MMMM yyyy', { locale: sk })}
+          </h3>
+          <Button variant="ghost" size="sm" onClick={goToNextMonth}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1 mb-2">
+          {['Po', 'Ut', 'St', 'Št', 'Pi', 'So', 'Ne'].map(day => (
+            <div key={day} className="text-center text-xs font-medium text-gray-600 w-9 h-6 flex items-center justify-center">
+              {day}
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7 gap-1">
+          {Array.from({ length: paddingDays }).map((_, i) => (
+            <div key={`pad-${i}`} className="w-9 h-9" />
+          ))}
+
+          {days.map(day => {
+            const isDelivery = isDeliveryDay(day);
+            const hasOrders = hasOrdersOnDate(day);
+            const today = isToday(day);
+            const selected = isSameDay(day, selectedDate);
+
+            let bgColor = 'bg-white hover:bg-gray-50';
+
+            if (isDelivery) {
+              bgColor = 'bg-green-200 hover:bg-green-300';
+            } else if (hasOrders) {
+              bgColor = 'bg-yellow-300 hover:bg-yellow-400';
+            }
+
+            return (
+              <button
+                key={day.toISOString()}
+                onClick={() => {
+                  setSelectedDate(day);
+                  setCalendarOpen(false);
+                }}
+                className={`
+                  ${bgColor}
+                  ${today ? 'ring-2 ring-green-600' : ''}
+                  ${selected ? 'ring-2 ring-blue-500' : ''}
+                  rounded-full w-9 h-9 flex items-center justify-center
+                  text-sm font-medium cursor-pointer transition-all
+                `}
+              >
+                {day.getDate()}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-4 space-y-2 text-xs">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded-full bg-green-200 border border-gray-300" />
+            <span>Rozvozový deň</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded-full bg-yellow-300 border border-gray-300" />
+            <span>Objednávky</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded-full ring-2 ring-blue-500" />
+            <span>Vybraný deň</span>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const renderProductCard = (group: ProductGroup, section: 'single' | 'mix') => {
     const isCompleted = completedProducts.has(group.productId);
     const isDisabled = section === 'mix' && !allSingleComplete;
 
-    const ordersByDeliveryDate = groupByDeliveryDate(group.orders);
+    const sortedOrders = sortOrdersByCustomerType(group.orders);
 
     return (
       <Card key={group.productId} className={isDisabled ? 'opacity-50' : ''}>
@@ -310,46 +486,30 @@ export default function HarvestPackingPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {Object.entries(ordersByDeliveryDate).map(([deliveryDate, dateOrders]) => (
-            <div key={deliveryDate} className="mb-4 last:mb-0">
-              <div className="flex items-center gap-2 mb-2 pb-2 border-b">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium text-sm">
-                  Doručenie: {format(new Date(deliveryDate), 'EEEE d.M.', { locale: sk })}
-                </span>
-              </div>
-              <div className="space-y-2">
-                {sortOrdersByCustomerType(dateOrders).map(order => {
-                  const items = order.order_items?.filter(
-                    item => (item.crop_id || item.blend_id) === group.productId
-                  );
-
-                  return (
-                    <div key={order.id} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        {getCustomerTypeIcon(order.customer?.customer_type || '')}
-                        <div>
-                          <p className="font-medium text-sm">{order.customer?.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {getCustomerTypeLabel(order.customer?.customer_type || '')}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        {items?.map((item, idx) => (
-                          <div key={idx} className="text-sm">
-                            <Badge variant="secondary">
-                              {item.quantity}× {item.package_ml}ml
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
+          <div className="space-y-3">
+            {sortedOrders.map(({ order, items }) => (
+              <div key={order.id} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  {getCustomerTypeIcon(order.customer_type)}
+                  <div>
+                    <p className="font-medium text-sm">{order.customer_name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {getCustomerTypeLabel(order.customer_type)}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right space-y-1">
+                  {items.map((item, idx) => (
+                    <div key={idx}>
+                      <Badge variant="secondary">
+                        {item.quantity}× {item.package_ml}ml
+                      </Badge>
                     </div>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </CardContent>
       </Card>
     );
@@ -369,7 +529,7 @@ export default function HarvestPackingPage() {
     <MainLayout>
       <PageHeader
         title="Zber a balenie"
-        description="Organizácia zberu a balenia produktov podľa dňa zberu"
+        description="Organizácia zberu a balenia produktov podľa dňa doručenia"
       />
 
       <div className="space-y-6">
@@ -385,19 +545,18 @@ export default function HarvestPackingPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Deň zberu</label>
-                <Select value={selectedHarvestDate} onValueChange={setSelectedHarvestDate}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {harvestDates.map(date => (
-                      <SelectItem key={date} value={date}>
-                        {format(new Date(date), 'EEEE d.M.yyyy', { locale: sk })}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <label className="text-sm font-medium">Deň doručenia</label>
+                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {format(selectedDate, 'EEEE d.M.yyyy', { locale: sk })}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    {renderCalendar()}
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <CategoryFilter
@@ -409,27 +568,26 @@ export default function HarvestPackingPage() {
               />
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Plodina</label>
-                <Select value={cropFilter} onValueChange={setCropFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Všetky plodiny" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Všetky plodiny</SelectItem>
-                    {categoryFilter === 'mix'
-                      ? blends.map(blend => (
-                          <SelectItem key={blend.id} value={blend.id}>
-                            {blend.name}
-                          </SelectItem>
-                        ))
-                      : filteredCrops.map(crop => (
-                          <SelectItem key={crop.id} value={crop.id}>
-                            {crop.name}
-                          </SelectItem>
-                        ))
-                    }
-                  </SelectContent>
-                </Select>
+                <label className="text-sm font-medium">Plodina / Mix</label>
+                <select
+                  value={cropFilter}
+                  onChange={(e) => setCropFilter(e.target.value)}
+                  className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                >
+                  <option value="all">Všetky plodiny</option>
+                  {categoryFilter === 'mix'
+                    ? filteredBlends.map(blend => (
+                        <option key={blend.id} value={blend.id}>
+                          {blend.name}
+                        </option>
+                      ))
+                    : filteredCrops.map(crop => (
+                        <option key={crop.id} value={crop.id}>
+                          {crop.name}
+                        </option>
+                      ))
+                  }
+                </select>
               </div>
 
               <div className="space-y-2">
@@ -490,7 +648,7 @@ export default function HarvestPackingPage() {
             <CardContent className="py-12 text-center">
               <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <p className="text-muted-foreground">
-                Žiadne objednávky pre vybraný deň zberu
+                Žiadne objednávky pre vybraný deň
               </p>
             </CardContent>
           </Card>
