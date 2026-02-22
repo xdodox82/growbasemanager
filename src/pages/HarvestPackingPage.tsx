@@ -154,29 +154,32 @@ export default function HarvestPackingPage() {
 
     const { data } = await supabase
       .from('planting_plans')
-      .select('actual_harvest_date')
-      .gte('actual_harvest_date', format(start, 'yyyy-MM-dd'))
-      .lte('actual_harvest_date', format(end, 'yyyy-MM-dd'))
-      .not('actual_harvest_date', 'is', null);
+      .select('expected_harvest_date')
+      .gte('expected_harvest_date', format(start, 'yyyy-MM-dd'))
+      .lte('expected_harvest_date', format(end, 'yyyy-MM-dd'))
+      .not('expected_harvest_date', 'is', null);
 
     if (data) {
-      setOrdersForCalendar(data.map(pp => ({ delivery_date: pp.actual_harvest_date })));
+      setOrdersForCalendar(data.map(pp => ({ delivery_date: pp.expected_harvest_date })));
     }
   };
 
   const loadOrdersForDate = async () => {
     try {
-      console.log('📅 Loading orders for actual_harvest_date:', format(selectedDate, 'yyyy-MM-dd'));
+      console.log('📅 Loading orders for expected_harvest_date:', format(selectedDate, 'yyyy-MM-dd'));
 
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
+      // 1. Načítaj planting plans pre daný deň
       const { data: plantingPlans, error: ppError } = await supabase
         .from('planting_plans')
-        .select('order_id')
-        .eq('actual_harvest_date', dateStr);
+        .select('source_orders, crop_id, actual_harvest_date, status')
+        .eq('expected_harvest_date', dateStr)
+        .not('source_orders', 'is', null);
 
       if (ppError) {
         console.error('❌ Error loading planting plans:', ppError);
+        setOrders([]);
         return;
       }
 
@@ -186,16 +189,29 @@ export default function HarvestPackingPage() {
         return;
       }
 
+      // 2. Extrahuj všetky order IDs z source_orders JSON array
       const orderIds = plantingPlans
-        .map(pp => pp.order_id)
-        .filter((id): id is string => id !== null);
+        .flatMap(pp => {
+          try {
+            const parsed = typeof pp.source_orders === 'string'
+              ? JSON.parse(pp.source_orders)
+              : pp.source_orders;
+            return Array.isArray(parsed) ? parsed : [];
+          } catch {
+            return [];
+          }
+        })
+        .filter((id): id is string => typeof id === 'string' && id.length > 0);
 
       if (orderIds.length === 0) {
-        console.log('ℹ️ No orders linked to planting plans');
+        console.log('ℹ️ No orders found in planting plans');
         setOrders([]);
         return;
       }
 
+      console.log('📦 Found order IDs:', orderIds);
+
+      // 3. Načítaj orders podľa týchto IDs
       const { data, error } = await supabase
         .from('orders')
         .select(`
@@ -217,6 +233,15 @@ export default function HarvestPackingPage() {
 
       console.log('✅ Loaded orders for harvest date:', data?.length);
       setOrders(data || []);
+
+      // 4. Načítaj completed products (planting plans s actual_harvest_date)
+      const completedCropIds = new Set(
+        plantingPlans
+          .filter(pp => pp.actual_harvest_date && pp.status === 'harvested')
+          .map(pp => pp.crop_id)
+          .filter((id): id is string => id !== null)
+      );
+      setCompletedProducts(completedCropIds);
 
     } catch (error) {
       console.error('Error loading orders:', error);
@@ -317,21 +342,68 @@ export default function HarvestPackingPage() {
 
   const allSingleComplete = singleProducts.length > 0 && singleProducts.every(p => completedProducts.has(p.productId));
 
-  const handleMarkComplete = (productId: string) => {
-    setCompletedProducts(prev => {
-      const next = new Set(prev);
-      if (next.has(productId)) {
-        next.delete(productId);
-      } else {
-        next.add(productId);
-      }
-      return next;
-    });
+  const handleMarkComplete = async (productId: string) => {
+    const isCurrentlyCompleted = completedProducts.has(productId);
 
-    toast({
-      title: completedProducts.has(productId) ? 'Zrušené' : 'Označené',
-      description: completedProducts.has(productId) ? 'Zrušené dokončenie' : 'Označené ako dokončené'
-    });
+    try {
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      const todayStr = format(new Date(), 'yyyy-MM-dd');
+
+      if (isCurrentlyCompleted) {
+        // Zruš dokončenie - odstráň actual_harvest_date
+        const { error } = await supabase
+          .from('planting_plans')
+          .update({
+            actual_harvest_date: null,
+            status: 'growing'
+          })
+          .eq('crop_id', productId)
+          .eq('expected_harvest_date', dateStr);
+
+        if (error) throw error;
+
+        setCompletedProducts(prev => {
+          const next = new Set(prev);
+          next.delete(productId);
+          return next;
+        });
+
+        toast({
+          title: 'Zrušené',
+          description: 'Zrušené dokončenie zberu'
+        });
+      } else {
+        // Označ ako hotové - nastav actual_harvest_date
+        const { error } = await supabase
+          .from('planting_plans')
+          .update({
+            actual_harvest_date: todayStr,
+            status: 'harvested'
+          })
+          .eq('crop_id', productId)
+          .eq('expected_harvest_date', dateStr);
+
+        if (error) throw error;
+
+        setCompletedProducts(prev => {
+          const next = new Set(prev);
+          next.add(productId);
+          return next;
+        });
+
+        toast({
+          title: 'Označené',
+          description: 'Označené ako dokončené'
+        });
+      }
+    } catch (error) {
+      console.error('Error marking complete:', error);
+      toast({
+        title: 'Chyba',
+        description: 'Nepodarilo sa uložiť zmenu',
+        variant: 'destructive'
+      });
+    }
   };
 
   const getCustomerTypeIcon = (type: string) => {
