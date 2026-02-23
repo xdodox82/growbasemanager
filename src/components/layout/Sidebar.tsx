@@ -24,7 +24,16 @@ import {
   FileText,
   Settings,
   LogOut,
-  Shield
+  Shield,
+  ChevronDown,
+  ChevronRight,
+  Wheat,
+  Package,
+  Layers,
+  Fuel,
+  Droplets,
+  Droplet,
+  Zap
 } from 'lucide-react';
 
 export function Sidebar() {
@@ -35,6 +44,12 @@ export function Sidebar() {
   const navRef = useRef<HTMLElement>(null);
   const [sidebarSettings, setSidebarSettings] = useState<Record<string, boolean>>({});
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [isInventoryOpen, setIsInventoryOpen] = useState(
+    location.pathname.startsWith('/inventory')
+  );
+  const [isCostsOpen, setIsCostsOpen] = useState(
+    location.pathname.startsWith('/costs')
+  );
 
   // Load sidebar settings from profiles
   useEffect(() => {
@@ -103,11 +118,26 @@ export function Sidebar() {
     { id: 'prep-packaging', name: 'Príprava obalov', href: '/prep-packaging', icon: Tag },
     { id: 'harvest-packing', name: 'Zber a balenie', href: '/harvest-packing', icon: Scissors },
     { id: 'delivery', name: 'Rozvoz', href: '/delivery', icon: Truck },
-    { id: 'warehouse', name: 'Sklad', href: '/inventory/seeds', icon: Warehouse },
-    { id: 'costs', name: 'Náklady', href: '/costs/fuel', icon: Receipt },
-    { id: 'calendar', name: 'Kalendár', href: '/calendar', icon: Calendar },
-    { id: 'reports', name: 'Reporty', href: '/reports', icon: FileText },
   ].filter(item => isItemVisible(item.id));
+
+  const inventoryItems = [
+    { name: 'Osivo', href: '/inventory/seeds', icon: Wheat },
+    { name: 'Obalový materiál', href: '/inventory/packaging', icon: Package },
+    { name: 'Substrát', href: '/inventory/substrate', icon: Layers },
+    { name: 'Etikety', href: '/inventory/labels', icon: Tag },
+    { name: 'Spotrebný materiál', href: '/inventory/consumables', icon: Package },
+  ];
+
+  const costsItems = [
+    { name: 'Pohonné hmoty', href: '/costs/fuel', icon: Fuel },
+    { name: 'AdBlue', href: '/costs/adblue', icon: Droplets },
+    { name: 'Voda', href: '/costs/water', icon: Droplet },
+    { name: 'Elektrina', href: '/costs/electricity', icon: Zap },
+    { name: 'Ostatné náklady', href: '/costs/other', icon: Receipt },
+  ];
+
+  const isInventoryActive = location.pathname.startsWith('/inventory');
+  const isCostsActive = location.pathname.startsWith('/costs');
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-sidebar border-r border-sidebar-border">
@@ -143,6 +173,120 @@ export function Sidebar() {
               </Link>
             );
           })}
+
+          {/* 14. Sklad s submenu */}
+          <div>
+            <button
+              onClick={() => setIsInventoryOpen(!isInventoryOpen)}
+              className={cn(
+                'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                isInventoryActive
+                  ? 'bg-primary/20 text-primary'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+              )}
+            >
+              <Warehouse className="h-5 w-5" />
+              Sklad
+              {isInventoryOpen ? (
+                <ChevronDown className="ml-auto h-4 w-4" />
+              ) : (
+                <ChevronRight className="ml-auto h-4 w-4" />
+              )}
+            </button>
+            {isInventoryOpen && (
+              <div className="ml-4 mt-1 space-y-1">
+                {inventoryItems.map((item) => {
+                  const isActive = location.pathname === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      to={item.href}
+                      className={cn(
+                        'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
+                        isActive
+                          ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
+                          : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                      )}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      {item.name}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 15. Náklady s submenu */}
+          <div>
+            <button
+              onClick={() => setIsCostsOpen(!isCostsOpen)}
+              className={cn(
+                'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                isCostsActive
+                  ? 'bg-primary/20 text-primary'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+              )}
+            >
+              <Receipt className="h-5 w-5" />
+              Náklady
+              {isCostsOpen ? (
+                <ChevronDown className="ml-auto h-4 w-4" />
+              ) : (
+                <ChevronRight className="ml-auto h-4 w-4" />
+              )}
+            </button>
+            {isCostsOpen && (
+              <div className="ml-4 mt-1 space-y-1">
+                {costsItems.map((item) => {
+                  const isActive = location.pathname === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      to={item.href}
+                      className={cn(
+                        'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
+                        isActive
+                          ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
+                          : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                      )}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      {item.name}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 16. Kalendár */}
+          <Link
+            to="/calendar"
+            className={cn(
+              'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+              location.pathname === '/calendar'
+                ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
+                : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+            )}
+          >
+            <Calendar className="h-5 w-5" />
+            Kalendár
+          </Link>
+
+          {/* 17. Reporty */}
+          <Link
+            to="/reports"
+            className={cn(
+              'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+              location.pathname === '/reports'
+                ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
+                : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+            )}
+          >
+            <FileText className="h-5 w-5" />
+            Reporty
+          </Link>
         </nav>
 
         {/* Footer */}
