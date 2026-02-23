@@ -774,22 +774,16 @@ export default function HarvestPackingPage() {
             return (
               <button
                 key={day.toISOString()}
-                onClick={(e) => {
-                  if (e.ctrlKey || e.metaKey) {
-                    // Ctrl/Cmd + klik = pridaj/odoberaj deň
-                    setSelectedDates(prev => {
-                      const exists = prev.some(d => isSameDay(d, day));
-                      if (exists) {
-                        return prev.filter(d => !isSameDay(d, day));
-                      } else {
-                        return [...prev, day];
-                      }
-                    });
-                  } else {
-                    // Normálny klik = vyber len tento deň
-                    setSelectedDates([day]);
-                    setCalendarOpen(false);
-                  }
+                onClick={() => {
+                  // Toggle mode: pridaj/odoberaj deň (funguje na mobile aj PC)
+                  setSelectedDates(prev => {
+                    const exists = prev.some(d => isSameDay(d, day));
+                    if (exists) {
+                      return prev.filter(d => !isSameDay(d, day));
+                    } else {
+                      return [...prev, day];
+                    }
+                  });
                 }}
                 className={`
                   ${bgColor}
