@@ -909,6 +909,15 @@ export default function HarvestPackingPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 md:gap-3">
+            <div className="text-sm font-medium text-gray-900">
+              {item.quantity} × {item.packaging_size || 'N/A'}{item.packaging_size ? 'g' : ''}
+              {item.package_ml && (
+                <span className="text-xs md:text-sm text-gray-600">
+                  {' '}({item.package_ml}ml)
+                </span>
+              )}
+            </div>
+
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
                 {item.package_type || 'rPET'}
@@ -921,15 +930,6 @@ export default function HarvestPackingPage() {
               {item.has_label_req && (
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-yellow-50 text-black text-xs font-medium rounded border border-yellow-200">
                   🏷️
-                </span>
-              )}
-            </div>
-
-            <div className="text-sm font-medium text-gray-900">
-              {item.quantity} × {item.packaging_size || 'N/A'}{item.packaging_size ? 'g' : ''}
-              {item.package_ml && (
-                <span className="text-xs md:text-sm text-gray-600">
-                  {' '}({item.package_ml}ml)
                 </span>
               )}
             </div>
