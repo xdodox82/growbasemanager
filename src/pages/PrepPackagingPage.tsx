@@ -922,45 +922,50 @@ export default function PrepPackagingPage() {
                           return (
                             <div
                               key={item.id}
-                              className={`flex items-center justify-between py-0.5 leading-tight rounded px-2 ${
+                              className={`flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-2 px-3 leading-tight rounded ${
                                 isPrepared
                                   ? 'bg-green-100 border-l-4 border-green-500'
                                   : 'hover:bg-gray-50'
                               }`}
                             >
-                              <div className="flex items-center gap-1.5 flex-1">
+                              <div className="flex items-center gap-2">
                                 {getCustomerTypeIcon(item.type)}
-                                <span className="font-medium text-gray-900">
+                                <span className="font-medium text-gray-900 text-sm">
                                   {item.name}
                                 </span>
                                 <span className="text-xs text-gray-500">
                                   ({getCustomerTypeLabel(item.type)})
                                 </span>
-                                <span className="ml-2">
-                                  <span className="text-sm text-gray-900 font-medium">
-                                    {item.pieces} × {item.packaging_size}g
-                                  </span>
-                                  <span className="text-sm text-gray-600">
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {item.pieces} × {item.packaging_size}g
+                                  <span className="text-xs md:text-sm text-gray-600">
                                     {' '}({item.package_ml}ml)
                                   </span>
-                                </span>
-                                <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
-                                  {item.package_type}
-                                </span>
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-yellow-50 text-black text-xs font-medium rounded border border-yellow-200">
-                                  🏷️ Etiketa
-                                </span>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
+                                    {item.package_type}
+                                  </span>
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-yellow-50 text-black text-xs font-medium rounded border border-yellow-200">
+                                    🏷️ Etiketa
+                                  </span>
+                                </div>
+
+                                <button
+                                  onClick={() => markAsPrepared(item.id)}
+                                  className={`px-4 py-2 text-sm font-semibold rounded transition-colors shrink-0 ml-auto md:ml-0 ${
+                                    isPrepared
+                                      ? 'bg-green-200 hover:bg-green-300'
+                                      : 'bg-gray-200 hover:bg-gray-300'
+                                  }`}
+                                >
+                                  ✓ Hotovo
+                                </button>
                               </div>
-                              <button
-                                onClick={() => markAsPrepared(item.id)}
-                                className={`px-4 py-2 text-sm font-semibold rounded transition-colors shrink-0 ml-4 ${
-                                  isPrepared
-                                    ? 'bg-green-200 hover:bg-green-300'
-                                    : 'bg-gray-200 hover:bg-gray-300'
-                                }`}
-                              >
-                                ✓ Hotovo
-                              </button>
                             </div>
                           );
                         })}
@@ -976,42 +981,47 @@ export default function PrepPackagingPage() {
                           return (
                             <div
                               key={item.id}
-                              className={`flex items-center justify-between py-0.5 leading-tight rounded px-2 ${
+                              className={`flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-2 px-3 leading-tight rounded ${
                                 isPrepared
                                   ? 'bg-green-100 border-l-4 border-green-500'
                                   : 'hover:bg-gray-50'
                               }`}
                             >
-                              <div className="flex items-center gap-1.5 flex-1">
+                              <div className="flex items-center gap-2">
                                 {getCustomerTypeIcon(item.type)}
-                                <span className="font-medium text-gray-900">
+                                <span className="font-medium text-gray-900 text-sm">
                                   {item.name}
                                 </span>
                                 <span className="text-xs text-gray-500">
                                   ({getCustomerTypeLabel(item.type)})
                                 </span>
-                                <span className="ml-2">
-                                  <span className="text-sm text-gray-900 font-medium">
-                                    {item.pieces} × {item.packaging_size}g
-                                  </span>
-                                  <span className="text-sm text-gray-600">
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {item.pieces} × {item.packaging_size}g
+                                  <span className="text-xs md:text-sm text-gray-600">
                                     {' '}({item.package_ml}ml)
                                   </span>
-                                </span>
-                                <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
-                                  {item.package_type}
-                                </span>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
+                                    {item.package_type}
+                                  </span>
+                                </div>
+
+                                <button
+                                  onClick={() => markAsPrepared(item.id)}
+                                  className={`px-4 py-2 text-sm font-semibold rounded transition-colors shrink-0 ml-auto md:ml-0 ${
+                                    isPrepared
+                                      ? 'bg-green-200 hover:bg-green-300'
+                                      : 'bg-gray-200 hover:bg-gray-300'
+                                  }`}
+                                >
+                                  ✓ Hotovo
+                                </button>
                               </div>
-                              <button
-                                onClick={() => markAsPrepared(item.id)}
-                                className={`px-4 py-2 text-sm font-semibold rounded transition-colors shrink-0 ml-4 ${
-                                  isPrepared
-                                    ? 'bg-green-200 hover:bg-green-300'
-                                    : 'bg-gray-200 hover:bg-gray-300'
-                                }`}
-                              >
-                                ✓ Hotovo
-                              </button>
                             </div>
                           );
                         })}
@@ -1042,40 +1052,41 @@ export default function PrepPackagingPage() {
                             <div className="space-y-0 -my-0.5">
                           {/* POLOŽKY S ETIKETOU */}
                           {group.itemsWithLabel?.map((item) => (
-                            <div key={item.id} className="flex items-center justify-between py-0.5 leading-tight bg-white rounded px-2">
-                              <div className="flex items-center gap-1.5 flex-1">
-                                <span className="text-base">
-                                  {item.type === 'gastro' ? '🍴' :
-                                   item.type === 'wholesale' ? '📦' : '🏠'}
-                                </span>
-                                <span className="font-medium text-gray-900">
+                            <div key={item.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-2 px-3 leading-tight bg-white rounded">
+                              <div className="flex items-center gap-2">
+                                {getCustomerTypeIcon(item.type)}
+                                <span className="font-medium text-gray-900 text-sm">
                                   {item.name}
                                 </span>
                                 <span className="text-xs text-gray-500">
-                                  ({item.type === 'gastro' ? 'Gastro' :
-                                     item.type === 'wholesale' ? 'VO' : 'Domáci'})
-                                </span>
-                                <span className="ml-2">
-                                  <span className="text-sm text-gray-900 font-medium">
-                                    {item.pieces} × {item.packaging_size}g
-                                  </span>
-                                  <span className="text-sm text-gray-600">
-                                    {' '}({item.package_ml}ml)
-                                  </span>
-                                </span>
-                                <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
-                                  {item.package_type}
-                                </span>
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-yellow-50 text-black text-xs font-medium rounded border border-yellow-200">
-                                  🏷️ Etiketa
+                                  ({getCustomerTypeLabel(item.type)})
                                 </span>
                               </div>
-                              <button
-                                onClick={() => markAsUnprepared(item.id)}
-                                className="px-4 py-2 text-sm font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-4"
-                              >
-                                ↩ Vrátiť
-                              </button>
+
+                              <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {item.pieces} × {item.packaging_size}g
+                                  <span className="text-xs md:text-sm text-gray-600">
+                                    {' '}({item.package_ml}ml)
+                                  </span>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
+                                    {item.package_type}
+                                  </span>
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-yellow-50 text-black text-xs font-medium rounded border border-yellow-200">
+                                    🏷️ Etiketa
+                                  </span>
+                                </div>
+
+                                <button
+                                  onClick={() => markAsUnprepared(item.id)}
+                                  className="px-4 py-2 text-sm font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-auto md:ml-0"
+                                >
+                                  ↩ Vrátiť
+                                </button>
+                              </div>
                             </div>
                           ))}
 
@@ -1086,37 +1097,38 @@ export default function PrepPackagingPage() {
 
                           {/* POLOŽKY BEZ ETIKETY */}
                           {group.itemsWithoutLabel?.map((item) => (
-                            <div key={item.id} className="flex items-center justify-between py-0.5 leading-tight bg-white rounded px-2">
-                              <div className="flex items-center gap-1.5 flex-1">
-                                <span className="text-base">
-                                  {item.type === 'gastro' ? '🍴' :
-                                   item.type === 'wholesale' ? '📦' : '🏠'}
-                                </span>
-                                <span className="font-medium text-gray-900">
+                            <div key={item.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-2 px-3 leading-tight bg-white rounded">
+                              <div className="flex items-center gap-2">
+                                {getCustomerTypeIcon(item.type)}
+                                <span className="font-medium text-gray-900 text-sm">
                                   {item.name}
                                 </span>
                                 <span className="text-xs text-gray-500">
-                                  ({item.type === 'gastro' ? 'Gastro' :
-                                     item.type === 'wholesale' ? 'VO' : 'Domáci'})
-                                </span>
-                                <span className="ml-2">
-                                  <span className="text-sm text-gray-900 font-medium">
-                                    {item.pieces} × {item.packaging_size}g
-                                  </span>
-                                  <span className="text-sm text-gray-600">
-                                    {' '}({item.package_ml}ml)
-                                  </span>
-                                </span>
-                                <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
-                                  {item.package_type}
+                                  ({getCustomerTypeLabel(item.type)})
                                 </span>
                               </div>
-                              <button
-                                onClick={() => markAsUnprepared(item.id)}
-                                className="px-4 py-2 text-sm font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-4"
-                              >
-                                ↩ Vrátiť
-                              </button>
+
+                              <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {item.pieces} × {item.packaging_size}g
+                                  <span className="text-xs md:text-sm text-gray-600">
+                                    {' '}({item.package_ml}ml)
+                                  </span>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
+                                    {item.package_type}
+                                  </span>
+                                </div>
+
+                                <button
+                                  onClick={() => markAsUnprepared(item.id)}
+                                  className="px-4 py-2 text-sm font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-auto md:ml-0"
+                                >
+                                  ↩ Vrátiť
+                                </button>
+                              </div>
                             </div>
                           ))}
                             </div>
