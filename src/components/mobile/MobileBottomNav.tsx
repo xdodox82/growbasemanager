@@ -2,37 +2,39 @@ import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { LayoutDashboard, ListChecks, Calendar, Menu } from 'lucide-react';
 import { useState } from 'react';
-import { MobileSidebar } from '@/components/layout/MobileSidebar';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { useAuth } from '@/hooks/useAuth';
 import {
-  Leaf,
+  Home,
+  CheckSquare,
   Users,
-  ShoppingCart,
-  Blend,
-  Settings,
-  Sprout,
-  Warehouse,
-  Wheat,
-  Package,
-  ChevronDown,
-  ChevronRight,
-  Truck,
   Building2,
-  Scissors,
-  FileBarChart,
-  Layers,
+  Sprout,
+  Blend,
+  DollarSign,
+  ShoppingCart,
+  CalendarDays,
   Box,
   Tag,
-  LogOut,
-  Shield,
-  Euro,
+  Scissors,
+  Truck,
+  Warehouse,
+  Receipt,
+  FileBarChart,
+  Settings,
+  Wheat,
+  Package,
+  Layers,
   Fuel,
   Droplets,
   Droplet,
   Zap,
-  Receipt,
+  ChevronDown,
+  ChevronRight,
+  LogOut,
+  Shield,
+  Euro,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -58,15 +60,19 @@ export function MobileBottomNav() {
   ];
 
   const menuItems = [
-    { name: t('nav.customers'), href: '/customers', icon: Users },
-    { name: t('nav.suppliers'), href: '/suppliers', icon: Building2 },
-    { name: t('nav.orders'), href: '/orders', icon: ShoppingCart },
-    { name: t('nav.crops'), href: '/crops', icon: Leaf },
-    { name: t('nav.blends'), href: '/blends', icon: Blend },
-    { name: t('nav.planting'), href: '/planting', icon: Calendar },
-    { name: t('nav.harvest'), href: '/harvest', icon: Scissors },
-    { name: t('nav.delivery'), href: '/delivery', icon: Truck },
-    { name: 'Ceny', href: '/prices', icon: Euro },
+    { name: 'Dashboard', href: '/', icon: Home },
+    { name: 'Dnešné úlohy', href: '/today', icon: CheckSquare },
+    { name: 'Zákazníci', href: '/customers', icon: Users },
+    { name: 'Dodávatelia', href: '/suppliers', icon: Building2 },
+    { name: 'Plodiny', href: '/crops', icon: Sprout },
+    { name: 'Mixy', href: '/blends', icon: Blend },
+    { name: 'Ceny', href: '/prices', icon: DollarSign },
+    { name: 'Objednávky', href: '/orders', icon: ShoppingCart },
+    { name: 'Plán sadenia', href: '/planting', icon: CalendarDays },
+    { name: 'Príprava na sadenie', href: '/prep-planting', icon: Box },
+    { name: 'Príprava obalov', href: '/prep-packaging', icon: Tag },
+    { name: 'Zber a balenie', href: '/harvest-packing', icon: Scissors },
+    { name: 'Rozvoz', href: '/delivery', icon: Truck },
   ];
 
   const costsItems = [
@@ -78,11 +84,11 @@ export function MobileBottomNav() {
   ];
 
   const inventoryItems = [
-    { name: t('nav.seeds'), href: '/inventory/seeds', icon: Wheat },
-    { name: t('nav.packaging'), href: '/inventory/packaging', icon: Package },
-    { name: t('nav.substrate'), href: '/inventory/substrate', icon: Layers },
+    { name: 'Osivo', href: '/inventory/seeds', icon: Wheat },
+    { name: 'Obalový materiál', href: '/inventory/packaging', icon: Package },
+    { name: 'Substrát', href: '/inventory/substrate', icon: Layers },
     { name: 'Etikety', href: '/inventory/labels', icon: Tag },
-    { name: t('nav.other'), href: '/inventory/other', icon: Box },
+    { name: 'Spotrebný materiál', href: '/inventory/consumables', icon: Box },
   ];
 
   return (
