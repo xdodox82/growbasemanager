@@ -923,7 +923,7 @@ export default function HarvestPackingPage() {
               )}
               {item.has_label_req && (
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-yellow-50 text-black text-xs font-medium rounded border border-yellow-200">
-                  🏷️
+                  🏷️ Etiketa
                 </span>
               )}
             </div>
@@ -1289,8 +1289,8 @@ export default function HarvestPackingPage() {
                                       </span>
                                     )}
                                     {item.has_label_req && (
-                                      <span className="ml-2" title="S etiketou">
-                                        🏷️
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-yellow-50 text-black text-xs font-medium rounded border border-yellow-200">
+                                        🏷️ Etiketa
                                       </span>
                                     )}
                                   </div>
