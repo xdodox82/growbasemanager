@@ -1219,7 +1219,7 @@ const PlantingPlanPage = () => {
   return (
     <MainLayout>
       <PullToRefresh onRefresh={handleRefresh}>
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen overflow-y-auto pb-20 md:pb-6 bg-background">
           <PageHeader
             title="Plán sadenia"
             description="Generovanie a správa plánu sadenia podľa objednávok"
