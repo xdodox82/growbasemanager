@@ -71,7 +71,9 @@ export function MobileSidebar({ onClose }: MobileSidebarProps) {
     { name: 'Plodiny', href: '/crops', icon: Leaf },
     { name: 'Zmesi', href: '/blends', icon: Blend },
     { name: 'Plánovanie pestovania', href: '/planting', icon: Calendar },
-    { name: 'Zber úrody', href: '/harvest', icon: Scissors },
+    { name: 'Príprava na sadenie', href: '/prep-planting', icon: Box },
+    { name: 'Zber a balenie', href: '/harvest-packing', icon: Scissors },
+    { name: 'Príprava obalov', href: '/prep-packaging', icon: Tag },
     { name: 'Dodávka', href: '/delivery', icon: Truck },
     { name: 'Kalendár', href: '/calendar', icon: Calendar },
   ];
