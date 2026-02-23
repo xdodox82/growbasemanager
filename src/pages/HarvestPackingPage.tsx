@@ -1088,11 +1088,12 @@ export default function HarvestPackingPage() {
                     {renderCalendar()}
                   </PopoverContent>
                 </Popover>
-                {selectedDates.length > 1 && (
-                  <div className="text-xs text-gray-600 mt-1">
-                    Zobrazujem objednávky pre {selectedDates.length} {selectedDates.length === 2 ? 'dni' : 'dní'}
-                  </div>
-                )}
+                <div className="text-xs text-gray-600 mt-1 min-h-[20px]">
+                  {selectedDates.length > 1
+                    ? `Zobrazujem objednávky pre ${selectedDates.length} ${selectedDates.length === 2 ? 'dni' : 'dní'}`
+                    : '\u00A0'
+                  }
+                </div>
               </div>
 
               <CategoryFilter
