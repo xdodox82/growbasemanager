@@ -668,9 +668,6 @@ export default function PrepPackagingPage() {
           <div className="space-y-4">
             <div className="flex gap-4 items-start">
               <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Typ zákazníka
-                </label>
                 <div className="flex gap-2 flex-wrap">
                   <Button
                     variant={customerTypeFilter === 'all' ? 'default' : 'outline'}

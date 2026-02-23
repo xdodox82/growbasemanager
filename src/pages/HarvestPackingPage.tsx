@@ -1068,6 +1068,7 @@ export default function HarvestPackingPage() {
               <CustomerTypeFilter
                 value={customerTypeFilter}
                 onChange={setCustomerTypeFilter}
+                showLabel={false}
               />
             </div>
 

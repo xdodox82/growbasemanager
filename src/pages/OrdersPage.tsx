@@ -2396,6 +2396,7 @@ export default function OrdersPage() {
           <CustomerTypeFilter
             value={filterCustomerType}
             onChange={setFilterCustomerType}
+            showLabel={false}
           />
 
           <div className="w-[280px]">

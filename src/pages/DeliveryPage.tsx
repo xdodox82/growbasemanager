@@ -1076,7 +1076,6 @@ function DeliveryPage() {
           </div>
 
           <div className="flex-1">
-            <label className="text-sm font-medium mb-2 block">Typ zákazníka</label>
             <CustomerTypeFilter
               value={selectedCustomerType}
               onChange={setSelectedCustomerType}
