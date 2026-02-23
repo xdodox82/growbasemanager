@@ -885,13 +885,13 @@ export default function HarvestPackingPage() {
     return (
       <div ref={setNodeRef} style={style}>
         <div
-          className={`flex items-center justify-between py-0.5 leading-tight rounded px-2 ${
+          className={`flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-2 px-3 leading-tight rounded ${
             isCompleted
               ? 'bg-green-100 border-l-4 border-green-500'
               : 'hover:bg-gray-50'
           }`}
         >
-          <div className="flex items-center gap-1.5 flex-1">
+          <div className="flex items-center gap-2 flex-1">
             <button
               {...attributes}
               {...listeners}
@@ -900,42 +900,44 @@ export default function HarvestPackingPage() {
               <GripVertical className="h-4 w-4" />
             </button>
             {getCustomerTypeIcon(order.customer_type)}
-            <span className="font-medium text-gray-900">
+            <span className="font-medium text-gray-900 text-sm">
               {order.customer_name}
             </span>
             <span className="text-xs text-gray-500">
               ({getCustomerTypeLabel(order.customer_type)})
             </span>
-            <span className="ml-2">
-              <span className="text-sm text-gray-900 font-medium">
-                {item.quantity} × {item.packaging_size || 'N/A'}{item.packaging_size ? 'g' : ''}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 md:gap-3">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
+                {item.package_type || 'rPET'}
               </span>
+              {item.returned_packaging_count > 0 && (
+                <span className="inline-flex items-center px-1.5 py-0.5 bg-blue-50 text-blue-600 text-xs font-medium rounded">
+                  Vratný: {item.returned_packaging_count}×
+                </span>
+              )}
+              {item.has_label_req && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-yellow-50 text-black text-xs font-medium rounded border border-yellow-200">
+                  🏷️
+                </span>
+              )}
+            </div>
+
+            <div className="text-sm font-medium text-gray-900">
+              {item.quantity} × {item.packaging_size || 'N/A'}{item.packaging_size ? 'g' : ''}
               {item.package_ml && (
-                <span className="text-sm text-gray-600">
+                <span className="text-xs md:text-sm text-gray-600">
                   {' '}({item.package_ml}ml)
                 </span>
               )}
-            </span>
-            <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
-              {item.package_type || 'rPET'}
-            </span>
-            {item.returned_packaging_count > 0 && (
-              <span className="inline-flex items-center px-1.5 py-0.5 bg-blue-50 text-blue-600 text-xs font-medium rounded">
-                Vratný: {item.returned_packaging_count}×
-              </span>
-            )}
-            {item.has_label_req && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-yellow-50 text-black text-xs font-medium rounded border border-yellow-200">
-                🏷️ Etiketa
-              </span>
-            )}
-          </div>
+            </div>
 
-          <div className="flex items-center gap-2 shrink-0">
             {getRouteName(order) && (
               <Badge
                 variant="outline"
-                className={`text-[10px] px-1.5 py-0 h-5 ${getRouteColor(getRouteName(order)!)}`}
+                className={`text-xs px-1.5 py-0.5 ${getRouteColor(getRouteName(order)!)}`}
               >
                 🚚 {getRouteName(order)}
               </Badge>
@@ -943,7 +945,7 @@ export default function HarvestPackingPage() {
 
             <button
               onClick={() => handleToggleItemComplete(itemKey)}
-              className={`px-4 py-2 text-sm font-semibold rounded transition-colors ${
+              className={`px-4 py-2 text-sm font-semibold rounded transition-colors ml-auto md:ml-0 ${
                 isCompleted
                   ? 'bg-green-200 hover:bg-green-300'
                   : 'bg-gray-200 hover:bg-gray-300'
