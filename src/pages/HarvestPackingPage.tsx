@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CustomerTypeFilter } from '@/components/filters/CustomerTypeFilter';
 import { CategoryFilter } from '@/components/orders/CategoryFilter';
 import { SearchableCustomerSelect } from '@/components/orders/SearchableCustomerSelect';
@@ -113,6 +114,8 @@ export default function HarvestPackingPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [cropFilter, setCropFilter] = useState<string>('all');
   const [customerFilter, setCustomerFilter] = useState<string>('all');
+  const [packagingSizeFilter, setPackagingSizeFilter] = useState<string>('all');
+  const [availableSizes, setAvailableSizes] = useState<number[]>([]);
   const [completedProducts, setCompletedProducts] = useState<Set<string>>(new Set());
   const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
   const [singleProductsOrder, setSingleProductsOrder] = useState<string[]>([]);
@@ -131,7 +134,21 @@ export default function HarvestPackingPage() {
 
   useEffect(() => {
     loadOrdersForDate();
+    setPackagingSizeFilter('all');
   }, [selectedDates]);
+
+  // Načítaj dostupné veľkosti balení z objednávok
+  useEffect(() => {
+    if (orders.length > 0) {
+      const sizes = orders.flatMap(order =>
+        order.items?.map(item => item.packaging_size) || []
+      );
+      const uniqueSizes = [...new Set(sizes)]
+        .filter((size): size is number => size != null)
+        .sort((a, b) => a - b);
+      setAvailableSizes(uniqueSizes);
+    }
+  }, [orders]);
 
   const loadInitialData = async () => {
     try {
@@ -419,6 +436,15 @@ export default function HarvestPackingPage() {
           }
         }
 
+        // 3. Filter pre veľkosť balenia
+        if (packagingSizeFilter !== 'all') {
+          const filterSize = parseInt(packagingSizeFilter);
+          if (item.packaging_size !== filterSize) {
+            console.log('    ❌ Filtered out - packaging size mismatch');
+            return;
+          }
+        }
+
         console.log('    ✅ PASSED - all filters matched');
 
         if (!groups[productId]) {
@@ -444,7 +470,7 @@ export default function HarvestPackingPage() {
     });
 
     return Object.values(groups);
-  }, [filteredOrders, crops, blends, categoryFilter, cropFilter]);
+  }, [filteredOrders, crops, blends, categoryFilter, cropFilter, packagingSizeFilter]);
 
   const singleProducts = groupedByProduct.filter(g => g.productType === 'crop' && !completedProducts.has(g.productId));
   const mixProducts = groupedByProduct.filter(g => g.productType === 'blend' && !completedProducts.has(g.productId));
@@ -1066,7 +1092,7 @@ export default function HarvestPackingPage() {
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
               <div className="flex flex-col">
                 <label className="text-sm font-medium text-gray-700 text-center mb-2">
                   {selectedDates.length === 1 ? 'Deň doručenia' : `Vybrané dni (${selectedDates.length})`}
@@ -1119,6 +1145,28 @@ export default function HarvestPackingPage() {
                       ))
                   }
                 </select>
+              </div>
+
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-700 text-center mb-2">
+                  Veľkosť balenia
+                </label>
+                <Select
+                  value={packagingSizeFilter}
+                  onValueChange={setPackagingSizeFilter}
+                >
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Všetky" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Všetky veľkosti</SelectItem>
+                    {availableSizes.map(size => (
+                      <SelectItem key={size} value={size.toString()}>
+                        {size}g
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="flex flex-col">
