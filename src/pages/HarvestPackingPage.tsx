@@ -139,13 +139,26 @@ export default function HarvestPackingPage() {
 
   // Načítaj dostupné veľkosti balení z objednávok
   useEffect(() => {
+    console.log('🔍 DEBUGGING availableSizes');
+    console.log('Orders count:', orders.length);
+    console.log('Orders:', orders);
+
     if (orders.length > 0) {
-      const sizes = orders.flatMap(order =>
-        order.items?.map(item => item.packaging_size) || []
-      );
+      const sizes = orders.flatMap(order => {
+        console.log('Order items:', order.items);
+        return order.items?.map(item => {
+          console.log('Item packaging_size:', item.packaging_size);
+          return item.packaging_size;
+        }) || [];
+      });
+
+      console.log('All sizes:', sizes);
+
       const uniqueSizes = [...new Set(sizes)]
         .filter((size): size is number => size != null)
         .sort((a, b) => a - b);
+
+      console.log('Unique sizes:', uniqueSizes);
       setAvailableSizes(uniqueSizes);
     }
   }, [orders]);
