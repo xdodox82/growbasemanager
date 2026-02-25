@@ -27,7 +27,8 @@ import {
   ChevronLeft,
   ChevronRight,
   GripVertical,
-  AlertTriangle
+  AlertTriangle,
+  Tag
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, isToday } from 'date-fns';
 import { sk } from 'date-fns/locale';
@@ -971,8 +972,9 @@ export default function HarvestPackingPage() {
             )}
 
             {item.has_label_req && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-yellow-50 text-black text-sm font-medium rounded border border-yellow-200">
-                🏷️ Etiketa
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-sm font-bold bg-yellow-400 text-gray-900 border-2 border-yellow-600 shadow-sm">
+                <Tag className="h-4 w-4 fill-yellow-600" />
+                ETIKETA
               </span>
             )}
 
