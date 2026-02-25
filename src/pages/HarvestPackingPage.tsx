@@ -933,7 +933,7 @@ export default function HarvestPackingPage() {
               <GripVertical className="h-4 w-4" />
             </button>
             {getCustomerTypeIcon(order.customer_type)}
-            <span className="font-medium text-gray-900 text-sm">
+            <span className="font-medium text-gray-900 text-base">
               {order.customer_name}
             </span>
             <span className="text-xs text-gray-500">
@@ -956,7 +956,7 @@ export default function HarvestPackingPage() {
             </span>
 
             {order.notes && (
-              <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-red-50 border border-red-500 rounded text-sm">
+              <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-white border border-red-500 rounded text-sm">
                 <AlertTriangle className="h-4 w-4 text-yellow-500 fill-yellow-500" />
                 <span className="text-red-700 font-semibold">
                   Poznámka: {order.notes}
@@ -987,7 +987,7 @@ export default function HarvestPackingPage() {
 
             <button
               onClick={() => handleToggleItemComplete(itemKey)}
-              className={`px-4 py-2 text-sm font-semibold rounded transition-colors ml-auto md:ml-0 ${
+              className={`px-4 py-2 text-base font-semibold rounded transition-colors ml-auto md:ml-0 ${
                 isCompleted
                   ? 'bg-green-200 hover:bg-green-300'
                   : 'bg-gray-200 hover:bg-gray-300'
