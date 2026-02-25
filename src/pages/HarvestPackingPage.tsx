@@ -451,8 +451,7 @@ export default function HarvestPackingPage() {
 
         // 3. Filter pre veľkosť balenia
         if (packagingSizeFilter !== 'all') {
-          const filterSize = parseInt(packagingSizeFilter);
-          if (item.packaging_size !== filterSize) {
+          if (item.packaging_size?.toString() !== packagingSizeFilter) {
             console.log('    ❌ Filtered out - packaging size mismatch');
             return;
           }
@@ -1173,6 +1172,7 @@ export default function HarvestPackingPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Všetky veľkosti</SelectItem>
+                    <SelectItem value="25">25g</SelectItem>
                     {availableSizes.map(size => (
                       <SelectItem key={size} value={size.toString()}>
                         {size}g
