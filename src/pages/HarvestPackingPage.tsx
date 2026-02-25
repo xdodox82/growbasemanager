@@ -942,35 +942,44 @@ export default function HarvestPackingPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 md:gap-3">
-            <div className="text-sm font-medium text-gray-900">
+            <div className="text-base font-medium text-gray-900">
               {item.quantity} × {item.packaging_size || 'N/A'}{item.packaging_size ? 'g' : ''}
               {item.package_ml && (
-                <span className="text-xs md:text-sm text-gray-600">
+                <span className="text-sm md:text-base text-gray-600">
                   {' '}({item.package_ml}ml)
                 </span>
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
-                {item.package_type || 'rPET'}
+            <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-sm font-medium rounded">
+              {item.package_type || 'rPET'}
+            </span>
+
+            {order.notes && (
+              <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-red-50 border border-red-500 rounded text-sm">
+                <AlertTriangle className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                <span className="text-red-700 font-semibold">
+                  Poznámka: {order.notes}
+                </span>
+              </div>
+            )}
+
+            {item.returned_packaging_count > 0 && (
+              <span className="inline-flex items-center px-1.5 py-0.5 bg-blue-50 text-blue-600 text-sm font-medium rounded">
+                Vratný: {item.returned_packaging_count}×
               </span>
-              {item.returned_packaging_count > 0 && (
-                <span className="inline-flex items-center px-1.5 py-0.5 bg-blue-50 text-blue-600 text-xs font-medium rounded">
-                  Vratný: {item.returned_packaging_count}×
-                </span>
-              )}
-              {item.has_label_req && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-yellow-50 text-black text-xs font-medium rounded border border-yellow-200">
-                  🏷️ Etiketa
-                </span>
-              )}
-            </div>
+            )}
+
+            {item.has_label_req && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-yellow-50 text-black text-sm font-medium rounded border border-yellow-200">
+                🏷️ Etiketa
+              </span>
+            )}
 
             {getRouteName(order) && (
               <Badge
                 variant="outline"
-                className={`text-xs px-1.5 py-0.5 ${getRouteColor(getRouteName(order)!)}`}
+                className={`text-sm px-1.5 py-0.5 ${getRouteColor(getRouteName(order)!)}`}
               >
                 🚚 {getRouteName(order)}
               </Badge>
@@ -987,17 +996,6 @@ export default function HarvestPackingPage() {
               {isCompleted ? '✓ Hotovo' : '✓ Hotovo'}
             </button>
           </div>
-
-          {order.notes && (
-            <div className="mt-2 p-2 bg-white border-l-4 border-red-500 rounded text-sm max-w-full">
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
-                <span className="text-gray-700">
-                  <strong className="text-red-700">Poznámka:</strong> {order.notes}
-                </span>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     );
