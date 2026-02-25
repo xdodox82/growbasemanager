@@ -36,7 +36,11 @@ import {
   Zap
 } from 'lucide-react';
 
-export function Sidebar() {
+interface SidebarProps {
+  onToggle?: () => void;
+}
+
+export function Sidebar({ onToggle }: SidebarProps = {}) {
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useLanguage();
@@ -144,9 +148,14 @@ export function Sidebar() {
       <div className="flex h-full flex-col">
         {/* Logo */}
         <div className="flex h-16 items-center gap-3 px-6 border-b border-sidebar-border">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary glow-primary">
+          <button
+            onClick={onToggle}
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary glow-primary hover:bg-primary/90 transition-colors cursor-pointer"
+            title="Skryť menu"
+            aria-label="Toggle sidebar"
+          >
             <Sprout className="h-6 w-6 text-primary-foreground" />
-          </div>
+          </button>
           <div>
             <h1 className="text-lg font-bold text-sidebar-foreground">{t('app.name')}</h1>
             <p className="text-xs text-muted-foreground">{t('app.manager')}</p>
