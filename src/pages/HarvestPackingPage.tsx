@@ -972,8 +972,8 @@ export default function HarvestPackingPage() {
             )}
 
             {item.has_label_req && (
-              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-sm font-bold bg-yellow-400 text-gray-900 border-2 border-yellow-600 shadow-sm">
-                <Tag className="h-4 w-4 fill-yellow-600" />
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-sm font-bold bg-[#FFFF00] text-gray-900 border-2 border-yellow-600 shadow-sm">
+                <Tag className="h-4 w-4 fill-gray-900" />
                 ETIKETA
               </span>
             )}
@@ -1356,8 +1356,9 @@ export default function HarvestPackingPage() {
                                       </span>
                                     )}
                                     {item.has_label_req && (
-                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-yellow-50 text-black text-xs font-medium rounded border border-yellow-200">
-                                        🏷️ Etiketa
+                                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-sm font-bold bg-[#FFFF00] text-gray-900 border-2 border-yellow-600 shadow-sm">
+                                        <Tag className="h-4 w-4 fill-gray-900" />
+                                        ETIKETA
                                       </span>
                                     )}
                                   </div>
