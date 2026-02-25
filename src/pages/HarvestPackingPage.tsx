@@ -1172,7 +1172,6 @@ export default function HarvestPackingPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Všetky veľkosti</SelectItem>
-                    <SelectItem value="25">25g</SelectItem>
                     {availableSizes.map(size => (
                       <SelectItem key={size} value={size.toString()}>
                         {size}g
