@@ -916,7 +916,7 @@ export default function PrepPackagingPage() {
                             >
                               <div className="flex items-center gap-2">
                                 {getCustomerTypeIcon(item.type)}
-                                <span className="font-medium text-gray-900 text-sm">
+                                <span className="font-medium text-gray-900 text-base">
                                   {item.name}
                                 </span>
                                 <span className="text-xs text-gray-500">
@@ -925,7 +925,7 @@ export default function PrepPackagingPage() {
                               </div>
 
                               <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                                <div className="text-sm font-medium text-gray-900">
+                                <div className="text-base font-medium text-gray-900">
                                   {item.pieces} × {item.packaging_size}g
                                   <span className="text-xs md:text-sm text-gray-600">
                                     {' '}({item.package_ml}ml)
@@ -943,7 +943,7 @@ export default function PrepPackagingPage() {
 
                                 <button
                                   onClick={() => markAsPrepared(item.id)}
-                                  className={`px-4 py-2 text-sm font-semibold rounded transition-colors shrink-0 ml-auto md:ml-0 ${
+                                  className={`px-4 py-2 text-base font-semibold rounded transition-colors shrink-0 ml-auto md:ml-0 ${
                                     isPrepared
                                       ? 'bg-green-200 hover:bg-green-300'
                                       : 'bg-gray-200 hover:bg-gray-300'
@@ -975,7 +975,7 @@ export default function PrepPackagingPage() {
                             >
                               <div className="flex items-center gap-2">
                                 {getCustomerTypeIcon(item.type)}
-                                <span className="font-medium text-gray-900 text-sm">
+                                <span className="font-medium text-gray-900 text-base">
                                   {item.name}
                                 </span>
                                 <span className="text-xs text-gray-500">
@@ -984,7 +984,7 @@ export default function PrepPackagingPage() {
                               </div>
 
                               <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                                <div className="text-sm font-medium text-gray-900">
+                                <div className="text-base font-medium text-gray-900">
                                   {item.pieces} × {item.packaging_size}g
                                   <span className="text-xs md:text-sm text-gray-600">
                                     {' '}({item.package_ml}ml)
@@ -999,7 +999,7 @@ export default function PrepPackagingPage() {
 
                                 <button
                                   onClick={() => markAsPrepared(item.id)}
-                                  className={`px-4 py-2 text-sm font-semibold rounded transition-colors shrink-0 ml-auto md:ml-0 ${
+                                  className={`px-4 py-2 text-base font-semibold rounded transition-colors shrink-0 ml-auto md:ml-0 ${
                                     isPrepared
                                       ? 'bg-green-200 hover:bg-green-300'
                                       : 'bg-gray-200 hover:bg-gray-300'
@@ -1041,7 +1041,7 @@ export default function PrepPackagingPage() {
                             <div key={item.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-2 px-3 leading-tight bg-white rounded">
                               <div className="flex items-center gap-2">
                                 {getCustomerTypeIcon(item.type)}
-                                <span className="font-medium text-gray-900 text-sm">
+                                <span className="font-medium text-gray-900 text-base">
                                   {item.name}
                                 </span>
                                 <span className="text-xs text-gray-500">
@@ -1050,7 +1050,7 @@ export default function PrepPackagingPage() {
                               </div>
 
                               <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                                <div className="text-sm font-medium text-gray-900">
+                                <div className="text-base font-medium text-gray-900">
                                   {item.pieces} × {item.packaging_size}g
                                   <span className="text-xs md:text-sm text-gray-600">
                                     {' '}({item.package_ml}ml)
@@ -1068,7 +1068,7 @@ export default function PrepPackagingPage() {
 
                                 <button
                                   onClick={() => markAsUnprepared(item.id)}
-                                  className="px-4 py-2 text-sm font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-auto md:ml-0"
+                                  className="px-4 py-2 text-base font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-auto md:ml-0"
                                 >
                                   ↩ Vrátiť
                                 </button>
@@ -1086,7 +1086,7 @@ export default function PrepPackagingPage() {
                             <div key={item.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-2 px-3 leading-tight bg-white rounded">
                               <div className="flex items-center gap-2">
                                 {getCustomerTypeIcon(item.type)}
-                                <span className="font-medium text-gray-900 text-sm">
+                                <span className="font-medium text-gray-900 text-base">
                                   {item.name}
                                 </span>
                                 <span className="text-xs text-gray-500">
@@ -1095,7 +1095,7 @@ export default function PrepPackagingPage() {
                               </div>
 
                               <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                                <div className="text-sm font-medium text-gray-900">
+                                <div className="text-base font-medium text-gray-900">
                                   {item.pieces} × {item.packaging_size}g
                                   <span className="text-xs md:text-sm text-gray-600">
                                     {' '}({item.package_ml}ml)
@@ -1110,7 +1110,7 @@ export default function PrepPackagingPage() {
 
                                 <button
                                   onClick={() => markAsUnprepared(item.id)}
-                                  className="px-4 py-2 text-sm font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-auto md:ml-0"
+                                  className="px-4 py-2 text-base font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-auto md:ml-0"
                                 >
                                   ↩ Vrátiť
                                 </button>
