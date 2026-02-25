@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CalendarIcon, Package, Check, RotateCcw, Home, Utensils, Store, Tag, ChevronLeft, ChevronRight, Leaf, Sprout, Flower, Grid3x3, GripVertical, Scissors, UtensilsCrossed } from 'lucide-react';
+import { CalendarIcon, Package, Check, RotateCcw, Home, Utensils, Store, Tag, ChevronLeft, ChevronRight, Leaf, Sprout, Flower, Grid3x3, GripVertical, Scissors, UtensilsCrossed, Blend } from 'lucide-react';
 import { DndContext, closestCenter, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -21,6 +21,7 @@ interface GroupedItem {
   package_ml: string;
   package_type: string;
   total_pieces: number;
+  is_blend?: boolean;
   itemsWithLabel: Array<{
     id: string;
     order_id: string;
@@ -443,6 +444,7 @@ export default function PrepPackagingPage() {
         }
 
         const cropName = item.crop?.name || item.blend?.name || 'Neznáme';
+        const isBlend = !!item.blend?.name;
         const packageType = item.packaging_type || 'rPET';
         const hasLabel = item.has_label_req === true;
 
@@ -456,6 +458,7 @@ export default function PrepPackagingPage() {
             package_ml: packageSize,
             package_type: packageType,
             total_pieces: 0,
+            is_blend: isBlend,
             itemsWithLabel: [],
             itemsWithoutLabel: [],
           };
@@ -614,6 +617,7 @@ export default function PrepPackagingPage() {
 
   const SortableCard = ({ item, children, isPrepared = false }: { item: any, children: React.ReactNode, isPrepared?: boolean }) => {
     const cropName = item.crop_name || '';
+    const isBlend = item.is_blend;
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
       useSortable({ id: cropName });
 
@@ -638,7 +642,11 @@ export default function PrepPackagingPage() {
             <GripVertical className="w-5 h-5" />
           </button>
           {isPrepared && <Check className="h-5 w-5" />}
-          <Leaf className="h-4 w-4 text-green-600 flex-shrink-0" />
+          {isBlend ? (
+            <Blend className="h-4 w-4 text-purple-600 flex-shrink-0" />
+          ) : (
+            <Leaf className="h-4 w-4 text-green-600 flex-shrink-0" />
+          )}
           <h3 className="flex-1">
             {cropName}
           </h3>
@@ -900,9 +908,20 @@ export default function PrepPackagingPage() {
                 <div className="space-y-4">
                   <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                     <SortableContext items={sortedUnpreparedGroups.map(g => g.crop_name || '')} strategy={verticalListSortingStrategy}>
-                      {sortedUnpreparedGroups.map((group, idx) => (
-                        <SortableCard key={group.crop_name || idx} item={group}>
-                          <div className="space-y-0 -my-0.5">
+                      {/* PLODINY */}
+                      {sortedUnpreparedGroups.filter(g => !g.is_blend).length > 0 && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-lg">
+                            <Leaf className="h-5 w-5 text-green-700" />
+                            <h3 className="font-bold text-green-900 text-lg">PLODINY</h3>
+                            <span className="ml-auto text-sm text-green-700 font-medium">
+                              {sortedUnpreparedGroups.filter(g => !g.is_blend).length}
+                            </span>
+                          </div>
+
+                          {sortedUnpreparedGroups.filter(g => !g.is_blend).map((group, idx) => (
+                            <SortableCard key={group.crop_name || idx} item={group}>
+                              <div className="space-y-0 -my-0.5">
                         {/* POLOŽKY S ETIKETOU */}
                         {group.itemsWithLabel?.map((item) => {
                           const isPrepared = preparedItems.has(item.id);
@@ -1014,7 +1033,138 @@ export default function PrepPackagingPage() {
                         })}
                           </div>
                         </SortableCard>
-                      ))}
+                          ))}
+                        </div>
+                      )}
+
+                      {/* MIXY */}
+                      {sortedUnpreparedGroups.filter(g => g.is_blend).length > 0 && (
+                        <div className="space-y-2 mt-6">
+                          <div className="flex items-center gap-2 px-3 py-2 bg-purple-50 rounded-lg">
+                            <Blend className="h-5 w-5 text-purple-700" />
+                            <h3 className="font-bold text-purple-900 text-lg">MIXY</h3>
+                            <span className="ml-auto text-sm text-purple-700 font-medium">
+                              {sortedUnpreparedGroups.filter(g => g.is_blend).length}
+                            </span>
+                          </div>
+
+                          {sortedUnpreparedGroups.filter(g => g.is_blend).map((group, idx) => (
+                            <SortableCard key={group.crop_name || idx} item={group}>
+                              <div className="space-y-0 -my-0.5">
+                        {/* POLOŽKY S ETIKETOU */}
+                        {group.itemsWithLabel?.map((item) => {
+                          const isPrepared = preparedItems.has(item.id);
+                          return (
+                            <div
+                              key={item.id}
+                              className={`flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-2 px-3 leading-tight rounded ${
+                                isPrepared
+                                  ? 'bg-green-100 border-l-4 border-green-500'
+                                  : 'hover:bg-gray-50'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                {getCustomerTypeIcon(item.type)}
+                                <span className="font-medium text-gray-900 text-base">
+                                  {item.name}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  ({getCustomerTypeLabel(item.type)})
+                                </span>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                                <div className="text-base font-medium text-gray-900">
+                                  {item.pieces} × {item.packaging_size}g
+                                  <span className="text-xs md:text-sm text-gray-600">
+                                    {' '}({item.package_ml}ml)
+                                  </span>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
+                                    {item.package_type}
+                                  </span>
+                                  <span className="inline-flex items-center px-2 py-1 rounded text-sm font-bold bg-[#FFFF00] text-gray-900 border-2 border-black">
+                                    ETIKETA
+                                  </span>
+                                </div>
+
+                                <button
+                                  onClick={() => markAsPrepared(item.id)}
+                                  className={`px-4 py-2 text-base font-semibold rounded transition-colors shrink-0 ml-auto md:ml-0 ${
+                                    isPrepared
+                                      ? 'bg-green-200 hover:bg-green-300'
+                                      : 'bg-gray-200 hover:bg-gray-300'
+                                  }`}
+                                >
+                                  ✓ Hotovo
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {/* ODDEĽOVACIA ČIARA (ak sú obe sekcie) */}
+                        {group.itemsWithLabel?.length > 0 && group.itemsWithoutLabel?.length > 0 && (
+                          <div className="border-t border-gray-100 my-1"></div>
+                        )}
+
+                        {/* POLOŽKY BEZ ETIKETY */}
+                        {group.itemsWithoutLabel?.map((item) => {
+                          const isPrepared = preparedItems.has(item.id);
+                          return (
+                            <div
+                              key={item.id}
+                              className={`flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-2 px-3 leading-tight rounded ${
+                                isPrepared
+                                  ? 'bg-green-100 border-l-4 border-green-500'
+                                  : 'hover:bg-gray-50'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                {getCustomerTypeIcon(item.type)}
+                                <span className="font-medium text-gray-900 text-base">
+                                  {item.name}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  ({getCustomerTypeLabel(item.type)})
+                                </span>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                                <div className="text-base font-medium text-gray-900">
+                                  {item.pieces} × {item.packaging_size}g
+                                  <span className="text-xs md:text-sm text-gray-600">
+                                    {' '}({item.package_ml}ml)
+                                  </span>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
+                                    {item.package_type}
+                                  </span>
+                                </div>
+
+                                <button
+                                  onClick={() => markAsPrepared(item.id)}
+                                  className={`px-4 py-2 text-base font-semibold rounded transition-colors shrink-0 ml-auto md:ml-0 ${
+                                    isPrepared
+                                      ? 'bg-green-200 hover:bg-green-300'
+                                      : 'bg-gray-200 hover:bg-gray-300'
+                                  }`}
+                                >
+                                  ✓ Hotovo
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                          </div>
+                        </SortableCard>
+                          ))}
+                        </div>
+                      )}
                     </SortableContext>
                   </DndContext>
                 </div>
@@ -1034,9 +1184,20 @@ export default function PrepPackagingPage() {
                   <div className="space-y-4">
                     <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                       <SortableContext items={sortedPreparedGroups.map(g => g.crop_name || '')} strategy={verticalListSortingStrategy}>
-                        {sortedPreparedGroups.map((group, idx) => (
-                          <SortableCard key={group.crop_name || idx} item={group} isPrepared={true}>
-                            <div className="space-y-0 -my-0.5">
+                        {/* PLODINY */}
+                        {sortedPreparedGroups.filter(g => !g.is_blend).length > 0 && (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-lg">
+                              <Leaf className="h-5 w-5 text-green-700" />
+                              <h3 className="font-bold text-green-900 text-lg">PLODINY</h3>
+                              <span className="ml-auto text-sm text-green-700 font-medium">
+                                {sortedPreparedGroups.filter(g => !g.is_blend).length}
+                              </span>
+                            </div>
+
+                            {sortedPreparedGroups.filter(g => !g.is_blend).map((group, idx) => (
+                              <SortableCard key={group.crop_name || idx} item={group} isPrepared={true}>
+                                <div className="space-y-0 -my-0.5">
                           {/* POLOŽKY S ETIKETOU */}
                           {group.itemsWithLabel?.map((item) => (
                             <div key={item.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-2 px-3 leading-tight bg-white rounded">
@@ -1120,7 +1281,110 @@ export default function PrepPackagingPage() {
                           ))}
                             </div>
                           </SortableCard>
-                        ))}
+                            ))}
+                          </div>
+                        )}
+
+                        {/* MIXY */}
+                        {sortedPreparedGroups.filter(g => g.is_blend).length > 0 && (
+                          <div className="space-y-2 mt-6">
+                            <div className="flex items-center gap-2 px-3 py-2 bg-purple-50 rounded-lg">
+                              <Blend className="h-5 w-5 text-purple-700" />
+                              <h3 className="font-bold text-purple-900 text-lg">MIXY</h3>
+                              <span className="ml-auto text-sm text-purple-700 font-medium">
+                                {sortedPreparedGroups.filter(g => g.is_blend).length}
+                              </span>
+                            </div>
+
+                            {sortedPreparedGroups.filter(g => g.is_blend).map((group, idx) => (
+                              <SortableCard key={group.crop_name || idx} item={group} isPrepared={true}>
+                                <div className="space-y-0 -my-0.5">
+                          {/* POLOŽKY S ETIKETOU */}
+                          {group.itemsWithLabel?.map((item) => (
+                            <div key={item.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-2 px-3 leading-tight bg-white rounded">
+                              <div className="flex items-center gap-2">
+                                {getCustomerTypeIcon(item.type)}
+                                <span className="font-medium text-gray-900 text-base">
+                                  {item.name}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  ({getCustomerTypeLabel(item.type)})
+                                </span>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                                <div className="text-base font-medium text-gray-900">
+                                  {item.pieces} × {item.packaging_size}g
+                                  <span className="text-xs md:text-sm text-gray-600">
+                                    {' '}({item.package_ml}ml)
+                                  </span>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
+                                    {item.package_type}
+                                  </span>
+                                  <span className="inline-flex items-center px-2 py-1 rounded text-sm font-bold bg-[#FFFF00] text-gray-900 border-2 border-black">
+                                    ETIKETA
+                                  </span>
+                                </div>
+
+                                <button
+                                  onClick={() => markAsUnprepared(item.id)}
+                                  className="px-4 py-2 text-base font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-auto md:ml-0"
+                                >
+                                  ↩ Vrátiť
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+
+                          {/* ODDEĽOVACIA ČIARA (ak sú obe sekcie) */}
+                          {group.itemsWithLabel?.length > 0 && group.itemsWithoutLabel?.length > 0 && (
+                            <div className="border-t border-gray-100 my-1"></div>
+                          )}
+
+                          {/* POLOŽKY BEZ ETIKETY */}
+                          {group.itemsWithoutLabel?.map((item) => (
+                            <div key={item.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-2 px-3 leading-tight bg-white rounded">
+                              <div className="flex items-center gap-2">
+                                {getCustomerTypeIcon(item.type)}
+                                <span className="font-medium text-gray-900 text-base">
+                                  {item.name}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  ({getCustomerTypeLabel(item.type)})
+                                </span>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                                <div className="text-base font-medium text-gray-900">
+                                  {item.pieces} × {item.packaging_size}g
+                                  <span className="text-xs md:text-sm text-gray-600">
+                                    {' '}({item.package_ml}ml)
+                                  </span>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
+                                    {item.package_type}
+                                  </span>
+                                </div>
+
+                                <button
+                                  onClick={() => markAsUnprepared(item.id)}
+                                  className="px-4 py-2 text-base font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-auto md:ml-0"
+                                >
+                                  ↩ Vrátiť
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                            </div>
+                          </SortableCard>
+                            ))}
+                          </div>
+                        )}
                       </SortableContext>
                     </DndContext>
                   </div>
