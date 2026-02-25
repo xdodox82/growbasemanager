@@ -26,7 +26,8 @@ import {
   Palette,
   ChevronLeft,
   ChevronRight,
-  GripVertical
+  GripVertical,
+  AlertTriangle
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, isToday } from 'date-fns';
 import { sk } from 'date-fns/locale';
@@ -986,6 +987,17 @@ export default function HarvestPackingPage() {
               {isCompleted ? '✓ Hotovo' : '✓ Hotovo'}
             </button>
           </div>
+
+          {order.notes && (
+            <div className="mt-2 bg-red-50 border-2 border-red-500 rounded-md p-2 w-full">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-red-700 flex-shrink-0 mt-0.5" />
+                <span className="text-red-700 font-bold text-sm">
+                  POZNÁMKA: {order.notes}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
