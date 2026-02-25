@@ -4,6 +4,7 @@ import { MobileHeader } from './MobileHeader';
 import { DesktopHeader } from './DesktopHeader';
 import { QuickActionFAB } from '@/components/mobile/QuickActionFAB';
 import { MobileBottomNav } from '@/components/mobile/MobileBottomNav';
+import { Menu } from 'lucide-react';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -30,6 +31,18 @@ export function MainLayout({ children }: MainLayoutProps) {
       <div className={`hidden md:block fixed left-0 top-0 h-full transition-transform duration-300 z-40 ${sidebarOpen ? 'translate-x-0' : '-translate-x-64'}`}>
         <Sidebar onToggle={() => setSidebarOpen(false)} />
       </div>
+
+      {/* Floating button na otvorenie sidebaru */}
+      {!sidebarOpen && (
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="hidden md:flex fixed top-4 left-4 z-50 items-center justify-center w-10 h-10 bg-white rounded-lg shadow-lg hover:bg-gray-50 transition-all border border-gray-200"
+          title="Zobraziť menu"
+          aria-label="Open sidebar"
+        >
+          <Menu className="h-5 w-5 text-gray-600" />
+        </button>
+      )}
 
       {/* Mobile header */}
       <MobileHeader />
