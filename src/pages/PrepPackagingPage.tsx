@@ -937,8 +937,7 @@ export default function PrepPackagingPage() {
                                   <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
                                     {item.package_type}
                                   </span>
-                                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-sm font-bold bg-[#FFFF00] text-gray-900 border-2 border-yellow-600 shadow-sm">
-                                    <Tag className="h-4 w-4 fill-gray-900" />
+                                  <span className="inline-flex items-center px-2 py-1 rounded text-sm font-bold bg-[#FFFF00] text-gray-900 border-2 border-black">
                                     ETIKETA
                                   </span>
                                 </div>
@@ -1063,8 +1062,7 @@ export default function PrepPackagingPage() {
                                   <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
                                     {item.package_type}
                                   </span>
-                                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-sm font-bold bg-[#FFFF00] text-gray-900 border-2 border-yellow-600 shadow-sm">
-                                    <Tag className="h-4 w-4 fill-gray-900" />
+                                  <span className="inline-flex items-center px-2 py-1 rounded text-sm font-bold bg-[#FFFF00] text-gray-900 border-2 border-black">
                                     ETIKETA
                                   </span>
                                 </div>
