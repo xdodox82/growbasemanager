@@ -989,11 +989,11 @@ export default function HarvestPackingPage() {
           </div>
 
           {order.notes && (
-            <div className="mt-2 bg-red-50 border-2 border-red-500 rounded-md p-2 w-full">
+            <div className="mt-2 p-2 bg-white border-l-4 border-red-500 rounded text-sm max-w-full">
               <div className="flex items-start gap-2">
-                <AlertTriangle className="h-4 w-4 text-red-700 flex-shrink-0 mt-0.5" />
-                <span className="text-red-700 font-bold text-sm">
-                  POZNÁMKA: {order.notes}
+                <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
+                <span className="text-gray-700">
+                  <strong className="text-red-700">Poznámka:</strong> {order.notes}
                 </span>
               </div>
             </div>
