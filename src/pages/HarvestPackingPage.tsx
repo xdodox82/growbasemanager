@@ -1033,7 +1033,7 @@ export default function HarvestPackingPage() {
               ) : (
                 <Palette className="h-5 w-5 text-purple-600" />
               )}
-              <h3 className="flex-1 text-base font-semibold text-gray-900">{group.productName}</h3>
+              <h3 className="flex-1 text-lg font-semibold text-gray-900">{group.productName}</h3>
             </div>
           </div>
 

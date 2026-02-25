@@ -628,8 +628,8 @@ export default function PrepPackagingPage() {
       : "bg-white rounded-lg border border-gray-200 shadow-sm p-3 mb-2";
 
     const headerClasses = isPrepared
-      ? "text-base font-semibold text-green-900 mb-1.5 pb-1 border-b border-green-100 flex items-center gap-2"
-      : "text-base font-semibold text-gray-900 mb-1.5 pb-1 border-b border-gray-100 flex items-center gap-2";
+      ? "text-lg font-semibold text-green-900 mb-1.5 pb-1 border-b border-green-100 flex items-center gap-2"
+      : "text-lg font-semibold text-gray-900 mb-1.5 pb-1 border-b border-gray-100 flex items-center gap-2";
 
     return (
       <div ref={setNodeRef} style={style} className={cardClasses}>
@@ -638,6 +638,7 @@ export default function PrepPackagingPage() {
             <GripVertical className="w-5 h-5" />
           </button>
           {isPrepared && <Check className="h-5 w-5" />}
+          <Leaf className="h-4 w-4 text-green-600 flex-shrink-0" />
           <h3 className="flex-1">
             {cropName}
           </h3>
