@@ -16,8 +16,8 @@ export function CategoryFilter({ value, onChange }: CategoryFilterProps) {
   };
 
   return (
-    <div className="flex flex-col">
-      <Label className="text-sm font-medium text-gray-700 text-center mb-2">Kategória</Label>
+    <div className="space-y-2">
+      <Label>Kategória</Label>
       <Select
         value={value}
         onValueChange={handleChange}
