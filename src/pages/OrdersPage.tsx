@@ -2615,9 +2615,6 @@ export default function OrdersPage() {
 
           {/* Kalendár filter */}
           <div className="flex flex-col">
-            <label className="text-sm font-medium text-gray-700 text-center mb-2">
-              Dátum doručenia
-            </label>
             <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
               <PopoverTrigger asChild>
                 <Button
