@@ -691,7 +691,36 @@ export default function HarvestPackingPage() {
     }
   };
 
-  const handleToggleItemComplete = (orderItemKey: string) => {
+  // ✅ Automaticky nastaví status pri zabalení
+  const updateOrderStatus = async (orderId: string, isCompleting: boolean) => {
+    try {
+      const newStatus = isCompleting ? 'ready' : null;
+
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: newStatus })
+        .eq('id', orderId);
+
+      if (error) {
+        console.error('❌ Error updating order status:', error);
+        return;
+      }
+
+      if (isCompleting) {
+        toast({
+          title: '✓ Pripravené na rozvoz',
+          description: 'Objednávka je pripravená na rozvoz',
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error in updateOrderStatus:', error);
+    }
+  };
+
+  const handleToggleItemComplete = async (orderItemKey: string, orderId: string) => {
+    const isCompleting = !completedItems.has(orderItemKey);
+
+    // ✅ ZACHOVANÁ PÔVODNÁ LOGIKA
     setCompletedItems(prev => {
       const newSet = new Set(prev);
       if (newSet.has(orderItemKey)) {
@@ -701,6 +730,9 @@ export default function HarvestPackingPage() {
       }
       return newSet;
     });
+
+    // ✅ NOVÁ FUNKCIONALITA
+    await updateOrderStatus(orderId, isCompleting);
   };
 
   const handleItemDragEnd = (event: DragEndEvent, productId: string) => {
@@ -987,7 +1019,7 @@ export default function HarvestPackingPage() {
             )}
 
             <button
-              onClick={() => handleToggleItemComplete(itemKey)}
+              onClick={() => handleToggleItemComplete(itemKey, order.id)}
               className={`px-4 py-2 text-base font-semibold rounded transition-colors ml-auto md:ml-0 ${
                 isCompleted
                   ? 'bg-green-200 hover:bg-green-300'
