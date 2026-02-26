@@ -42,11 +42,14 @@ import {
   Leaf,
   Sprout,
   Flower,
-  Palette
+  Palette,
+  Calendar as CalendarIcon,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { format, parseISO, getDay, addWeeks } from 'date-fns';
+import { format, parseISO, getDay, addWeeks, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday } from 'date-fns';
 import { sk } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
@@ -235,6 +238,10 @@ export default function OrdersPage() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [showArchive, setShowArchive] = useState(false);
 
+  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(new Date());
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [recurringEditDialog, setRecurringEditDialog] = useState<{
@@ -286,6 +293,124 @@ export default function OrdersPage() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [deliverySettings, setDeliverySettings] = useState<any>(null);
   const [isPriceConfigured, setIsPriceConfigured] = useState(true);
+
+  const goToPreviousMonth = () => {
+    setCalendarMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  };
+
+  const goToNextMonth = () => {
+    setCalendarMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  };
+
+  const isDeliveryDay = (date: Date) => {
+    if (!deliverySettings) return false;
+    const dayOfWeek = getDay(date);
+    const dayMap: Record<number, string> = {
+      1: 'monday', 2: 'tuesday', 3: 'wednesday',
+      4: 'thursday', 5: 'friday', 6: 'saturday', 0: 'sunday'
+    };
+    return deliverySettings[dayMap[dayOfWeek]] === true;
+  };
+
+  const hasOrdersOnDate = (date: Date) => {
+    return orders.some(order =>
+      isSameDay(new Date(order.delivery_date), date)
+    );
+  };
+
+  const renderCalendar = () => {
+    const start = startOfMonth(calendarMonth);
+    const end = endOfMonth(calendarMonth);
+    const days = eachDayOfInterval({ start, end });
+
+    const firstDayOfWeek = getDay(start);
+    const paddingDays = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
+
+    return (
+      <div className="w-[320px] p-4">
+        <div className="flex items-center justify-between mb-4">
+          <Button variant="ghost" size="sm" onClick={goToPreviousMonth}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <h3 className="font-semibold text-base">
+            {format(calendarMonth, 'MMMM yyyy', { locale: sk })}
+          </h3>
+          <Button variant="ghost" size="sm" onClick={goToNextMonth}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1 mb-2">
+          {['Po', 'Ut', 'St', 'Št', 'Pi', 'So', 'Ne'].map(day => (
+            <div key={day} className="text-center text-xs font-medium text-gray-600 w-9 h-6 flex items-center justify-center">
+              {day}
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7 gap-1">
+          {Array.from({ length: paddingDays }).map((_, i) => (
+            <div key={`pad-${i}`} className="w-9 h-9" />
+          ))}
+
+          {days.map(day => {
+            const isDelivery = isDeliveryDay(day);
+            const hasOrdersDay = hasOrdersOnDate(day);
+            const today = isToday(day);
+            const selected = selectedDates.some(d => isSameDay(d, day));
+
+            let bgColor = 'bg-white hover:bg-gray-50';
+
+            if (isDelivery) {
+              bgColor = 'bg-green-200 hover:bg-green-300';
+            } else if (hasOrdersDay) {
+              bgColor = 'bg-yellow-300 hover:bg-yellow-400';
+            }
+
+            return (
+              <button
+                key={day.toISOString()}
+                onClick={() => {
+                  setSelectedDates(prev => {
+                    const exists = prev.some(d => isSameDay(d, day));
+                    if (exists) {
+                      return prev.filter(d => !isSameDay(d, day));
+                    } else {
+                      return [...prev, day];
+                    }
+                  });
+                }}
+                className={`
+                  ${bgColor}
+                  ${today ? 'ring-2 ring-green-600' : ''}
+                  ${selected ? 'ring-2 ring-blue-500' : ''}
+                  rounded-full w-9 h-9 flex items-center justify-center
+                  text-sm font-medium cursor-pointer transition-all
+                `}
+              >
+                {day.getDate()}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-4 space-y-2 text-xs">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded-full bg-green-200 border border-gray-300" />
+            <span>Rozvozový deň</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded-full bg-yellow-300 border border-gray-300" />
+            <span>Objednávky</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded-full ring-2 ring-blue-500" />
+            <span>Vybraný deň</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   useEffect(() => {
     loadData();
@@ -552,6 +677,13 @@ export default function OrdersPage() {
     // Archive filter: if showArchive is false, only show active orders (not completed)
     if (!showArchive && order?.status === 'dorucena') {
       return false;
+    }
+
+    // Date filter (calendar multi-select)
+    if (selectedDates.length > 0 && order?.delivery_date) {
+      const orderDate = new Date(order.delivery_date);
+      const matchesDate = selectedDates.some(d => isSameDay(d, orderDate));
+      if (!matchesDate) return false;
     }
 
     // Period filter
@@ -2480,6 +2612,33 @@ export default function OrdersPage() {
               })()}
             </SelectContent>
           </Select>
+
+          {/* Kalendár filter */}
+          <div className="flex flex-col">
+            <label className="text-sm font-medium text-gray-700 text-center mb-2">
+              Dátum doručenia
+            </label>
+            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="justify-start text-left font-normal h-10"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {selectedDates.length === 0 ? (
+                    <span>Vyber dátum</span>
+                  ) : selectedDates.length === 1 ? (
+                    format(selectedDates[0], 'dd.MM.yyyy', { locale: sk })
+                  ) : (
+                    <span>{selectedDates.length} dní</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                {renderCalendar()}
+              </PopoverContent>
+            </Popover>
+          </div>
 
           <Select value={filterPeriod} onValueChange={setFilterPeriod}>
             <SelectTrigger className="w-[180px]">
