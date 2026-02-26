@@ -139,6 +139,23 @@ export default function HarvestPackingPage() {
     setPackagingSizeFilter('all');
   }, [selectedDates]);
 
+  useEffect(() => {
+    if (orders.length > 0) {
+      const completed = new Set<string>();
+
+      orders.forEach(order => {
+        if (order.status === 'ready') {
+          order.items?.forEach(item => {
+            const itemKey = `${order.id}-${item.crop_id || item.blend_id}-${item.packaging_size}`;
+            completed.add(itemKey);
+          });
+        }
+      });
+
+      setCompletedItems(completed);
+    }
+  }, [orders]);
+
   // Načítaj dostupné veľkosti balení z objednávok
   useEffect(() => {
     console.log('🔍 DEBUGGING availableSizes');
@@ -1022,11 +1039,11 @@ export default function HarvestPackingPage() {
               onClick={() => handleToggleItemComplete(itemKey, order.id)}
               className={`px-4 py-2 text-base font-semibold rounded transition-colors ml-auto md:ml-0 ${
                 isCompleted
-                  ? 'bg-green-200 hover:bg-green-300'
-                  : 'bg-gray-200 hover:bg-gray-300'
+                  ? 'bg-green-600 text-white hover:bg-green-700'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
               }`}
             >
-              {isCompleted ? '✓ Hotovo' : '✓ Hotovo'}
+              {isCompleted ? 'VRÁTIŤ SPÄŤ' : '✓ HOTOVO'}
             </button>
           </div>
         </div>
