@@ -284,6 +284,24 @@ export default function PrepPackagingPage() {
     setFilteredOrders(filtered);
   }, [allOrders, customerTypeFilter, customerFilter, categoryFilter, sizeFilter, labelFilter, packagingTypeFilter]);
 
+  useEffect(() => {
+    if (filteredOrders.length > 0) {
+      const prepared = new Set<string>();
+
+      filteredOrders.forEach(order => {
+        if (order.status === 'ready') {
+          order.items?.forEach((item: any) => {
+            const itemId = `${order.id}-${item.id}`;
+            prepared.add(itemId);
+          });
+        }
+      });
+
+      console.log('🔄 Loading prepared items from DB:', prepared.size);
+      setPreparedItems(prepared);
+    }
+  }, [filteredOrders]);
+
   const isDeliveryDay = (date: Date): boolean => {
     if (!deliverySettings) return false;
     const dayOfWeek = getDay(date);
@@ -598,18 +616,43 @@ export default function PrepPackagingPage() {
     saveCropOrder(newOrder);
   };
 
-  const markAsPrepared = (itemId: string) => {
-    setPreparedItems(prev => new Set(prev).add(itemId));
-    toast({ title: 'Označené', description: 'Položka pripravená' });
+  const updateOrderStatus = async (orderId: string, isPreparing: boolean) => {
+    try {
+      const newStatus = isPreparing ? 'ready' : 'pending';
+
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: newStatus })
+        .eq('id', orderId);
+
+      if (error) {
+        console.error('❌ Error updating order status:', error);
+        return;
+      }
+
+      if (isPreparing) {
+        toast({
+          title: '✓ Pripravené na rozvoz',
+          description: 'Objednávka je pripravená na rozvoz',
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error in updateOrderStatus:', error);
+    }
   };
 
-  const markAsUnprepared = (itemId: string) => {
+  const markAsPrepared = async (itemId: string, orderId: string) => {
+    setPreparedItems(prev => new Set(prev).add(itemId));
+    await updateOrderStatus(orderId, true);
+  };
+
+  const markAsUnprepared = async (itemId: string, orderId: string) => {
     setPreparedItems(prev => {
       const newSet = new Set(prev);
       newSet.delete(itemId);
       return newSet;
     });
-    toast({ title: 'Vrátené', description: 'Položka vrátená' });
+    await updateOrderStatus(orderId, false);
   };
 
   const totalUnprepared = unpreparedGroups.reduce((sum, g) => sum + g.itemsWithLabel.length + g.itemsWithoutLabel.length, 0);
@@ -962,7 +1005,7 @@ export default function PrepPackagingPage() {
                                 </div>
 
                                 <button
-                                  onClick={() => markAsPrepared(item.id)}
+                                  onClick={() => markAsPrepared(item.id, item.order_id)}
                                   className={`px-4 py-2 text-base font-semibold rounded transition-colors shrink-0 ml-auto md:ml-0 ${
                                     isPrepared
                                       ? 'bg-green-200 hover:bg-green-300'
@@ -1018,7 +1061,7 @@ export default function PrepPackagingPage() {
                                 </div>
 
                                 <button
-                                  onClick={() => markAsPrepared(item.id)}
+                                  onClick={() => markAsPrepared(item.id, item.order_id)}
                                   className={`px-4 py-2 text-base font-semibold rounded transition-colors shrink-0 ml-auto md:ml-0 ${
                                     isPrepared
                                       ? 'bg-green-200 hover:bg-green-300'
@@ -1091,7 +1134,7 @@ export default function PrepPackagingPage() {
                                 </div>
 
                                 <button
-                                  onClick={() => markAsPrepared(item.id)}
+                                  onClick={() => markAsPrepared(item.id, item.order_id)}
                                   className={`px-4 py-2 text-base font-semibold rounded transition-colors shrink-0 ml-auto md:ml-0 ${
                                     isPrepared
                                       ? 'bg-green-200 hover:bg-green-300'
@@ -1147,7 +1190,7 @@ export default function PrepPackagingPage() {
                                 </div>
 
                                 <button
-                                  onClick={() => markAsPrepared(item.id)}
+                                  onClick={() => markAsPrepared(item.id, item.order_id)}
                                   className={`px-4 py-2 text-base font-semibold rounded transition-colors shrink-0 ml-auto md:ml-0 ${
                                     isPrepared
                                       ? 'bg-green-200 hover:bg-green-300'
@@ -1229,7 +1272,7 @@ export default function PrepPackagingPage() {
                                 </div>
 
                                 <button
-                                  onClick={() => markAsUnprepared(item.id)}
+                                  onClick={() => markAsUnprepared(item.id, item.order_id)}
                                   className="px-4 py-2 text-base font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-auto md:ml-0"
                                 >
                                   ↩ Vrátiť
@@ -1271,7 +1314,7 @@ export default function PrepPackagingPage() {
                                 </div>
 
                                 <button
-                                  onClick={() => markAsUnprepared(item.id)}
+                                  onClick={() => markAsUnprepared(item.id, item.order_id)}
                                   className="px-4 py-2 text-base font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-auto md:ml-0"
                                 >
                                   ↩ Vrátiť
@@ -1330,7 +1373,7 @@ export default function PrepPackagingPage() {
                                 </div>
 
                                 <button
-                                  onClick={() => markAsUnprepared(item.id)}
+                                  onClick={() => markAsUnprepared(item.id, item.order_id)}
                                   className="px-4 py-2 text-base font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-auto md:ml-0"
                                 >
                                   ↩ Vrátiť
@@ -1372,7 +1415,7 @@ export default function PrepPackagingPage() {
                                 </div>
 
                                 <button
-                                  onClick={() => markAsUnprepared(item.id)}
+                                  onClick={() => markAsUnprepared(item.id, item.order_id)}
                                   className="px-4 py-2 text-base font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-auto md:ml-0"
                                 >
                                   ↩ Vrátiť
