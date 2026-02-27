@@ -352,8 +352,9 @@ function DeliveryPage() {
     if (items.length > 0) {
       // Multi-item order
       return items.reduce((total, item) => {
-        const unitPrice = getPrice(item.crop_id, item.blend_id, item.packaging_size || '100g', customerType || undefined);
-        const itemTotal = (unitPrice || 0) * item.quantity;
+        // Use stored price first, fallback to current price calculation
+        const unitPrice = item.price_per_unit ?? getPrice(item.crop_id, item.blend_id, item.packaging_size || '100g', customerType || undefined);
+        const itemTotal = item.total_price ?? ((unitPrice || 0) * item.quantity);
         return total + calculateWithVat(itemTotal);
       }, 0);
     } else {
@@ -443,8 +444,9 @@ function DeliveryPage() {
         : item.blend_id
         ? (blends.find(b => b.id === item.blend_id)?.name || 'Neznáma zmes')
         : 'Neznáma položka';
-      const unitPrice = getPrice(item.crop_id, item.blend_id, item.packaging_size || '100g', customerType || undefined);
-      const itemTotal = calculateWithVat((unitPrice || 0) * item.quantity);
+      // Use stored price first, fallback to current price calculation
+      const unitPrice = item.price_per_unit ?? getPrice(item.crop_id, item.blend_id, item.packaging_size || '100g', customerType || undefined);
+      const itemTotal = item.total_price ?? calculateWithVat((unitPrice || 0) * item.quantity);
       return {
         quantity: item.quantity,
         name: itemName,
@@ -478,9 +480,11 @@ function DeliveryPage() {
       const paymentMethod = (customer as any)?.payment_method || 'cash';
       const itemsDetail = getOrderItemsDetail(order.id, customerType);
       const route = routes?.find(r => r.id === customer?.delivery_route_id);
-      const orderTotal = calculateOrderTotal(order, customerType);
+      // Use stored total price first, fallback to calculation
+      const orderTotal = order.total_price ?? calculateOrderTotal(order, customerType);
       const chargeDelivery = (order as any).charge_delivery !== false;
-      const deliveryFee = calculateDeliveryFee(orderTotal, customer, route, customerType, chargeDelivery);
+      // Use stored delivery price first, fallback to calculation
+      const deliveryFee = order.delivery_price ?? calculateDeliveryFee(orderTotal, customer, route, customerType, chargeDelivery);
 
       acc[key].orders.push({
         id: order.id,
