@@ -483,6 +483,11 @@ function DeliveryPage() {
         name: itemName,
         size: item.packaging_size,
         price: itemTotal,
+        // Debug info from DB
+        dbPricePerUnit: item.price_per_unit,
+        dbTotalPrice: item.total_price,
+        dbCropId: item.crop_id,
+        dbBlendId: item.blend_id,
       };
     });
   };
@@ -1651,15 +1656,32 @@ function DeliveryPage() {
                 <h3 className="font-semibold text-base mb-3">Položky objednávky:</h3>
                 <div className="space-y-2">
                   {selectedOrderDetail.itemsDetail.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <div className="flex-1">
-                        <div className="font-medium text-gray-900">
-                          {item.quantity}x {item.size} {item.name}
+                    <div key={idx}>
+                      {/* DEBUG INFO */}
+                      <div className="text-xs font-mono text-gray-500 bg-yellow-50 border border-yellow-200 p-2 rounded mb-1">
+                        <div className="font-bold text-yellow-800 mb-1">🐛 DEBUG item {idx}:</div>
+                        <div>price_per_unit (DB): {(item as any).dbPricePerUnit?.toFixed(4) ?? 'NULL'} €</div>
+                        <div>quantity: {item.quantity}</div>
+                        <div>total_price (DB): {(item as any).dbTotalPrice?.toFixed(2) ?? 'NULL'} €</div>
+                        <div>crop_id: {(item as any).dbCropId ?? 'NULL'}</div>
+                        <div>blend_id: {(item as any).dbBlendId ?? 'NULL'}</div>
+                        <div className="mt-1 pt-1 border-t border-yellow-300">
+                          <div className="font-semibold text-yellow-900">Zobrazené:</div>
+                          <div>Cena (price): {item.price.toFixed(2)} €</div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="font-bold text-green-600">
-                          {item.price.toFixed(2)} €
+
+                      {/* Existujúci rendering */}
+                      <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-900">
+                            {item.quantity}x {item.size} {item.name}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-bold text-green-600">
+                            {item.price.toFixed(2)} €
+                          </div>
                         </div>
                       </div>
                     </div>
