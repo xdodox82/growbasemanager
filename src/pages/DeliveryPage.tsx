@@ -9,6 +9,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 import { useOrders, useCustomers, useCrops, useBlends, useOrderItems, useDeliveryRoutes } from '@/hooks/useSupabaseData';
 import { usePrices, useVatSettings } from '@/hooks/usePrices';
 import { Truck, FileSpreadsheet, FileText, CheckCircle2, CalendarIcon, Filter, Undo2, Navigation, CreditCard, Euro, Home, UtensilsCrossed, Building2, Settings, GripVertical, Phone } from 'lucide-react';
@@ -66,6 +68,7 @@ interface SortableOrderRowProps {
   markOrderDelivered: (orderId: string) => void;
   handleMarkAsPaid: (orderId: string, notes: string | null) => void;
   handleMarkAsUnpaid: (orderId: string, notes: string | null) => void;
+  onOrderClick: (order: any) => void;
 }
 
 function SortableOrderRow({
@@ -80,6 +83,7 @@ function SortableOrderRow({
   markOrderDelivered,
   handleMarkAsPaid,
   handleMarkAsUnpaid,
+  onOrderClick,
 }: SortableOrderRowProps) {
   const {
     attributes,
@@ -97,8 +101,16 @@ function SortableOrderRow({
   };
 
   return (
-    <TableRow ref={setNodeRef} style={style} className={isDragging ? 'relative z-50' : ''}>
-      <TableCell>
+    <TableRow
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        isDragging ? 'relative z-50' : '',
+        'cursor-pointer hover:bg-gray-50 transition-colors'
+      )}
+      onClick={() => onOrderClick(order)}
+    >
+      <TableCell onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-2">
           <button
             className="cursor-grab active:cursor-grabbing touch-none"
@@ -212,7 +224,7 @@ function SortableOrderRow({
           )}
         </div>
       </TableCell>
-      <TableCell className="hidden md:table-cell">
+      <TableCell className="hidden md:table-cell" onClick={(e) => e.stopPropagation()}>
         <div className="flex flex-col gap-1">
           <Button
             size="sm"
@@ -275,6 +287,8 @@ function DeliveryPage() {
   const [routeFilter, setRouteFilter] = useState<string>('all');
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [showArchive, setShowArchive] = useState(true);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedOrderDetail, setSelectedOrderDetail] = useState<typeof orders[0] | null>(null);
 
   const handleDateChange = (date: Date | undefined) => {
     if (!date) return;
@@ -1350,6 +1364,10 @@ function DeliveryPage() {
                                 markOrderDelivered={markOrderDelivered}
                                 handleMarkAsPaid={handleMarkAsPaid}
                                 handleMarkAsUnpaid={handleMarkAsUnpaid}
+                                onOrderClick={(order) => {
+                                  setSelectedOrderDetail(order);
+                                  setDetailModalOpen(true);
+                                }}
                               />
                             ))
                           ))}
@@ -1389,7 +1407,14 @@ function DeliveryPage() {
                     <TableBody>
                       {sortedDeliveredOrders.map(([key, item]) => (
                         item.orders.map((order, orderIdx) => (
-                          <TableRow key={order.id} className="bg-success/5">
+                          <TableRow
+                            key={order.id}
+                            className="bg-success/5 cursor-pointer hover:bg-success/10 transition-colors"
+                            onClick={() => {
+                              setSelectedOrderDetail(order);
+                              setDetailModalOpen(true);
+                            }}
+                          >
                             <TableCell className="text-muted-foreground">
                               <span className="truncate">{order.customerName}</span>
                             </TableCell>
@@ -1407,7 +1432,7 @@ function DeliveryPage() {
                                 ))}
                               </div>
                             </TableCell>
-                            <TableCell className="hidden lg:table-cell text-muted-foreground">
+                            <TableCell className="hidden lg:table-cell text-muted-foreground" onClick={(e) => e.stopPropagation()}>
                               {order.customerAddress && (
                                 <div className="flex items-center gap-2">
                                   <span className="truncate max-w-xs text-xs">{order.customerAddress}</span>
@@ -1434,7 +1459,7 @@ function DeliveryPage() {
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell className="hidden md:table-cell">
+                            <TableCell className="hidden md:table-cell" onClick={(e) => e.stopPropagation()}>
                               <div className="flex flex-col gap-1">
                                 <Button
                                   size="sm"
@@ -1544,6 +1569,121 @@ function DeliveryPage() {
           <RouteManagement />
         </TabsContent>
       </Tabs>
+
+      {/* Detail Dialog */}
+      <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Detail objednávky</DialogTitle>
+          </DialogHeader>
+          {selectedOrderDetail && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <div className="text-sm text-gray-600">Zákazník</div>
+                  <div className="font-semibold text-gray-900">{selectedOrderDetail.customerName || 'Bez názvu'}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600">Dátum dodania</div>
+                  <div className="font-semibold text-gray-900">
+                    {format(new Date(selectedDate), 'dd. MM. yyyy', { locale: sk })}
+                  </div>
+                </div>
+                <div className="col-span-2">
+                  <div className="text-sm text-gray-600">Platobná metóda</div>
+                  <div className="font-semibold text-gray-900">
+                    {selectedOrderDetail.paymentMethod === 'cash' ? 'Hotovosť' :
+                     selectedOrderDetail.paymentMethod === 'invoice' ? 'Faktúra' : 'Iné'}
+                  </div>
+                </div>
+              </div>
+
+              {selectedOrderDetail.customerAddress && (
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="text-sm font-semibold text-blue-900 mb-1">Adresa:</div>
+                  <div className="text-sm text-blue-800">{selectedOrderDetail.customerAddress}</div>
+                </div>
+              )}
+
+              {selectedOrderDetail.deliveryNotes && (
+                <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
+                  <div className="text-sm font-semibold text-amber-900 mb-1">Poznámky k doručeniu:</div>
+                  <div className="text-sm text-amber-800">{selectedOrderDetail.deliveryNotes}</div>
+                </div>
+              )}
+
+              {selectedOrderDetail.notes && (
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="text-sm font-semibold text-blue-900 mb-1">Poznámky:</div>
+                  <div className="text-sm text-blue-800">{selectedOrderDetail.notes}</div>
+                </div>
+              )}
+
+              <div className="border-t pt-4">
+                <h3 className="font-semibold text-base mb-3">Položky objednávky:</h3>
+                <div className="space-y-2">
+                  {selectedOrderDetail.itemsDetail.map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900">
+                          {item.quantity}x {item.size} {item.name}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold text-green-600">
+                          {item.price.toFixed(2)} €
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t pt-4 space-y-2">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-600">Medzisúčet:</span>
+                  <span className="font-semibold text-gray-900">
+                    {(selectedOrderDetail.totalPrice - (selectedOrderDetail.deliveryFee || 0)).toFixed(2)}€
+                  </span>
+                </div>
+                {(selectedOrderDetail.deliveryFee || 0) > 0 ? (
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-600 flex items-center gap-1">
+                      <Truck className="h-3 w-3" />
+                      Doprava:
+                    </span>
+                    <span className="font-semibold text-gray-900">
+                      {(selectedOrderDetail.deliveryFee || 0).toFixed(2)} €
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-green-600 flex items-center gap-1 font-medium">
+                      <Truck className="h-3 w-3" />
+                      Doprava: Zdarma
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center pt-2 border-t border-gray-300">
+                  <span className="text-lg text-gray-700 font-semibold">Celkom:</span>
+                  <span className="text-3xl font-bold text-green-600">
+                    {selectedOrderDetail.totalPrice.toFixed(2)} €
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => setDetailModalOpen(false)}
+                >
+                  Zavrieť
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }
