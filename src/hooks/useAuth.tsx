@@ -45,39 +45,68 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+    let mounted = true;
+
+    const initAuth = async () => {
+      try {
+        // Set up auth state listener FIRST
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+          (event, session) => {
+            if (!mounted) return;
+
+            setSession(session);
+            setUser(session?.user ?? null);
+
+            // Defer role fetching with setTimeout to avoid deadlock
+            if (session?.user) {
+              setTimeout(() => {
+                fetchUserRole(session.user.id).then((role) => {
+                  if (mounted) setUserRole(role);
+                });
+              }, 0);
+            } else {
+              setUserRole(null);
+            }
+          }
+        );
+
+        // THEN check for existing session
+        const { data: { session }, error } = await supabase.auth.getSession();
+
+        if (error) {
+          console.error('Error getting session:', error);
+          if (mounted) setLoading(false);
+          return () => subscription.unsubscribe();
+        }
+
+        if (!mounted) return () => subscription.unsubscribe();
+
         setSession(session);
         setUser(session?.user ?? null);
-        
-        // Defer role fetching with setTimeout to avoid deadlock
+
         if (session?.user) {
-          setTimeout(() => {
-            fetchUserRole(session.user.id).then(setUserRole);
-          }, 0);
+          const role = await fetchUserRole(session.user.id);
+          if (mounted) {
+            setUserRole(role);
+            setLoading(false);
+          }
         } else {
-          setUserRole(null);
+          if (mounted) setLoading(false);
         }
-      }
-    );
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        fetchUserRole(session.user.id).then((role) => {
-          setUserRole(role);
-          setLoading(false);
-        });
-      } else {
-        setLoading(false);
+        return () => subscription.unsubscribe();
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+        if (mounted) setLoading(false);
       }
-    });
+    };
 
-    return () => subscription.unsubscribe();
+    const cleanup = initAuth();
+
+    return () => {
+      mounted = false;
+      cleanup.then(unsub => unsub?.());
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
