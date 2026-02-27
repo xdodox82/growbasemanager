@@ -143,12 +143,10 @@ export default function HarvestPackingPage() {
     if (orders.length > 0) {
       const completed = new Set<string>();
 
-      console.log('🔍 Loading completed items from DB:');
       orders.forEach(order => {
         if (order.status === 'ready') {
           order.items?.forEach(item => {
-            const itemKey = `${order.id}-${item.crop_id || item.blend_id}-${item.packaging_size}`;
-            console.log('  ✅ Completed itemKey:', itemKey);
+            const itemKey = `${order.id}-${item.id || 0}`;
             completed.add(itemKey);
           });
         }
@@ -1113,19 +1111,15 @@ export default function HarvestPackingPage() {
                     return null;
                   })
                   .filter((data): data is NonNullable<typeof data> => data !== null)
-                  .map(({ item, order, itemKey }) => {
-                    const isCompleted = completedItems.has(itemKey);
-                    console.log('📦 Rendering itemKey:', itemKey, 'isCompleted:', isCompleted);
-                    return (
-                      <SortableOrderItem
-                        key={itemKey}
-                        item={item}
-                        order={order}
-                        itemKey={itemKey}
-                        isCompleted={isCompleted}
-                      />
-                    );
-                  })}
+                  .map(({ item, order, itemKey }) => (
+                    <SortableOrderItem
+                      key={itemKey}
+                      item={item}
+                      order={order}
+                      itemKey={itemKey}
+                      isCompleted={completedItems.has(itemKey)}
+                    />
+                  ))}
               </div>
             </SortableContext>
           </DndContext>
