@@ -1040,7 +1040,7 @@ export default function HarvestPackingPage() {
               className={`px-4 py-2 text-base font-semibold rounded transition-colors ml-auto md:ml-0 ${
                 isCompleted
                   ? 'bg-green-600 text-white hover:bg-green-700'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-gray-200 hover:bg-gray-300'
               }`}
             >
               {isCompleted ? 'VRÁTIŤ SPÄŤ' : '✓ HOTOVO'}
