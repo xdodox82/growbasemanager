@@ -502,8 +502,8 @@ function DeliveryPage() {
       const paymentMethod = (customer as any)?.payment_method || 'cash';
       const itemsDetail = getOrderItemsDetail(order.id, customerType);
       const route = routes?.find(r => r.id === customer?.delivery_route_id);
-      // Use stored total price first, fallback to calculation
-      const orderTotal = order.total_price ?? calculateOrderTotal(order, customerType);
+      // ✅ VŽDY prepočítaj z order_items
+      const orderTotal = calculateOrderTotal(order, customerType);
       const chargeDelivery = (order as any).charge_delivery !== false;
       // Use stored delivery price first, fallback to calculation
       const deliveryFee = order.delivery_price ?? calculateDeliveryFee(orderTotal, customer, route, customerType, chargeDelivery);
