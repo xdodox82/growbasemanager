@@ -360,53 +360,43 @@ function DeliveryPage() {
 
   // Calculate total price for an order (products only, without delivery)
   const calculateOrderTotal = (order: typeof orders[0], customerType: string | null) => {
+    let itemsSubtotal = 0;
+
     const items = orderItems.filter(item => item.order_id === order.id);
 
     if (items.length > 0) {
-      // Multi-item order
-      return items.reduce((total, item) => {
-        // Use stored price first, fallback to current price calculation
-        const unitPrice = item.price_per_unit ?? getPrice(item.crop_id, item.blend_id, item.packaging_size || '100g', customerType || undefined);
-        const itemTotal = item.total_price ?? ((unitPrice || 0) * item.quantity);
-        return total + calculateWithVat(itemTotal);
+      // Multi-item order - prices already include VAT in DB
+      itemsSubtotal = items.reduce((sum, item) => {
+        const qty = parseFloat(item.quantity?.toString() || '0');
+        const pricePerUnit = parseFloat(item.price_per_unit?.toString().replace(',', '.') || '0');
+        return sum + (qty * pricePerUnit);
       }, 0);
     } else {
       // Single-item order (legacy)
-      const unitPrice = getPrice(order.crop_id, order.blend_id, order.packaging_size || '100g', customerType || undefined);
-      const total = (unitPrice || 0) * order.quantity;
-      return calculateWithVat(total);
+      itemsSubtotal = order?.total_price || 0;
     }
+
+    return itemsSubtotal;
   };
 
   // Calculate delivery fee for an order
   const calculateDeliveryFee = (orderTotal: number, customer: any, route: any, customerType?: string, chargeDelivery?: boolean) => {
-    console.log('🚚 CALCULATE DELIVERY FEE:');
-    console.log('  orderTotal:', orderTotal);
-    console.log('  customer:', customer?.name);
-    console.log('  route:', route?.name);
-    console.log('  customerType:', customerType);
-    console.log('  chargeDelivery:', chargeDelivery);
-
     // PRIORITY 1: Manual toggle - if charge_delivery is FALSE, no fee
     if (chargeDelivery === false) {
-      console.log('  → Result: 0 (chargeDelivery is false)');
       return 0;
     }
 
     // PRIORITY 2: Check if customer has free delivery exception
     if (customer?.free_delivery) {
-      console.log('  → Result: 0 (customer has free_delivery)');
       return 0;
     }
 
     // PRIORITY 3: Return route delivery fee based on customer type, considering free delivery thresholds
     if (!route) {
-      console.log('  → Result: 0 (no route)');
       return 0;
     }
 
     const type = customerType || customer?.customer_type || 'home';
-    console.log('  resolved type:', type);
 
     // Check if order total exceeds free delivery threshold for this customer type
     let minFreeDelivery = 0;
@@ -423,16 +413,11 @@ function DeliveryPage() {
       deliveryFee = route.delivery_fee_home ?? route.delivery_fee ?? 0;
     }
 
-    console.log('  minFreeDelivery:', minFreeDelivery);
-    console.log('  deliveryFee (base):', deliveryFee);
-
     // If min free delivery threshold is met, no delivery fee
     if (minFreeDelivery > 0 && orderTotal >= minFreeDelivery) {
-      console.log('  → Result: 0 (free delivery threshold met)');
       return 0;
     }
 
-    console.log('  → Result deliveryFee:', deliveryFee);
     return deliveryFee;
   };
 
@@ -475,9 +460,10 @@ function DeliveryPage() {
         : item.blend_id
         ? (blends.find(b => b.id === item.blend_id)?.name || 'Neznáma zmes')
         : 'Neznáma položka';
-      // Use stored price first, fallback to current price calculation
-      const unitPrice = item.price_per_unit ?? getPrice(item.crop_id, item.blend_id, item.packaging_size || '100g', customerType || undefined);
-      const itemTotal = item.total_price ?? calculateWithVat((unitPrice || 0) * item.quantity);
+      // Prices already include VAT in DB
+      const qty = parseFloat(item.quantity?.toString() || '0');
+      const pricePerUnit = parseFloat(item.price_per_unit?.toString().replace(',', '.') || '0');
+      const itemTotal = qty * pricePerUnit;
       return {
         quantity: item.quantity,
         name: itemName,
@@ -521,15 +507,6 @@ function DeliveryPage() {
       const chargeDelivery = (order as any).charge_delivery !== false;
       // Use stored delivery price first, fallback to calculation
       const deliveryFee = order.delivery_price ?? calculateDeliveryFee(orderTotal, customer, route, customerType, chargeDelivery);
-
-      console.log('💰 ORDER CALCULATION:');
-      console.log('  order.id:', order.id);
-      console.log('  customer:', customer?.name);
-      console.log('  order.total_price (DB):', order.total_price);
-      console.log('  calculated orderTotal:', orderTotal);
-      console.log('  order.delivery_price (DB):', order.delivery_price);
-      console.log('  calculated deliveryFee:', deliveryFee);
-      console.log('  CELKOM (orderTotal + deliveryFee):', orderTotal + deliveryFee);
 
       acc[key].orders.push({
         id: order.id,
@@ -1656,32 +1633,15 @@ function DeliveryPage() {
                 <h3 className="font-semibold text-base mb-3">Položky objednávky:</h3>
                 <div className="space-y-2">
                   {selectedOrderDetail.itemsDetail.map((item, idx) => (
-                    <div key={idx}>
-                      {/* DEBUG INFO */}
-                      <div className="text-xs font-mono text-gray-500 bg-yellow-50 border border-yellow-200 p-2 rounded mb-1">
-                        <div className="font-bold text-yellow-800 mb-1">🐛 DEBUG item {idx}:</div>
-                        <div>price_per_unit (DB): {(item as any).dbPricePerUnit?.toFixed(4) ?? 'NULL'} €</div>
-                        <div>quantity: {item.quantity}</div>
-                        <div>total_price (DB): {(item as any).dbTotalPrice?.toFixed(2) ?? 'NULL'} €</div>
-                        <div>crop_id: {(item as any).dbCropId ?? 'NULL'}</div>
-                        <div>blend_id: {(item as any).dbBlendId ?? 'NULL'}</div>
-                        <div className="mt-1 pt-1 border-t border-yellow-300">
-                          <div className="font-semibold text-yellow-900">Zobrazené:</div>
-                          <div>Cena (price): {item.price.toFixed(2)} €</div>
+                    <div key={idx} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900">
+                          {item.quantity}x {item.size} {item.name}
                         </div>
                       </div>
-
-                      {/* Existujúci rendering */}
-                      <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                        <div className="flex-1">
-                          <div className="font-medium text-gray-900">
-                            {item.quantity}x {item.size} {item.name}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-bold text-green-600">
-                            {item.price.toFixed(2)} €
-                          </div>
+                      <div className="text-right">
+                        <div className="font-bold text-green-600">
+                          {item.price.toFixed(2)} €
                         </div>
                       </div>
                     </div>
@@ -1719,30 +1679,6 @@ function DeliveryPage() {
                   <span className="text-3xl font-bold text-green-600">
                     {selectedOrderDetail.totalPrice.toFixed(2)} €
                   </span>
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-gray-200 bg-gray-50 p-3 rounded text-xs space-y-1">
-                  <div className="font-semibold text-gray-700 mb-2">DEBUG INFO (z DB):</div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">DB total_price:</span>
-                    <span className="font-mono">{(selectedOrderDetail as any).dbTotalPrice?.toFixed(2) ?? 'NULL'} €</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">DB delivery_price:</span>
-                    <span className="font-mono">{(selectedOrderDetail as any).dbDeliveryPrice?.toFixed(2) ?? 'NULL'} €</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Zobrazené orderTotal:</span>
-                    <span className="font-mono">{(selectedOrderDetail.totalPrice - (selectedOrderDetail.deliveryFee || 0)).toFixed(2)} €</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Zobrazená doprava:</span>
-                    <span className="font-mono">{(selectedOrderDetail.deliveryFee || 0).toFixed(2)} €</span>
-                  </div>
-                  <div className="flex justify-between font-semibold border-t border-gray-300 pt-1 mt-1">
-                    <span className="text-gray-700">Zobrazený celkom:</span>
-                    <span className="font-mono text-green-600">{selectedOrderDetail.totalPrice.toFixed(2)} €</span>
-                  </div>
                 </div>
               </div>
 
