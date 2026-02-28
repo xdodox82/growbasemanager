@@ -33,6 +33,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { SearchableCustomerSelect } from '@/components/orders/SearchableCustomerSelect';
 import { format, isSameDay, startOfDay, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday } from 'date-fns';
 import { sk } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
@@ -263,7 +264,7 @@ function DeliveryPage() {
   const { calculateWithVat, isVatEnabled, vatRate } = useVatSettings();
   const { toast } = useToast();
   const { consumeOrderInventory } = useInventoryConsumption();
-  const { deliveryDays, isDeliveryDay } = useDeliveryDays();
+  const { settings: deliverySettings } = useDeliveryDays();
 
   const isLoading = ordersLoading || customersLoading || cropsLoading || blendsLoading || orderItemsLoading || routesLoading;
 
@@ -290,6 +291,16 @@ function DeliveryPage() {
 
     setSelectedOrderIds(new Set());
     setSelectedDate(date);
+  };
+
+  const isDeliveryDay = (date: Date) => {
+    if (!deliverySettings) return false;
+    const dayOfWeek = getDay(date);
+    const dayMap: Record<number, string> = {
+      1: 'monday', 2: 'tuesday', 3: 'wednesday',
+      4: 'thursday', 5: 'friday', 6: 'saturday', 0: 'sunday'
+    };
+    return deliverySettings[dayMap[dayOfWeek]] === true;
   };
 
   const goToPreviousMonth = () => {
@@ -325,6 +336,13 @@ function DeliveryPage() {
     ordersForDate = ordersForDate.filter(order => {
       const customer = customers.find(c => c.id === order.customer_id);
       return customer?.customer_type === selectedCustomerType;
+    });
+  }
+
+  // Filter by specific customer if selected
+  if (customerFilter !== 'all') {
+    ordersForDate = ordersForDate.filter(order => {
+      return order.customer_id === customerFilter;
     });
   }
 
@@ -1197,19 +1215,14 @@ function DeliveryPage() {
             <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
               Zákazník
             </label>
-            <Select value={customerFilter} onValueChange={setCustomerFilter}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Všetci" />
-              </SelectTrigger>
-              <SelectContent position="popper" sideOffset={5} className="!z-[100]">
-                <SelectItem value="all">Všetci zákazníci</SelectItem>
-                {customers?.map(customer => (
-                  <SelectItem key={customer.id} value={customer.id}>
-                    {customer.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableCustomerSelect
+              customers={customers}
+              value={customerFilter}
+              onValueChange={setCustomerFilter}
+              placeholder="Všetci zákazníci"
+              filterByType={selectedCustomerType}
+              allowAll={true}
+            />
           </div>
 
           <div className="flex-1">
