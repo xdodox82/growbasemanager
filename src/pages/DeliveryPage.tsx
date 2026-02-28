@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { PageHeader, EmptyState } from '@/components/ui/page-components';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -266,6 +266,7 @@ function DeliveryPage() {
   const isLoading = ordersLoading || customersLoading || cropsLoading || blendsLoading || orderItemsLoading || routesLoading;
 
   const [selectedDates, setSelectedDates] = useState<Date[]>([new Date()]);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [customerFilter, setCustomerFilter] = useState<string>('all');
   const [selectedCustomerType, setSelectedCustomerType] = useState<string>('all');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
@@ -274,6 +275,12 @@ function DeliveryPage() {
   const [showArchive, setShowArchive] = useState(true);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedOrderDetail, setSelectedOrderDetail] = useState<typeof orders[0] | null>(null);
+
+  useEffect(() => {
+    if (selectedDates.length > 0) {
+      setSelectedDate(selectedDates[0]);
+    }
+  }, [selectedDates]);
 
   const handleDateChange = (date: Date | undefined) => {
     if (!date) return;
