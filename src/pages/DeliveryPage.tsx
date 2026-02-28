@@ -40,7 +40,6 @@ import { cn } from '@/lib/utils';
 import * as XLSX from 'xlsx';
 import { RouteManagement } from '@/components/delivery/RouteManagement';
 import { DeliveryDaysSettings } from '@/components/delivery/DeliveryDaysSettings';
-import { DeliveryDaysCompact } from '@/components/delivery/DeliveryDaysCompact';
 import { CustomerTypeFilter } from '@/components/filters/CustomerTypeFilter';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -148,20 +147,6 @@ function SortableOrderRow({
               💬 {order.notes}
             </div>
           )}
-        </div>
-      </TableCell>
-      <TableCell className="hidden md:table-cell">
-        <div className="flex flex-wrap gap-1">
-          {order.itemsDetail.map((item, idx) => (
-            <div key={idx} className="flex items-center gap-1.5 mr-2 mb-1">
-              <Badge variant="secondary" className="text-xs font-normal">
-                {item.quantity} x {item.size} {item.name}
-              </Badge>
-              <span className="text-xs font-semibold text-green-600 dark:text-green-500">
-                {item.price.toFixed(2)} €
-              </span>
-            </div>
-          ))}
         </div>
       </TableCell>
       <TableCell className="hidden lg:table-cell">
@@ -280,7 +265,8 @@ function DeliveryPage() {
 
   const isLoading = ordersLoading || customersLoading || cropsLoading || blendsLoading || orderItemsLoading || routesLoading;
 
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDates, setSelectedDates] = useState<Date[]>([new Date()]);
+  const [customerFilter, setCustomerFilter] = useState<string>('all');
   const [selectedCustomerType, setSelectedCustomerType] = useState<string>('all');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [routeFilter, setRouteFilter] = useState<string>('all');
@@ -1048,7 +1034,7 @@ function DeliveryPage() {
       </PageHeader>
 
       <Tabs defaultValue="delivery" className="w-full">
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-6">
           <TabsList className="grid grid-cols-2">
             <TabsTrigger value="delivery">
               <Truck className="h-4 w-4 mr-2" />
@@ -1059,52 +1045,57 @@ function DeliveryPage() {
               Správa trás
             </TabsTrigger>
           </TabsList>
-
-          <DeliveryDaysCompact />
         </div>
 
         <TabsContent value="delivery" className="space-y-6">
       {/* Filters */}
       <Card className="p-4">
         <div className="flex flex-col sm:flex-row gap-4">
+          {/* Multi-select kalendár */}
           <div className="flex-1">
-            <label className="text-sm font-medium mb-2 block">Dátum rozvozu</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
+              Dátum rozvozu
+            </label>
             <Popover>
               <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !selectedDate && "text-muted-foreground"
-                  )}
-                >
+                <Button variant="outline" className="w-full justify-start">
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {selectedDate ? format(selectedDate, 'd. MMMM yyyy', { locale: sk }) : "Vyberte dátum"}
+                  {selectedDates.length === 1
+                    ? format(selectedDates[0], 'dd.MM.yyyy', { locale: sk })
+                    : `${selectedDates.length} dní`
+                  }
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={handleDateChange}
-                  locale={sk}
-                  initialFocus
-                  modifiers={{
-                    orders: orderDates,
-                  }}
-                  modifiersStyles={{
-                    orders: {
-                      border: '2px solid hsl(var(--primary))',
-                      borderRadius: '50%',
-                    },
-                  }}
-                />
+                <div className="text-sm p-4">
+                  Kalendár sa pridá v ďalšom kroku
+                </div>
               </PopoverContent>
             </Popover>
           </div>
 
+          {/* Filter zákazníka */}
           <div className="flex-1">
-            <label className="text-sm font-medium text-gray-700 text-center mb-2 block">
+            <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
+              Zákazník
+            </label>
+            <Select value={customerFilter} onValueChange={setCustomerFilter}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Všetci" />
+              </SelectTrigger>
+              <SelectContent position="popper" sideOffset={5} className="!z-[100]">
+                <SelectItem value="all">Všetci zákazníci</SelectItem>
+                {customers?.map(customer => (
+                  <SelectItem key={customer.id} value={customer.id}>
+                    {customer.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
               &nbsp;
             </label>
             <CustomerTypeFilter
@@ -1115,7 +1106,9 @@ function DeliveryPage() {
           </div>
 
           <div className="flex-1">
-            <label className="text-sm font-medium mb-2 block">Stav platby</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
+              Stav platby
+            </label>
             <Select value={paymentFilter} onValueChange={setPaymentFilter}>
               <SelectTrigger className="w-full">
                 <CreditCard className="mr-2 h-4 w-4" />
@@ -1130,7 +1123,9 @@ function DeliveryPage() {
           </div>
 
           <div className="flex-1">
-            <label className="text-sm font-medium mb-2 block">Rozvozová trasa</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
+              Rozvozová trasa
+            </label>
             <Select value={routeFilter} onValueChange={setRouteFilter}>
               <SelectTrigger className="w-full">
                 <Navigation className="mr-2 h-4 w-4" />
@@ -1348,7 +1343,6 @@ function DeliveryPage() {
                             />
                           </TableHead>
                           <TableHead>Zákazník</TableHead>
-                          <TableHead className="hidden md:table-cell">Obsah objednávky</TableHead>
                           <TableHead className="hidden lg:table-cell">Adresa</TableHead>
                           <TableHead>Cena</TableHead>
                           <TableHead className="hidden md:table-cell">Akcia</TableHead>
@@ -1408,7 +1402,6 @@ function DeliveryPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Zákazník</TableHead>
-                        <TableHead className="hidden md:table-cell">Obsah objednávky</TableHead>
                         <TableHead className="hidden lg:table-cell">Adresa</TableHead>
                         <TableHead>Cena</TableHead>
                         <TableHead className="hidden md:table-cell">Akcia</TableHead>
@@ -1427,20 +1420,6 @@ function DeliveryPage() {
                           >
                             <TableCell className="text-muted-foreground">
                               <span className="truncate">{order.customerName}</span>
-                            </TableCell>
-                            <TableCell className="hidden md:table-cell text-muted-foreground">
-                              <div className="flex flex-wrap gap-1">
-                                {order.itemsDetail.map((item, idx) => (
-                                  <div key={idx} className="flex items-center gap-1.5 mr-2 mb-1">
-                                    <Badge variant="secondary" className="text-xs font-normal opacity-60">
-                                      {item.quantity} x {item.size} {item.name}
-                                    </Badge>
-                                    <span className="text-xs font-semibold text-green-600/60 dark:text-green-500/60">
-                                      {item.price.toFixed(2)} €
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
                             </TableCell>
                             <TableCell className="hidden lg:table-cell text-muted-foreground" onClick={(e) => e.stopPropagation()}>
                               {order.customerAddress && (
