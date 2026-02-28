@@ -489,7 +489,15 @@ export function useOrders() {
     try {
       const { data: result, error } = await supabase
         .from('orders')
-        .select('*')
+        .select(`
+          *,
+          customer:customers(
+            name,
+            phone,
+            address,
+            customer_type
+          )
+        `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;

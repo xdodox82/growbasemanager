@@ -13,7 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { useOrders, useCustomers, useCrops, useBlends, useOrderItems, useDeliveryRoutes } from '@/hooks/useSupabaseData';
 import { usePrices, useVatSettings } from '@/hooks/usePrices';
-import { Truck, FileSpreadsheet, FileText, CheckCircle2, CalendarIcon, Filter, Undo2, Navigation, CreditCard, Euro, Home, UtensilsCrossed, Building2, Settings, GripVertical, Phone } from 'lucide-react';
+import { useDeliveryDays } from '@/hooks/useDeliveryDays';
+import { Truck, FileSpreadsheet, FileText, CheckCircle2, CalendarIcon, Filter, Undo2, Navigation, CreditCard, Euro, Home, UtensilsCrossed, Building2, Settings, GripVertical, Phone, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -32,7 +33,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { format, isSameDay, startOfDay } from 'date-fns';
+import { format, isSameDay, startOfDay, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday } from 'date-fns';
 import { sk } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { useInventoryConsumption } from '@/hooks/useInventoryConsumption';
@@ -262,11 +263,13 @@ function DeliveryPage() {
   const { calculateWithVat, isVatEnabled, vatRate } = useVatSettings();
   const { toast } = useToast();
   const { consumeOrderInventory } = useInventoryConsumption();
+  const { deliveryDays, isDeliveryDay } = useDeliveryDays();
 
   const isLoading = ordersLoading || customersLoading || cropsLoading || blendsLoading || orderItemsLoading || routesLoading;
 
   const [selectedDates, setSelectedDates] = useState<Date[]>([new Date()]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [customerFilter, setCustomerFilter] = useState<string>('all');
   const [selectedCustomerType, setSelectedCustomerType] = useState<string>('all');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
@@ -287,6 +290,21 @@ function DeliveryPage() {
 
     setSelectedOrderIds(new Set());
     setSelectedDate(date);
+  };
+
+  const goToPreviousMonth = () => {
+    setCalendarMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  };
+
+  const goToNextMonth = () => {
+    setCalendarMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  };
+
+  const hasOrdersOnDate = (date: Date) => {
+    return orders.some(order =>
+      order.delivery_date &&
+      isSameDay(startOfDay(new Date(order.delivery_date)), startOfDay(date))
+    );
   };
 
   // Get orders for delivery on the selected date
@@ -1024,6 +1042,101 @@ function DeliveryPage() {
     );
   }
 
+  const CalendarGrid = () => {
+    const start = startOfMonth(calendarMonth);
+    const end = endOfMonth(calendarMonth);
+    const days = eachDayOfInterval({ start, end });
+
+    const firstDayOfWeek = getDay(start);
+    const paddingDays = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
+
+    return (
+      <div className="w-[320px] p-4">
+        <div className="flex items-center justify-between mb-4">
+          <Button variant="ghost" size="sm" onClick={goToPreviousMonth}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <h3 className="font-semibold text-base">
+            {format(calendarMonth, 'MMMM yyyy', { locale: sk })}
+          </h3>
+          <Button variant="ghost" size="sm" onClick={goToNextMonth}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1 mb-2">
+          {['Po', 'Ut', 'St', 'Št', 'Pi', 'So', 'Ne'].map(day => (
+            <div key={day} className="text-center text-xs font-medium text-gray-600 w-9 h-6 flex items-center justify-center">
+              {day}
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7 gap-1">
+          {Array.from({ length: paddingDays }).map((_, i) => (
+            <div key={`pad-${i}`} className="w-9 h-9" />
+          ))}
+
+          {days.map(day => {
+            const isDelivery = isDeliveryDay(day);
+            const hasOrders = hasOrdersOnDate(day);
+            const today = isToday(day);
+            const selected = selectedDates.some(d => isSameDay(d, day));
+
+            let bgColor = 'bg-white hover:bg-gray-50';
+
+            if (isDelivery) {
+              bgColor = 'bg-green-200 hover:bg-green-300';
+            } else if (hasOrders) {
+              bgColor = 'bg-yellow-300 hover:bg-yellow-400';
+            }
+
+            return (
+              <button
+                key={day.toISOString()}
+                onClick={() => {
+                  const exists = selectedDates.some(d => isSameDay(d, day));
+                  if (exists) {
+                    setSelectedDates(prev => prev.filter(d => !isSameDay(d, day)));
+                  } else {
+                    setSelectedDates(prev => [...prev, day]);
+                  }
+                }}
+                className={`
+                  ${bgColor}
+                  ${today ? 'ring-2 ring-green-600' : ''}
+                  ${selected ? 'ring-2 ring-blue-500' : ''}
+                  rounded-full w-9 h-9 flex items-center justify-center
+                  text-sm font-medium cursor-pointer transition-all
+                `}
+              >
+                {day.getDate()}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-4 space-y-2 text-xs">
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-full bg-green-200 border border-gray-300" />
+            <span className="text-gray-600">Rozvozový deň</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-full bg-yellow-300 border border-gray-300" />
+            <span className="text-gray-600">Objednávky mimo rozvozu</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded-full ring-2 ring-blue-500" />
+            <span>Vybraný deň</span>
+          </div>
+          <div className="mt-3 pt-3 border-t border-gray-200 text-gray-600">
+            <span className="font-medium">Tip:</span> Kliknutím vyberte/zrušte dni
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <MainLayout>
       <PageHeader
@@ -1074,9 +1187,7 @@ function DeliveryPage() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
-                <div className="text-sm p-4">
-                  Kalendár sa pridá v ďalšom kroku
-                </div>
+                <CalendarGrid />
               </PopoverContent>
             </Popover>
           </div>
