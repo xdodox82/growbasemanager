@@ -407,6 +407,11 @@ function DeliveryPage() {
   const pendingOrders = ordersForDate.filter(order => order.status === 'ready');
   const deliveredOrders = ordersForDate.filter(order => order.status === 'delivered');
 
+  // All orders for financial report (delivered + ready)
+  const allOrdersForReport = ordersForDate.filter(order =>
+    order.status === 'ready' || order.status === 'delivered'
+  );
+
   const getCropName = (cropId: string | null) => {
     if (!cropId) return 'Neznáma plodina';
     return crops.find(c => c.id === cropId)?.name || 'Neznáma plodina';
@@ -577,7 +582,7 @@ function DeliveryPage() {
 
   // Financial report calculations
   const calculateItemsTotal = () => {
-    return pendingOrders.reduce((sum, order) => {
+    return allOrdersForReport.reduce((sum, order) => {
       const customer = customers?.find(c => c.id === order.customer_id);
       const orderTotal = calculateOrderTotal(order, customer?.customer_type || null);
       return sum + orderTotal;
@@ -585,7 +590,7 @@ function DeliveryPage() {
   };
 
   const calculateDeliveryTotal = () => {
-    return pendingOrders.reduce((sum, order) => {
+    return allOrdersForReport.reduce((sum, order) => {
       const customer = customers?.find(c => c.id === order.customer_id);
       const route = routes?.find(r => r.id === customer?.delivery_route_id);
       const orderTotal = calculateOrderTotal(order, customer?.customer_type || null);
@@ -600,22 +605,18 @@ function DeliveryPage() {
 
   const calculatePaid = () => {
     console.log('💰 Calculating paid...');
-    console.log('  Pending orders:', pendingOrders.length);
+    console.log('  All orders for report:', allOrdersForReport.length);
 
-    console.log('  ❌ OLD METHOD - Filtering by payment_status:');
-    const paidOldMethod = pendingOrders.filter(o => o.payment_status === 'paid');
-    console.log('    Found:', paidOldMethod.length, paidOldMethod.map(o => o.id));
-
-    console.log('  ✅ NEW METHOD - Using isOrderPaid:');
-    const paid = pendingOrders.filter(o => isOrderPaid(o));
-    console.log('    Found:', paid.length, paid.map(o => o.id));
+    console.log('  ✅ Using isOrderPaid for delivered + ready orders:');
+    const paid = allOrdersForReport.filter(o => isOrderPaid(o));
+    console.log('    Found:', paid.length, paid.map(o => ({ id: o.id, status: o.status })));
 
     const total = paid.reduce((sum, order) => {
       const customer = customers?.find(c => c.id === order.customer_id);
       const orderTotal = calculateOrderTotal(order, customer?.customer_type || null);
       const route = routes?.find(r => r.id === customer?.delivery_route_id);
       const deliveryFee = calculateDeliveryFee(orderTotal, customer, route, customer?.customer_type || null, (order as any).charge_delivery);
-      console.log('    Order', order.id, ':', orderTotal, '+', deliveryFee, '=', orderTotal + deliveryFee);
+      console.log('    Order', order.id, `(${order.status}):`, orderTotal, '+', deliveryFee, '=', orderTotal + deliveryFee);
       return sum + orderTotal + deliveryFee;
     }, 0);
 
@@ -632,7 +633,7 @@ function DeliveryPage() {
   };
 
   const calculateHouseholds = () => {
-    return pendingOrders
+    return allOrdersForReport
       .filter(o => {
         const customer = customers?.find(c => c.id === o.customer_id);
         return customer?.customer_type === 'home';
@@ -647,7 +648,7 @@ function DeliveryPage() {
   };
 
   const calculateGastro = () => {
-    return pendingOrders
+    return allOrdersForReport
       .filter(o => {
         const customer = customers?.find(c => c.id === o.customer_id);
         return customer?.customer_type === 'gastro' || customer?.customer_type === 'wholesale';
@@ -662,7 +663,7 @@ function DeliveryPage() {
   };
 
   const getGastroCustomers = () => {
-    const gastro = pendingOrders.filter(o => {
+    const gastro = allOrdersForReport.filter(o => {
       const customer = customers?.find(c => c.id === o.customer_id);
       return customer?.customer_type === 'gastro' || customer?.customer_type === 'wholesale';
     });
