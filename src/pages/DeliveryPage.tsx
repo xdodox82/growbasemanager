@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { useOrders, useCustomers, useCrops, useBlends, useOrderItems, useDeliveryRoutes } from '@/hooks/useSupabaseData';
 import { usePrices, useVatSettings } from '@/hooks/usePrices';
 import { useDeliveryDays } from '@/hooks/useDeliveryDays';
-import { Truck, FileSpreadsheet, FileText, CheckCircle2, CalendarIcon, Filter, Undo2, Navigation, CreditCard, Euro, Home, UtensilsCrossed, Building2, Settings, GripVertical, Phone, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Truck, FileSpreadsheet, FileText, CheckCircle2, CalendarIcon, Filter, Undo2, Navigation, CreditCard, Euro, Home, UtensilsCrossed, Building2, Settings, GripVertical, Phone, ChevronLeft, ChevronRight, Package } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -292,6 +292,7 @@ function DeliveryPage() {
   const [selectedDates, setSelectedDates] = useState<Date[]>([new Date()]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [customerFilter, setCustomerFilter] = useState<string>('all');
   const [selectedCustomerType, setSelectedCustomerType] = useState<string>('all');
   const [routeFilter, setRouteFilter] = useState<string>('all');
@@ -1386,13 +1387,13 @@ function DeliveryPage() {
 
         <TabsContent value="delivery" className="space-y-6">
       {/* DESKTOP Filter - kompaktný 1-riadkový */}
-      <div className="hidden md:flex items-center gap-2 p-3 bg-white border-b flex-wrap mb-6">
+      <div className="hidden md:flex items-center gap-2 p-3 bg-white border-b mb-6">
 
-        {/* Dátum rozvozu - kompaktný button */}
-        <Popover>
+        {/* Dátum rozvozu - väčší, rovnaká výška */}
+        <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
           <PopoverTrigger asChild>
-            <button className="flex items-center gap-2 border rounded-lg px-3 py-1.5 text-sm hover:bg-gray-50">
-              <CalendarIcon className="h-4 w-4 text-gray-500" />
+            <button className="flex items-center gap-2 border rounded-lg px-4 py-1.5 h-9 text-sm hover:bg-gray-50 min-w-[110px]">
+              <CalendarIcon className="h-4 w-4 text-gray-500 shrink-0" />
               <span>
                 {selectedDates.length === 1
                   ? format(selectedDates[0], 'd. MMM', { locale: sk })
@@ -1405,31 +1406,66 @@ function DeliveryPage() {
           </PopoverContent>
         </Popover>
 
-        {/* Typ zákazníka - kompaktný toggle */}
-        <div className="flex border rounded-lg overflow-hidden">
-          {[
-            { value: 'all', label: 'Všetci' },
-            { value: 'home', label: 'Domáci' },
-            { value: 'gastro', label: 'Gastro' },
-            { value: 'wholesale', label: 'VO' }
-          ].map(type => (
-            <button
-              key={type.value}
-              onClick={() => setSelectedCustomerType(type.value)}
-              className={cn(
-                "px-3 py-1.5 text-sm font-medium transition-colors",
-                selectedCustomerType === type.value
-                  ? 'bg-green-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
-              )}
-            >
-              {type.label}
-            </button>
-          ))}
+        {/* Typ zákazníka - s ikonami, rovnaká výška h-9 */}
+        <div className="flex border rounded-lg overflow-hidden h-9">
+          {/* Všetci */}
+          <button
+            onClick={() => setSelectedCustomerType('all')}
+            className={cn(
+              "flex items-center gap-1.5 px-3 text-sm font-medium transition-colors",
+              selectedCustomerType === 'all'
+                ? 'bg-green-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-50'
+            )}
+          >
+            Všetci
+          </button>
+
+          {/* Domáci */}
+          <button
+            onClick={() => setSelectedCustomerType('home')}
+            className={cn(
+              "flex items-center gap-1.5 px-3 text-sm font-medium border-l transition-colors",
+              selectedCustomerType === 'home'
+                ? 'bg-green-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-50'
+            )}
+          >
+            <Home className="h-3.5 w-3.5 shrink-0" />
+            Domáci
+          </button>
+
+          {/* Gastro */}
+          <button
+            onClick={() => setSelectedCustomerType('gastro')}
+            className={cn(
+              "flex items-center gap-1.5 px-3 text-sm font-medium border-l transition-colors",
+              selectedCustomerType === 'gastro'
+                ? 'bg-green-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-50'
+            )}
+          >
+            <UtensilsCrossed className="h-3.5 w-3.5 shrink-0" />
+            Gastro
+          </button>
+
+          {/* VO */}
+          <button
+            onClick={() => setSelectedCustomerType('wholesale')}
+            className={cn(
+              "flex items-center gap-1.5 px-3 text-sm font-medium border-l transition-colors",
+              selectedCustomerType === 'wholesale'
+                ? 'bg-green-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-50'
+            )}
+          >
+            <Package className="h-3.5 w-3.5 shrink-0" />
+            VO
+          </button>
         </div>
 
-        {/* Zákazník dropdown - kompaktný */}
-        <div className="w-48">
+        {/* Zákazník dropdown - rovnaká výška */}
+        <div className="h-9 flex items-center w-52">
           <SearchableCustomerSelect
             customers={customers}
             value={customerFilter}
@@ -1437,13 +1473,14 @@ function DeliveryPage() {
             placeholder="Všetci zákazníci"
             filterByType={selectedCustomerType}
             allowAll={true}
+            className="text-sm w-full"
           />
         </div>
 
-        {/* Rozvozová trasa - kompaktný */}
+        {/* Rozvozová trasa - rovnaká výška */}
         <Select value={routeFilter} onValueChange={setRouteFilter}>
-          <SelectTrigger className="w-44 h-8 text-sm">
-            <Navigation className="h-3.5 w-3.5 text-gray-500 mr-1" />
+          <SelectTrigger className="h-9 text-sm w-44">
+            <Navigation className="h-3.5 w-3.5 text-gray-500 mr-1 shrink-0" />
             <SelectValue placeholder="Všetky trasy" />
           </SelectTrigger>
           <SelectContent>
@@ -1456,8 +1493,8 @@ function DeliveryPage() {
           </SelectContent>
         </Select>
 
-        {/* Zobraziť doručené - SWITCH toggle */}
-        <label className="flex items-center gap-2 text-sm text-gray-700 ml-auto cursor-pointer">
+        {/* Zobraziť doručené - switch */}
+        <label className="flex items-center gap-2 text-sm text-gray-700 ml-auto cursor-pointer whitespace-nowrap">
           <Switch
             checked={showArchive}
             onCheckedChange={setShowArchive}
