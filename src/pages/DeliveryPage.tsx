@@ -324,7 +324,14 @@ function DeliveryPage() {
 
   let ordersForDate = orders.filter(order => {
     if (!order.delivery_date) return false;
-    if (!isSameDay(startOfDay(new Date(order.delivery_date)), startOfDay(selectedDate))) return false;
+
+    // Check if order delivery_date matches ANY of the selected dates
+    const orderDate = startOfDay(new Date(order.delivery_date));
+    const matchesSelectedDate = selectedDates.some(selectedDate =>
+      isSameDay(orderDate, startOfDay(selectedDate))
+    );
+
+    if (!matchesSelectedDate) return false;
 
     // Filter by status based on archive setting
     if (showArchive) {
