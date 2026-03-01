@@ -69,6 +69,8 @@ interface SortableOrderRowProps {
   handleMarkAsPaid: (orderId: string, notes: string | null) => void;
   handleMarkAsUnpaid: (orderId: string, notes: string | null) => void;
   onOrderClick: (order: any) => void;
+  navigationMode: {[key: string]: 'waze' | 'maps'};
+  setNavigationMode: React.Dispatch<React.SetStateAction<{[key: string]: 'waze' | 'maps'}>>;
 }
 
 function SortableOrderRow({
@@ -84,6 +86,8 @@ function SortableOrderRow({
   handleMarkAsPaid,
   handleMarkAsUnpaid,
   onOrderClick,
+  navigationMode,
+  setNavigationMode,
 }: SortableOrderRowProps) {
   const {
     attributes,
@@ -99,6 +103,8 @@ function SortableOrderRow({
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
+
+  const currentNav = navigationMode[order.id] || 'waze';
 
   return (
     <TableRow
@@ -125,20 +131,11 @@ function SortableOrderRow({
           />
         </div>
       </TableCell>
-      <TableCell>
+
+      {/* ZÁKAZNÍK - tučný, väčší */}
+      <TableCell className="text-center">
         <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <span className="truncate">{order.customerName}</span>
-            {order.customerPhone && (
-              <a
-                href={`tel:${order.customerPhone}`}
-                className="flex-shrink-0 p-1.5 rounded-md hover:bg-accent transition-colors"
-                title={`Zavolať ${order.customerPhone}`}
-              >
-                <Phone className="h-4 w-4 text-green-600 dark:text-green-500" />
-              </a>
-            )}
-          </div>
+          <span className="font-bold text-lg">{order.customerName}</span>
           {order.deliveryNotes && (
             <div className="text-xs text-muted-foreground italic">
               📍 {order.deliveryNotes}
@@ -151,65 +148,89 @@ function SortableOrderRow({
           )}
         </div>
       </TableCell>
-      <TableCell className="hidden lg:table-cell">
+
+      {/* ADRESA */}
+      <TableCell className="hidden lg:table-cell text-center">
         {order.customerAddress && (
-          <div className="flex items-center gap-2">
-            <span className="truncate max-w-xs text-xs">{order.customerAddress}</span>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 w-7 p-0 flex-shrink-0"
-                  title="Navigácia"
-                >
-                  <Navigation className="h-4 w-4 text-blue-600 dark:text-blue-500" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-48 p-2" align="end">
-                <div className="flex flex-col gap-1">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="justify-start gap-2 h-9"
-                    onClick={() => {
-                      const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.customerAddress!)}`;
-                      window.open(url, '_blank');
-                    }}
-                  >
-                    <Navigation className="h-4 w-4" />
-                    Google Maps
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="justify-start gap-2 h-9"
-                    onClick={() => {
-                      const url = `https://waze.com/ul?q=${encodeURIComponent(order.customerAddress!)}`;
-                      window.open(url, '_blank');
-                    }}
-                  >
-                    <Navigation className="h-4 w-4" />
-                    Waze
-                  </Button>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
+          <span className="text-sm">{order.customerAddress}</span>
         )}
       </TableCell>
-      <TableCell>
-        <div className="text-right">
-          <div className="text-xl font-bold text-green-600 dark:text-green-500">
-            {order.totalPrice.toFixed(2)} €
-          </div>
-          {(order.deliveryFee || 0) > 0 && (
-            <div className="text-xs text-muted-foreground mt-1">
-              (vrátane dopravy {(order.deliveryFee || 0).toFixed(2)} €)
+
+      {/* KONTAKT - telefón + swipe navigácia */}
+      <TableCell className="hidden lg:table-cell" onClick={(e) => e.stopPropagation()}>
+        <div className="flex flex-col items-center gap-2">
+          {/* Telefón */}
+          {order.customerPhone && (
+            <a
+              href={`tel:${order.customerPhone}`}
+              className="flex items-center gap-1 text-blue-600 hover:underline text-sm"
+            >
+              <Phone className="h-4 w-4" />
+              {order.customerPhone}
+            </a>
+          )}
+
+          {/* Swipe navigácia */}
+          {order.customerAddress && (
+            <div
+              className="relative select-none cursor-grab active:cursor-grabbing"
+              onTouchStart={(e) => {
+                const startX = e.touches[0].clientX;
+                const handleTouchMove = (moveEvent: TouchEvent) => {
+                  const deltaX = moveEvent.touches[0].clientX - startX;
+                  if (Math.abs(deltaX) > 50) {
+                    setNavigationMode(prev => ({
+                      ...prev,
+                      [order.id]: prev[order.id] === 'waze' ? 'maps' : 'waze'
+                    }));
+                    document.removeEventListener('touchmove', handleTouchMove);
+                  }
+                };
+                document.addEventListener('touchmove', handleTouchMove);
+                document.addEventListener('touchend', () => {
+                  document.removeEventListener('touchmove', handleTouchMove);
+                }, { once: true });
+              }}
+            >
+              {currentNav === 'waze' ? (
+                <a
+                  href={`https://waze.com/ul?q=${encodeURIComponent(order.customerAddress)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-blue-600 hover:underline text-sm"
+                >
+                  <Navigation className="h-4 w-4" />
+                  Waze
+                </a>
+              ) : (
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(order.customerAddress)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-green-600 hover:underline text-sm"
+                >
+                  <Navigation className="h-4 w-4" />
+                  Maps
+                </a>
+              )}
             </div>
           )}
         </div>
       </TableCell>
+
+      {/* CENA */}
+      <TableCell className="text-center">
+        <div className="text-xl font-bold text-green-600 dark:text-green-500">
+          {order.totalPrice.toFixed(2)} €
+        </div>
+        {(order.deliveryFee || 0) > 0 && (
+          <div className="text-xs text-muted-foreground mt-1">
+            (vrátane dopravy {(order.deliveryFee || 0).toFixed(2)} €)
+          </div>
+        )}
+      </TableCell>
+
+      {/* AKCIE */}
       <TableCell className="hidden md:table-cell" onClick={(e) => e.stopPropagation()}>
         <div className="flex flex-col gap-1">
           <Button
@@ -279,6 +300,7 @@ function DeliveryPage() {
   const [showArchive, setShowArchive] = useState(true);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedOrderDetail, setSelectedOrderDetail] = useState<typeof orders[0] | null>(null);
+  const [navigationMode, setNavigationMode] = useState<{[key: string]: 'waze' | 'maps'}>({});
 
   useEffect(() => {
     if (selectedDates.length > 0) {
@@ -1484,10 +1506,11 @@ function DeliveryPage() {
                               }}
                             />
                           </TableHead>
-                          <TableHead>Zákazník</TableHead>
-                          <TableHead className="hidden lg:table-cell">Adresa</TableHead>
-                          <TableHead>Cena</TableHead>
-                          <TableHead className="hidden md:table-cell">Akcia</TableHead>
+                          <TableHead className="text-center">Zákazník</TableHead>
+                          <TableHead className="hidden lg:table-cell text-center">Adresa</TableHead>
+                          <TableHead className="hidden lg:table-cell text-center">Kontakt</TableHead>
+                          <TableHead className="text-center">Cena</TableHead>
+                          <TableHead className="hidden md:table-cell text-center">Akcia</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1510,6 +1533,8 @@ function DeliveryPage() {
                                 markOrderDelivered={markOrderDelivered}
                                 handleMarkAsPaid={handleMarkAsPaid}
                                 handleMarkAsUnpaid={handleMarkAsUnpaid}
+                                navigationMode={navigationMode}
+                                setNavigationMode={setNavigationMode}
                                 onOrderClick={(order) => {
                                   setSelectedOrderDetail(order);
                                   setDetailModalOpen(true);
@@ -1543,10 +1568,11 @@ function DeliveryPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Zákazník</TableHead>
-                        <TableHead className="hidden lg:table-cell">Adresa</TableHead>
-                        <TableHead>Cena</TableHead>
-                        <TableHead className="hidden md:table-cell">Akcia</TableHead>
+                        <TableHead className="text-center">Zákazník</TableHead>
+                        <TableHead className="hidden lg:table-cell text-center">Adresa</TableHead>
+                        <TableHead className="hidden lg:table-cell text-center">Kontakt</TableHead>
+                        <TableHead className="text-center">Cena</TableHead>
+                        <TableHead className="hidden md:table-cell text-center">Akcia</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1560,35 +1586,90 @@ function DeliveryPage() {
                               setDetailModalOpen(true);
                             }}
                           >
-                            <TableCell className="text-muted-foreground">
-                              <span className="truncate">{order.customerName}</span>
+                            {/* ZÁKAZNÍK */}
+                            <TableCell className="text-center text-muted-foreground">
+                              <span className="font-bold text-lg">{order.customerName}</span>
                             </TableCell>
-                            <TableCell className="hidden lg:table-cell text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+
+                            {/* ADRESA */}
+                            <TableCell className="hidden lg:table-cell text-center text-muted-foreground">
                               {order.customerAddress && (
-                                <div className="flex items-center gap-2">
-                                  <span className="truncate max-w-xs text-xs">{order.customerAddress}</span>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => openInGoogleMaps(order.customerAddress!)}
-                                    className="h-6 w-6 p-0"
-                                  >
-                                    <Navigation className="h-3 w-3" />
-                                  </Button>
-                                </div>
+                                <span className="text-sm">{order.customerAddress}</span>
                               )}
                             </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              <div className="text-right">
-                                <div className="text-xl font-bold text-green-600/60 dark:text-green-500/60">
-                                  {order.totalPrice.toFixed(2)} €
-                                </div>
-                                {(order.deliveryFee || 0) > 0 && (
-                                  <div className="text-xs text-muted-foreground mt-1">
-                                    (vrátane dopravy {(order.deliveryFee || 0).toFixed(2)} €)
+
+                            {/* KONTAKT */}
+                            <TableCell className="hidden lg:table-cell text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex flex-col items-center gap-2">
+                                {/* Telefón */}
+                                {order.customerPhone && (
+                                  <a
+                                    href={`tel:${order.customerPhone}`}
+                                    className="flex items-center gap-1 text-blue-600 hover:underline text-sm"
+                                  >
+                                    <Phone className="h-4 w-4" />
+                                    {order.customerPhone}
+                                  </a>
+                                )}
+
+                                {/* Swipe navigácia */}
+                                {order.customerAddress && (
+                                  <div
+                                    className="relative select-none cursor-grab active:cursor-grabbing"
+                                    onTouchStart={(e) => {
+                                      const startX = e.touches[0].clientX;
+                                      const handleTouchMove = (moveEvent: TouchEvent) => {
+                                        const deltaX = moveEvent.touches[0].clientX - startX;
+                                        if (Math.abs(deltaX) > 50) {
+                                          setNavigationMode(prev => ({
+                                            ...prev,
+                                            [order.id]: prev[order.id] === 'waze' ? 'maps' : 'waze'
+                                          }));
+                                          document.removeEventListener('touchmove', handleTouchMove);
+                                        }
+                                      };
+                                      document.addEventListener('touchmove', handleTouchMove);
+                                      document.addEventListener('touchend', () => {
+                                        document.removeEventListener('touchmove', handleTouchMove);
+                                      }, { once: true });
+                                    }}
+                                  >
+                                    {(navigationMode[order.id] || 'waze') === 'waze' ? (
+                                      <a
+                                        href={`https://waze.com/ul?q=${encodeURIComponent(order.customerAddress)}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-1 text-blue-600 hover:underline text-sm"
+                                      >
+                                        <Navigation className="h-4 w-4" />
+                                        Waze
+                                      </a>
+                                    ) : (
+                                      <a
+                                        href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(order.customerAddress)}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-1 text-green-600 hover:underline text-sm"
+                                      >
+                                        <Navigation className="h-4 w-4" />
+                                        Maps
+                                      </a>
+                                    )}
                                   </div>
                                 )}
                               </div>
+                            </TableCell>
+
+                            {/* CENA */}
+                            <TableCell className="text-center text-muted-foreground">
+                              <div className="text-xl font-bold text-green-600/60 dark:text-green-500/60">
+                                {order.totalPrice.toFixed(2)} €
+                              </div>
+                              {(order.deliveryFee || 0) > 0 && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  (vrátane dopravy {(order.deliveryFee || 0).toFixed(2)} €)
+                                </div>
+                              )}
                             </TableCell>
                             <TableCell className="hidden md:table-cell" onClick={(e) => e.stopPropagation()}>
                               <div className="flex flex-col gap-1">
