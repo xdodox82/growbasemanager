@@ -302,6 +302,28 @@ function DeliveryPage() {
   const [selectedOrderDetail, setSelectedOrderDetail] = useState<typeof orders[0] | null>(null);
   const [navigationMode, setNavigationMode] = useState<{[key: string]: 'waze' | 'maps'}>({});
 
+  const [navApp, setNavApp] = useState<'waze' | 'maps'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('preferred-nav-app') as 'waze' | 'maps') || 'waze';
+    }
+    return 'waze';
+  });
+
+  const handleNavToggle = () => {
+    const next = navApp === 'waze' ? 'maps' : 'waze';
+    localStorage.setItem('preferred-nav-app', next);
+    setNavApp(next);
+  };
+
+  const openNavigation = (address: string) => {
+    if (!address) return;
+    const encoded = encodeURIComponent(address);
+    const url = navApp === 'waze'
+      ? `https://waze.com/ul?q=${encoded}`
+      : `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+    window.open(url, '_blank');
+  };
+
   useEffect(() => {
     if (selectedDates.length > 0) {
       setSelectedDate(selectedDates[0]);
@@ -1490,7 +1512,112 @@ function DeliveryPage() {
                   collisionDetection={closestCenter}
                   onDragEnd={handleDragEnd}
                 >
-                  <div className="rounded-lg border border-border overflow-x-auto">
+                  {/* Mobile karty */}
+                  <div className="block md:hidden space-y-3 mb-4">
+                    {sortedPendingOrders.map(([key, item]) =>
+                      item.orders.map(order => (
+                        <div
+                          key={order.id}
+                          className="bg-white rounded-lg border p-4 cursor-pointer"
+                          onClick={() => {
+                            setSelectedOrderDetail(order);
+                            setDetailModalOpen(true);
+                          }}
+                        >
+                          {/* Riadok 1: Meno + Cena */}
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="font-bold text-base">{order.customerName}</span>
+                            <span className="text-green-600 font-bold text-lg">
+                              {order.totalPrice.toFixed(2)} €
+                            </span>
+                          </div>
+
+                          {/* Riadok 2: Adresa */}
+                          {order.customerAddress && (
+                            <div className="text-sm text-gray-600 mb-3">
+                              📍 {order.customerAddress}
+                            </div>
+                          )}
+
+                          {/* Riadok 3: Akčné tlačidlá */}
+                          <div className="flex items-center gap-2 pt-3 border-t">
+                            {/* Telefón */}
+                            {order.customerPhone && (
+                              <a
+                                href={`tel:${order.customerPhone}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100"
+                              >
+                                <Phone className="h-5 w-5 text-blue-600" />
+                              </a>
+                            )}
+
+                            {/* Navigácia */}
+                            {order.customerAddress && (
+                              <>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openNavigation(order.customerAddress);
+                                  }}
+                                  className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100"
+                                >
+                                  <Navigation className="h-5 w-5 text-blue-600" />
+                                </button>
+
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleNavToggle();
+                                  }}
+                                  className="text-xs text-gray-500 px-2 py-1 rounded bg-gray-100"
+                                >
+                                  {navApp === 'waze' ? 'Waze' : 'Maps'}
+                                </button>
+                              </>
+                            )}
+
+                            <div className="flex-1" />
+
+                            {/* Doručené */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                markOrderDelivered(order.id);
+                              }}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-700"
+                            >
+                              <CheckCircle2 className="h-4 w-4" />
+                              <span className="hidden sm:inline">Dor.</span>
+                            </button>
+
+                            {/* Zaplatené */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (order.isPaid) {
+                                  handleMarkAsUnpaid(order.id, order.notes);
+                                } else {
+                                  handleMarkAsPaid(order.id, order.notes);
+                                }
+                              }}
+                              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium ${
+                                order.isPaid
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-gray-100 text-gray-700'
+                              }`}
+                            >
+                              <CreditCard className="h-4 w-4" />
+                              <span className="hidden sm:inline">Zapl.</span>
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Desktop tabuľka */}
+                  <div className="hidden md:block rounded-lg border border-border overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -1564,7 +1691,115 @@ function DeliveryPage() {
                     </p>
                   </div>
                 </div>
-                <div className="rounded-lg border border-border overflow-x-auto">
+
+                {/* Mobile karty - Delivered */}
+                <div className="block md:hidden space-y-3">
+                  {sortedDeliveredOrders.map(([key, item]) =>
+                    item.orders.map(order => (
+                      <div
+                        key={order.id}
+                        className="bg-success/5 rounded-lg border border-success/20 p-4 cursor-pointer"
+                        onClick={() => {
+                          setSelectedOrderDetail(order);
+                          setDetailModalOpen(true);
+                        }}
+                      >
+                        {/* Riadok 1: Meno + Cena */}
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="font-bold text-base text-success">{order.customerName}</span>
+                          <span className="text-green-600/60 font-bold text-lg">
+                            {order.totalPrice.toFixed(2)} €
+                          </span>
+                        </div>
+
+                        {/* Riadok 2: Adresa */}
+                        {order.customerAddress && (
+                          <div className="text-sm text-muted-foreground mb-3">
+                            📍 {order.customerAddress}
+                          </div>
+                        )}
+
+                        {/* Riadok 3: Akčné tlačidlá */}
+                        <div className="flex items-center gap-2 pt-3 border-t border-success/20">
+                          {/* Telefón */}
+                          {order.customerPhone && (
+                            <a
+                              href={`tel:${order.customerPhone}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100"
+                            >
+                              <Phone className="h-5 w-5 text-blue-600" />
+                            </a>
+                          )}
+
+                          {/* Navigácia */}
+                          {order.customerAddress && (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openNavigation(order.customerAddress);
+                                }}
+                                className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100"
+                              >
+                                <Navigation className="h-5 w-5 text-blue-600" />
+                              </button>
+
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleNavToggle();
+                                }}
+                                className="text-xs text-gray-500 px-2 py-1 rounded bg-gray-100"
+                              >
+                                {navApp === 'waze' ? 'Waze' : 'Maps'}
+                              </button>
+                            </>
+                          )}
+
+                          <div className="flex-1" />
+
+                          {/* Späť */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              returnToReady(order.id);
+                            }}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-700"
+                          >
+                            <Undo2 className="h-4 w-4" />
+                            <span className="hidden sm:inline">Späť</span>
+                          </button>
+
+                          {/* Zaplatené */}
+                          {order.paymentMethod !== 'invoice' && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (order.isPaid) {
+                                  handleMarkAsUnpaid(order.id, order.notes);
+                                } else {
+                                  handleMarkAsPaid(order.id, order.notes);
+                                }
+                              }}
+                              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium ${
+                                order.isPaid
+                                  ? 'bg-success text-white'
+                                  : 'bg-gray-100 text-gray-700'
+                              }`}
+                            >
+                              <CreditCard className="h-4 w-4" />
+                              <span className="hidden sm:inline">Zapl.</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Desktop tabuľka - Delivered */}
+                <div className="hidden md:block rounded-lg border border-border overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
