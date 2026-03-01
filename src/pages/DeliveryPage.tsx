@@ -1753,11 +1753,16 @@ function DeliveryPage() {
               <div className="border-t pt-4">
                 <h3 className="font-semibold text-base mb-3">Položky objednávky:</h3>
                 <div className="space-y-2">
-                  {selectedOrderDetail.itemsDetail.map((item, idx) => (
+                  {selectedOrderDetail.itemsDetail
+                    .sort((a, b) => {
+                      // Sort by price descending (most expensive first)
+                      return b.price - a.price;
+                    })
+                    .map((item, idx) => (
                     <div key={idx} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                       <div className="flex-1">
                         <div className="font-medium text-gray-900">
-                          {item.quantity}x {item.size} {item.name}
+                          {item.quantity} × {item.size} g {item.name}
                         </div>
                       </div>
                       <div className="text-right">
