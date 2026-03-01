@@ -301,17 +301,12 @@ function DeliveryPage() {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedOrderDetail, setSelectedOrderDetail] = useState<typeof orders[0] | null>(null);
   const [navigationMode, setNavigationMode] = useState<{[key: string]: 'waze' | 'maps'}>({});
+  const [financialReportOpen, setFinancialReportOpen] = useState(false);
 
-  const [navApp, setNavApp] = useState<'waze' | 'maps'>(() => {
-    if (typeof window !== 'undefined') {
-      return (localStorage.getItem('preferred-nav-app') as 'waze' | 'maps') || 'waze';
-    }
-    return 'waze';
-  });
+  const [navApp, setNavApp] = useState<'waze' | 'maps'>('waze');
 
   const handleNavToggle = () => {
     const next = navApp === 'waze' ? 'maps' : 'waze';
-    localStorage.setItem('preferred-nav-app', next);
     setNavApp(next);
   };
 
@@ -531,6 +526,107 @@ function DeliveryPage() {
         description: 'Označenie platby bolo odstránené.'
       });
     }
+  };
+
+  // Financial report calculations
+  const calculateItemsTotal = () => {
+    return pendingOrders.reduce((sum, order) => {
+      const customer = customers?.find(c => c.id === order.customer_id);
+      const orderTotal = calculateOrderTotal(order, customer?.customer_type || null);
+      return sum + orderTotal;
+    }, 0);
+  };
+
+  const calculateDeliveryTotal = () => {
+    return pendingOrders.reduce((sum, order) => {
+      const customer = customers?.find(c => c.id === order.customer_id);
+      const route = routes?.find(r => r.id === customer?.delivery_route_id);
+      const orderTotal = calculateOrderTotal(order, customer?.customer_type || null);
+      const deliveryFee = calculateDeliveryFee(orderTotal, customer, route, customer?.customer_type || null, (order as any).charge_delivery);
+      return sum + deliveryFee;
+    }, 0);
+  };
+
+  const calculateGrandTotal = () => {
+    return calculateItemsTotal() + calculateDeliveryTotal();
+  };
+
+  const calculatePaid = () => {
+    return pendingOrders
+      .filter(o => o.payment_status === 'paid')
+      .reduce((sum, order) => {
+        const customer = customers?.find(c => c.id === order.customer_id);
+        const orderTotal = calculateOrderTotal(order, customer?.customer_type || null);
+        const route = routes?.find(r => r.id === customer?.delivery_route_id);
+        const deliveryFee = calculateDeliveryFee(orderTotal, customer, route, customer?.customer_type || null, (order as any).charge_delivery);
+        return sum + orderTotal + deliveryFee;
+      }, 0);
+  };
+
+  const calculateUnpaid = () => {
+    return calculateGrandTotal() - calculatePaid();
+  };
+
+  const calculateTotalRemaining = () => {
+    return calculateUnpaid();
+  };
+
+  const calculateHouseholds = () => {
+    return pendingOrders
+      .filter(o => {
+        const customer = customers?.find(c => c.id === o.customer_id);
+        return customer?.customer_type === 'home';
+      })
+      .reduce((sum, order) => {
+        const customer = customers?.find(c => c.id === order.customer_id);
+        const orderTotal = calculateOrderTotal(order, customer?.customer_type || null);
+        const route = routes?.find(r => r.id === customer?.delivery_route_id);
+        const deliveryFee = calculateDeliveryFee(orderTotal, customer, route, customer?.customer_type || null, (order as any).charge_delivery);
+        return sum + orderTotal + deliveryFee;
+      }, 0);
+  };
+
+  const calculateGastro = () => {
+    return pendingOrders
+      .filter(o => {
+        const customer = customers?.find(c => c.id === o.customer_id);
+        return customer?.customer_type === 'gastro' || customer?.customer_type === 'wholesale';
+      })
+      .reduce((sum, order) => {
+        const customer = customers?.find(c => c.id === order.customer_id);
+        const orderTotal = calculateOrderTotal(order, customer?.customer_type || null);
+        const route = routes?.find(r => r.id === customer?.delivery_route_id);
+        const deliveryFee = calculateDeliveryFee(orderTotal, customer, route, customer?.customer_type || null, (order as any).charge_delivery);
+        return sum + orderTotal + deliveryFee;
+      }, 0);
+  };
+
+  const getGastroCustomers = () => {
+    const gastro = pendingOrders.filter(o => {
+      const customer = customers?.find(c => c.id === o.customer_id);
+      return customer?.customer_type === 'gastro' || customer?.customer_type === 'wholesale';
+    });
+
+    const grouped = gastro.reduce((acc, order) => {
+      const customer = customers?.find(c => c.id === order.customer_id);
+      if (!customer) return acc;
+
+      if (!acc[customer.id]) {
+        acc[customer.id] = {
+          id: customer.id,
+          name: customer.name,
+          total: 0
+        };
+      }
+
+      const orderTotal = calculateOrderTotal(order, customer.customer_type || null);
+      const route = routes?.find(r => r.id === customer.delivery_route_id);
+      const deliveryFee = calculateDeliveryFee(orderTotal, customer, route, customer.customer_type || null, (order as any).charge_delivery);
+      acc[customer.id].total += orderTotal + deliveryFee;
+      return acc;
+    }, {} as Record<string, { id: string; name: string; total: number }>);
+
+    return Object.values(grouped);
   };
 
   const getOrderItemsDetail = (orderId: string, customerType?: string | null) => {
@@ -1378,83 +1474,6 @@ function DeliveryPage() {
         </div>
       )}
 
-      {/* Customer Type Breakdown */}
-      {(deliveryTotals.home > 0 || deliveryTotals.gastro > 0 || deliveryTotals.wholesale > 0) && (
-        <Card className="p-4 mb-6">
-          <p className="text-sm font-medium mb-3">Rozdelenie podľa typu zákazníka</p>
-          <div className="flex flex-wrap gap-3">
-            {deliveryTotals.home > 0 && (
-              <div className="flex items-center justify-between p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex-1 min-w-[150px]">
-                <div className="flex items-center gap-2">
-                  <Home className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                  <span className="text-sm font-medium">Domáci</span>
-                </div>
-                <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{formatPrice(deliveryTotals.home)} €</span>
-              </div>
-            )}
-            {deliveryTotals.gastro > 0 && (
-              <div className="flex items-center justify-between p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 flex-1 min-w-[150px]">
-                <div className="flex items-center gap-2">
-                  <UtensilsCrossed className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-                  <span className="text-sm font-medium">Gastro</span>
-                </div>
-                <span className="text-sm font-bold text-orange-600 dark:text-orange-400">{formatPrice(deliveryTotals.gastro)} €</span>
-              </div>
-            )}
-            {deliveryTotals.wholesale > 0 && (
-              <div className="flex items-center justify-between p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 flex-1 min-w-[150px]">
-                <div className="flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                  <span className="text-sm font-medium">Veľkoobchod</span>
-                </div>
-                <span className="text-sm font-bold text-purple-600 dark:text-purple-400">{formatPrice(deliveryTotals.wholesale)} €</span>
-              </div>
-            )}
-          </div>
-        </Card>
-      )}
-
-      {/* Per-customer totals for gastro/wholesale */}
-      {Object.keys(deliveryTotals.byCustomer).length > 0 && (
-        <Card className="p-4 mb-6">
-          <p className="text-sm font-medium mb-3">Sumy podľa zákazníkov (Gastro/Veľkoobchod)</p>
-          <div className="flex flex-wrap gap-2">
-            {Object.entries(deliveryTotals.byCustomer).map(([id, data]) => (
-              <div
-                key={id}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2 rounded-lg",
-                  data.type === 'gastro' && "bg-orange-50 dark:bg-orange-900/20",
-                  data.type === 'wholesale' && "bg-purple-50 dark:bg-purple-900/20"
-                )}
-              >
-                {data.type === 'gastro' ? (
-                  <UtensilsCrossed className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-                ) : (
-                  <Building2 className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                )}
-                <span className="text-sm font-medium">{data.name}</span>
-                <Badge
-                  variant="secondary"
-                  className={cn(
-                    data.type === 'gastro' && "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
-                    data.type === 'wholesale' && "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
-                  )}
-                >
-                  {formatPrice(data.total)} €
-                </Badge>
-                {data.isPaid && (
-                  <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
-                    <CheckCircle2 className="h-3 w-3 mr-1" />
-                    Zaplatené
-                  </Badge>
-                )}
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-
       <div className="space-y-6">
         {/* Summary Card */}
         <Card className="p-4 md:p-6">
@@ -1560,7 +1579,21 @@ function DeliveryPage() {
                                     e.stopPropagation();
                                     openNavigation(order.customerAddress);
                                   }}
-                                  className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100"
+                                  onTouchStart={(e) => {
+                                    const startX = e.touches[0].clientX;
+                                    const handleTouchMove = (moveEvent: TouchEvent) => {
+                                      const deltaX = moveEvent.touches[0].clientX - startX;
+                                      if (Math.abs(deltaX) > 30) {
+                                        handleNavToggle();
+                                        document.removeEventListener('touchmove', handleTouchMove);
+                                      }
+                                    };
+                                    document.addEventListener('touchmove', handleTouchMove);
+                                    document.addEventListener('touchend', () => {
+                                      document.removeEventListener('touchmove', handleTouchMove);
+                                    }, { once: true });
+                                  }}
+                                  className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 active:bg-blue-200 select-none"
                                 >
                                   <Navigation className="h-5 w-5 text-blue-600" />
                                 </button>
@@ -1740,7 +1773,21 @@ function DeliveryPage() {
                                   e.stopPropagation();
                                   openNavigation(order.customerAddress);
                                 }}
-                                className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100"
+                                onTouchStart={(e) => {
+                                  const startX = e.touches[0].clientX;
+                                  const handleTouchMove = (moveEvent: TouchEvent) => {
+                                    const deltaX = moveEvent.touches[0].clientX - startX;
+                                    if (Math.abs(deltaX) > 30) {
+                                      handleNavToggle();
+                                      document.removeEventListener('touchmove', handleTouchMove);
+                                    }
+                                  };
+                                  document.addEventListener('touchmove', handleTouchMove);
+                                  document.addEventListener('touchend', () => {
+                                    document.removeEventListener('touchmove', handleTouchMove);
+                                  }, { once: true });
+                                }}
+                                className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 active:bg-blue-200 select-none"
                               >
                                 <Navigation className="h-5 w-5 text-blue-600" />
                               </button>
@@ -1955,60 +2002,6 @@ function DeliveryPage() {
             )}
           </>
         )}
-
-        {/* Finančné zúčtovanie */}
-        {(filteredPendingOrders.length > 0 || filteredDeliveredOrders.length > 0) && (
-          <Card className="mt-6 p-6 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/20 dark:to-blue-950/20 border-2 border-green-200 dark:border-green-800">
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Euro className="h-5 w-5" />
-              Finančné zúčtovanie rozvozu
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Celková suma za tovar</p>
-                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                  {deliveryTotals.totalProducts.toFixed(2)} €
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Celková suma za dopravu</p>
-                <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                  {deliveryTotals.totalDelivery.toFixed(2)} €
-                </p>
-              </div>
-              <div className="space-y-1 md:text-right">
-                <p className="text-sm font-semibold text-muted-foreground">CELKOM NA VYBRATIE</p>
-                <p className="text-3xl font-bold text-green-600 dark:text-green-400">
-                  {deliveryTotals.total.toFixed(2)} €
-                </p>
-              </div>
-            </div>
-            <div className="mt-4 pt-4 border-t border-green-200 dark:border-green-800 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-              <div>
-                <p className="text-muted-foreground">Zaplatené</p>
-                <p className="font-semibold text-green-600 dark:text-green-400">
-                  {deliveryTotals.paid.toFixed(2)} €
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Nezaplatené</p>
-                <p className="font-semibold text-orange-600 dark:text-orange-400">
-                  {deliveryTotals.unpaid.toFixed(2)} €
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Domácnosti</p>
-                <p className="font-semibold">{deliveryTotals.home.toFixed(2)} €</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Gastro/Veľkoobchod</p>
-                <p className="font-semibold">
-                  {(deliveryTotals.gastro + deliveryTotals.wholesale).toFixed(2)} €
-                </p>
-              </div>
-            </div>
-          </Card>
-        )}
       </div>
         </TabsContent>
 
@@ -2134,6 +2127,103 @@ function DeliveryPage() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Floating finančný report button */}
+      {pendingOrders.length > 0 && (
+        <button
+          onClick={() => setFinancialReportOpen(true)}
+          className="fixed bottom-24 right-4 z-50 bg-green-600 text-white rounded-full shadow-lg flex items-center gap-2 px-4 py-3 hover:bg-green-700"
+        >
+          <Euro className="h-5 w-5" />
+          <span className="font-bold">
+            {calculateTotalRemaining().toFixed(2)} €
+          </span>
+        </button>
+      )}
+
+      {/* Finančný report dialog */}
+      <Dialog open={financialReportOpen} onOpenChange={setFinancialReportOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              💰 Finančné zúčtovanie rozvozu
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Hlavné súčty */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-blue-50 rounded-lg p-3 text-center">
+                <div className="text-xs text-gray-600">Tovar</div>
+                <div className="text-lg font-bold text-blue-600">
+                  {calculateItemsTotal().toFixed(2)} €
+                </div>
+              </div>
+              <div className="bg-orange-50 rounded-lg p-3 text-center">
+                <div className="text-xs text-gray-600">Doprava</div>
+                <div className="text-lg font-bold text-orange-600">
+                  {calculateDeliveryTotal().toFixed(2)} €
+                </div>
+              </div>
+              <div className="bg-green-50 rounded-lg p-3 text-center">
+                <div className="text-xs text-gray-600">Celkom</div>
+                <div className="text-lg font-bold text-green-600">
+                  {calculateGrandTotal().toFixed(2)} €
+                </div>
+              </div>
+            </div>
+
+            {/* Platby */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-green-50 rounded-lg p-3">
+                <div className="text-xs text-gray-600">✅ Zaplatené</div>
+                <div className="text-base font-bold text-green-600">
+                  {calculatePaid().toFixed(2)} €
+                </div>
+              </div>
+              <div className="bg-red-50 rounded-lg p-3">
+                <div className="text-xs text-gray-600">⏳ Nezaplatené</div>
+                <div className="text-base font-bold text-red-600">
+                  {calculateUnpaid().toFixed(2)} €
+                </div>
+              </div>
+            </div>
+
+            {/* Podľa typu */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-gray-50 rounded-lg p-3">
+                <div className="text-xs text-gray-600">🏠 Domácnosti</div>
+                <div className="text-base font-bold">
+                  {calculateHouseholds().toFixed(2)} €
+                </div>
+              </div>
+              <div className="bg-orange-50 rounded-lg p-3">
+                <div className="text-xs text-gray-600">🍴 Gastro/VO</div>
+                <div className="text-base font-bold text-orange-600">
+                  {calculateGastro().toFixed(2)} €
+                </div>
+              </div>
+            </div>
+
+            {/* Gastro zákazníci detail */}
+            {getGastroCustomers().length > 0 && (
+              <div>
+                <div className="text-sm font-medium text-gray-700 mb-2">
+                  Gastro/VO zákazníci:
+                </div>
+                <div className="space-y-1">
+                  {getGastroCustomers().map(c => (
+                    <div key={c.id} className="flex justify-between text-sm py-1 border-b">
+                      <span>{c.name}</span>
+                      <span className="font-medium">{c.total.toFixed(2)} €</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </MainLayout>
