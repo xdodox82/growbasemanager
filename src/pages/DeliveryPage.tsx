@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { useOrders, useCustomers, useCrops, useBlends, useOrderItems, useDeliveryRoutes } from '@/hooks/useSupabaseData';
 import { usePrices, useVatSettings } from '@/hooks/usePrices';
 import { useDeliveryDays } from '@/hooks/useDeliveryDays';
-import { Truck, FileSpreadsheet, FileText, CheckCircle2, CalendarIcon, Filter, Undo2, Navigation, CreditCard, Euro, Home, UtensilsCrossed, Building2, Settings, GripVertical, Phone, ChevronLeft, ChevronRight, Package } from 'lucide-react';
+import { Truck, FileSpreadsheet, FileText, CheckCircle2, CalendarIcon, Filter, Undo2, Navigation, CreditCard, Euro, Home, Utensils, Store, Building2, Settings, GripVertical, Phone, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -1386,10 +1386,10 @@ function DeliveryPage() {
         </div>
 
         <TabsContent value="delivery" className="space-y-6">
-      {/* DESKTOP Filter - rovnaký dizajn ako HarvestPackingPage */}
+      {/* DESKTOP Filter - rovnaké šírky, centrované labely */}
       <div className="hidden md:block space-y-3 p-4 bg-white border-b mb-6">
 
-        {/* Typ zákazníka - ROV button style ako HarvestPackingPage */}
+        {/* Typ zákazníka - presné ikony z HarvestPackingPage */}
         <div className="flex gap-2">
           <button
             onClick={() => setSelectedCustomerType('all')}
@@ -1420,7 +1420,7 @@ function DeliveryPage() {
                 : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
             }`}
           >
-            <UtensilsCrossed className="h-4 w-4 shrink-0" />
+            <Utensils className="h-4 w-4 shrink-0" />
             Gastro
           </button>
           <button
@@ -1431,20 +1431,22 @@ function DeliveryPage() {
                 : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
             }`}
           >
-            <Package className="h-4 w-4 shrink-0" />
+            <Store className="h-4 w-4 shrink-0" />
             VO
           </button>
         </div>
 
-        {/* Polia s labelmi — rovnaký štýl ako HarvestPackingPage */}
+        {/* Polia s labelmi - VŠETKY flex-1, centrované labely */}
         <div className="flex gap-3 items-end">
 
-          {/* Dátum rozvozu */}
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">Dátum rozvozu</label>
+          {/* Dátum rozvozu - flex-1 */}
+          <div className="flex flex-col gap-1 flex-1">
+            <label className="text-sm font-medium text-gray-700 text-center">
+              Dátum rozvozu
+            </label>
             <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
               <PopoverTrigger asChild>
-                <button className="flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white hover:bg-gray-50 min-w-[140px]">
+                <button className="flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white hover:bg-gray-50 w-full">
                   <CalendarIcon className="h-4 w-4 text-gray-500 shrink-0" />
                   <span>
                     {selectedDates.length === 1
@@ -1459,9 +1461,11 @@ function DeliveryPage() {
             </Popover>
           </div>
 
-          {/* Zákazník */}
+          {/* Zákazník - flex-1 */}
           <div className="flex flex-col gap-1 flex-1">
-            <label className="text-sm font-medium text-gray-700">Zákazník</label>
+            <label className="text-sm font-medium text-gray-700 text-center">
+              Zákazník
+            </label>
             <SearchableCustomerSelect
               customers={customers}
               value={customerFilter}
@@ -1469,14 +1473,17 @@ function DeliveryPage() {
               placeholder="Všetci zákazníci"
               filterByType={selectedCustomerType}
               allowAll={true}
+              className="w-full"
             />
           </div>
 
-          {/* Rozvozová trasa */}
+          {/* Rozvozová trasa - flex-1 */}
           <div className="flex flex-col gap-1 flex-1">
-            <label className="text-sm font-medium text-gray-700">Rozvozová trasa</label>
+            <label className="text-sm font-medium text-gray-700 text-center">
+              Rozvozová trasa
+            </label>
             <Select value={routeFilter} onValueChange={setRouteFilter}>
-              <SelectTrigger className="text-sm border-gray-300">
+              <SelectTrigger className="text-sm border-gray-300 w-full">
                 <Navigation className="h-4 w-4 text-gray-500 mr-2 shrink-0" />
                 <SelectValue placeholder="Všetky trasy" />
               </SelectTrigger>
@@ -1491,10 +1498,12 @@ function DeliveryPage() {
             </Select>
           </div>
 
-          {/* Zobraziť doručené */}
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">Zobraziť doručené</label>
-            <div className="flex items-center h-10 px-1">
+          {/* Zobraziť doručené - flex-1 */}
+          <div className="flex flex-col gap-1 flex-1">
+            <label className="text-sm font-medium text-gray-700 text-center">
+              Zobraziť doručené
+            </label>
+            <div className="flex items-center justify-center border border-gray-300 rounded-lg py-2 bg-white h-10">
               <Switch
                 checked={showArchive}
                 onCheckedChange={setShowArchive}
