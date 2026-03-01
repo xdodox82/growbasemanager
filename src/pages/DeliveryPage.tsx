@@ -319,6 +319,9 @@ function DeliveryPage() {
   };
 
   // Get orders for delivery on the selected date
+  console.log('📅 DeliveryPage - Selected dates:', selectedDates);
+  console.log('📦 DeliveryPage - All orders:', orders.length);
+
   let ordersForDate = orders.filter(order => {
     if (!order.delivery_date) return false;
     if (!isSameDay(startOfDay(new Date(order.delivery_date)), startOfDay(selectedDate))) return false;
@@ -627,6 +630,7 @@ function DeliveryPage() {
 
   // Apply filters to pending and delivered orders
   const filteredPendingOrders = useMemo(() => {
+    console.log('🔍 DeliveryPage - Pending orders:', sortedPendingOrders.length);
     return sortedPendingOrders
       .map(([key, group]) => {
         let filteredOrders = group.orders;
