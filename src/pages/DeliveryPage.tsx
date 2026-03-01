@@ -116,22 +116,6 @@ function SortableOrderRow({
       )}
       onClick={() => onOrderClick(order)}
     >
-      <TableCell onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-2">
-          <button
-            className="cursor-grab active:cursor-grabbing touch-none"
-            {...attributes}
-            {...listeners}
-          >
-            <GripVertical className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-          </button>
-          <Checkbox
-            checked={selectedOrderIds.has(order.id)}
-            onCheckedChange={() => toggleOrderSelection(order.id)}
-          />
-        </div>
-      </TableCell>
-
       {/* ZÁKAZNÍK - tučný, väčší */}
       <TableCell className="text-center">
         <div className="flex flex-col gap-1">
@@ -1729,18 +1713,6 @@ function DeliveryPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-12">
-                            <Checkbox
-                              checked={selectedOrderIds.size === pendingOrders.length && pendingOrders.length > 0}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setSelectedOrderIds(new Set(pendingOrders.map(o => o.id)));
-                                } else {
-                                  setSelectedOrderIds(new Set());
-                                }
-                              }}
-                            />
-                          </TableHead>
                           <TableHead className="text-center">Zákazník</TableHead>
                           <TableHead className="hidden lg:table-cell text-center">Adresa</TableHead>
                           <TableHead className="hidden lg:table-cell text-center">Kontakt</TableHead>
