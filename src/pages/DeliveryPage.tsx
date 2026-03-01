@@ -275,7 +275,7 @@ function SortableOrderRow({
 }
 
 function DeliveryPage() {
-  const { data: orders, update: updateOrder, loading: ordersLoading } = useOrders();
+  const { data: orders, update: updateOrder, refetch: refetchOrders, loading: ordersLoading } = useOrders();
   const { data: customers, loading: customersLoading } = useCustomers();
   const { data: crops, loading: cropsLoading } = useCrops();
   const { data: blends, loading: blendsLoading } = useBlends();
@@ -525,6 +525,11 @@ function DeliveryPage() {
         description: 'Objednávka bola označená ako zaplatená.'
       });
       console.log('  Should refetch orders now!');
+
+      // Refetch orders from DB
+      console.log('  🔄 Calling refetchOrders...');
+      await refetchOrders();
+      console.log('  ✅ Refetch complete!');
     } else {
       console.error('  ERROR:', error);
     }
@@ -551,6 +556,11 @@ function DeliveryPage() {
         description: 'Označenie platby bolo odstránené.'
       });
       console.log('  Should refetch orders now!');
+
+      // Refetch orders from DB
+      console.log('  🔄 Calling refetchOrders...');
+      await refetchOrders();
+      console.log('  ✅ Refetch complete!');
     } else {
       console.error('  ERROR:', error);
     }
