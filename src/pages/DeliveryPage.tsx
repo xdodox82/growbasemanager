@@ -294,7 +294,6 @@ function DeliveryPage() {
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [customerFilter, setCustomerFilter] = useState<string>('all');
   const [selectedCustomerType, setSelectedCustomerType] = useState<string>('all');
-  const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [routeFilter, setRouteFilter] = useState<string>('all');
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [showArchive, setShowArchive] = useState(true);
@@ -847,16 +846,10 @@ function DeliveryPage() {
           filteredOrders = filteredOrders.filter(o => o.customerType === selectedCustomerType);
         }
 
-        if (paymentFilter === 'paid') {
-          filteredOrders = filteredOrders.filter(o => o.isPaid);
-        } else if (paymentFilter === 'unpaid') {
-          filteredOrders = filteredOrders.filter(o => !o.isPaid);
-        }
-
         return [key, { ...group, orders: filteredOrders }] as [string, typeof group];
       })
       .filter(([_, group]) => group.orders.length > 0);
-  }, [sortedPendingOrders, selectedCustomerType, paymentFilter]);
+  }, [sortedPendingOrders, selectedCustomerType]);
 
   const filteredDeliveredOrders = useMemo(() => {
     return sortedDeliveredOrders
@@ -867,16 +860,10 @@ function DeliveryPage() {
           filteredOrders = filteredOrders.filter(o => o.customerType === selectedCustomerType);
         }
 
-        if (paymentFilter === 'paid') {
-          filteredOrders = filteredOrders.filter(o => o.isPaid);
-        } else if (paymentFilter === 'unpaid') {
-          filteredOrders = filteredOrders.filter(o => !o.isPaid);
-        }
-
         return [key, { ...group, orders: filteredOrders }] as [string, typeof group];
       })
       .filter(([_, group]) => group.orders.length > 0);
-  }, [sortedDeliveredOrders, selectedCustomerType, paymentFilter]);
+  }, [sortedDeliveredOrders, selectedCustomerType]);
 
   // Calculate delivery totals
   const deliveryTotals = useMemo(() => {
@@ -1399,10 +1386,11 @@ function DeliveryPage() {
 
         <TabsContent value="delivery" className="space-y-6">
       {/* Filters */}
-      <Card className="p-4">
-        <div className="flex flex-col sm:flex-row gap-4">
-          {/* Multi-select kalendár */}
-          <div className="flex-1">
+      <Card className="p-6">
+        {/* Riadok 1: Dátum + Toggle Doručené */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          {/* Dátum rozvozu - multi-select calendar */}
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
               Dátum rozvozu
             </label>
@@ -1411,7 +1399,7 @@ function DeliveryPage() {
                 <Button variant="outline" className="w-full justify-start">
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {selectedDates.length === 1
-                    ? format(selectedDates[0], 'dd.MM.yyyy', { locale: sk })
+                    ? format(selectedDates[0], 'd. MMMM yyyy', { locale: sk })
                     : `${selectedDates.length} dní`
                   }
                 </Button>
@@ -1422,8 +1410,34 @@ function DeliveryPage() {
             </Popover>
           </div>
 
-          {/* Filter zákazníka */}
-          <div className="flex-1">
+          {/* Toggle Zobraziť doručené */}
+          <div className="flex items-end">
+            <Button
+              variant={showArchive ? 'default' : 'outline'}
+              onClick={() => setShowArchive(!showArchive)}
+              className="w-full"
+            >
+              {showArchive ? '✓' : '○'} Zobraziť doručené
+            </Button>
+          </div>
+        </div>
+
+        {/* Riadok 2: Všetci / Domáci / Gastro / VO */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
+            Typ zákazníka
+          </label>
+          <CustomerTypeFilter
+            value={selectedCustomerType}
+            onChange={setSelectedCustomerType}
+            showLabel={false}
+          />
+        </div>
+
+        {/* Riadok 3: Zákazník + Rozvozová trasa vedľa seba */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Zákazník dropdown */}
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
               Zákazník
             </label>
@@ -1437,35 +1451,8 @@ function DeliveryPage() {
             />
           </div>
 
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
-              &nbsp;
-            </label>
-            <CustomerTypeFilter
-              value={selectedCustomerType}
-              onChange={setSelectedCustomerType}
-              showLabel={false}
-            />
-          </div>
-
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
-              Stav platby
-            </label>
-            <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-              <SelectTrigger className="w-full">
-                <CreditCard className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Stav platby" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Všetky</SelectItem>
-                <SelectItem value="paid">Zaplatené</SelectItem>
-                <SelectItem value="unpaid">Nezaplatené</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex-1">
+          {/* Rozvozová trasa dropdown */}
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
               Rozvozová trasa
             </label>
@@ -1483,19 +1470,6 @@ function DeliveryPage() {
                 ))}
               </SelectContent>
             </Select>
-          </div>
-
-          <div className="flex-1 flex items-end">
-            <div className="flex items-center gap-2">
-              <Switch
-                id="delivery-archive-toggle"
-                checked={showArchive}
-                onCheckedChange={setShowArchive}
-              />
-              <Label htmlFor="delivery-archive-toggle" className="text-sm font-medium cursor-pointer">
-                Zobraziť doručené
-              </Label>
-            </div>
           </div>
         </div>
       </Card>
