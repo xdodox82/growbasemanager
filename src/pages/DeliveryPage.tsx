@@ -1386,122 +1386,123 @@ function DeliveryPage() {
         </div>
 
         <TabsContent value="delivery" className="space-y-6">
-      {/* DESKTOP Filter - kompaktný 1-riadkový */}
-      <div className="hidden md:flex items-center gap-2 p-3 bg-white border-b mb-6">
+      {/* DESKTOP Filter - rovnaký dizajn ako HarvestPackingPage */}
+      <div className="hidden md:block space-y-3 p-4 bg-white border-b mb-6">
 
-        {/* Dátum rozvozu - väčší, rovnaká výška */}
-        <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-          <PopoverTrigger asChild>
-            <button className="flex items-center gap-2 border rounded-lg px-4 py-1.5 h-9 text-sm hover:bg-gray-50 min-w-[110px]">
-              <CalendarIcon className="h-4 w-4 text-gray-500 shrink-0" />
-              <span>
-                {selectedDates.length === 1
-                  ? format(selectedDates[0], 'd. MMM', { locale: sk })
-                  : `${selectedDates.length} dní`}
-              </span>
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <CalendarGrid />
-          </PopoverContent>
-        </Popover>
-
-        {/* Typ zákazníka - s ikonami, rovnaká výška h-9 */}
-        <div className="flex border rounded-lg overflow-hidden h-9">
-          {/* Všetci */}
+        {/* Typ zákazníka - ROV button style ako HarvestPackingPage */}
+        <div className="flex gap-2">
           <button
             onClick={() => setSelectedCustomerType('all')}
-            className={cn(
-              "flex items-center gap-1.5 px-3 text-sm font-medium transition-colors",
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               selectedCustomerType === 'all'
                 ? 'bg-green-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            )}
+                : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+            }`}
           >
             Všetci
           </button>
-
-          {/* Domáci */}
           <button
             onClick={() => setSelectedCustomerType('home')}
-            className={cn(
-              "flex items-center gap-1.5 px-3 text-sm font-medium border-l transition-colors",
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               selectedCustomerType === 'home'
                 ? 'bg-green-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            )}
+                : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+            }`}
           >
-            <Home className="h-3.5 w-3.5 shrink-0" />
+            <Home className="h-4 w-4 shrink-0" />
             Domáci
           </button>
-
-          {/* Gastro */}
           <button
             onClick={() => setSelectedCustomerType('gastro')}
-            className={cn(
-              "flex items-center gap-1.5 px-3 text-sm font-medium border-l transition-colors",
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               selectedCustomerType === 'gastro'
                 ? 'bg-green-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            )}
+                : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+            }`}
           >
-            <UtensilsCrossed className="h-3.5 w-3.5 shrink-0" />
+            <UtensilsCrossed className="h-4 w-4 shrink-0" />
             Gastro
           </button>
-
-          {/* VO */}
           <button
             onClick={() => setSelectedCustomerType('wholesale')}
-            className={cn(
-              "flex items-center gap-1.5 px-3 text-sm font-medium border-l transition-colors",
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               selectedCustomerType === 'wholesale'
                 ? 'bg-green-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            )}
+                : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+            }`}
           >
-            <Package className="h-3.5 w-3.5 shrink-0" />
+            <Package className="h-4 w-4 shrink-0" />
             VO
           </button>
         </div>
 
-        {/* Zákazník dropdown - rovnaká výška */}
-        <div className="h-9 flex items-center w-52">
-          <SearchableCustomerSelect
-            customers={customers}
-            value={customerFilter}
-            onValueChange={setCustomerFilter}
-            placeholder="Všetci zákazníci"
-            filterByType={selectedCustomerType}
-            allowAll={true}
-            className="text-sm w-full"
-          />
+        {/* Polia s labelmi — rovnaký štýl ako HarvestPackingPage */}
+        <div className="flex gap-3 items-end">
+
+          {/* Dátum rozvozu */}
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700">Dátum rozvozu</label>
+            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+              <PopoverTrigger asChild>
+                <button className="flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white hover:bg-gray-50 min-w-[140px]">
+                  <CalendarIcon className="h-4 w-4 text-gray-500 shrink-0" />
+                  <span>
+                    {selectedDates.length === 1
+                      ? format(selectedDates[0], 'd. MMM', { locale: sk })
+                      : `${selectedDates.length} dní`}
+                  </span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarGrid />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Zákazník */}
+          <div className="flex flex-col gap-1 flex-1">
+            <label className="text-sm font-medium text-gray-700">Zákazník</label>
+            <SearchableCustomerSelect
+              customers={customers}
+              value={customerFilter}
+              onValueChange={setCustomerFilter}
+              placeholder="Všetci zákazníci"
+              filterByType={selectedCustomerType}
+              allowAll={true}
+            />
+          </div>
+
+          {/* Rozvozová trasa */}
+          <div className="flex flex-col gap-1 flex-1">
+            <label className="text-sm font-medium text-gray-700">Rozvozová trasa</label>
+            <Select value={routeFilter} onValueChange={setRouteFilter}>
+              <SelectTrigger className="text-sm border-gray-300">
+                <Navigation className="h-4 w-4 text-gray-500 mr-2 shrink-0" />
+                <SelectValue placeholder="Všetky trasy" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Všetky trasy</SelectItem>
+                {routes.map((route) => (
+                  <SelectItem key={route.id} value={route.id}>
+                    {route.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Zobraziť doručené */}
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700">Zobraziť doručené</label>
+            <div className="flex items-center h-10 px-1">
+              <Switch
+                checked={showArchive}
+                onCheckedChange={setShowArchive}
+              />
+            </div>
+          </div>
+
         </div>
-
-        {/* Rozvozová trasa - rovnaká výška */}
-        <Select value={routeFilter} onValueChange={setRouteFilter}>
-          <SelectTrigger className="h-9 text-sm w-44">
-            <Navigation className="h-3.5 w-3.5 text-gray-500 mr-1 shrink-0" />
-            <SelectValue placeholder="Všetky trasy" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Všetky trasy</SelectItem>
-            {routes.map((route) => (
-              <SelectItem key={route.id} value={route.id}>
-                {route.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Zobraziť doručené - switch */}
-        <label className="flex items-center gap-2 text-sm text-gray-700 ml-auto cursor-pointer whitespace-nowrap">
-          <Switch
-            checked={showArchive}
-            onCheckedChange={setShowArchive}
-          />
-          Zobraziť doručené
-        </label>
-
       </div>
 
       {/* MOBILE Filter */}

@@ -16,13 +16,13 @@ export function CategoryFilter({ value, onChange }: CategoryFilterProps) {
   };
 
   return (
-    <div className="space-y-2">
-      <Label>Kategória</Label>
+    <div className="flex flex-col gap-1">
+      <Label className="text-sm font-medium text-gray-700 text-center block">Kategória</Label>
       <Select
         value={value}
         onValueChange={handleChange}
       >
-        <SelectTrigger className="w-full h-10">
+        <SelectTrigger className="w-full h-10 self-stretch">
           <SelectValue placeholder="Všetky kategórie" />
         </SelectTrigger>
         <SelectContent
