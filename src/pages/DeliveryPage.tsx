@@ -1385,48 +1385,110 @@ function DeliveryPage() {
         </div>
 
         <TabsContent value="delivery" className="space-y-6">
-      {/* Filters */}
-      <Card className="p-6">
-        {/* Riadok 1: Dátum + Toggle Doručené */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          {/* Dátum rozvozu - multi-select calendar */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
-              Dátum rozvozu
-            </label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-start">
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {selectedDates.length === 1
-                    ? format(selectedDates[0], 'd. MMMM yyyy', { locale: sk })
-                    : `${selectedDates.length} dní`
-                  }
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <CalendarGrid />
-              </PopoverContent>
-            </Popover>
-          </div>
+      {/* DESKTOP Filter - kompaktný 1-riadkový */}
+      <div className="hidden md:flex items-center gap-2 p-3 bg-white border-b flex-wrap mb-6">
 
-          {/* Toggle Zobraziť doručené */}
-          <div className="flex items-end">
-            <Button
-              variant={showArchive ? 'default' : 'outline'}
-              onClick={() => setShowArchive(!showArchive)}
-              className="w-full"
+        {/* Dátum rozvozu - kompaktný button */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <button className="flex items-center gap-2 border rounded-lg px-3 py-1.5 text-sm hover:bg-gray-50">
+              <CalendarIcon className="h-4 w-4 text-gray-500" />
+              <span>
+                {selectedDates.length === 1
+                  ? format(selectedDates[0], 'd. MMM', { locale: sk })
+                  : `${selectedDates.length} dní`}
+              </span>
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <CalendarGrid />
+          </PopoverContent>
+        </Popover>
+
+        {/* Typ zákazníka - kompaktný toggle */}
+        <div className="flex border rounded-lg overflow-hidden">
+          {[
+            { value: 'all', label: 'Všetci' },
+            { value: 'home', label: 'Domáci' },
+            { value: 'gastro', label: 'Gastro' },
+            { value: 'wholesale', label: 'VO' }
+          ].map(type => (
+            <button
+              key={type.value}
+              onClick={() => setSelectedCustomerType(type.value)}
+              className={cn(
+                "px-3 py-1.5 text-sm font-medium transition-colors",
+                selectedCustomerType === type.value
+                  ? 'bg-green-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+              )}
             >
-              {showArchive ? '✓' : '○'} Zobraziť doručené
-            </Button>
-          </div>
+              {type.label}
+            </button>
+          ))}
         </div>
 
-        {/* Riadok 2: Všetci / Domáci / Gastro / VO */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
-            Typ zákazníka
-          </label>
+        {/* Zákazník dropdown - kompaktný */}
+        <div className="w-48">
+          <SearchableCustomerSelect
+            customers={customers}
+            value={customerFilter}
+            onValueChange={setCustomerFilter}
+            placeholder="Všetci zákazníci"
+            filterByType={selectedCustomerType}
+            allowAll={true}
+          />
+        </div>
+
+        {/* Rozvozová trasa - kompaktný */}
+        <Select value={routeFilter} onValueChange={setRouteFilter}>
+          <SelectTrigger className="w-44 h-8 text-sm">
+            <Navigation className="h-3.5 w-3.5 text-gray-500 mr-1" />
+            <SelectValue placeholder="Všetky trasy" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Všetky trasy</SelectItem>
+            {routes.map((route) => (
+              <SelectItem key={route.id} value={route.id}>
+                {route.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Zobraziť doručené - SWITCH toggle */}
+        <label className="flex items-center gap-2 text-sm text-gray-700 ml-auto cursor-pointer">
+          <Switch
+            checked={showArchive}
+            onCheckedChange={setShowArchive}
+          />
+          Zobraziť doručené
+        </label>
+
+      </div>
+
+      {/* MOBILE Filter */}
+      <Card className="block md:hidden p-4 mb-6">
+        {/* Riadok 1: Dátum rozvozu */}
+        <div className="mb-3">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-full justify-start">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {selectedDates.length === 1
+                  ? format(selectedDates[0], 'd. MMMM yyyy', { locale: sk })
+                  : `${selectedDates.length} dní`
+                }
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <CalendarGrid />
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        {/* Riadok 2: Typ zákazníka */}
+        <div className="mb-3">
           <CustomerTypeFilter
             value={selectedCustomerType}
             onChange={setSelectedCustomerType}
@@ -1434,13 +1496,9 @@ function DeliveryPage() {
           />
         </div>
 
-        {/* Riadok 3: Zákazník + Rozvozová trasa vedľa seba */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Zákazník dropdown */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
-              Zákazník
-            </label>
+        {/* Riadok 3: Zákazník + Trasa vedľa seba */}
+        <div className="flex gap-2 mb-3">
+          <div className="flex-1">
             <SearchableCustomerSelect
               customers={customers}
               value={customerFilter}
@@ -1450,15 +1508,10 @@ function DeliveryPage() {
               allowAll={true}
             />
           </div>
-
-          {/* Rozvozová trasa dropdown */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
-              Rozvozová trasa
-            </label>
+          <div className="flex-1">
             <Select value={routeFilter} onValueChange={setRouteFilter}>
-              <SelectTrigger className="w-full">
-                <Navigation className="mr-2 h-4 w-4" />
+              <SelectTrigger className="text-sm">
+                <Navigation className="h-3.5 w-3.5 text-gray-500 mr-1 shrink-0" />
                 <SelectValue placeholder="Všetky trasy" />
               </SelectTrigger>
               <SelectContent>
@@ -1472,42 +1525,16 @@ function DeliveryPage() {
             </Select>
           </div>
         </div>
+
+        {/* Riadok 4: Zobraziť doručené */}
+        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+          <Switch
+            checked={showArchive}
+            onCheckedChange={setShowArchive}
+          />
+          Zobraziť doručené
+        </label>
       </Card>
-
-      {/* Financial Totals */}
-      {deliveryTotals.total > 0 && (
-        <div className="grid gap-4 md:grid-cols-3 mb-6">
-          <Card className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Celková hodnota</p>
-                <p className="text-2xl font-bold">{formatPrice(deliveryTotals.total)} €</p>
-              </div>
-              <Euro className="h-8 w-8 text-primary" />
-            </div>
-          </Card>
-
-          <Card className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Zaplatené</p>
-                <p className="text-2xl font-bold text-success">{formatPrice(deliveryTotals.paid)} €</p>
-              </div>
-              <CheckCircle2 className="h-8 w-8 text-success" />
-            </div>
-          </Card>
-
-          <Card className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Zostáva doplatiť</p>
-                <p className="text-2xl font-bold text-warning">{formatPrice(deliveryTotals.unpaid)} €</p>
-              </div>
-              <CreditCard className="h-8 w-8 text-warning" />
-            </div>
-          </Card>
-        </div>
-      )}
 
       <div className="space-y-6">
         {/* Summary Card */}
