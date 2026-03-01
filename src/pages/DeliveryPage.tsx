@@ -501,7 +501,16 @@ function DeliveryPage() {
 
   // Check if order is paid (notes contain 'Zaplatené')
   const isOrderPaid = (order: typeof orders[0]) => {
-    return order.notes?.toLowerCase().includes('zaplatené') || order.notes?.toLowerCase().includes('zaplatene') || false;
+    const notes = order?.notes || '';
+    const result = notes.toLowerCase().includes('zaplatené') || notes.toLowerCase().includes('zaplatene');
+
+    console.log('🔍 isOrderPaid check:', {
+      orderId: order.id,
+      notes: notes,
+      includes: result
+    });
+
+    return result;
   };
 
   // Mark order as paid
@@ -593,8 +602,13 @@ function DeliveryPage() {
     console.log('💰 Calculating paid...');
     console.log('  Pending orders:', pendingOrders.length);
 
-    const paid = pendingOrders.filter(o => o.payment_status === 'paid');
-    console.log('  Paid orders:', paid.length, paid.map(o => o.id));
+    console.log('  ❌ OLD METHOD - Filtering by payment_status:');
+    const paidOldMethod = pendingOrders.filter(o => o.payment_status === 'paid');
+    console.log('    Found:', paidOldMethod.length, paidOldMethod.map(o => o.id));
+
+    console.log('  ✅ NEW METHOD - Using isOrderPaid:');
+    const paid = pendingOrders.filter(o => isOrderPaid(o));
+    console.log('    Found:', paid.length, paid.map(o => o.id));
 
     const total = paid.reduce((sum, order) => {
       const customer = customers?.find(c => c.id === order.customer_id);
