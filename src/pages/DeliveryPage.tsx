@@ -5,7 +5,6 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Card } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -60,8 +59,6 @@ interface SortableOrderRowProps {
   order: any;
   orderIdx: number;
   item: any;
-  selectedOrderIds: Set<string>;
-  toggleOrderSelection: (orderId: string) => void;
   getCropColor: (cropId: string | null) => string;
   getPackagingSummary: (summary: Record<string, number>, itemName?: string) => string;
   openInGoogleMaps: (address: string) => void;
@@ -77,8 +74,6 @@ function SortableOrderRow({
   order,
   orderIdx,
   item,
-  selectedOrderIds,
-  toggleOrderSelection,
   getCropColor,
   getPackagingSummary,
   openInGoogleMaps,
@@ -117,19 +112,13 @@ function SortableOrderRow({
       onClick={() => onOrderClick(order)}
     >
       <TableCell onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-2">
-          <button
-            className="cursor-grab active:cursor-grabbing touch-none"
-            {...attributes}
-            {...listeners}
-          >
-            <GripVertical className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-          </button>
-          <Checkbox
-            checked={selectedOrderIds.has(order.id)}
-            onCheckedChange={() => toggleOrderSelection(order.id)}
-          />
-        </div>
+        <button
+          className="cursor-grab active:cursor-grabbing touch-none"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+        </button>
       </TableCell>
 
       {/* ZÁKAZNÍK - tučný, väčší */}
@@ -296,7 +285,6 @@ function DeliveryPage() {
   const [customerFilter, setCustomerFilter] = useState<string>('all');
   const [selectedCustomerType, setSelectedCustomerType] = useState<string>('all');
   const [routeFilter, setRouteFilter] = useState<string>('all');
-  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [showArchive, setShowArchive] = useState(true);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedOrderDetail, setSelectedOrderDetail] = useState<typeof orders[0] | null>(null);
@@ -935,18 +923,6 @@ function DeliveryPage() {
       .join(', ');
   };
 
-  const toggleOrderSelection = (orderId: string) => {
-    setSelectedOrderIds(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(orderId)) {
-        newSet.delete(orderId);
-      } else {
-        newSet.add(orderId);
-      }
-      return newSet;
-    });
-  };
-
   const markOrderDelivered = async (orderId: string) => {
     const order = orders.find(o => o.id === orderId);
     const { error } = await updateOrder(orderId, { status: 'delivered' });
@@ -960,41 +936,11 @@ function DeliveryPage() {
           order.has_label !== false
         );
       }
-      setSelectedOrderIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(orderId);
-        return newSet;
-      });
       toast({
         title: 'Doručené',
         description: 'Objednávka bola označená ako doručená a zásoby boli odpočítané.',
       });
     }
-  };
-
-  const markSelectedDelivered = async () => {
-    if (selectedOrderIds.size === 0) return;
-
-    const promises = Array.from(selectedOrderIds).map(async orderId => {
-      const order = orders.find(o => o.id === orderId);
-      await updateOrder(orderId, { status: 'delivered' });
-      if (order) {
-        await consumeOrderInventory(
-          order.crop_id || null,
-          order.delivery_form || 'cut',
-          order.packaging_size || '50g',
-          Math.ceil(order.quantity || 1),
-          order.has_label !== false
-        );
-      }
-    });
-    await Promise.all(promises);
-
-    setSelectedOrderIds(new Set());
-    toast({
-      title: 'Vybrané doručené',
-      description: `${selectedOrderIds.size} objednávok bolo označených ako doručené.`,
-    });
   };
 
   const returnToReady = async (orderId: string) => {
@@ -1597,16 +1543,6 @@ function DeliveryPage() {
                       </p>
                     </div>
                   </div>
-                  {selectedOrderIds.size > 0 && (
-                    <Button
-                      size="sm"
-                      onClick={markSelectedDelivered}
-                      variant="outline"
-                    >
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
-                      Označiť vybrané ({selectedOrderIds.size})
-                    </Button>
-                  )}
                 </div>
                 <DndContext
                   sensors={sensors}
@@ -1729,18 +1665,7 @@ function DeliveryPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-12">
-                            <Checkbox
-                              checked={selectedOrderIds.size === pendingOrders.length && pendingOrders.length > 0}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setSelectedOrderIds(new Set(pendingOrders.map(o => o.id)));
-                                } else {
-                                  setSelectedOrderIds(new Set());
-                                }
-                              }}
-                            />
-                          </TableHead>
+                          <TableHead className="w-12"></TableHead>
                           <TableHead className="text-center">Zákazník</TableHead>
                           <TableHead className="hidden lg:table-cell text-center">Adresa</TableHead>
                           <TableHead className="hidden lg:table-cell text-center">Kontakt</TableHead>
@@ -1760,8 +1685,6 @@ function DeliveryPage() {
                                 order={order}
                                 orderIdx={orderIdx}
                                 item={item}
-                                selectedOrderIds={selectedOrderIds}
-                                toggleOrderSelection={toggleOrderSelection}
                                 getCropColor={getCropColor}
                                 getPackagingSummary={getPackagingSummary}
                                 openInGoogleMaps={openInGoogleMaps}
