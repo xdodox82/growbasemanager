@@ -662,33 +662,6 @@ function DeliveryPage() {
       }, 0);
   };
 
-  const getGastroCustomers = () => {
-    const gastro = allOrdersForReport.filter(o => {
-      const customer = customers?.find(c => c.id === o.customer_id);
-      return customer?.customer_type === 'gastro' || customer?.customer_type === 'wholesale';
-    });
-
-    const grouped = gastro.reduce((acc, order) => {
-      const customer = customers?.find(c => c.id === order.customer_id);
-      if (!customer) return acc;
-
-      if (!acc[customer.id]) {
-        acc[customer.id] = {
-          id: customer.id,
-          name: customer.name,
-          total: 0
-        };
-      }
-
-      const orderTotal = calculateOrderTotal(order, customer.customer_type || null);
-      const route = routes?.find(r => r.id === customer.delivery_route_id);
-      const deliveryFee = calculateDeliveryFee(orderTotal, customer, route, customer.customer_type || null, (order as any).charge_delivery);
-      acc[customer.id].total += orderTotal + deliveryFee;
-      return acc;
-    }, {} as Record<string, { id: string; name: string; total: number }>);
-
-    return Object.values(grouped);
-  };
 
   const getOrderItemsDetail = (orderId: string, customerType?: string | null) => {
     const items = orderItems.filter(item => item.order_id === orderId);
@@ -2301,23 +2274,6 @@ function DeliveryPage() {
                 </div>
               </div>
             </div>
-
-            {/* Gastro zákazníci detail */}
-            {getGastroCustomers().length > 0 && (
-              <div>
-                <div className="text-sm font-medium text-gray-700 mb-2">
-                  Gastro/VO zákazníci:
-                </div>
-                <div className="space-y-1">
-                  {getGastroCustomers().map(c => (
-                    <div key={c.id} className="flex justify-between text-sm py-1 border-b">
-                      <span>{c.name}</span>
-                      <span className="font-medium">{c.total.toFixed(2)} €</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </DialogContent>
       </Dialog>
