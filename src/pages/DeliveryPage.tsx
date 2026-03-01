@@ -506,25 +506,53 @@ function DeliveryPage() {
 
   // Mark order as paid
   const handleMarkAsPaid = async (orderId: string, currentNotes: string | null) => {
+    console.log('💳 MARKING AS PAID:', orderId);
+
+    const order = orders.find(o => o.id === orderId);
+    console.log('  Current order:', order);
+    console.log('  Current notes:', currentNotes);
+    console.log('  Current isPaid:', order ? isOrderPaid(order) : 'N/A');
+
     const newNotes = currentNotes ? `${currentNotes} | Zaplatené` : 'Zaplatené';
-    const { error } = await updateOrder(orderId, { notes: newNotes });
+    console.log('  New notes:', newNotes);
+
+    const { error, data } = await updateOrder(orderId, { notes: newNotes });
+    console.log('  Supabase response:', { error, data });
+
     if (!error) {
       toast({
         title: 'Platba zaznamenaná',
         description: 'Objednávka bola označená ako zaplatená.'
       });
+      console.log('  Should refetch orders now!');
+    } else {
+      console.error('  ERROR:', error);
     }
   };
 
   // Mark order as unpaid
   const handleMarkAsUnpaid = async (orderId: string, currentNotes: string | null) => {
+    console.log('💳 MARKING AS UNPAID:', orderId);
+
+    const order = orders.find(o => o.id === orderId);
+    console.log('  Current order:', order);
+    console.log('  Current notes:', currentNotes);
+    console.log('  Current isPaid:', order ? isOrderPaid(order) : 'N/A');
+
     const newNotes = currentNotes?.replace(/\s*\|\s*Zaplatené/gi, '').replace(/Zaplatené\s*\|?\s*/gi, '').replace(/zaplatené/gi, '').trim() || '';
-    const { error } = await updateOrder(orderId, { notes: newNotes || null });
+    console.log('  New notes:', newNotes);
+
+    const { error, data } = await updateOrder(orderId, { notes: newNotes || null });
+    console.log('  Supabase response:', { error, data });
+
     if (!error) {
       toast({
         title: 'Platba zrušená',
         description: 'Označenie platby bolo odstránené.'
       });
+      console.log('  Should refetch orders now!');
+    } else {
+      console.error('  ERROR:', error);
     }
   };
 
