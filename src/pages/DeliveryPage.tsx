@@ -552,15 +552,23 @@ function DeliveryPage() {
   };
 
   const calculatePaid = () => {
-    return pendingOrders
-      .filter(o => o.payment_status === 'paid')
-      .reduce((sum, order) => {
-        const customer = customers?.find(c => c.id === order.customer_id);
-        const orderTotal = calculateOrderTotal(order, customer?.customer_type || null);
-        const route = routes?.find(r => r.id === customer?.delivery_route_id);
-        const deliveryFee = calculateDeliveryFee(orderTotal, customer, route, customer?.customer_type || null, (order as any).charge_delivery);
-        return sum + orderTotal + deliveryFee;
-      }, 0);
+    console.log('💰 Calculating paid...');
+    console.log('  Pending orders:', pendingOrders.length);
+
+    const paid = pendingOrders.filter(o => o.payment_status === 'paid');
+    console.log('  Paid orders:', paid.length, paid.map(o => o.id));
+
+    const total = paid.reduce((sum, order) => {
+      const customer = customers?.find(c => c.id === order.customer_id);
+      const orderTotal = calculateOrderTotal(order, customer?.customer_type || null);
+      const route = routes?.find(r => r.id === customer?.delivery_route_id);
+      const deliveryFee = calculateDeliveryFee(orderTotal, customer, route, customer?.customer_type || null, (order as any).charge_delivery);
+      console.log('    Order', order.id, ':', orderTotal, '+', deliveryFee, '=', orderTotal + deliveryFee);
+      return sum + orderTotal + deliveryFee;
+    }, 0);
+
+    console.log('  TOTAL PAID:', total);
+    return total;
   };
 
   const calculateUnpaid = () => {
@@ -1551,13 +1559,6 @@ function DeliveryPage() {
                             </span>
                           </div>
 
-                          {/* Riadok 2: Adresa */}
-                          {order.customerAddress && (
-                            <div className="text-sm text-gray-600 mb-3">
-                              📍 {order.customerAddress}
-                            </div>
-                          )}
-
                           {/* Riadok 3: Akčné tlačidlá */}
                           <div className="flex items-center gap-2 pt-3 border-t">
                             {/* Telefón */}
@@ -1620,7 +1621,7 @@ function DeliveryPage() {
                               }}
                               className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-700"
                             >
-                              <CheckCircle2 className="h-4 w-4" />
+                              <CheckCircle2 className="h-5 w-5" />
                               <span className="hidden sm:inline">Dor.</span>
                             </button>
 
@@ -1640,7 +1641,7 @@ function DeliveryPage() {
                                   : 'bg-gray-100 text-gray-700'
                               }`}
                             >
-                              <CreditCard className="h-4 w-4" />
+                              <CreditCard className="h-5 w-5" />
                               <span className="hidden sm:inline">Zapl.</span>
                             </button>
                           </div>
@@ -1745,13 +1746,6 @@ function DeliveryPage() {
                           </span>
                         </div>
 
-                        {/* Riadok 2: Adresa */}
-                        {order.customerAddress && (
-                          <div className="text-sm text-muted-foreground mb-3">
-                            📍 {order.customerAddress}
-                          </div>
-                        )}
-
                         {/* Riadok 3: Akčné tlačidlá */}
                         <div className="flex items-center gap-2 pt-3 border-t border-success/20">
                           {/* Telefón */}
@@ -1835,7 +1829,7 @@ function DeliveryPage() {
                                   : 'bg-gray-100 text-gray-700'
                               }`}
                             >
-                              <CreditCard className="h-4 w-4" />
+                              <CreditCard className="h-5 w-5" />
                               <span className="hidden sm:inline">Zapl.</span>
                             </button>
                           )}
