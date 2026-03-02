@@ -495,7 +495,10 @@ const BlendsPage = () => {
               <Card
                 key={blend.id}
                 className="p-5 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer"
-                onClick={() => openEditDialog(blend)}
+                onClick={() => {
+                  setSelectedBlendDetail(blend);
+                  setDetailModalOpen(true);
+                }}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
