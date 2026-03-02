@@ -107,7 +107,7 @@ function SortableOrderRow({
       style={style}
       className={cn(
         isDragging ? 'relative z-50' : '',
-        'cursor-pointer hover:bg-gray-50 transition-colors'
+        'cursor-pointer hover:bg-gray-50 transition-colors h-12'
       )}
       onClick={() => onOrderClick(order)}
     >
@@ -232,7 +232,7 @@ function SortableOrderRow({
             }}
             className="p-2 rounded-full text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors"
           >
-            <CheckCircle2 className="h-5 w-5" />
+            <CheckCircle2 className="h-6 w-6" />
           </button>
 
           {/* Zaplatené ikona */}
@@ -241,7 +241,7 @@ function SortableOrderRow({
               title="Uhradené faktúrou"
               className="p-2 rounded-full text-blue-600 bg-blue-50"
             >
-              <CreditCard className="h-5 w-5" />
+              <CreditCard className="h-6 w-6" />
             </div>
           ) : (
             <button
@@ -260,7 +260,7 @@ function SortableOrderRow({
                   : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
               }`}
             >
-              <CreditCard className="h-5 w-5" />
+              <CreditCard className="h-6 w-6" />
             </button>
           )}
 
@@ -1638,7 +1638,7 @@ function DeliveryPage() {
                               }}
                               className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-700"
                             >
-                              <CheckCircle2 className="h-5 w-5" />
+                              <CheckCircle2 className="h-6 w-6" />
                               <span className="hidden sm:inline">Dor.</span>
                             </button>
 
@@ -1658,7 +1658,7 @@ function DeliveryPage() {
                                   : 'bg-gray-100 text-gray-700'
                               }`}
                             >
-                              <CreditCard className="h-5 w-5" />
+                              <CreditCard className="h-6 w-6" />
                               <span className="hidden sm:inline">Zapl.</span>
                             </button>
                           </div>
@@ -1671,7 +1671,7 @@ function DeliveryPage() {
                   <div className="hidden md:block rounded-lg border border-border overflow-x-auto">
                     <Table>
                       <TableHeader>
-                        <TableRow>
+                        <TableRow className="h-12">
                           <TableHead className="w-12"></TableHead>
                           <TableHead className="text-center">Zákazník</TableHead>
                           <TableHead className="hidden lg:table-cell text-center">Adresa</TableHead>
@@ -1720,7 +1720,7 @@ function DeliveryPage() {
               <Card className="p-4 md:p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="h-10 w-10 rounded-lg bg-success/10 flex items-center justify-center">
-                    <CheckCircle2 className="h-5 w-5 text-success" />
+                    <CheckCircle2 className="h-6 w-6 text-success" />
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold">Doručené dnes</h3>
@@ -1833,7 +1833,7 @@ function DeliveryPage() {
                                   : 'bg-gray-100 text-gray-700'
                               }`}
                             >
-                              <CreditCard className="h-5 w-5" />
+                              <CreditCard className="h-6 w-6" />
                               <span className="hidden sm:inline">Zapl.</span>
                             </button>
                           )}
@@ -1847,7 +1847,7 @@ function DeliveryPage() {
                 <div className="hidden md:block rounded-lg border border-border overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow>
+                      <TableRow className="h-12">
                         <TableHead className="text-center">Zákazník</TableHead>
                         <TableHead className="hidden lg:table-cell text-center">Adresa</TableHead>
                         <TableHead className="hidden lg:table-cell text-center">Kontakt</TableHead>
@@ -1860,7 +1860,7 @@ function DeliveryPage() {
                         item.orders.map((order, orderIdx) => (
                           <TableRow
                             key={order.id}
-                            className="bg-success/5 cursor-pointer hover:bg-success/10 transition-colors"
+                            className="bg-success/5 cursor-pointer hover:bg-success/10 transition-colors h-12"
                             onClick={() => {
                               setSelectedOrderDetail(order);
                               setDetailModalOpen(true);
@@ -1963,7 +1963,7 @@ function DeliveryPage() {
                                   }}
                                   className="p-2 rounded-full text-gray-400 hover:text-orange-600 hover:bg-orange-50 transition-colors"
                                 >
-                                  <Undo2 className="h-5 w-5" />
+                                  <Undo2 className="h-6 w-6" />
                                 </button>
 
                                 {/* Zaplatené ikona - ak nie je invoice */}
@@ -1972,7 +1972,7 @@ function DeliveryPage() {
                                     title="Uhradené faktúrou"
                                     className="p-2 rounded-full text-blue-600 bg-blue-50"
                                   >
-                                    <CreditCard className="h-5 w-5" />
+                                    <CreditCard className="h-6 w-6" />
                                   </div>
                                 ) : (
                                   <button
@@ -1991,7 +1991,7 @@ function DeliveryPage() {
                                         : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
                                     }`}
                                   >
-                                    <CreditCard className="h-5 w-5" />
+                                    <CreditCard className="h-6 w-6" />
                                   </button>
                                 )}
 
@@ -2006,6 +2006,31 @@ function DeliveryPage() {
               </Card>
             )}
           </>
+        )}
+
+        {/* Finančný report riadok */}
+        {pendingOrders.length > 0 && (
+          <Card className="p-4 bg-green-50 border-green-200">
+            <button
+              onClick={() => setFinancialReportOpen(true)}
+              className="w-full flex items-center justify-between hover:bg-green-100 rounded-lg p-2 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-green-600 text-white flex items-center justify-center">
+                  <Euro className="h-6 w-6" />
+                </div>
+                <div className="text-left">
+                  <h3 className="text-lg font-semibold text-green-900">Finančné zúčtovanie rozvozu</h3>
+                  <p className="text-sm text-green-700">
+                    Kliknutím zobrazíte detail úhrad
+                  </p>
+                </div>
+              </div>
+              <div className="text-2xl font-bold text-green-900">
+                {calculateTotalRemaining().toFixed(2)} €
+              </div>
+            </button>
+          </Card>
         )}
       </div>
         </TabsContent>
@@ -2134,19 +2159,6 @@ function DeliveryPage() {
           )}
         </DialogContent>
       </Dialog>
-
-      {/* Floating finančný report button */}
-      {pendingOrders.length > 0 && (
-        <button
-          onClick={() => setFinancialReportOpen(true)}
-          className="fixed bottom-24 right-4 z-50 bg-green-600 text-white rounded-full shadow-lg flex items-center gap-2 px-4 py-3 hover:bg-green-700"
-        >
-          <Euro className="h-5 w-5" />
-          <span className="font-bold">
-            {calculateTotalRemaining().toFixed(2)} €
-          </span>
-        </button>
-      )}
 
       {/* Finančný report dialog */}
       <Dialog open={financialReportOpen} onOpenChange={setFinancialReportOpen}>
