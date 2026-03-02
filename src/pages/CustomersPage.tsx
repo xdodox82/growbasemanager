@@ -807,7 +807,7 @@ const CustomersPage = () => {
           description="Skúste zmeniť vyhľadávacie kritériá."
         />
       ) : viewMode === 'grid' ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 overflow-y-auto max-h-[calc(100vh-200px)]">
           {filteredCustomers.map((customer) => (
             <Card
               key={customer.id}

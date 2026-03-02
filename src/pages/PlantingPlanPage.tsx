@@ -1340,7 +1340,7 @@ const PlantingPlanPage = () => {
                 description="Vygenerujte plán sadenia pre vybrané obdobie."
               />
             ) : viewMode === 'cards' ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 overflow-y-auto max-h-[calc(100vh-200px)]">
                 {filteredPlans.map(plan => (
                   <Card
                     key={plan.id}
