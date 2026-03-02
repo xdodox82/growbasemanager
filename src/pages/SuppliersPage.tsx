@@ -32,7 +32,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Building2, Plus, Pencil, Trash2, Mail, Phone, MapPin, Navigation, Loader2 } from 'lucide-react';
+import { Building2, Plus, Pencil, Trash2, Mail, Phone, MapPin, Navigation, Loader as Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const SUPPLIER_TYPES: Record<string, string> = {

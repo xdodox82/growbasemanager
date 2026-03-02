@@ -41,7 +41,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Leaf, Plus, Pencil, Trash2, Clock, Droplets, Loader2, Sun, Moon, Scissors, Sprout, Weight, Flower } from 'lucide-react';
+import { Leaf, Plus, Pencil, Trash2, Clock, Droplets, Loader as Loader2, Sun, Moon, Scissors, Sprout, Weight, Flower } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const CROP_COLORS = [

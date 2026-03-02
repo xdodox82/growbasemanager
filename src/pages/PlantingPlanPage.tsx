@@ -40,30 +40,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  Calendar,
-  Plus,
-  Pencil,
-  Trash2,
-  Leaf,
-  Loader2,
-  Sprout,
-  CalendarDays,
-  LayoutGrid,
-  List,
-  CheckCircle2,
-  CheckCircle,
-  Circle,
-  Info,
-  Beaker,
-  RotateCcw,
-  Sparkles,
-  Package,
-  Layers,
-  TreePine,
-  Flower2,
-  Lightbulb
-} from 'lucide-react';
+import { Calendar, Plus, Pencil, Trash2, Leaf, Loader as Loader2, Sprout, CalendarDays, LayoutGrid, List, CircleCheck as CheckCircle2, CircleCheck as CheckCircle, Circle, Info, Beaker, RotateCcw, Sparkles, Package, Layers, TreePine, Flower2, Lightbulb } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { format, addDays, parseISO } from 'date-fns';

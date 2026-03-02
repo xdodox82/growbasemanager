@@ -38,7 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Blend as BlendIcon, Plus, Pencil, Trash2, X, Percent, Loader2 } from 'lucide-react';
+import { Blend as BlendIcon, Plus, Pencil, Trash2, X, Percent, Loader as Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const BlendsPage = () => {
