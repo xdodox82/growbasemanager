@@ -221,42 +221,49 @@ function SortableOrderRow({
 
       {/* AKCIE */}
       <TableCell className="hidden md:table-cell" onClick={(e) => e.stopPropagation()}>
-        <div className="flex flex-col gap-1">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => markOrderDelivered(order.id)}
-            className="gap-1 h-8"
+        <div className="flex items-center justify-center gap-2">
+
+          {/* Doručené ikona */}
+          <button
+            title="Označiť ako doručené"
+            onClick={(e) => {
+              e.stopPropagation();
+              markOrderDelivered(order.id);
+            }}
+            className="p-2 rounded-full text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors"
           >
-            <CheckCircle2 className="h-3 w-3" />
-            Doručené
-          </Button>
+            <CheckCircle2 className="h-5 w-5" />
+          </button>
+
+          {/* Zaplatené ikona */}
           {order.paymentMethod === 'invoice' ? (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground px-2 py-1 bg-blue-50 dark:bg-blue-950 rounded border border-blue-200 dark:border-blue-800">
-              <CreditCard className="h-3 w-3" />
-              <span>Uhradené faktúrou</span>
+            <div
+              title="Uhradené faktúrou"
+              className="p-2 rounded-full text-blue-600 bg-blue-50"
+            >
+              <CreditCard className="h-5 w-5" />
             </div>
-          ) : order.isPaid ? (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => handleMarkAsUnpaid(order.id, order.notes)}
-              className="gap-1 h-8 text-success"
-            >
-              <CreditCard className="h-3 w-3" />
-              Zaplatené ✓
-            </Button>
           ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleMarkAsPaid(order.id, order.notes)}
-              className="gap-1 h-8"
+            <button
+              title={order.isPaid ? "Označiť ako nezaplatené" : "Označiť ako zaplatené"}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (order.isPaid) {
+                  handleMarkAsUnpaid(order.id, order.notes);
+                } else {
+                  handleMarkAsPaid(order.id, order.notes);
+                }
+              }}
+              className={`p-2 rounded-full transition-colors ${
+                order.isPaid
+                  ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
+                  : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+              }`}
             >
-              <CreditCard className="h-3 w-3" />
-              Označiť zaplatené
-            </Button>
+              <CreditCard className="h-5 w-5" />
+            </button>
           )}
+
         </div>
       </TableCell>
     </TableRow>
@@ -1945,42 +1952,49 @@ function DeliveryPage() {
                               )}
                             </TableCell>
                             <TableCell className="hidden md:table-cell" onClick={(e) => e.stopPropagation()}>
-                              <div className="flex flex-col gap-1">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => returnToReady(order.id)}
-                                  className="gap-1 h-8"
+                              <div className="flex items-center justify-center gap-2">
+
+                                {/* Späť do Ready ikona */}
+                                <button
+                                  title="Vrátiť späť"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    returnToReady(order.id);
+                                  }}
+                                  className="p-2 rounded-full text-gray-400 hover:text-orange-600 hover:bg-orange-50 transition-colors"
                                 >
-                                  <Undo2 className="h-3 w-3" />
-                                  Späť
-                                </Button>
+                                  <Undo2 className="h-5 w-5" />
+                                </button>
+
+                                {/* Zaplatené ikona - ak nie je invoice */}
                                 {order.paymentMethod === 'invoice' ? (
-                                  <div className="flex items-center gap-1 text-xs text-muted-foreground px-2 py-1 bg-blue-50 dark:bg-blue-950 rounded border border-blue-200 dark:border-blue-800">
-                                    <CreditCard className="h-3 w-3" />
-                                    <span>Uhradené faktúrou</span>
+                                  <div
+                                    title="Uhradené faktúrou"
+                                    className="p-2 rounded-full text-blue-600 bg-blue-50"
+                                  >
+                                    <CreditCard className="h-5 w-5" />
                                   </div>
-                                ) : order.isPaid ? (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => handleMarkAsUnpaid(order.id, order.notes)}
-                                    className="gap-1 h-8 text-success"
-                                  >
-                                    <CreditCard className="h-3 w-3" />
-                                    Zaplatené ✓
-                                  </Button>
                                 ) : (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleMarkAsPaid(order.id, order.notes)}
-                                    className="gap-1 h-8"
+                                  <button
+                                    title={order.isPaid ? "Označiť ako nezaplatené" : "Označiť ako zaplatené"}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (order.isPaid) {
+                                        handleMarkAsUnpaid(order.id, order.notes);
+                                      } else {
+                                        handleMarkAsPaid(order.id, order.notes);
+                                      }
+                                    }}
+                                    className={`p-2 rounded-full transition-colors ${
+                                      order.isPaid
+                                        ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
+                                        : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                                    }`}
                                   >
-                                    <CreditCard className="h-3 w-3" />
-                                    Zaplatiť
-                                  </Button>
+                                    <CreditCard className="h-5 w-5" />
+                                  </button>
                                 )}
+
                               </div>
                             </TableCell>
                           </TableRow>
