@@ -107,11 +107,11 @@ function SortableOrderRow({
       style={style}
       className={cn(
         isDragging ? 'relative z-50' : '',
-        'cursor-pointer hover:bg-gray-50 transition-colors h-12'
+        'cursor-pointer hover:bg-gray-50 transition-colors h-10'
       )}
       onClick={() => onOrderClick(order)}
     >
-      <TableCell onClick={(e) => e.stopPropagation()}>
+      <TableCell onClick={(e) => e.stopPropagation()} className="py-0.5">
         <button
           className="cursor-grab active:cursor-grabbing touch-none"
           {...attributes}
@@ -122,7 +122,7 @@ function SortableOrderRow({
       </TableCell>
 
       {/* ZÁKAZNÍK - tučný, väčší */}
-      <TableCell className="text-center">
+      <TableCell className="text-center py-0.5">
         <div className="flex flex-col gap-1">
           <span className="font-bold text-lg">{order.customerName}</span>
           {order.deliveryNotes && (
@@ -139,14 +139,14 @@ function SortableOrderRow({
       </TableCell>
 
       {/* ADRESA */}
-      <TableCell className="hidden lg:table-cell text-center">
+      <TableCell className="hidden lg:table-cell text-center py-0.5">
         {order.customerAddress && (
           <span className="text-sm">{order.customerAddress}</span>
         )}
       </TableCell>
 
       {/* KONTAKT - telefón + swipe navigácia */}
-      <TableCell className="hidden lg:table-cell" onClick={(e) => e.stopPropagation()}>
+      <TableCell className="hidden lg:table-cell py-0.5" onClick={(e) => e.stopPropagation()}>
         <div className="flex flex-col items-center gap-2">
           {/* Telefón */}
           {order.customerPhone && (
@@ -208,7 +208,7 @@ function SortableOrderRow({
       </TableCell>
 
       {/* CENA */}
-      <TableCell className="text-center">
+      <TableCell className="text-center py-0.5">
         <div className="text-xl font-bold text-green-600 dark:text-green-500">
           {order.totalPrice.toFixed(2)} €
         </div>
@@ -220,7 +220,7 @@ function SortableOrderRow({
       </TableCell>
 
       {/* AKCIE */}
-      <TableCell className="hidden md:table-cell" onClick={(e) => e.stopPropagation()}>
+      <TableCell className="hidden md:table-cell py-0.5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-center gap-2">
 
           {/* Doručené ikona */}
@@ -1671,7 +1671,7 @@ function DeliveryPage() {
                   <div className="hidden md:block rounded-lg border border-border overflow-x-auto">
                     <Table>
                       <TableHeader>
-                        <TableRow className="h-12">
+                        <TableRow className="h-10">
                           <TableHead className="w-12"></TableHead>
                           <TableHead className="text-center">Zákazník</TableHead>
                           <TableHead className="hidden lg:table-cell text-center">Adresa</TableHead>
@@ -1847,7 +1847,7 @@ function DeliveryPage() {
                 <div className="hidden md:block rounded-lg border border-border overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow className="h-12">
+                      <TableRow className="h-10">
                         <TableHead className="text-center">Zákazník</TableHead>
                         <TableHead className="hidden lg:table-cell text-center">Adresa</TableHead>
                         <TableHead className="hidden lg:table-cell text-center">Kontakt</TableHead>
@@ -1860,26 +1860,26 @@ function DeliveryPage() {
                         item.orders.map((order, orderIdx) => (
                           <TableRow
                             key={order.id}
-                            className="bg-success/5 cursor-pointer hover:bg-success/10 transition-colors h-12"
+                            className="bg-success/5 cursor-pointer hover:bg-success/10 transition-colors h-10"
                             onClick={() => {
                               setSelectedOrderDetail(order);
                               setDetailModalOpen(true);
                             }}
                           >
                             {/* ZÁKAZNÍK */}
-                            <TableCell className="text-center text-muted-foreground">
+                            <TableCell className="text-center text-muted-foreground py-0.5">
                               <span className="font-bold text-lg">{order.customerName}</span>
                             </TableCell>
 
                             {/* ADRESA */}
-                            <TableCell className="hidden lg:table-cell text-center text-muted-foreground">
+                            <TableCell className="hidden lg:table-cell text-center text-muted-foreground py-0.5">
                               {order.customerAddress && (
                                 <span className="text-sm">{order.customerAddress}</span>
                               )}
                             </TableCell>
 
                             {/* KONTAKT */}
-                            <TableCell className="hidden lg:table-cell text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+                            <TableCell className="hidden lg:table-cell text-muted-foreground py-0.5" onClick={(e) => e.stopPropagation()}>
                               <div className="flex flex-col items-center gap-2">
                                 {/* Telefón */}
                                 {order.customerPhone && (
@@ -1941,7 +1941,7 @@ function DeliveryPage() {
                             </TableCell>
 
                             {/* CENA */}
-                            <TableCell className="text-center text-muted-foreground">
+                            <TableCell className="text-center text-muted-foreground py-0.5">
                               <div className="text-xl font-bold text-green-600/60 dark:text-green-500/60">
                                 {order.totalPrice.toFixed(2)} €
                               </div>
@@ -1951,7 +1951,7 @@ function DeliveryPage() {
                                 </div>
                               )}
                             </TableCell>
-                            <TableCell className="hidden md:table-cell" onClick={(e) => e.stopPropagation()}>
+                            <TableCell className="hidden md:table-cell py-0.5" onClick={(e) => e.stopPropagation()}>
                               <div className="flex items-center justify-center gap-2">
 
                                 {/* Späť do Ready ikona */}
