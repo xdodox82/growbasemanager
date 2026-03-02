@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { PageHeader, EmptyState } from '@/components/ui/page-components';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { CustomerTypeFilter } from '@/components/filters/CustomerTypeFilter';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Card } from '@/components/ui/card';
@@ -1316,51 +1317,10 @@ function DeliveryPage() {
       <div className="hidden md:block space-y-3 p-4 bg-white border-b mb-6">
 
         {/* Typ zákazníka - presné ikony z HarvestPackingPage */}
-        <div className="flex gap-2">
-          <button
-            onClick={() => setSelectedCustomerType('all')}
-            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              selectedCustomerType === 'all'
-                ? 'bg-green-600 text-white'
-                : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Všetci
-          </button>
-          <button
-            onClick={() => setSelectedCustomerType('home')}
-            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              selectedCustomerType === 'home'
-                ? 'bg-green-600 text-white'
-                : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            <Home className="h-4 w-4 shrink-0" />
-            Domáci
-          </button>
-          <button
-            onClick={() => setSelectedCustomerType('gastro')}
-            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              selectedCustomerType === 'gastro'
-                ? 'bg-green-600 text-white'
-                : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            <Utensils className="h-4 w-4 shrink-0" />
-            Gastro
-          </button>
-          <button
-            onClick={() => setSelectedCustomerType('wholesale')}
-            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              selectedCustomerType === 'wholesale'
-                ? 'bg-green-600 text-white'
-                : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            <Store className="h-4 w-4 shrink-0" />
-            VO
-          </button>
-        </div>
+        <CustomerTypeFilter
+          value={selectedCustomerType}
+          onChange={setSelectedCustomerType}
+        />
 
         {/* Polia s labelmi - VŠETKY flex-1, centrované labely */}
         <div className="flex gap-3 items-end">
@@ -2017,9 +1977,14 @@ function DeliveryPage() {
             >
               <div className="flex items-center gap-3">
                 <Euro className="h-6 w-6 text-green-600" />
-                <span className="text-lg font-semibold text-gray-900">
-                  Finančné zúčtovanie rozvozu
-                </span>
+                <div className="text-left">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Finančné zúčtovanie rozvozu
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Kliknutím zobrazíte detail úhrad
+                  </p>
+                </div>
               </div>
               <ChevronRight className="h-5 w-5 text-gray-400" />
             </button>
