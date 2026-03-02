@@ -223,18 +223,6 @@ function SortableOrderRow({
       <TableCell className="hidden md:table-cell py-0.5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-center gap-2">
 
-          {/* Doručené ikona */}
-          <button
-            title="Označiť ako doručené"
-            onClick={(e) => {
-              e.stopPropagation();
-              markOrderDelivered(order.id);
-            }}
-            className="p-2 rounded-full text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors"
-          >
-            <CheckCircle2 className="h-6 w-6" />
-          </button>
-
           {/* Zaplatené ikona */}
           {order.paymentMethod === 'invoice' ? (
             <div
@@ -263,6 +251,18 @@ function SortableOrderRow({
               <CreditCard className="h-6 w-6" />
             </button>
           )}
+
+          {/* Doručené ikona */}
+          <button
+            title="Označiť ako doručené"
+            onClick={(e) => {
+              e.stopPropagation();
+              markOrderDelivered(order.id);
+            }}
+            className="p-2 rounded-full text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors"
+          >
+            <CheckCircle2 className="h-6 w-6" />
+          </button>
 
         </div>
       </TableCell>
@@ -1630,18 +1630,6 @@ function DeliveryPage() {
 
                             <div className="flex-1" />
 
-                            {/* Doručené */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                markOrderDelivered(order.id);
-                              }}
-                              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-700"
-                            >
-                              <CheckCircle2 className="h-6 w-6" />
-                              <span className="hidden sm:inline">Dor.</span>
-                            </button>
-
                             {/* Zaplatené */}
                             <button
                               onClick={(e) => {
@@ -1661,6 +1649,18 @@ function DeliveryPage() {
                               <CreditCard className="h-6 w-6" />
                               <span className="hidden sm:inline">Zapl.</span>
                             </button>
+
+                            {/* Doručené */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                markOrderDelivered(order.id);
+                              }}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-700"
+                            >
+                              <CheckCircle2 className="h-6 w-6" />
+                              <span className="hidden sm:inline">Dor.</span>
+                            </button>
                           </div>
                         </div>
                       ))
@@ -1673,11 +1673,11 @@ function DeliveryPage() {
                       <TableHeader>
                         <TableRow className="h-10">
                           <TableHead className="w-12"></TableHead>
-                          <TableHead className="text-center">Zákazník</TableHead>
-                          <TableHead className="hidden lg:table-cell text-center">Adresa</TableHead>
-                          <TableHead className="hidden lg:table-cell text-center">Kontakt</TableHead>
-                          <TableHead className="text-center">Cena</TableHead>
-                          <TableHead className="hidden md:table-cell text-center">Akcia</TableHead>
+                          <TableHead className="text-center font-bold text-base">Zákazník</TableHead>
+                          <TableHead className="hidden lg:table-cell text-center font-bold text-base">Adresa</TableHead>
+                          <TableHead className="hidden lg:table-cell text-center font-bold text-base">Kontakt</TableHead>
+                          <TableHead className="text-center font-bold text-base">Cena</TableHead>
+                          <TableHead className="hidden md:table-cell text-center font-bold text-base">Akcia</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1848,11 +1848,11 @@ function DeliveryPage() {
                   <Table>
                     <TableHeader>
                       <TableRow className="h-10">
-                        <TableHead className="text-center">Zákazník</TableHead>
-                        <TableHead className="hidden lg:table-cell text-center">Adresa</TableHead>
-                        <TableHead className="hidden lg:table-cell text-center">Kontakt</TableHead>
-                        <TableHead className="text-center">Cena</TableHead>
-                        <TableHead className="hidden md:table-cell text-center">Akcia</TableHead>
+                        <TableHead className="text-center font-bold text-base">Zákazník</TableHead>
+                        <TableHead className="hidden lg:table-cell text-center font-bold text-base">Adresa</TableHead>
+                        <TableHead className="hidden lg:table-cell text-center font-bold text-base">Kontakt</TableHead>
+                        <TableHead className="text-center font-bold text-base">Cena</TableHead>
+                        <TableHead className="hidden md:table-cell text-center font-bold text-base">Akcia</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>

@@ -201,7 +201,7 @@ export function RouteManagement() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="hidden md:flex gap-2">
                     <Button
                       variant="outline"
                       size="sm"
