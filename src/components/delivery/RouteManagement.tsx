@@ -230,6 +230,18 @@ export function RouteManagement() {
                     ))}
                   </div>
                 )}
+
+                {/* Mobile button - full width at bottom */}
+                <div className="mt-3 md:hidden">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => openCustomersDialog(route.id)}
+                  >
+                    <Users className="h-4 w-4 mr-1" />
+                    Spravovať zákazníkov
+                  </Button>
+                </div>
               </div>
             );
           })}

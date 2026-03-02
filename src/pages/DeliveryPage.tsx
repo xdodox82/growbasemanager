@@ -2016,19 +2016,12 @@ function DeliveryPage() {
               className="w-full flex items-center justify-between hover:bg-green-100 rounded-lg p-2 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-green-600 text-white flex items-center justify-center">
-                  <Euro className="h-6 w-6" />
-                </div>
-                <div className="text-left">
-                  <h3 className="text-lg font-semibold text-green-900">Finančné zúčtovanie rozvozu</h3>
-                  <p className="text-sm text-green-700">
-                    Kliknutím zobrazíte detail úhrad
-                  </p>
-                </div>
+                <Euro className="h-6 w-6 text-green-600" />
+                <span className="text-lg font-semibold text-gray-900">
+                  Finančné zúčtovanie rozvozu
+                </span>
               </div>
-              <div className="text-2xl font-bold text-green-900">
-                {calculateTotalRemaining().toFixed(2)} €
-              </div>
+              <ChevronRight className="h-5 w-5 text-gray-400" />
             </button>
           </Card>
         )}
