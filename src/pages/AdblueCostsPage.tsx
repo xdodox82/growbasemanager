@@ -278,7 +278,7 @@ function AdblueCostsPage() {
               description="Zatiaľ nemáte žiadne záznamy o AdBlue"
             />
           ) : (
-            <Card className="overflow-x-auto">
+            <Card className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-200px)] overscroll-behavior-y-contain">
               <Table>
             <TableHeader>
               <TableRow>

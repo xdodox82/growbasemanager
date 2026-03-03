@@ -532,7 +532,7 @@ const SuppliersPage = () => {
         </div>
       ) : (
         <Card>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-200px)] overscroll-behavior-y-contain">
             <Table>
               <TableHeader>
                 <TableRow>
