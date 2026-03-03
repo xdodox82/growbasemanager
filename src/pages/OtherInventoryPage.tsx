@@ -22,7 +22,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useOtherInventory, DbOtherInventory } from '@/hooks/useSupabaseData';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, Box, Minus, Tag } from 'lucide-react';
+import { Plus, CreditCard as Edit, Trash2, Box, Minus, Tag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const CATEGORIES = [

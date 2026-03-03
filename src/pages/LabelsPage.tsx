@@ -37,7 +37,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Tag, Plus, Pencil, Trash2, Package, Edit, X } from 'lucide-react';
+import { Tag, Plus, Pencil, Trash2, Package, CreditCard as Edit, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 
