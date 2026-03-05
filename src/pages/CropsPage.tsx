@@ -817,21 +817,24 @@ const CropsPage = () => {
           {filteredCrops.map((crop) => {
             const isExpanded = expandedCards.has(crop.id);
 
+            const toggleExpand = () => {
+              const newExpanded = new Set(expandedCards);
+              if (isExpanded) {
+                newExpanded.delete(crop.id);
+              } else {
+                newExpanded.add(crop.id);
+              }
+              setExpandedCards(newExpanded);
+            };
+
             return (
-              <Card key={crop.id} className="overflow-hidden">
+              <Card
+                key={crop.id}
+                className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                onClick={toggleExpand}
+              >
                 {/* HEADER - ALWAYS VISIBLE */}
-                <div
-                  className="p-4 cursor-pointer"
-                  onClick={() => {
-                    const newExpanded = new Set(expandedCards);
-                    if (isExpanded) {
-                      newExpanded.delete(crop.id);
-                    } else {
-                      newExpanded.add(crop.id);
-                    }
-                    setExpandedCards(newExpanded);
-                  }}
-                >
+                <div className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3 flex-1">
                       <div
