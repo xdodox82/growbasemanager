@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -188,7 +189,11 @@ export default function OrdersPage() {
   console.log('[OrdersPage] Component rendering started');
   const { toast } = useToast();
   const { getDeliveryDaysArray } = useDeliveryDays();
+  const isMobile = useIsMobile();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  // Force grid view on mobile
+  const effectiveViewMode = isMobile ? 'grid' : viewMode;
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [crops, setCrops] = useState<Crop[]>([]);
@@ -2465,7 +2470,7 @@ export default function OrdersPage() {
               <Plus className="h-4 w-4 mr-2" />
               Nová objednávka
             </Button>
-            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+            <div className="hidden md:flex items-center gap-1 bg-gray-100 rounded-lg p-1">
               <Button
                 variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
                 size="icon"
@@ -2710,8 +2715,8 @@ export default function OrdersPage() {
           </div>
         </div>
 
-        {viewMode === 'list' ? (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        {effectiveViewMode === 'list' ? (
+          <div className="hidden md:block bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">

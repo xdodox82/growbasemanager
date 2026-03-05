@@ -34,6 +34,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Building2, Plus, Pencil, Trash2, Mail, Phone, MapPin, Navigation, Loader as Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const SUPPLIER_TYPES: Record<string, string> = {
   seeds: 'Semená',
@@ -46,12 +47,16 @@ const SuppliersPage = () => {
   const { data: suppliers, loading, add, update, remove } = useSuppliers();
   const { isAdmin } = useAuth();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<DbSupplier | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+
+  // Force grid view on mobile
+  const effectiveViewMode = isMobile ? 'grid' : viewMode;
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedSupplierDetail, setSelectedSupplierDetail] = useState<DbSupplier | null>(null);
@@ -235,7 +240,7 @@ const SuppliersPage = () => {
               Pridať dodávateľa
             </Button>
           </DialogTrigger>
-        <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} />
+        <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} className="hidden md:flex" />
         <Select value={typeFilter} onValueChange={setTypeFilter}>
           <SelectTrigger className="w-40">
             <SelectValue placeholder="Všetky typy" />
@@ -420,7 +425,7 @@ const SuppliersPage = () => {
           title="Žiadne výsledky"
           description="Skúste zmeniť vyhľadávacie kritériá."
         />
-      ) : viewMode === 'grid' ? (
+      ) : effectiveViewMode === 'grid' ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 overflow-y-auto max-h-[calc(100vh-200px)]">
           {filteredSuppliers.map((supplier) => (
             <Card
@@ -531,7 +536,7 @@ const SuppliersPage = () => {
           ))}
         </div>
       ) : (
-        <Card>
+        <Card className="hidden md:block">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>

@@ -70,6 +70,9 @@ const CropsPage = () => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+
+  // Force grid view on mobile
+  const effectiveViewMode = isMobile ? 'grid' : viewMode;
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedCropDetail, setSelectedCropDetail] = useState<DbCrop | null>(null);
@@ -285,7 +288,7 @@ const CropsPage = () => {
               Pridať plodinu
             </Button>
           </DialogTrigger>
-        <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} />
+        <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} className="hidden md:flex" />
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
           <SelectTrigger className="w-48">
             <SelectValue placeholder="Všetky kategórie" />
@@ -712,7 +715,7 @@ const CropsPage = () => {
           title="Žiadne výsledky"
           description="Skúste zmeniť filter kategórie."
         />
-      ) : viewMode === 'grid' ? (
+      ) : effectiveViewMode === 'grid' ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredCrops.map((crop) => (
             <Card
@@ -810,7 +813,7 @@ const CropsPage = () => {
         </div>
       ) : (
         <PullToRefresh onRefresh={handleRefresh}>
-          <Card>
+          <Card className="hidden md:block">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>

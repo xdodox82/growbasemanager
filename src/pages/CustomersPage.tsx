@@ -72,6 +72,9 @@ const CustomersPage = () => {
     }
     return 'grid';
   });
+
+  // Force grid view on mobile
+  const effectiveViewMode = isMobile ? 'grid' : viewMode;
   const [typeFilter, setTypeFilter] = useState<string>(() => {
     const saved = localStorage.getItem(FILTER_STORAGE_KEY);
     if (saved) {
@@ -346,7 +349,7 @@ const CustomersPage = () => {
               Pridať zákazníka
             </Button>
           </DialogTrigger>
-        <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} />
+        <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} className="hidden md:flex" />
         <CustomerTypeFilter
           value={typeFilter}
           onChange={setTypeFilter}
@@ -806,7 +809,7 @@ const CustomersPage = () => {
           title="Žiadne výsledky"
           description="Skúste zmeniť vyhľadávacie kritériá."
         />
-      ) : viewMode === 'grid' ? (
+      ) : effectiveViewMode === 'grid' ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 overflow-y-auto max-h-[calc(100vh-200px)]">
           {filteredCustomers.map((customer) => (
             <Card
@@ -917,7 +920,7 @@ const CustomersPage = () => {
         </div>
       ) : (
         <PullToRefresh onRefresh={handleRefresh}>
-          <Card>
+          <Card className="hidden md:block">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
