@@ -41,7 +41,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Leaf, Plus, Pencil, Trash2, Clock, Droplets, Loader as Loader2, Sun, Moon, Scissors, Sprout, Weight, Flower, ChevronDown, ChevronUp } from 'lucide-react';
+import { Leaf, Plus, Pencil, Trash2, Clock, Droplets, Loader as Loader2, Sun, Moon, Scissors, Sprout, Weight, Flower } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const CROP_COLORS = [
@@ -76,7 +76,6 @@ const CropsPage = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedCropDetail, setSelectedCropDetail] = useState<DbCrop | null>(null);
-  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
   const handleRefresh = useCallback(async () => {
     await refetch();
@@ -716,7 +715,7 @@ const CropsPage = () => {
           title="Žiadne výsledky"
           description="Skúste zmeniť filter kategórie."
         />
-      ) : effectiveViewMode === 'grid' && !isMobile ? (
+      ) : effectiveViewMode === 'grid' ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredCrops.map((crop) => (
             <Card
@@ -811,197 +810,6 @@ const CropsPage = () => {
               </div>
             </Card>
           ))}
-        </div>
-      ) : effectiveViewMode === 'grid' && isMobile ? (
-        <div className="grid gap-4">
-          {filteredCrops.map((crop) => {
-            const isExpanded = expandedCards.has(crop.id);
-
-            return (
-              <Card key={crop.id} className="overflow-hidden">
-                {/* HEADER - ALWAYS VISIBLE */}
-                <div
-                  className="p-4 cursor-pointer"
-                  onClick={() => {
-                    const newExpanded = new Set(expandedCards);
-                    if (isExpanded) {
-                      newExpanded.delete(crop.id);
-                    } else {
-                      newExpanded.add(crop.id);
-                    }
-                    setExpandedCards(newExpanded);
-                  }}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3 flex-1">
-                      <div
-                        className="h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                        style={{ backgroundColor: `${crop.color}20`, color: crop.color || '#22c55e' }}
-                      >
-                        <Leaf className="h-5 w-5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold truncate">{crop.name}</h3>
-                        {crop.variety && (
-                          <p className="text-xs text-muted-foreground truncate">{crop.variety}</p>
-                        )}
-                        <Badge variant="secondary" className="mt-1 text-xs">
-                          {CROP_CATEGORIES[crop.category as keyof typeof CROP_CATEGORIES] || crop.category}
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      {isExpanded ? (
-                        <ChevronUp className="h-5 w-5 text-muted-foreground" />
-                      ) : (
-                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                      )}
-                    </div>
-                  </div>
-
-                  {/* QUICK INFO - ALWAYS VISIBLE */}
-                  <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Clock className="h-4 w-4" />
-                      <span>{crop.days_to_harvest} dní</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Droplets className="h-4 w-4" />
-                      <span>{(crop as any).tray_configs?.XL?.seed_density || crop.seed_density} g/tác</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* EXPANDED CONTENT - VŠETKY POLIA */}
-                {isExpanded && (
-                  <div className="px-4 pb-4 pt-2 border-t bg-gray-50/50 space-y-3">
-                    {/* ČASOVÉ ÚDAJE */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <div className="text-xs text-muted-foreground mb-1">Dni klíčenia</div>
-                        <div className="text-sm font-medium flex items-center gap-1">
-                          <Sprout className="h-3 w-3" />
-                          {crop.days_to_germination} dní
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-muted-foreground mb-1">Typ klíčenia</div>
-                        <div className="text-sm font-medium flex items-center gap-1">
-                          {crop.germination_type === 'warm' ? <Sun className="h-3 w-3" /> : <Moon className="h-3 w-3" />}
-                          {GERMINATION_TYPES[crop.germination_type as keyof typeof GERMINATION_TYPES] || crop.germination_type}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-muted-foreground mb-1">Dni v tme</div>
-                        <div className="text-sm font-medium">{crop.days_in_darkness} dní</div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-muted-foreground mb-1">Dni na svetle</div>
-                        <div className="text-sm font-medium">{crop.days_on_light} dní</div>
-                      </div>
-                    </div>
-
-                    {/* PRODUKČNÉ ÚDAJE */}
-                    <div className="pt-2 border-t">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <div className="text-xs text-muted-foreground mb-1">Výnos</div>
-                          <div className="text-sm font-medium flex items-center gap-1">
-                            <Scissors className="h-3 w-3" />
-                            {(crop as any).tray_configs?.XL?.expected_yield || crop.expected_yield || '-'} g
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-xs text-muted-foreground mb-1">Zaťaženie</div>
-                          <div className="text-sm font-medium flex items-center gap-1">
-                            <Weight className="h-3 w-3" />
-                            {crop.needs_weight ? 'Áno' : 'Nie'}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* VLASTNOSTI */}
-                    <div className="pt-2 border-t">
-                      <div className="text-xs text-muted-foreground mb-2">Vlastnosti</div>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span>Namáčanie osiva</span>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">
-                              {((crop as any).soaking || crop.seed_soaking) ? 'Áno' : 'Nie'}
-                            </span>
-                            {(crop as any).soaking_duration_hours > 0 && (
-                              <Badge variant="secondary" className="text-xs">
-                                {(crop as any).soaking_duration_hours}h
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span>Rezaná forma</span>
-                          <span className="font-medium">{crop.can_be_cut ? 'Áno' : 'Nie'}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span>Živá forma</span>
-                          <span className="font-medium">{crop.can_be_live ? 'Áno' : 'Nie'}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* POZNÁMKY */}
-                    {crop.notes && (
-                      <div className="pt-2 border-t">
-                        <div className="text-xs text-muted-foreground mb-1">Poznámky</div>
-                        <div className="text-sm whitespace-pre-wrap">{crop.notes}</div>
-                      </div>
-                    )}
-
-                    {/* AKCIE */}
-                    <div className="pt-3 border-t flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedCropDetail(crop);
-                          setDetailModalOpen(true);
-                        }}
-                      >
-                        Detail
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEditDialog(crop);
-                        }}
-                      >
-                        <Pencil className="h-3 w-3 mr-1" />
-                        Upraviť
-                      </Button>
-                      {isAdmin && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-destructive hover:bg-destructive hover:text-white"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteId(crop.id);
-                          }}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </Card>
-            );
-          })}
         </div>
       ) : (
         <PullToRefresh onRefresh={handleRefresh}>
