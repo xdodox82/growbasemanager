@@ -42,7 +42,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Users, Plus, Pencil, Trash2, Mail, Phone, MapPin, Navigation, Loader as Loader2, Route, Download, ShoppingCart, Package, FileSpreadsheet, Search, Save, Chrome as Home, Utensils, Store } from 'lucide-react';
+import { Users, Plus, Pencil, Trash2, Mail, Phone, MapPin, Navigation, Loader as Loader2, Route, Download, ShoppingCart, Package, FileSpreadsheet, Search, Save, Chrome as Home, Utensils, Store, ChevronDown, ChevronUp } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -65,6 +65,7 @@ const CustomersPage = () => {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedCustomerDetail, setSelectedCustomerDetail] = useState<DbCustomer | null>(null);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [navApp, setNavApp] = useState<'waze' | 'maps'>('waze');
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const saved = localStorage.getItem(FILTER_STORAGE_KEY);
     if (saved) {
@@ -327,6 +328,18 @@ const CustomersPage = () => {
       }
       return newSet;
     });
+  };
+
+  const handleNavToggle = () => {
+    setNavApp(prev => prev === 'waze' ? 'maps' : 'waze');
+  };
+
+  const openNavigation = (address: string) => {
+    const encoded = encodeURIComponent(address);
+    const url = navApp === 'waze'
+      ? `https://waze.com/ul?q=${encoded}`
+      : `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+    window.open(url, '_blank');
   };
 
   if (loading) {
@@ -827,252 +840,272 @@ const CustomersPage = () => {
           {filteredCustomers.map((customer) => {
             const isExpanded = expandedCards.has(customer.id);
             const stats = customerStats[customer.id] || { orderCount: 0, totalVolume: 0 };
+            const displayName = (customer.customer_type === 'gastro' || customer.customer_type === 'wholesale') && customer.company_name
+              ? customer.company_name
+              : customer.name;
 
             return (
               <Card
                 key={customer.id}
-                className="p-5 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer"
+                className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
                 onClick={() => toggleCardExpansion(customer.id)}
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-info/10 text-info">
-                      <Users className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-lg">
-                        {(customer.customer_type === 'gastro' || customer.customer_type === 'wholesale') && customer.company_name
-                          ? customer.company_name
-                          : customer.name}
-                      </h3>
-                      {(customer.customer_type === 'gastro' || customer.customer_type === 'wholesale') && customer.company_name && (
-                        <p className="text-sm text-muted-foreground">{customer.contact_name || customer.name}</p>
-                      )}
-                      {customer.ico && (
-                        <p className="text-xs text-muted-foreground">IČO: {customer.ico}</p>
-                      )}
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {customer.customer_type && (
-                          <Badge variant="outline" className="text-xs">
-                            {CUSTOMER_TYPES[customer.customer_type] || customer.customer_type}
-                          </Badge>
+                <div className="p-4">
+                  <div className="space-y-3">
+
+                    {/* ===== COLLAPSED VIEW - Always visible ===== */}
+
+                    {/* Header: Meno + Expand Icon */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-base text-gray-900">
+                          {displayName || 'Bez mena'}
+                        </h3>
+                        {customer.contact_name && customer.company_name && (
+                          <p className="text-sm text-gray-600">
+                            {customer.contact_name}
+                          </p>
                         )}
-                        {getRouteName(customer.delivery_route_id) && (
-                          <Badge variant="secondary" className="text-xs gap-1">
-                            <Route className="h-3 w-3" />
-                            {getRouteName(customer.delivery_route_id)}
-                          </Badge>
+                      </div>
+                      {/* Expand/Collapse Icon */}
+                      <div className="flex-shrink-0 p-2 md:hidden">
+                        {isExpanded ? (
+                          <ChevronUp className="h-5 w-5 text-gray-600" />
+                        ) : (
+                          <ChevronDown className="h-5 w-5 text-gray-600" />
+                        )}
+                      </div>
+                      {/* Desktop - Action buttons */}
+                      <div className="hidden md:flex gap-1" onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(customer)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        {isAdmin && (
+                          <Button variant="ghost" size="icon" onClick={() => setDeleteId(customer.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
                         )}
                       </div>
                     </div>
-                  </div>
-                  <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" onClick={() => openEditDialog(customer)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    {isAdmin && (
-                      <Button variant="ghost" size="icon" onClick={() => setDeleteId(customer.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
 
-                {/* Customer Statistics - Always visible */}
-                <div className="mt-3 pt-3 border-t border-border">
-                  <div className="flex items-center gap-4 text-sm">
-                    <div className="flex items-center gap-1 text-muted-foreground">
+                    {/* Typ zákazníka + IČO */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {customer.customer_type && (
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          customer.customer_type === 'home' ? 'bg-blue-100 text-blue-800' :
+                          customer.customer_type === 'gastro' ? 'bg-orange-100 text-orange-800' :
+                          'bg-purple-100 text-purple-800'
+                        }`}>
+                          {customer.customer_type === 'home' && <><Home className="h-3 w-3 mr-1" /> Domáci</>}
+                          {customer.customer_type === 'gastro' && <><Utensils className="h-3 w-3 mr-1" /> Gastro</>}
+                          {customer.customer_type === 'wholesale' && <><Store className="h-3 w-3 mr-1" /> Veľkoobchod</>}
+                        </span>
+                      )}
+                      {customer.ico && (
+                        <span className="text-xs text-gray-500">IČO: {customer.ico}</span>
+                      )}
+                      {getRouteName(customer.delivery_route_id) && (
+                        <Badge variant="secondary" className="text-xs gap-1">
+                          <Route className="h-3 w-3" />
+                          {getRouteName(customer.delivery_route_id)}
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Email */}
+                    {customer.email && (
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Mail className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate">{customer.email}</span>
+                      </div>
+                    )}
+
+                    {/* Telefón */}
+                    {customer.phone && (
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Phone className="h-4 w-4 flex-shrink-0" />
+                        <span>{customer.phone}</span>
+                      </div>
+                    )}
+
+                    {/* Objednávky */}
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
                       <ShoppingCart className="h-4 w-4" />
                       <span>{stats.orderCount} obj.</span>
                     </div>
-                  </div>
-                </div>
 
-                {/* EXPANDED CONTENT - Mobile only */}
-                {isExpanded && (
-                  <div className="mt-3 space-y-3 pt-3 border-t border-border md:hidden" onClick={(e) => e.stopPropagation()}>
-                    {customer.email && (
-                      <div className="space-y-1">
-                        <div className="text-xs font-medium text-muted-foreground">Email</div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">{customer.email}</span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
+                    {/* ===== EXPANDED VIEW - Mobile only ===== */}
+                    {isExpanded && (
+                      <div className="mt-4 pt-4 border-t space-y-3 animate-in slide-in-from-top duration-200 md:hidden" onClick={(e) => e.stopPropagation()}>
+
+                        {/* Detaily Grid */}
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+
+                          {/* Adresa */}
+                          {customer.address && (
+                            <div className="col-span-2">
+                              <label className="text-gray-500 text-xs">Adresa</label>
+                              <p className="font-medium text-gray-900">
+                                {customer.address}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* DIČ */}
+                          {customer.dic && (
+                            <div>
+                              <label className="text-gray-500 text-xs">DIČ</label>
+                              <p className="font-medium text-gray-900">{customer.dic}</p>
+                            </div>
+                          )}
+
+                          {/* IČ DPH */}
+                          {customer.ic_dph && (
+                            <div>
+                              <label className="text-gray-500 text-xs">IČ DPH</label>
+                              <p className="font-medium text-gray-900">{customer.ic_dph}</p>
+                            </div>
+                          )}
+
+                          {/* Spôsob platby */}
+                          {customer.payment_method && (
+                            <div className="col-span-2">
+                              <label className="text-gray-500 text-xs">Spôsob platby</label>
+                              <p className="font-medium text-gray-900">
+                                {customer.payment_method === 'cash' ? 'Hotovosť' :
+                                 customer.payment_method === 'card' ? 'Karta' :
+                                 customer.payment_method === 'invoice' ? 'Faktúra' :
+                                 customer.payment_method}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Predvolený obal */}
+                          {customer.default_packaging_type && (
+                            <div className="col-span-2">
+                              <label className="text-gray-500 text-xs">Predvolený obal</label>
+                              <p className="font-medium text-gray-900">{customer.default_packaging_type}</p>
+                            </div>
+                          )}
+
+                          {/* Doprava zdarma */}
+                          {customer.free_delivery !== undefined && (
+                            <div>
+                              <label className="text-gray-500 text-xs">Doprava zdarma</label>
+                              <p className="font-medium text-gray-900">{customer.free_delivery ? 'Áno' : 'Nie'}</p>
+                            </div>
+                          )}
+
+                          {/* Bankové spojenie */}
+                          {customer.bank_account && (
+                            <div className="col-span-2">
+                              <label className="text-gray-500 text-xs">Bankové spojenie</label>
+                              <p className="font-medium text-gray-900">{customer.bank_account}</p>
+                            </div>
+                          )}
+
+                          {/* Poznámky */}
+                          {customer.delivery_notes && (
+                            <div className="col-span-2">
+                              <label className="text-gray-500 text-xs">Poznámky k dodaniu</label>
+                              <p className="font-medium text-gray-900 whitespace-pre-wrap">{customer.delivery_notes}</p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Action Buttons - EXPANDED ONLY */}
+                        <div className="flex gap-2 pt-2 border-t">
+
+                          {/* Telefón */}
+                          {customer.phone && (
+                            <a
+                              href={`tel:${customer.phone}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            >
+                              <Phone className="h-5 w-5" />
+                            </a>
+                          )}
+
+                          {/* Email */}
+                          {customer.email && (
+                            <a
+                              href={`mailto:${customer.email}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            >
+                              <Mail className="h-5 w-5" />
+                            </a>
+                          )}
+
+                          {/* Navigácia - s SWIPE toggle Waze/Maps */}
+                          {customer.address && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openNavigation(customer.address!);
+                              }}
+                              onTouchStart={(e) => {
+                                e.stopPropagation();
+                                const startX = e.touches[0].clientX;
+                                const handleTouchMove = (moveEvent: TouchEvent) => {
+                                  const deltaX = moveEvent.touches[0].clientX - startX;
+                                  if (Math.abs(deltaX) > 30) {
+                                    handleNavToggle();
+                                    document.removeEventListener('touchmove', handleTouchMove);
+                                  }
+                                };
+                                document.addEventListener('touchmove', handleTouchMove);
+                                document.addEventListener('touchend', () => {
+                                  document.removeEventListener('touchmove', handleTouchMove);
+                                }, { once: true });
+                              }}
+                              className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            >
+                              <Navigation className="h-5 w-5" />
+                            </button>
+                          )}
+
+                          {/* Detail */}
+                          <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              window.location.href = `mailto:${customer.email}`;
+                              setSelectedCustomerDetail(customer);
+                              setDetailModalOpen(true);
                             }}
+                            className="flex-1 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
                           >
-                            <Mail className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
+                            Detail
+                          </button>
 
-                    {customer.phone && (
-                      <div className="space-y-1">
-                        <div className="text-xs font-medium text-muted-foreground">Telefón</div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">{customer.phone}</span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
+                          {/* Edit */}
+                          <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleCall(customer.phone!);
+                              openEditDialog(customer);
                             }}
+                            className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           >
-                            <Phone className="h-4 w-4" />
-                          </Button>
+                            <Pencil className="h-5 w-5" />
+                          </button>
+
+                          {/* Delete - admin only */}
+                          {isAdmin && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteId(customer.id);
+                              }}
+                              className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            >
+                              <Trash2 className="h-5 w-5" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     )}
 
-                    {customer.address && (
-                      <div className="space-y-1">
-                        <div className="text-xs font-medium text-muted-foreground">Adresa</div>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm flex-1">{customer.address}</span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleNavigate(customer.address!);
-                            }}
-                          >
-                            <Navigation className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    {customer.dic && (
-                      <div className="space-y-1">
-                        <div className="text-xs font-medium text-muted-foreground">DIČ</div>
-                        <div className="text-sm">{customer.dic}</div>
-                      </div>
-                    )}
-
-                    {customer.ic_dph && (
-                      <div className="space-y-1">
-                        <div className="text-xs font-medium text-muted-foreground">IČ DPH</div>
-                        <div className="text-sm">{customer.ic_dph}</div>
-                      </div>
-                    )}
-
-                    {customer.payment_method && (
-                      <div className="space-y-1">
-                        <div className="text-xs font-medium text-muted-foreground">Spôsob platby</div>
-                        <div className="text-sm">
-                          {customer.payment_method === 'cash' && 'Hotovosť'}
-                          {customer.payment_method === 'card' && 'Platba kartou'}
-                          {customer.payment_method === 'invoice' && 'Faktúra'}
-                        </div>
-                      </div>
-                    )}
-
-                    {customer.default_packaging_type && (
-                      <div className="space-y-1">
-                        <div className="text-xs font-medium text-muted-foreground">Predvolený obal</div>
-                        <div className="text-sm">{customer.default_packaging_type}</div>
-                      </div>
-                    )}
-
-                    {customer.free_delivery !== undefined && (
-                      <div className="space-y-1">
-                        <div className="text-xs font-medium text-muted-foreground">Doprava zdarma</div>
-                        <div className="text-sm">{customer.free_delivery ? 'Áno' : 'Nie'}</div>
-                      </div>
-                    )}
-
-                    {customer.bank_account && (
-                      <div className="space-y-1">
-                        <div className="text-xs font-medium text-muted-foreground">Bankové spojenie</div>
-                        <div className="text-sm">{customer.bank_account}</div>
-                      </div>
-                    )}
-
-                    {customer.delivery_notes && (
-                      <div className="space-y-1">
-                        <div className="text-xs font-medium text-muted-foreground">Poznámky k dodaniu</div>
-                        <div className="text-sm whitespace-pre-wrap">{customer.delivery_notes}</div>
-                      </div>
-                    )}
                   </div>
-                )}
-
-                {/* Desktop - Always show contact info */}
-                <div className="hidden md:block">
-                  <div className="mt-3 space-y-2">
-                    {customer.email && (
-                      <div className="flex items-center justify-between text-sm text-muted-foreground">
-                        <div className="flex items-center gap-2">
-                          <Mail className="h-4 w-4" />
-                          <span>{customer.email}</span>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            window.location.href = `mailto:${customer.email}`;
-                          }}
-                        >
-                          <Mail className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                    {customer.phone && (
-                      <div className="flex items-center justify-between text-sm text-muted-foreground">
-                        <div className="flex items-center gap-2">
-                          <Phone className="h-4 w-4" />
-                          <span>{customer.phone}</span>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCall(customer.phone!);
-                          }}
-                        >
-                          <Phone className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                    {customer.address && (
-                      <div className="flex items-center justify-between text-sm text-muted-foreground">
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4" />
-                          <span className="line-clamp-1">{customer.address}</span>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleNavigate(customer.address!);
-                          }}
-                        >
-                          <Navigation className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-
-                  {customer.delivery_notes && (
-                    <p className="mt-4 text-sm text-muted-foreground border-t border-border pt-3">
-                      {customer.delivery_notes}
-                    </p>
-                  )}
                 </div>
               </Card>
             );
