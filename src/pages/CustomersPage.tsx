@@ -836,7 +836,7 @@ const CustomersPage = () => {
           description="Skúste zmeniť vyhľadávacie kritériá."
         />
       ) : effectiveViewMode === 'grid' ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 overflow-y-auto max-h-[calc(100vh-200px)]">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredCustomers.map((customer) => {
             const isExpanded = expandedCards.has(customer.id);
             const stats = customerStats[customer.id] || { orderCount: 0, totalVolume: 0 };
