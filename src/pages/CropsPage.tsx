@@ -713,7 +713,7 @@ const CropsPage = () => {
           description="Skúste zmeniť filter kategórie."
         />
       ) : viewMode === 'grid' ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 overflow-y-auto max-h-[calc(100vh-200px)]">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredCrops.map((crop) => (
             <Card
               key={crop.id}
@@ -811,7 +811,7 @@ const CropsPage = () => {
       ) : (
         <PullToRefresh onRefresh={handleRefresh}>
           <Card>
-            <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-200px)] overscroll-behavior-y-contain">
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <MobileTableRow>

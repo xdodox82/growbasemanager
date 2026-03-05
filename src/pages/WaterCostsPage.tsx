@@ -287,7 +287,7 @@ function WaterCostsPage() {
               description="Zatiaľ nemáte žiadne záznamy o spotrebe vody"
             />
           ) : (
-            <Card className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-200px)] overscroll-behavior-y-contain">
+            <Card className="overflow-x-auto">
               <Table>
             <TableHeader>
               <TableRow>

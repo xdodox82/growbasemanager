@@ -51,7 +51,7 @@ export function MainLayout({ children }: MainLayoutProps) {
       <DesktopHeader />
 
       {/* Main content */}
-      <main className={`pt-16 md:pt-0 pb-20 md:pb-0 transition-all duration-300 ${sidebarOpen ? 'md:pl-64' : 'md:pl-0'}`}>
+      <main className={`h-screen overflow-y-auto pt-16 md:pt-0 pb-20 md:pb-0 transition-all duration-300 ${sidebarOpen ? 'md:pl-64' : 'md:pl-0'}`}>
         <div className="p-4 md:p-6 lg:p-8">
           {children}
         </div>

@@ -918,7 +918,7 @@ const CustomersPage = () => {
       ) : (
         <PullToRefresh onRefresh={handleRefresh}>
           <Card>
-            <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-200px)] overscroll-behavior-y-contain">
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <MobileTableRow>
