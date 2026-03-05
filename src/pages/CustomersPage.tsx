@@ -64,6 +64,7 @@ const CustomersPage = () => {
   const [saving, setSaving] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedCustomerDetail, setSelectedCustomerDetail] = useState<DbCustomer | null>(null);
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const saved = localStorage.getItem(FILTER_STORAGE_KEY);
     if (saved) {
@@ -314,6 +315,18 @@ const CustomersPage = () => {
     } else {
       window.open(`https://www.google.com/maps/search/?api=1&query=${encodedAddress}`, '_blank');
     }
+  };
+
+  const toggleCardExpansion = (customerId: string) => {
+    setExpandedCards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(customerId)) {
+        newSet.delete(customerId);
+      } else {
+        newSet.add(customerId);
+      }
+      return newSet;
+    });
   };
 
   if (loading) {
@@ -811,112 +824,259 @@ const CustomersPage = () => {
         />
       ) : effectiveViewMode === 'grid' ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 overflow-y-auto max-h-[calc(100vh-200px)]">
-          {filteredCustomers.map((customer) => (
-            <Card
-              key={customer.id}
-              className="p-5 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer"
-              onClick={() => {
-                setSelectedCustomerDetail(customer);
-                setDetailModalOpen(true);
-              }}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-info/10 text-info">
-                    <Users className="h-6 w-6" />
+          {filteredCustomers.map((customer) => {
+            const isExpanded = expandedCards.has(customer.id);
+            const stats = customerStats[customer.id] || { orderCount: 0, totalVolume: 0 };
+
+            return (
+              <Card
+                key={customer.id}
+                className="p-5 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer"
+                onClick={() => toggleCardExpansion(customer.id)}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-info/10 text-info">
+                      <Users className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">
+                        {(customer.customer_type === 'gastro' || customer.customer_type === 'wholesale') && customer.company_name
+                          ? customer.company_name
+                          : customer.name}
+                      </h3>
+                      {(customer.customer_type === 'gastro' || customer.customer_type === 'wholesale') && customer.company_name && (
+                        <p className="text-sm text-muted-foreground">{customer.contact_name || customer.name}</p>
+                      )}
+                      {customer.ico && (
+                        <p className="text-xs text-muted-foreground">IČO: {customer.ico}</p>
+                      )}
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {customer.customer_type && (
+                          <Badge variant="outline" className="text-xs">
+                            {CUSTOMER_TYPES[customer.customer_type] || customer.customer_type}
+                          </Badge>
+                        )}
+                        {getRouteName(customer.delivery_route_id) && (
+                          <Badge variant="secondary" className="text-xs gap-1">
+                            <Route className="h-3 w-3" />
+                            {getRouteName(customer.delivery_route_id)}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-lg">
-                      {(customer.customer_type === 'gastro' || customer.customer_type === 'wholesale') && customer.company_name
-                        ? customer.company_name
-                        : customer.name}
-                    </h3>
-                    {(customer.customer_type === 'gastro' || customer.customer_type === 'wholesale') && customer.company_name && (
-                      <p className="text-sm text-muted-foreground">{customer.contact_name || customer.name}</p>
+                  <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                    <Button variant="ghost" size="icon" onClick={() => openEditDialog(customer)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    {isAdmin && (
+                      <Button variant="ghost" size="icon" onClick={() => setDeleteId(customer.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
                     )}
-                    {customer.ico && (
-                      <p className="text-xs text-muted-foreground">IČO: {customer.ico}</p>
-                    )}
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {customer.customer_type && (
-                        <Badge variant="outline" className="text-xs">
-                          {CUSTOMER_TYPES[customer.customer_type] || customer.customer_type}
-                        </Badge>
-                      )}
-                      {getRouteName(customer.delivery_route_id) && (
-                        <Badge variant="secondary" className="text-xs gap-1">
-                          <Route className="h-3 w-3" />
-                          {getRouteName(customer.delivery_route_id)}
-                        </Badge>
-                      )}
+                  </div>
+                </div>
+
+                {/* Customer Statistics - Always visible */}
+                <div className="mt-3 pt-3 border-t border-border">
+                  <div className="flex items-center gap-4 text-sm">
+                    <div className="flex items-center gap-1 text-muted-foreground">
+                      <ShoppingCart className="h-4 w-4" />
+                      <span>{stats.orderCount} obj.</span>
                     </div>
                   </div>
                 </div>
-                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                  <Button variant="ghost" size="icon" onClick={() => openEditDialog(customer)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  {isAdmin && (
-                    <Button variant="ghost" size="icon" onClick={() => setDeleteId(customer.id)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+
+                {/* EXPANDED CONTENT - Mobile only */}
+                {isExpanded && (
+                  <div className="mt-3 space-y-3 pt-3 border-t border-border md:hidden" onClick={(e) => e.stopPropagation()}>
+                    {customer.email && (
+                      <div className="space-y-1">
+                        <div className="text-xs font-medium text-muted-foreground">Email</div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">{customer.email}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.location.href = `mailto:${customer.email}`;
+                            }}
+                          >
+                            <Mail className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {customer.phone && (
+                      <div className="space-y-1">
+                        <div className="text-xs font-medium text-muted-foreground">Telefón</div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">{customer.phone}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCall(customer.phone!);
+                            }}
+                          >
+                            <Phone className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {customer.address && (
+                      <div className="space-y-1">
+                        <div className="text-xs font-medium text-muted-foreground">Adresa</div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm flex-1">{customer.address}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleNavigate(customer.address!);
+                            }}
+                          >
+                            <Navigation className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {customer.dic && (
+                      <div className="space-y-1">
+                        <div className="text-xs font-medium text-muted-foreground">DIČ</div>
+                        <div className="text-sm">{customer.dic}</div>
+                      </div>
+                    )}
+
+                    {customer.ic_dph && (
+                      <div className="space-y-1">
+                        <div className="text-xs font-medium text-muted-foreground">IČ DPH</div>
+                        <div className="text-sm">{customer.ic_dph}</div>
+                      </div>
+                    )}
+
+                    {customer.payment_method && (
+                      <div className="space-y-1">
+                        <div className="text-xs font-medium text-muted-foreground">Spôsob platby</div>
+                        <div className="text-sm">
+                          {customer.payment_method === 'cash' && 'Hotovosť'}
+                          {customer.payment_method === 'card' && 'Platba kartou'}
+                          {customer.payment_method === 'invoice' && 'Faktúra'}
+                        </div>
+                      </div>
+                    )}
+
+                    {customer.default_packaging_type && (
+                      <div className="space-y-1">
+                        <div className="text-xs font-medium text-muted-foreground">Predvolený obal</div>
+                        <div className="text-sm">{customer.default_packaging_type}</div>
+                      </div>
+                    )}
+
+                    {customer.free_delivery !== undefined && (
+                      <div className="space-y-1">
+                        <div className="text-xs font-medium text-muted-foreground">Doprava zdarma</div>
+                        <div className="text-sm">{customer.free_delivery ? 'Áno' : 'Nie'}</div>
+                      </div>
+                    )}
+
+                    {customer.bank_account && (
+                      <div className="space-y-1">
+                        <div className="text-xs font-medium text-muted-foreground">Bankové spojenie</div>
+                        <div className="text-sm">{customer.bank_account}</div>
+                      </div>
+                    )}
+
+                    {customer.delivery_notes && (
+                      <div className="space-y-1">
+                        <div className="text-xs font-medium text-muted-foreground">Poznámky k dodaniu</div>
+                        <div className="text-sm whitespace-pre-wrap">{customer.delivery_notes}</div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Desktop - Always show contact info */}
+                <div className="hidden md:block">
+                  <div className="mt-3 space-y-2">
+                    {customer.email && (
+                      <div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <Mail className="h-4 w-4" />
+                          <span>{customer.email}</span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.location.href = `mailto:${customer.email}`;
+                          }}
+                        >
+                          <Mail className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                    {customer.phone && (
+                      <div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-4 w-4" />
+                          <span>{customer.phone}</span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCall(customer.phone!);
+                          }}
+                        >
+                          <Phone className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                    {customer.address && (
+                      <div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4" />
+                          <span className="line-clamp-1">{customer.address}</span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleNavigate(customer.address!);
+                          }}
+                        >
+                          <Navigation className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  {customer.delivery_notes && (
+                    <p className="mt-4 text-sm text-muted-foreground border-t border-border pt-3">
+                      {customer.delivery_notes}
+                    </p>
                   )}
                 </div>
-              </div>
-
-              {/* Customer Statistics */}
-              <div className="mt-3 pt-3 border-t border-border">
-                <div className="flex items-center gap-4 text-sm">
-                  <div className="flex items-center gap-1 text-muted-foreground">
-                    <ShoppingCart className="h-4 w-4" />
-                    <span>{customerStats[customer.id]?.orderCount || 0} obj.</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-3 space-y-2">
-                {customer.email && (
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4" />
-                      <span>{customer.email}</span>
-                    </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.location.href = `mailto:${customer.email}`}>
-                      <Mail className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-                {customer.phone && (
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4" />
-                      <span>{customer.phone}</span>
-                    </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleCall(customer.phone!)}>
-                      <Phone className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-                {customer.address && (
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4" />
-                      <span className="line-clamp-1">{customer.address}</span>
-                    </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleNavigate(customer.address!)}>
-                      <Navigation className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              {customer.delivery_notes && (
-                <p className="mt-4 text-sm text-muted-foreground border-t border-border pt-3">
-                  {customer.delivery_notes}
-                </p>
-              )}
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
       ) : (
         <PullToRefresh onRefresh={handleRefresh}>
