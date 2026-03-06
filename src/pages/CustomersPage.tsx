@@ -42,7 +42,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Users, Plus, Pencil, Trash2, Mail, Phone, MapPin, Navigation, Loader as Loader2, Route, Download, ShoppingCart, Package, FileSpreadsheet, Search, Save, Chrome as Home, Utensils, Store, ChevronDown, ChevronUp } from 'lucide-react';
+import { Users, Plus, Pencil, Trash2, Mail, Phone, MapPin, Navigation, Loader as Loader2, Route, Download, ShoppingCart, Package, FileSpreadsheet, Search, Chrome as Home, Utensils, Store, ChevronDown, ChevronUp } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -97,15 +97,6 @@ const CustomersPage = () => {
   const handleRefresh = useCallback(async () => {
     await refetch();
   }, [refetch]);
-
-  const saveFiltersAsDefault = () => {
-    const filters = { viewMode, typeFilter, routeFilter };
-    localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(filters));
-    toast({
-      title: 'Filtre uložené',
-      description: 'Vaše predvolené filtre boli uložené.',
-    });
-  };
 
   const CUSTOMER_TYPES: Record<string, string> = {
     home: 'Domáci zákazník',
@@ -406,10 +397,6 @@ const CustomersPage = () => {
         <Button variant="outline" onClick={exportCustomersToExcel} className="w-full sm:w-auto gap-2">
           <FileSpreadsheet className="h-4 w-4" />
           <span className="hidden sm:inline">Export</span>
-        </Button>
-        <Button variant="ghost" onClick={saveFiltersAsDefault} className="w-full sm:w-auto gap-2" title="Uložiť filtre ako predvolené">
-          <Save className="h-4 w-4" />
-          <span className="hidden sm:inline">Uložiť filtre</span>
         </Button>
           <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
             <form onSubmit={handleSubmit}>
@@ -943,7 +930,7 @@ const CustomersPage = () => {
 
                     {/* ===== EXPANDED VIEW - Mobile only ===== */}
                     {isExpanded && (
-                      <div className="mt-4 pt-4 border-t space-y-3 animate-in slide-in-from-top duration-200 md:hidden" onClick={(e) => e.stopPropagation()}>
+                      <div className="mt-4 pt-4 border-t space-y-3 animate-in slide-in-from-top duration-200 md:hidden">
 
                         {/* Detaily Grid */}
                         <div className="grid grid-cols-2 gap-3 text-sm">
