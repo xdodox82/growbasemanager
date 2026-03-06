@@ -42,10 +42,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Users, Plus, Pencil, Trash2, Mail, Phone, MapPin, Navigation, Loader as Loader2, Route, Download, ShoppingCart, Package, FileSpreadsheet, Search, Chrome as Home, Utensils, Store, ChevronDown, ChevronUp } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import { Users, Plus, Pencil, Trash2, Mail, Phone, MapPin, Navigation, Loader as Loader2, Route, Download, ShoppingCart, Package, Search, Chrome as Home, Utensils, Store, ChevronDown, ChevronUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
 import { CustomerTypeFilter } from '@/components/filters/CustomerTypeFilter';
 
 const FILTER_STORAGE_KEY = 'customers_default_filters';
@@ -152,29 +150,6 @@ const CustomersPage = () => {
   const getRouteName = (routeId: string | null) => {
     if (!routeId) return null;
     return deliveryRoutes.find(r => r.id === routeId)?.name || null;
-  };
-
-  const exportCustomersToExcel = () => {
-    const data = filteredCustomers.map(customer => {
-      const stats = customerStats[customer.id] || { orderCount: 0, totalVolume: 0 };
-      return {
-        'Meno': customer.name,
-        'Typ': customer.customer_type ? CUSTOMER_TYPES[customer.customer_type] || customer.customer_type : '',
-        'Firma': (customer as any).company_name || '',
-        'IČO': (customer as any).ico || '',
-        'DIČ': (customer as any).dic || '',
-        'Email': customer.email || '',
-        'Telefón': customer.phone || '',
-        'Adresa': customer.address || '',
-        'Trasa': getRouteName(customer.delivery_route_id) || '',
-        'Počet objednávok': stats.orderCount,
-      };
-    });
-
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Zákazníci');
-    XLSX.writeFile(wb, `zakaznici-${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
   };
 
   const resetForm = () => {
@@ -394,10 +369,6 @@ const CustomersPage = () => {
             ))}
           </SelectContent>
         </Select>
-        <Button variant="outline" onClick={exportCustomersToExcel} className="w-full sm:w-auto gap-2">
-          <FileSpreadsheet className="h-4 w-4" />
-          <span className="hidden sm:inline">Export</span>
-        </Button>
           <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
             <form onSubmit={handleSubmit}>
               <DialogHeader>
