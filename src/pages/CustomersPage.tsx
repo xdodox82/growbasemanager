@@ -848,7 +848,14 @@ const CustomersPage = () => {
               <Card
                 key={customer.id}
                 className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => toggleCardExpansion(customer.id)}
+                onClick={() => {
+                  if (window.innerWidth >= 768) {
+                    setSelectedCustomerDetail(customer);
+                    setDetailModalOpen(true);
+                  } else {
+                    toggleCardExpansion(customer.id);
+                  }
+                }}
               >
                 <div className="p-4">
                   <div className="space-y-3">
