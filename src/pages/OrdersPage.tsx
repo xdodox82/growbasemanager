@@ -19,7 +19,7 @@ import { RecurringOrderEditDialog } from '@/components/orders/RecurringOrderEdit
 import { RecurringOrderDeleteDialog } from '@/components/orders/RecurringOrderDeleteDialog';
 import { RecurringOrderExtendDialog } from '@/components/orders/RecurringOrderExtendDialog';
 import { useDeliveryDays } from '@/hooks/useDeliveryDays';
-import { ShoppingCart, Plus, Grid3x3, List, FileSpreadsheet, FileText, CreditCard as Edit, Copy, Trash2, Calendar, Package, Truck, Chrome as Home, Utensils, Store, Scissors, X, MapPin, RefreshCw, Check, Leaf, Sprout, Flower, Palette, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ShoppingCart, Plus, Grid3x3, List, FileSpreadsheet, FileText, CreditCard as Edit, Copy, Trash2, Calendar, Package, Truck, House, Utensils, Store, Scissors, X, MapPin, RefreshCw, Check, Leaf, Sprout, Flower, Palette, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO, getDay, addWeeks, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday } from 'date-fns';
@@ -2658,7 +2658,7 @@ export default function OrdersPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-[#10b981] flex items-center justify-center">
-                  <Home className="h-4 w-4 text-white" />
+                  <House className="h-4 w-4 text-white" />
                 </div>
                 <span className="text-xs font-semibold text-gray-700 uppercase">Domáci</span>
               </div>
@@ -2997,7 +2997,7 @@ export default function OrdersPage() {
                               : 'border-slate-200 hover:border-slate-300'
                           }`}
                         >
-                          <Home className={`h-5 w-5 mb-1 ${
+                          <House className={`h-5 w-5 mb-1 ${
                             customerType === 'home' ? 'text-[#10b981]' : 'text-gray-400'
                           }`} />
                           <div className="text-xs font-medium">Domáci</div>

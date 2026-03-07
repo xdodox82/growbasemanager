@@ -42,7 +42,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Users, Plus, Pencil, Trash2, Mail, Phone, MapPin, Navigation, Loader as Loader2, Route, Download, ShoppingCart, Package, Search, Chrome as Home, Utensils, Store, ChevronDown, ChevronUp } from 'lucide-react';
+import { Users, Plus, Pencil, Trash2, Mail, Phone, MapPin, Navigation, Loader as Loader2, Route, Download, ShoppingCart, Package, Search, House, Utensils, Store, ChevronDown, ChevronUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { CustomerTypeFilter } from '@/components/filters/CustomerTypeFilter';
 
@@ -394,7 +394,7 @@ const CustomersPage = () => {
                           : 'border-slate-200 hover:border-slate-300'
                       }`}
                     >
-                      <Home className={`h-5 w-5 mb-1 ${
+                      <House className={`h-5 w-5 mb-1 ${
                         formData.customer_type === 'home' ? 'text-[#10b981]' : 'text-gray-400'
                       }`} />
                       <div className="text-xs font-medium">Domáci</div>
@@ -861,7 +861,7 @@ const CustomersPage = () => {
                           customer.customer_type === 'gastro' ? 'bg-orange-100 text-orange-800' :
                           'bg-purple-100 text-purple-800'
                         }`}>
-                          {customer.customer_type === 'home' && <><Home className="h-3 w-3 mr-1" /> Domáci</>}
+                          {customer.customer_type === 'home' && <><House className="h-3 w-3 mr-1" /> Domáci</>}
                           {customer.customer_type === 'gastro' && <><Utensils className="h-3 w-3 mr-1" /> Gastro</>}
                           {customer.customer_type === 'wholesale' && <><Store className="h-3 w-3 mr-1" /> Veľkoobchod</>}
                         </span>

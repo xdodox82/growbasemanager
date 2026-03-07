@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { useOrders, useCustomers, useCrops, useBlends, useOrderItems, useDeliveryRoutes } from '@/hooks/useSupabaseData';
 import { usePrices, useVatSettings } from '@/hooks/usePrices';
 import { useDeliveryDays } from '@/hooks/useDeliveryDays';
-import { Truck, FileSpreadsheet, FileText, CircleCheck as CheckCircle2, Calendar as CalendarIcon, Filter, Undo2, Navigation, CreditCard, Euro, Chrome as Home, Utensils, Store, Building2, Settings, GripVertical, Phone, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Truck, FileSpreadsheet, FileText, CircleCheck as CheckCircle2, Calendar as CalendarIcon, Filter, Undo2, Navigation, CreditCard, Euro, House, Utensils, Store, Building2, Settings, GripVertical, Phone, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
