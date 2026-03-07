@@ -514,7 +514,7 @@ const BlendsPage = () => {
             return (
               <Card
                 key={blend.id}
-                className="p-5 transition-all hover:shadow-lg cursor-pointer"
+                className="p-5 transition-all hover:shadow-lg cursor-pointer overflow-hidden"
                 onClick={() => {
                   if (window.innerWidth >= 768) {
                     setSelectedBlendDetail(blend);
@@ -531,7 +531,7 @@ const BlendsPage = () => {
                       <BlendIcon className="h-6 w-6 text-success" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-lg truncate">{blend.name}</h3>
+                      <h3 className="font-semibold text-base break-words leading-tight">{blend.name}</h3>
                       <p className="text-sm text-muted-foreground">
                         {blendCrops.length} položiek
                       </p>
@@ -569,7 +569,7 @@ const BlendsPage = () => {
                       <div className="text-xs text-gray-500 mb-2">Zloženie</div>
                       <div className="space-y-2">
                         {blendCrops.map((blendCrop, index) => (
-                          <div key={index} className="flex items-center gap-2">
+                          <div key={index} className="flex items-center gap-2 min-w-0">
                             {blendCrop.isBlend ? (
                               <BlendIcon className="h-3 w-3 text-primary flex-shrink-0" />
                             ) : (
@@ -578,11 +578,11 @@ const BlendsPage = () => {
                                 style={{ backgroundColor: getCropColor(blendCrop.cropId, blendCrop.isBlend) }}
                               />
                             )}
-                            <span className="flex-1 text-sm">
+                            <span className="flex-1 text-sm truncate min-w-0">
                               {blendCrop.isBlend && '🔀 '}
                               {getCropName(blendCrop.cropId, blendCrop.isBlend)}
                             </span>
-                            <span className="text-sm font-medium">{blendCrop.percentage}%</span>
+                            <span className="text-sm font-medium whitespace-nowrap">{blendCrop.percentage}%</span>
                           </div>
                         ))}
                       </div>
@@ -606,7 +606,7 @@ const BlendsPage = () => {
                     {(blend as any).notes && (
                       <div>
                         <div className="text-xs text-gray-500 mb-1">Poznámky</div>
-                        <div className="text-sm bg-gray-50 p-2 rounded">{(blend as any).notes}</div>
+                        <div className="text-sm bg-gray-50 p-2 rounded break-words">{(blend as any).notes}</div>
                       </div>
                     )}
 
@@ -651,7 +651,7 @@ const BlendsPage = () => {
                   <>
                     <div className="mt-4 space-y-2">
                       {blendCrops.map((blendCrop, index) => (
-                        <div key={index} className="flex items-center gap-2">
+                        <div key={index} className="flex items-center gap-2 min-w-0">
                           {blendCrop.isBlend ? (
                             <BlendIcon className="h-3 w-3 text-primary flex-shrink-0" />
                           ) : (
@@ -660,11 +660,11 @@ const BlendsPage = () => {
                               style={{ backgroundColor: getCropColor(blendCrop.cropId, blendCrop.isBlend) }}
                             />
                           )}
-                          <span className="flex-1 text-sm">
+                          <span className="flex-1 text-sm truncate min-w-0">
                             {blendCrop.isBlend && '🔀 '}
                             {getCropName(blendCrop.cropId, blendCrop.isBlend)}
                           </span>
-                          <span className="text-sm font-medium">{blendCrop.percentage}%</span>
+                          <span className="text-sm font-medium whitespace-nowrap">{blendCrop.percentage}%</span>
                         </div>
                       ))}
                     </div>
@@ -683,7 +683,7 @@ const BlendsPage = () => {
                     </div>
 
                     {(blend as any).notes && (
-                      <p className="mt-4 text-sm text-muted-foreground border-t border-border pt-3">
+                      <p className="mt-4 text-sm text-muted-foreground border-t border-border pt-3 break-words">
                         {(blend as any).notes}
                       </p>
                     )}
