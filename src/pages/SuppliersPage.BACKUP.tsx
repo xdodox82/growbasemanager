@@ -32,7 +32,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Building2, Plus, Pencil, Trash2, Mail, Phone, MapPin, Navigation, Loader as Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Building2, Plus, Pencil, Trash2, Mail, Phone, MapPin, Navigation, Loader as Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -60,7 +60,6 @@ const SuppliersPage = () => {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedSupplierDetail, setSelectedSupplierDetail] = useState<DbSupplier | null>(null);
-  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   
   const [formData, setFormData] = useState({
     name: '',
@@ -206,18 +205,6 @@ const SuppliersPage = () => {
     } else {
       window.open(`https://www.google.com/maps/search/?api=1&query=${encodedAddress}`, '_blank');
     }
-  };
-
-  const toggleCardExpansion = (supplierId: string) => {
-    setExpandedCards(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(supplierId)) {
-        newSet.delete(supplierId);
-      } else {
-        newSet.add(supplierId);
-      }
-      return newSet;
-    });
   };
 
   if (loading) {
@@ -440,200 +427,113 @@ const SuppliersPage = () => {
         />
       ) : effectiveViewMode === 'grid' ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 overflow-y-auto max-h-[calc(100vh-200px)]">
-          {filteredSuppliers.map((supplier) => {
-            const isExpanded = expandedCards.has(supplier.id);
-
-            return (
-              <Card
-                key={supplier.id}
-                className="p-5 transition-all hover:shadow-lg cursor-pointer"
-                onClick={() => {
-                  if (window.innerWidth >= 768) {
-                    setSelectedSupplierDetail(supplier);
-                    setDetailModalOpen(true);
-                  } else {
-                    toggleCardExpansion(supplier.id);
-                  }
-                }}
-              >
-                {/* COLLAPSED VIEW - vždy viditeľné */}
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-warning/10 text-warning flex-shrink-0">
-                      <Building2 className="h-6 w-6" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-lg truncate">{supplier.company_name || supplier.name}</h3>
-                      {supplier.company_name && supplier.name && (
-                        <p className="text-sm text-muted-foreground truncate">{supplier.name}</p>
-                      )}
-                      {supplier.supplier_type && (
-                        <Badge variant="outline" className="mt-1">{SUPPLIER_TYPES[supplier.supplier_type]}</Badge>
-                      )}
-                    </div>
+          {filteredSuppliers.map((supplier) => (
+            <Card
+              key={supplier.id}
+              className="p-5 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer"
+              onClick={() => {
+                setSelectedSupplierDetail(supplier);
+                setDetailModalOpen(true);
+              }}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-warning/10 text-warning">
+                    <Building2 className="h-6 w-6" />
                   </div>
-
-                  {/* Desktop: Edit/Delete ikony */}
-                  <div className="hidden md:flex gap-1" onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" onClick={() => openEditDialog(supplier)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    {isAdmin && (
-                      <Button variant="ghost" size="icon" onClick={() => setDeleteId(supplier.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                  <div>
+                    <h3 className="font-semibold text-lg">{supplier.company_name || supplier.name}</h3>
+                    {supplier.company_name && supplier.name && (
+                      <p className="text-sm text-muted-foreground">{supplier.name}</p>
                     )}
-                  </div>
-
-                  {/* Mobile: Expand/Collapse ikona */}
-                  <div className="md:hidden flex-shrink-0">
-                    {isExpanded ? (
-                      <ChevronUp className="h-5 w-5 text-gray-600" />
-                    ) : (
-                      <ChevronDown className="h-5 w-5 text-gray-600" />
+                    {supplier.supplier_type && (
+                      <Badge variant="outline" className="mt-1">{SUPPLIER_TYPES[supplier.supplier_type]}</Badge>
                     )}
                   </div>
                 </div>
+                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => openEditDialog(supplier)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setDeleteId(supplier.id)}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              </div>
 
-                {/* Email - vždy viditeľný */}
+              {(supplier.ico || supplier.ic_dph) && (
+                <div className="mt-3 flex gap-4 text-xs text-muted-foreground">
+                  {supplier.ico && <span>IČO: {supplier.ico}</span>}
+                  {supplier.ic_dph && <span>IČ DPH: {supplier.ic_dph}</span>}
+                </div>
+              )}
+
+              <div className="mt-4 space-y-2">
                 {supplier.email && (
-                  <div className="flex items-center justify-between text-sm mb-2">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <Mail className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                      <span className="truncate">{supplier.email}</span>
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4" />
+                      <span>{supplier.email}</span>
                     </div>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-primary hover:text-primary/80 flex-shrink-0"
-                      onClick={(e) => { e.stopPropagation(); handleEmail(supplier.email!); }}
+                      className="h-8 w-8 text-primary hover:text-primary/80"
+                      onClick={() => handleEmail(supplier.email!)}
                     >
                       <Mail className="h-4 w-4" />
                     </Button>
                   </div>
                 )}
-
-                {/* Telefón - vždy viditeľný */}
                 {supplier.phone && (
-                  <div className="flex items-center justify-between text-sm mb-2">
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
                     <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                      <Phone className="h-4 w-4" />
                       <span>{supplier.phone}</span>
                     </div>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-primary hover:text-primary/80 flex-shrink-0"
-                      onClick={(e) => { e.stopPropagation(); handleCall(supplier.phone!); }}
+                      className="h-8 w-8 text-primary hover:text-primary/80"
+                      onClick={() => handleCall(supplier.phone!)}
                     >
                       <Phone className="h-4 w-4" />
                     </Button>
                   </div>
                 )}
-
-                {/* EXPANDED VIEW - Mobile only */}
-                {isExpanded && (
-                  <div className="mt-4 pt-4 border-t space-y-3 animate-in slide-in-from-top duration-200 md:hidden">
-
-                    {/* Adresa + Navigácia */}
-                    {supplier.address && (
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">Adresa</div>
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-start gap-2 flex-1 min-w-0">
-                            <MapPin className="h-4 w-4 flex-shrink-0 text-muted-foreground mt-0.5" />
-                            <span className="text-sm">{supplier.address}</span>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-primary hover:text-primary/80 flex-shrink-0"
-                            onClick={(e) => { e.stopPropagation(); handleNavigate(supplier.address!); }}
-                          >
-                            <Navigation className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* IČO/DIČ/IČ DPH */}
-                    {(supplier.ico || supplier.dic || supplier.ic_dph) && (
-                      <div className="grid grid-cols-2 gap-3 text-sm">
-                        {supplier.ico && (
-                          <div>
-                            <div className="text-xs text-gray-500">IČO</div>
-                            <div className="font-medium">{supplier.ico}</div>
-                          </div>
-                        )}
-                        {supplier.dic && (
-                          <div>
-                            <div className="text-xs text-gray-500">DIČ</div>
-                            <div className="font-medium">{supplier.dic}</div>
-                          </div>
-                        )}
-                        {supplier.ic_dph && (
-                          <div className="col-span-2">
-                            <div className="text-xs text-gray-500">IČ DPH</div>
-                            <div className="font-medium">{supplier.ic_dph}</div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Bankový účet */}
-                    {supplier.bank_account && (
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">Bankový účet</div>
-                        <div className="text-sm font-mono bg-gray-50 p-2 rounded">{supplier.bank_account}</div>
-                      </div>
-                    )}
-
-                    {/* Poznámky */}
-                    {supplier.notes && (
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">Poznámky</div>
-                        <div className="text-sm bg-gray-50 p-2 rounded">{supplier.notes}</div>
-                      </div>
-                    )}
-
-                    {/* Action buttons */}
-                    <div className="flex gap-2 pt-2 border-t">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedSupplierDetail(supplier);
-                          setDetailModalOpen(true);
-                        }}
-                        className="flex-1 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"
-                      >
-                        Detail
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEditDialog(supplier);
-                        }}
-                        className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
-                      >
-                        <Pencil className="h-5 w-5" />
-                      </button>
-                      {isAdmin && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteId(supplier.id);
-                          }}
-                          className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
-                      )}
+                {supplier.address && (
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      <span className="line-clamp-1">{supplier.address}</span>
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-primary hover:text-primary/80"
+                      onClick={() => handleNavigate(supplier.address!)}
+                    >
+                      <Navigation className="h-4 w-4" />
+                    </Button>
                   </div>
                 )}
-              </Card>
-            );
-          })}
+              </div>
+
+              {supplier.notes && (
+                <p className="mt-4 text-sm text-muted-foreground border-t border-border pt-3">
+                  {supplier.notes}
+                </p>
+              )}
+            </Card>
+          ))}
         </div>
       ) : (
         <Card className="hidden md:block">
