@@ -897,39 +897,44 @@ const CustomersPage = () => {
                       </div>
                     )}
 
-                    {/* Adresa - s akčnou Navigation ikonou */}
+                    {/* Adresa - s akčnou Navigation ikonou + Waze/Maps indikátor */}
                     {customer.address && (
                       <div className="flex items-center justify-between text-sm mb-2">
                         <div className="flex items-center gap-2 min-w-0 flex-1">
                           <MapPin className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                           <span className="truncate">{customer.address}</span>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-primary hover:text-primary/80 flex-shrink-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openNavigation(customer.address!);
-                          }}
-                          onTouchStart={(e) => {
-                            e.stopPropagation();
-                            const startX = e.touches[0].clientX;
-                            const handleTouchMove = (moveEvent: TouchEvent) => {
-                              const deltaX = moveEvent.touches[0].clientX - startX;
-                              if (Math.abs(deltaX) > 30) {
-                                handleNavToggle();
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <span className="text-xs text-muted-foreground mr-1">
+                            {navApp === 'waze' ? 'Waze' : 'Maps'}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-primary hover:text-primary/80"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openNavigation(customer.address!);
+                            }}
+                            onTouchStart={(e) => {
+                              e.stopPropagation();
+                              const startX = e.touches[0].clientX;
+                              const handleTouchMove = (moveEvent: TouchEvent) => {
+                                const deltaX = moveEvent.touches[0].clientX - startX;
+                                if (Math.abs(deltaX) > 30) {
+                                  handleNavToggle();
+                                  document.removeEventListener('touchmove', handleTouchMove);
+                                }
+                              };
+                              document.addEventListener('touchmove', handleTouchMove);
+                              document.addEventListener('touchend', () => {
                                 document.removeEventListener('touchmove', handleTouchMove);
-                              }
-                            };
-                            document.addEventListener('touchmove', handleTouchMove);
-                            document.addEventListener('touchend', () => {
-                              document.removeEventListener('touchmove', handleTouchMove);
-                            }, { once: true });
-                          }}
-                        >
-                          <Navigation className="h-4 w-4" />
-                        </Button>
+                              }, { once: true });
+                            }}
+                          >
+                            <Navigation className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     )}
 
