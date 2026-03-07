@@ -439,7 +439,7 @@ const SuppliersPage = () => {
           description="Skúste zmeniť vyhľadávacie kritériá."
         />
       ) : effectiveViewMode === 'grid' ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 overflow-y-auto max-h-[calc(100vh-200px)]">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredSuppliers.map((supplier) => {
             const isExpanded = expandedCards.has(supplier.id);
 
