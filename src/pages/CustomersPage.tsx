@@ -879,24 +879,6 @@ const CustomersPage = () => {
                       )}
                     </div>
 
-                    {/* Email - s akčnou ikonou */}
-                    {customer.email && (
-                      <div className="flex items-center justify-between text-sm mb-2">
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <Mail className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                          <span className="truncate">{customer.email}</span>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-primary hover:text-primary/80 flex-shrink-0"
-                          onClick={(e) => { e.stopPropagation(); window.location.href = `mailto:${customer.email}`; }}
-                        >
-                          <Mail className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-
                     {/* Telefón - s akčnou ikonou */}
                     {customer.phone && (
                       <div className="flex items-center justify-between text-sm mb-2">
@@ -911,6 +893,42 @@ const CustomersPage = () => {
                           onClick={(e) => { e.stopPropagation(); handleCall(customer.phone!); }}
                         >
                           <Phone className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Adresa - s akčnou Navigation ikonou */}
+                    {customer.address && (
+                      <div className="flex items-center justify-between text-sm mb-2">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <MapPin className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                          <span className="truncate">{customer.address}</span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-primary hover:text-primary/80 flex-shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openNavigation(customer.address!);
+                          }}
+                          onTouchStart={(e) => {
+                            e.stopPropagation();
+                            const startX = e.touches[0].clientX;
+                            const handleTouchMove = (moveEvent: TouchEvent) => {
+                              const deltaX = moveEvent.touches[0].clientX - startX;
+                              if (Math.abs(deltaX) > 30) {
+                                handleNavToggle();
+                                document.removeEventListener('touchmove', handleTouchMove);
+                              }
+                            };
+                            document.addEventListener('touchmove', handleTouchMove);
+                            document.addEventListener('touchend', () => {
+                              document.removeEventListener('touchmove', handleTouchMove);
+                            }, { once: true });
+                          }}
+                        >
+                          <Navigation className="h-4 w-4" />
                         </Button>
                       </div>
                     )}
@@ -1003,56 +1021,6 @@ const CustomersPage = () => {
                         {/* Action Buttons - EXPANDED ONLY */}
                         <div className="flex gap-2 pt-2 border-t">
 
-                          {/* Telefón */}
-                          {customer.phone && (
-                            <a
-                              href={`tel:${customer.phone}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                            >
-                              <Phone className="h-5 w-5" />
-                            </a>
-                          )}
-
-                          {/* Email */}
-                          {customer.email && (
-                            <a
-                              href={`mailto:${customer.email}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            >
-                              <Mail className="h-5 w-5" />
-                            </a>
-                          )}
-
-                          {/* Navigácia - s SWIPE toggle Waze/Maps */}
-                          {customer.address && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openNavigation(customer.address!);
-                              }}
-                              onTouchStart={(e) => {
-                                e.stopPropagation();
-                                const startX = e.touches[0].clientX;
-                                const handleTouchMove = (moveEvent: TouchEvent) => {
-                                  const deltaX = moveEvent.touches[0].clientX - startX;
-                                  if (Math.abs(deltaX) > 30) {
-                                    handleNavToggle();
-                                    document.removeEventListener('touchmove', handleTouchMove);
-                                  }
-                                };
-                                document.addEventListener('touchmove', handleTouchMove);
-                                document.addEventListener('touchend', () => {
-                                  document.removeEventListener('touchmove', handleTouchMove);
-                                }, { once: true });
-                              }}
-                              className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            >
-                              <Navigation className="h-5 w-5" />
-                            </button>
-                          )}
-
                           {/* Detail */}
                           <button
                             onClick={(e) => {
@@ -1076,14 +1044,14 @@ const CustomersPage = () => {
                             <Pencil className="h-5 w-5" />
                           </button>
 
-                          {/* Delete - admin only */}
+                          {/* Delete - admin only - ČERVENÝ */}
                           {isAdmin && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setDeleteId(customer.id);
                               }}
-                              className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
                             >
                               <Trash2 className="h-5 w-5" />
                             </button>

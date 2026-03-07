@@ -20,7 +20,7 @@ import { RecurringOrderEditDialog } from '@/components/orders/RecurringOrderEdit
 import { RecurringOrderDeleteDialog } from '@/components/orders/RecurringOrderDeleteDialog';
 import { RecurringOrderExtendDialog } from '@/components/orders/RecurringOrderExtendDialog';
 import { useDeliveryDays } from '@/hooks/useDeliveryDays';
-import { ShoppingCart, Plus, Grid3x3, List, FileSpreadsheet, FileText, CreditCard as Edit, Copy, Trash2, Calendar, Package, Truck, House, Utensils, Store, Scissors, X, MapPin, RefreshCw, Check, Leaf, Sprout, Flower, Palette, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ShoppingCart, Plus, Grid3x3, List, FileSpreadsheet, FileText, Pencil, Copy, Trash2, Calendar, Package, Truck, House, Utensils, Store, Scissors, X, MapPin, RefreshCw, Check, Leaf, Sprout, Flower, Palette, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO, getDay, addWeeks, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday } from 'date-fns';
@@ -2794,7 +2794,7 @@ export default function OrdersPage() {
                             className="h-8 w-8 hover:bg-gray-100"
                             onClick={() => openEdit(order)}
                           >
-                            <Edit className="h-4 w-4 text-gray-500" />
+                            <Pencil className="h-4 w-4 text-gray-500" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -2862,7 +2862,7 @@ export default function OrdersPage() {
                       className="h-8 w-8 hover:bg-gray-100"
                       onClick={() => openEdit(order)}
                     >
-                      <Edit className="h-4 w-4 text-gray-500" />
+                      <Pencil className="h-4 w-4 text-gray-500" />
                     </Button>
                     <Button
                       variant="ghost"
@@ -3584,7 +3584,7 @@ export default function OrdersPage() {
 
                                       removeItem(index);
                                     }} className="ml-2">
-                                      <Edit className="h-4 w-4 text-blue-500" />
+                                      <Pencil className="h-4 w-4 text-blue-500" />
                                     </Button>
                                     <Button variant="ghost" size="sm" onClick={() => removeItem(index)}>
                                       <Trash2 className="h-4 w-4 text-red-500" />
@@ -3989,7 +3989,7 @@ export default function OrdersPage() {
                     openEdit(selectedOrderDetail);
                   }}
                 >
-                  <Edit className="h-4 w-4 mr-2" />
+                  <Pencil className="h-4 w-4 mr-2" />
                   Upraviť
                 </Button>
               </div>
