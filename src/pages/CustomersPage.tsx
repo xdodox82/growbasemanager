@@ -897,24 +897,6 @@ const CustomersPage = () => {
                       </div>
                     )}
 
-                    {/* Email - s akčnou ikonou */}
-                    {customer.email && (
-                      <div className="flex items-center justify-between text-sm mb-2">
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <Mail className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                          <span className="truncate">{customer.email}</span>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-primary hover:text-primary/80 flex-shrink-0"
-                          onClick={(e) => { e.stopPropagation(); window.location.href = `mailto:${customer.email}`; }}
-                        >
-                          <Mail className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-
                     {/* Adresa - s akčnou Navigation ikonou + Waze/Maps indikátor */}
                     {customer.address && (
                       <div className="flex items-center justify-between text-sm mb-2">
@@ -966,16 +948,29 @@ const CustomersPage = () => {
                     {isExpanded && (
                       <div className="mt-4 pt-4 border-t space-y-3 animate-in slide-in-from-top duration-200 md:hidden">
 
-                        {/* Detaily Grid */}
-                        <div className="grid grid-cols-2 gap-3 text-sm">
-
-                          {/* Email */}
-                          {customer.email && (
-                            <div className="col-span-2">
-                              <label className="text-gray-500 text-xs">Email</label>
-                              <p className="font-medium text-gray-900">{customer.email}</p>
+                        {/* Email S AKČNOU IKONOU - AKO PRVÉ */}
+                        {customer.email && (
+                          <div className="flex items-center justify-between pb-2 border-b">
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <Mail className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                              <span className="text-sm truncate">{customer.email}</span>
                             </div>
-                          )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-primary hover:text-primary/80 flex-shrink-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.location.href = `mailto:${customer.email}`;
+                              }}
+                            >
+                              <Mail className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+
+                        {/* Detaily Grid - POTOM ostatné */}
+                        <div className="grid grid-cols-2 gap-3 text-sm">
 
                           {/* DIČ */}
                           {customer.dic && (
