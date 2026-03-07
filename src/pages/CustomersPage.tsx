@@ -897,6 +897,24 @@ const CustomersPage = () => {
                       </div>
                     )}
 
+                    {/* Email - s akčnou ikonou */}
+                    {customer.email && (
+                      <div className="flex items-center justify-between text-sm mb-2">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <Mail className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                          <span className="truncate">{customer.email}</span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-primary hover:text-primary/80 flex-shrink-0"
+                          onClick={(e) => { e.stopPropagation(); window.location.href = `mailto:${customer.email}`; }}
+                        >
+                          <Mail className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+
                     {/* Adresa - s akčnou Navigation ikonou + Waze/Maps indikátor */}
                     {customer.address && (
                       <div className="flex items-center justify-between text-sm mb-2">

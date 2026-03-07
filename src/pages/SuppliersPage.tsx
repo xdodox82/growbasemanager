@@ -61,7 +61,8 @@ const SuppliersPage = () => {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedSupplierDetail, setSelectedSupplierDetail] = useState<DbSupplier | null>(null);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
-  
+  const [navApp, setNavApp] = useState<'waze' | 'maps'>('waze');
+
   const [formData, setFormData] = useState({
     name: '',
     company_name: '',
@@ -218,6 +219,18 @@ const SuppliersPage = () => {
       }
       return newSet;
     });
+  };
+
+  const handleNavToggle = () => {
+    setNavApp(prev => prev === 'waze' ? 'maps' : 'waze');
+  };
+
+  const openNavigation = (address: string) => {
+    const encoded = encodeURIComponent(address);
+    const url = navApp === 'waze'
+      ? `https://waze.com/ul?q=${encoded}`
+      : `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+    window.open(url, '_blank');
   };
 
   if (loading) {
@@ -544,14 +557,37 @@ const SuppliersPage = () => {
                             <MapPin className="h-4 w-4 flex-shrink-0 text-muted-foreground mt-0.5" />
                             <span className="text-sm">{supplier.address}</span>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-primary hover:text-primary/80 flex-shrink-0"
-                            onClick={(e) => { e.stopPropagation(); handleNavigate(supplier.address!); }}
-                          >
-                            <Navigation className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <span className="text-xs text-muted-foreground mr-1">
+                              {navApp === 'waze' ? 'Waze' : 'Maps'}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-primary hover:text-primary/80"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openNavigation(supplier.address!);
+                              }}
+                              onTouchStart={(e) => {
+                                e.stopPropagation();
+                                const startX = e.touches[0].clientX;
+                                const handleTouchMove = (moveEvent: TouchEvent) => {
+                                  const deltaX = moveEvent.touches[0].clientX - startX;
+                                  if (Math.abs(deltaX) > 30) {
+                                    handleNavToggle();
+                                    document.removeEventListener('touchmove', handleTouchMove);
+                                  }
+                                };
+                                document.addEventListener('touchmove', handleTouchMove);
+                                document.addEventListener('touchend', () => {
+                                  document.removeEventListener('touchmove', handleTouchMove);
+                                }, { once: true });
+                              }}
+                            >
+                              <Navigation className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     )}
