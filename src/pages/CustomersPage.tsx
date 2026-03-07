@@ -1,3 +1,4 @@
+// IMPORTANT: Use 'House' not 'Home' - Home is Chrome browser icon, House is home icon
 import { useState, useMemo, useCallback } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { PageHeader, EmptyState } from '@/components/ui/page-components';

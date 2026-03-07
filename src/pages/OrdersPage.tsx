@@ -1,3 +1,4 @@
+// IMPORTANT: Use 'House' not 'Home' - Home is Chrome browser icon, House is home icon
 import { useState, useEffect, useMemo } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { useIsMobile } from '@/hooks/use-mobile';
