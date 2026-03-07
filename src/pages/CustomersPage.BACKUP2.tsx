@@ -46,7 +46,6 @@ import { Switch } from '@/components/ui/switch';
 import { Users, Plus, Pencil, Trash2, Mail, Phone, MapPin, Navigation, Loader as Loader2, Route, Download, ShoppingCart, Package, Search, House, Utensils, Store, ChevronDown, ChevronUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { CustomerTypeFilter } from '@/components/filters/CustomerTypeFilter';
-import { SearchableCustomerSelect } from '@/components/orders/SearchableCustomerSelect';
 
 const FILTER_STORAGE_KEY = 'customers_default_filters';
 
@@ -60,7 +59,7 @@ const CustomersPage = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<DbCustomer | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [saving, setSaving] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedCustomerDetail, setSelectedCustomerDetail] = useState<DbCustomer | null>(null);
@@ -125,10 +124,11 @@ const CustomersPage = () => {
   });
 
   const filteredCustomers = customers.filter(c => {
-    const matchesCustomer = selectedCustomerId === 'all' || c.id === selectedCustomerId;
+    const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.email?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = typeFilter === 'all' || c.customer_type === typeFilter;
     const matchesRoute = routeFilter === 'all' || c.delivery_route_id === routeFilter;
-    return matchesCustomer && matchesType && matchesRoute;
+    return matchesSearch && matchesType && matchesRoute;
   });
 
   // Customer statistics - order count and total volume per customer
@@ -348,14 +348,13 @@ const CustomersPage = () => {
           onChange={setTypeFilter}
           showLabel={false}
         />
-        <div className="w-full sm:w-64">
-          <SearchableCustomerSelect
-            customers={customers}
-            value={selectedCustomerId}
-            onValueChange={setSelectedCustomerId}
+        <div className="relative w-full sm:w-64">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
             placeholder="Hľadať zákazníka..."
-            filterByType={typeFilter}
-            allowAll={true}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
           />
         </div>
         <Select value={routeFilter} onValueChange={setRouteFilter}>
@@ -879,39 +878,19 @@ const CustomersPage = () => {
                       )}
                     </div>
 
-                    {/* Email - s akčnou ikonou */}
+                    {/* Email */}
                     {customer.email && (
-                      <div className="flex items-center justify-between text-sm mb-2">
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <Mail className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                          <span className="truncate">{customer.email}</span>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-primary hover:text-primary/80 flex-shrink-0"
-                          onClick={(e) => { e.stopPropagation(); window.location.href = `mailto:${customer.email}`; }}
-                        >
-                          <Mail className="h-4 w-4" />
-                        </Button>
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Mail className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate">{customer.email}</span>
                       </div>
                     )}
 
-                    {/* Telefón - s akčnou ikonou */}
+                    {/* Telefón */}
                     {customer.phone && (
-                      <div className="flex items-center justify-between text-sm mb-2">
-                        <div className="flex items-center gap-2">
-                          <Phone className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                          <span>{customer.phone}</span>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-primary hover:text-primary/80 flex-shrink-0"
-                          onClick={(e) => { e.stopPropagation(); handleCall(customer.phone!); }}
-                        >
-                          <Phone className="h-4 w-4" />
-                        </Button>
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Phone className="h-4 w-4 flex-shrink-0" />
+                        <span>{customer.phone}</span>
                       </div>
                     )}
 
