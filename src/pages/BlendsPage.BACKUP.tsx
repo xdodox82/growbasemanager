@@ -38,9 +38,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Blend as BlendIcon, Plus, Pencil, Trash2, X, Percent, Loader as Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Blend as BlendIcon, Plus, Pencil, Trash2, X, Percent, Loader as Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 const BlendsPage = () => {
   const { data: blends, loading, add, update, remove } = useBlends();
@@ -54,11 +53,6 @@ const BlendsPage = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedBlendDetail, setSelectedBlendDetail] = useState<DbBlend | null>(null);
-  const isMobile = useIsMobile();
-  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
-
-  // Force grid view on mobile
-  const effectiveViewMode = isMobile ? 'grid' : viewMode;
 
   const [formData, setFormData] = useState<{
     name: string;
@@ -247,18 +241,6 @@ const BlendsPage = () => {
       }
       setDeleteId(null);
     }
-  };
-
-  const toggleCardExpansion = (blendId: string) => {
-    setExpandedCards(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(blendId)) {
-        newSet.delete(blendId);
-      } else {
-        newSet.add(blendId);
-      }
-      return newSet;
-    });
   };
 
   if (loading || cropsLoading) {
@@ -484,7 +466,7 @@ const BlendsPage = () => {
             </form>
           </DialogContent>
         </Dialog>
-        <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} className="hidden md:flex" />
+        <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} />
       </PageHeader>
 
       {blends.length === 0 ? (
@@ -505,189 +487,89 @@ const BlendsPage = () => {
             )
           }
         />
-      ) : effectiveViewMode === 'grid' ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      ) : viewMode === 'grid' ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 overflow-y-auto max-h-[calc(100vh-200px)]">
           {blends.map((blend) => {
             const blendCrops = getBlendCrops(blend);
-            const isExpanded = expandedCards.has(blend.id);
-
             return (
               <Card
                 key={blend.id}
-                className="p-5 transition-all hover:shadow-lg cursor-pointer"
+                className="p-5 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer"
                 onClick={() => {
-                  if (window.innerWidth >= 768) {
-                    setSelectedBlendDetail(blend);
-                    setDetailModalOpen(true);
-                  } else {
-                    toggleCardExpansion(blend.id);
-                  }
+                  setSelectedBlendDetail(blend);
+                  setDetailModalOpen(true);
                 }}
               >
-                {/* ===== COLLAPSED VIEW - vždy viditeľné ===== */}
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-gradient-to-br from-success/20 to-info/20 flex-shrink-0">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-gradient-to-br from-success/20 to-info/20">
                       <BlendIcon className="h-6 w-6 text-success" />
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-lg truncate">{blend.name}</h3>
+                    <div>
+                      <h3 className="font-semibold text-lg">{blend.name}</h3>
                       <p className="text-sm text-muted-foreground">
                         {blendCrops.length} položiek
                       </p>
                     </div>
                   </div>
-
-                  {/* Desktop: Edit/Delete ikony */}
-                  <div className="hidden md:flex gap-1" onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" onClick={() => openEditDialog(blend)}>
+                  <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => openEditDialog(blend)}
+                    >
                       <Pencil className="h-4 w-4" />
                     </Button>
                     {isAdmin && (
-                      <Button variant="ghost" size="icon" onClick={() => setDeleteId(blend.id)}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setDeleteId(blend.id)}
+                      >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     )}
                   </div>
-
-                  {/* Mobile: Expand/Collapse ikona */}
-                  <div className="md:hidden flex-shrink-0">
-                    {isExpanded ? (
-                      <ChevronUp className="h-5 w-5 text-gray-600" />
-                    ) : (
-                      <ChevronDown className="h-5 w-5 text-gray-600" />
-                    )}
-                  </div>
                 </div>
 
-                {/* ===== EXPANDED VIEW - Mobile only ===== */}
-                {isExpanded && (
-                  <div className="mt-4 pt-4 border-t space-y-3 animate-in slide-in-from-top duration-200 md:hidden">
-
-                    {/* Zloženie mixu */}
-                    <div>
-                      <div className="text-xs text-gray-500 mb-2">Zloženie</div>
-                      <div className="space-y-2">
-                        {blendCrops.map((blendCrop, index) => (
-                          <div key={index} className="flex items-center gap-2">
-                            {blendCrop.isBlend ? (
-                              <BlendIcon className="h-3 w-3 text-primary flex-shrink-0" />
-                            ) : (
-                              <div
-                                className="h-3 w-3 rounded-full flex-shrink-0"
-                                style={{ backgroundColor: getCropColor(blendCrop.cropId, blendCrop.isBlend) }}
-                              />
-                            )}
-                            <span className="flex-1 text-sm">
-                              {blendCrop.isBlend && '🔀 '}
-                              {getCropName(blendCrop.cropId, blendCrop.isBlend)}
-                            </span>
-                            <span className="text-sm font-medium">{blendCrop.percentage}%</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Visual percentage bar */}
-                    <div className="h-2 rounded-full overflow-hidden flex">
-                      {blendCrops.map((blendCrop, index) => (
+                <div className="mt-4 space-y-2">
+                  {blendCrops.map((blendCrop, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      {blendCrop.isBlend ? (
+                        <BlendIcon className="h-3 w-3 text-primary flex-shrink-0" />
+                      ) : (
                         <div
-                          key={index}
-                          className="h-full"
-                          style={{
-                            width: `${blendCrop.percentage}%`,
-                            backgroundColor: getCropColor(blendCrop.cropId, blendCrop.isBlend),
-                          }}
+                          className="h-3 w-3 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: getCropColor(blendCrop.cropId, blendCrop.isBlend) }}
                         />
-                      ))}
-                    </div>
-
-                    {/* Poznámky */}
-                    {(blend as any).notes && (
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">Poznámky</div>
-                        <div className="text-sm bg-gray-50 p-2 rounded">{(blend as any).notes}</div>
-                      </div>
-                    )}
-
-                    {/* Action buttons */}
-                    <div className="flex gap-2 pt-2 border-t">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedBlendDetail(blend);
-                          setDetailModalOpen(true);
-                        }}
-                        className="flex-1 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"
-                      >
-                        Detail
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEditDialog(blend);
-                        }}
-                        className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
-                      >
-                        <Pencil className="h-5 w-5" />
-                      </button>
-                      {isAdmin && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteId(blend.id);
-                          }}
-                          className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
                       )}
+                      <span className="flex-1 text-sm">
+                        {blendCrop.isBlend && '🔀 '}
+                        {getCropName(blendCrop.cropId, blendCrop.isBlend)}
+                      </span>
+                      <span className="text-sm font-medium">{blendCrop.percentage}%</span>
                     </div>
-                  </div>
-                )}
+                  ))}
+                </div>
 
-                {/* Desktop - zobrazuje sa vždy (nie v expanded) */}
-                {!isMobile && (
-                  <>
-                    <div className="mt-4 space-y-2">
-                      {blendCrops.map((blendCrop, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                          {blendCrop.isBlend ? (
-                            <BlendIcon className="h-3 w-3 text-primary flex-shrink-0" />
-                          ) : (
-                            <div
-                              className="h-3 w-3 rounded-full flex-shrink-0"
-                              style={{ backgroundColor: getCropColor(blendCrop.cropId, blendCrop.isBlend) }}
-                            />
-                          )}
-                          <span className="flex-1 text-sm">
-                            {blendCrop.isBlend && '🔀 '}
-                            {getCropName(blendCrop.cropId, blendCrop.isBlend)}
-                          </span>
-                          <span className="text-sm font-medium">{blendCrop.percentage}%</span>
-                        </div>
-                      ))}
-                    </div>
+                {/* Visual percentage bar */}
+                <div className="mt-4 h-2 rounded-full overflow-hidden flex">
+                  {blendCrops.map((blendCrop, index) => (
+                    <div
+                      key={index}
+                      className="h-full"
+                      style={{
+                        width: `${blendCrop.percentage}%`,
+                        backgroundColor: getCropColor(blendCrop.cropId, blendCrop.isBlend),
+                      }}
+                    />
+                  ))}
+                </div>
 
-                    <div className="mt-4 h-2 rounded-full overflow-hidden flex">
-                      {blendCrops.map((blendCrop, index) => (
-                        <div
-                          key={index}
-                          className="h-full"
-                          style={{
-                            width: `${blendCrop.percentage}%`,
-                            backgroundColor: getCropColor(blendCrop.cropId, blendCrop.isBlend),
-                          }}
-                        />
-                      ))}
-                    </div>
-
-                    {(blend as any).notes && (
-                      <p className="mt-4 text-sm text-muted-foreground border-t border-border pt-3">
-                        {(blend as any).notes}
-                      </p>
-                    )}
-                  </>
+                {(blend as any).notes && (
+                  <p className="mt-4 text-sm text-muted-foreground border-t border-border pt-3">
+                    {(blend as any).notes}
+                  </p>
                 )}
               </Card>
             );
