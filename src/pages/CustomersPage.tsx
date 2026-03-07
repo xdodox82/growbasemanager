@@ -946,13 +946,11 @@ const CustomersPage = () => {
                         {/* Detaily Grid */}
                         <div className="grid grid-cols-2 gap-3 text-sm">
 
-                          {/* Adresa */}
-                          {customer.address && (
+                          {/* Email */}
+                          {customer.email && (
                             <div className="col-span-2">
-                              <label className="text-gray-500 text-xs">Adresa</label>
-                              <p className="font-medium text-gray-900">
-                                {customer.address}
-                              </p>
+                              <label className="text-gray-500 text-xs">Email</label>
+                              <p className="font-medium text-gray-900">{customer.email}</p>
                             </div>
                           )}
 
