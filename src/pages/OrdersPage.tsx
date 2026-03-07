@@ -126,6 +126,21 @@ interface Packaging {
   type: string;
 }
 
+// Helper function to sort order items by value (quantity × price) - highest first
+const sortOrderItemsByValue = (items: OrderItem[]): OrderItem[] => {
+  if (!items || items.length === 0) return [];
+
+  return [...items].sort((a, b) => {
+    const valueA = (parseFloat(a?.quantity?.toString() || '0')) *
+                   (parseFloat((a?.price_per_unit?.toString() || '0').replace(',', '.')));
+    const valueB = (parseFloat(b?.quantity?.toString() || '0')) *
+                   (parseFloat((b?.price_per_unit?.toString() || '0').replace(',', '.')));
+
+    // Sort descending (highest value first)
+    return valueB - valueA;
+  });
+};
+
 const deleteOrderItemsDirectFetch = async (orderId: string) => {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -3888,7 +3903,7 @@ export default function OrdersPage() {
               <div className="border-t pt-4">
                 <h3 className="font-semibold text-base mb-3">Položky objednávky:</h3>
                 <div className="space-y-2">
-                  {(selectedOrderDetail.order_items || []).map((item, idx) => {
+                  {sortOrderItemsByValue(selectedOrderDetail.order_items || []).map((item, idx) => {
                     if (!item) return null;
                     const itemPrice = (item?.quantity || 0) * (parseFloat(item?.price_per_unit?.toString().replace(',', '.')) || 0);
                     const formLabel = item?.delivery_form === 'rezana' ? 'Zrezaná' : 'Živá';
