@@ -19,7 +19,7 @@ import { RecurringOrderEditDialog } from '@/components/orders/RecurringOrderEdit
 import { RecurringOrderDeleteDialog } from '@/components/orders/RecurringOrderDeleteDialog';
 import { RecurringOrderExtendDialog } from '@/components/orders/RecurringOrderExtendDialog';
 import { useDeliveryDays } from '@/hooks/useDeliveryDays';
-import { ShoppingCart, Plus, Grid3x3, List, FileSpreadsheet, FileText, CreditCard as Edit, Copy, Trash2, Calendar, Package, Truck, Home, Utensils, Store, Scissors, X, MapPin, RefreshCw, Check, Leaf, Sprout, Flower, Palette, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ShoppingCart, Plus, Grid3x3, List, FileSpreadsheet, FileText, CreditCard as Edit, Copy, Trash2, Calendar, Package, Truck, Chrome as Home, Utensils, Store, Scissors, X, MapPin, RefreshCw, Check, Leaf, Sprout, Flower, Palette, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO, getDay, addWeeks, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday } from 'date-fns';

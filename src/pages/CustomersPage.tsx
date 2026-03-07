@@ -42,7 +42,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Users, Plus, Pencil, Trash2, Mail, Phone, MapPin, Navigation, Loader as Loader2, Route, Download, ShoppingCart, Package, Search, Home, Utensils, Store, ChevronDown, ChevronUp } from 'lucide-react';
+import { Users, Plus, Pencil, Trash2, Mail, Phone, MapPin, Navigation, Loader as Loader2, Route, Download, ShoppingCart, Package, Search, Chrome as Home, Utensils, Store, ChevronDown, ChevronUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { CustomerTypeFilter } from '@/components/filters/CustomerTypeFilter';
 
