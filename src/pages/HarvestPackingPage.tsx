@@ -15,22 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { DndContext, closestCenter, DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, sortableKeyboardCoordinates, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import {
-  Scissors,
-  Package,
-  CheckCircle2,
-  Home,
-  Utensils,
-  Store,
-  Calendar as CalendarIcon,
-  Leaf,
-  Palette,
-  ChevronLeft,
-  ChevronRight,
-  GripVertical,
-  AlertTriangle,
-  Tag
-} from 'lucide-react';
+import { Scissors, Package, CircleCheck as CheckCircle2, Chrome as Home, Utensils, Store, Calendar as CalendarIcon, Leaf, Palette, ChevronLeft, ChevronRight, GripVertical, TriangleAlert as AlertTriangle, Tag } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, isToday } from 'date-fns';
 import { sk } from 'date-fns/locale';
 
