@@ -149,7 +149,7 @@ export default function PackagingPage() {
   const getSupplierName = (supplierId: string | null) => {
     if (!supplierId) return '-';
     const supplier = suppliers.find(s => s.id === supplierId);
-    return supplier?.name || '-';
+    return supplier?.company_name || supplier?.name || '-';
   };
 
   // Calculate total quantity by size

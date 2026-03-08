@@ -169,7 +169,8 @@ export default function LabelsPage() {
 
   const getSupplierName = (supplierId: string | null) => {
     if (!supplierId) return '-';
-    return suppliers.find(s => s.id === supplierId)?.name || '-';
+    const supplier = suppliers.find(s => s.id === supplierId);
+    return supplier?.company_name || supplier?.name || '-';
   };
 
   const renderGridView = () => (

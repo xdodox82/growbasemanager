@@ -155,7 +155,7 @@ export default function SubstratePage() {
   const getSupplierName = (supplierId: string | null) => {
     if (!supplierId) return '-';
     const supplier = suppliers.find(s => s.id === supplierId);
-    return supplier?.name || '-';
+    return supplier?.company_name || supplier?.name || '-';
   };
 
   const getTypeName = (type: string | null) => {
