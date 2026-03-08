@@ -233,6 +233,7 @@ export default function OrdersPage() {
 
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarOpenMobile, setCalendarOpenMobile] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -2678,7 +2679,7 @@ export default function OrdersPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+            <Popover open={calendarOpenMobile} onOpenChange={setCalendarOpenMobile}>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="justify-start text-left font-normal h-10 w-full">
                   <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
@@ -2692,7 +2693,7 @@ export default function OrdersPage() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
-                {renderCalendar()}
+                {renderCalendar(() => setCalendarOpenMobile(false))}
               </PopoverContent>
             </Popover>
 
