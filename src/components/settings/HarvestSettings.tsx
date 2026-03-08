@@ -55,8 +55,12 @@ export function HarvestSettings() {
       if (!user) return;
       const { error } = await supabase
         .from('profiles')
-        .update({ harvest_settings: settings })
-        .eq('id', user.id);
+        .upsert({
+          id: user.id,
+          harvest_settings: settings
+        }, {
+          onConflict: 'id'
+        });
       if (error) throw error;
       toast({ title: 'Uložené', description: 'Dni zberu boli úspešne uložené' });
     } catch (error) {
