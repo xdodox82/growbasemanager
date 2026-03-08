@@ -456,7 +456,7 @@ export default function LabelsPage() {
             </form>
           </DialogContent>
         </Dialog>
-        <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} />
+        <div className="hidden sm:block"><ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} /></div>
       </PageHeader>
 
       {labels.length === 0 ? (

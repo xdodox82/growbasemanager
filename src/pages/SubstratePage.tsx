@@ -458,7 +458,7 @@ export default function SubstratePage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} />
+        <div className="hidden sm:block"><ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} /></div>
       </PageHeader>
 
       {/* Summary cards */}

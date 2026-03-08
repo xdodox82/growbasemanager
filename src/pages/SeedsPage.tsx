@@ -1094,7 +1094,7 @@ export default function SeedsPage() {
             </div>
           </DialogContent>
         </Dialog>
-        <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} />
+        <div className="hidden sm:block"><ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} /></div>
         <Tabs value={archiveFilter} onValueChange={(v) => setArchiveFilter(v as 'current' | 'archived')}>
           <TabsList>
             <TabsTrigger value="current">Aktuálne zásoby</TabsTrigger>
