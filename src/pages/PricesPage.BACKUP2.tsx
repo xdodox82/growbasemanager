@@ -347,7 +347,7 @@ const PricesPage = () => {
 
     return (
       <Card
-        className="p-4 cursor-pointer transition-all hover:shadow-md overflow-hidden"
+        className="p-4 cursor-pointer transition-all hover:shadow-md"
         onClick={() => toggleCardExpansion(group.itemId)}
       >
         {/* Collapsed - vždy viditeľné */}
@@ -360,7 +360,7 @@ const PricesPage = () => {
               }
             </div>
             <div className="min-w-0 flex-1">
-              <h4 className="font-semibold text-base break-words leading-tight">{group.itemName}</h4>
+              <h4 className="font-semibold text-base truncate">{group.itemName}</h4>
               <p className="text-xs text-muted-foreground">{group.prices.length} cien</p>
             </div>
           </div>
@@ -381,19 +381,19 @@ const PricesPage = () => {
               {group.prices.map(price => (
                 <div
                   key={price.id}
-                  className="flex items-center justify-between gap-2 text-sm bg-gray-50 rounded-lg px-3 py-2 min-w-0"
+                  className="flex items-center justify-between text-sm bg-gray-50 rounded-lg px-3 py-2"
                 >
-                  <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                    <Badge variant="outline" className="text-xs whitespace-nowrap">{price.packaging_size}</Badge>
-                    <Badge variant="secondary" className="text-xs truncate max-w-[120px]">{getCustomerTypeLabel(price.customer_type)}</Badge>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="outline" className="text-xs">{price.packaging_size}</Badge>
+                    <Badge variant="secondary" className="text-xs">{getCustomerTypeLabel(price.customer_type)}</Badge>
                   </div>
-                  <span className="font-mono font-semibold text-primary whitespace-nowrap">{price.unit_price.toFixed(2)} €</span>
+                  <span className="font-mono font-semibold text-primary">{price.unit_price.toFixed(2)} €</span>
                 </div>
               ))}
             </div>
 
             {/* Akcie */}
-            <div className="flex gap-2 pt-2 border-t min-w-0">
+            <div className="flex gap-2 pt-2 border-t">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -403,17 +403,17 @@ const PricesPage = () => {
                     group.prices
                   );
                 }}
-                className="flex-1 min-w-0 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"
               >
-                <Pencil className="h-4 w-4 flex-shrink-0" />
-                <span className="truncate">Upraviť ceny</span>
+                <Pencil className="h-4 w-4" />
+                Upraviť ceny
               </button>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setDeleteId(group.itemId);
                 }}
-                className="flex-shrink-0 p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg"
+                className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg"
               >
                 <Trash2 className="h-4 w-4" />
               </button>
@@ -601,7 +601,7 @@ const PricesPage = () => {
                 description="Zatiaľ nemáte nastavené žiadne ceny pre plodiny"
               />
             ) : isMobile ? (
-              <div className="grid gap-3 w-full min-w-0">
+              <div className="grid gap-3">
                 {groupedCropPrices.map(group => (
                   <GroupedPriceCard key={group.itemId} group={group} />
                 ))}
@@ -666,7 +666,7 @@ const PricesPage = () => {
                 description="Zatiaľ nemáte nastavené žiadne ceny pre zmesi"
               />
             ) : isMobile ? (
-              <div className="grid gap-3 w-full min-w-0">
+              <div className="grid gap-3">
                 {groupedBlendPrices.map(group => (
                   <GroupedPriceCard key={group.itemId} group={group} />
                 ))}
