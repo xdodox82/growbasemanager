@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Sprout, Box, Calendar, Check, Loader2, Layers } from 'lucide-react';
+import { Sprout, Box, Calendar, Check, Loader as Loader2, Layers } from 'lucide-react';
 import { format, startOfDay, getWeek, getYear, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
 import { sk } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
