@@ -11,6 +11,7 @@ import { WorkerPermissionsSettings } from '@/components/settings/WorkerPermissio
 import { SidebarManagement } from '@/components/settings/SidebarManagement';
 import { DeliverySettings } from '@/components/settings/DeliverySettings';
 import { HarvestSettings } from '@/components/settings/HarvestSettings';
+import { DeliveryDaysSettings } from '@/components/settings/DeliveryDaysSettings';
 import { VATSettings } from '@/components/settings/VATSettings';
 import { Globe, Moon, Sun } from 'lucide-react';
 import { Label } from '@/components/ui/label';
@@ -61,6 +62,8 @@ const SettingsPage = () => {
         <DeliverySettings />
         {/* Harvest Settings */}
         <HarvestSettings />
+        {/* Delivery Days Settings */}
+        <DeliveryDaysSettings />
 
         {/* Security - 2FA */}
         <TwoFactorSettings />
