@@ -10,6 +10,7 @@ import { CustomerTypeFilter } from '@/components/filters/CustomerTypeFilter';
 import { CategoryFilter } from '@/components/orders/CategoryFilter';
 import { SearchableCustomerSelect } from '@/components/orders/SearchableCustomerSelect';
 import { useToast } from '@/hooks/use-toast';
+import { useDeliveryDays } from '@/hooks/useDeliveryDays';
 import { supabase } from '@/integrations/supabase/client';
 import { DndContext, closestCenter, DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, sortableKeyboardCoordinates, arrayMove } from '@dnd-kit/sortable';
@@ -106,7 +107,7 @@ export default function HarvestPackingPage() {
   const [crops, setCrops] = useState<Crop[]>([]);
   const [blends, setBlends] = useState<Blend[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deliverySettings, setDeliverySettings] = useState<any>(null);
+  const { getDeliveryDaysArray } = useDeliveryDays();
   const [ordersForCalendar, setOrdersForCalendar] = useState<any[]>([]);
 
   const [selectedDates, setSelectedDates] = useState<Date[]>([new Date()]);
@@ -129,10 +130,8 @@ export default function HarvestPackingPage() {
   }, []);
 
   useEffect(() => {
-    if (deliverySettings) {
-      loadOrdersForCalendar();
-    }
-  }, [calendarMonth, deliverySettings]);
+    loadOrdersForCalendar();
+  }, [calendarMonth]);
 
   useEffect(() => {
     loadOrdersForDate();
@@ -189,18 +188,12 @@ export default function HarvestPackingPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const [deliverySettingsRes, customersRes, cropsRes, blendsRes] = await Promise.all([
-        supabase
-          .from('delivery_days_settings')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle(),
+      const [customersRes, cropsRes, blendsRes] = await Promise.all([
         supabase.from('customers').select('*').order('name'),
         supabase.from('products').select('*').order('name'),
         supabase.from('blends').select('*').order('name')
       ]);
 
-      if (deliverySettingsRes.data) setDeliverySettings(deliverySettingsRes.data);
       if (customersRes.data) setCustomers(customersRes.data);
       if (cropsRes.data) setCrops(cropsRes.data);
       if (blendsRes.data) setBlends(blendsRes.data);
@@ -788,13 +781,8 @@ export default function HarvestPackingPage() {
   };
 
   const isDeliveryDay = (date: Date) => {
-    if (!deliverySettings) return false;
-    const dayOfWeek = getDay(date);
-    const dayMap: Record<number, string> = {
-      1: 'monday', 2: 'tuesday', 3: 'wednesday',
-      4: 'thursday', 5: 'friday', 6: 'saturday', 0: 'sunday'
-    };
-    return deliverySettings[dayMap[dayOfWeek]] === true;
+    const deliveryDays = getDeliveryDaysArray();
+    return deliveryDays.includes(getDay(date));
   };
 
   const hasOrdersOnDate = (date: Date) => {
