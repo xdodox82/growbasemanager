@@ -2423,14 +2423,20 @@ export default function OrdersPage() {
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case 'cakajuca':
+      case 'pending':
         return 'bg-yellow-100 text-yellow-800 border-yellow-300';
       case 'potvrdena':
+      case 'confirmed':
         return 'bg-green-100 text-green-800 border-green-300';
       case 'pripravena':
+      case 'ready':
+      case 'packaging_ready':
         return 'bg-orange-100 text-orange-800 border-orange-300';
       case 'dorucena':
+      case 'delivered':
         return 'bg-blue-100 text-blue-800 border-blue-300';
       case 'zrusena':
+      case 'cancelled':
         return 'bg-red-100 text-red-800 border-red-300';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-300';
@@ -2438,14 +2444,20 @@ export default function OrdersPage() {
   };
 
   const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'cakajuca': return 'Čakajúca';
-      case 'potvrdena': return 'Potvrdená';
-      case 'pripravena': return 'Pripravená';
-      case 'dorucena': return 'Doručená';
-      case 'zrusena': return 'Zrušená';
-      default: return status;
-    }
+    const labels: Record<string, string> = {
+      'cakajuca': 'Čakajúca',
+      'pending': 'Čakajúca',
+      'potvrdena': 'Potvrdená',
+      'confirmed': 'Potvrdená',
+      'packaging_ready': 'Obaly pripravené',
+      'pripravena': 'Pripravená',
+      'ready': 'Pripravená na rozvoz',
+      'dorucena': 'Doručená',
+      'delivered': 'Doručená',
+      'zrusena': 'Zrušená',
+      'cancelled': 'Zrušená',
+    };
+    return labels[status] ?? status;
   };
 
   const formatDeliveryDate = (dateString: string) => {
