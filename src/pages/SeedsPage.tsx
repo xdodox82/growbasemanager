@@ -28,7 +28,7 @@ import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useSeeds, useSuppliers, useCrops, DbSeed } from '@/hooks/useSupabaseData';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, CreditCard as Edit, Trash2, Wheat, Calendar as CalendarIcon, FileText, Upload, X, ExternalLink, Archive, Undo2, Leaf, Sprout, Flower } from 'lucide-react';
+import { Plus, Pencil, Trash2, Wheat, Calendar as CalendarIcon, FileText, Upload, X, ExternalLink, Archive, Undo2, Leaf, Sprout, Flower } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';
@@ -392,7 +392,7 @@ export default function SeedsPage() {
           }}>
             <div className="flex items-start justify-between gap-2 min-w-0">
               <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                   <Wheat className="h-5 w-5 text-primary" />
                 </div>
                 <div className="min-w-0">

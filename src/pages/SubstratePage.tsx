@@ -25,7 +25,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ViewToggle, ViewMode } from '@/components/ui/view-toggle';
 import { useSubstrates, useSuppliers, DbSubstrate } from '@/hooks/useSupabaseData';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, CreditCard as Edit, Trash2, Layers, Calendar as CalendarIcon, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Layers, Calendar as CalendarIcon, X } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';
 import { sk } from 'date-fns/locale';
@@ -182,7 +182,7 @@ export default function SubstratePage() {
         }}>
           <div className="flex items-start justify-between gap-2 min-w-0">
             <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <Layers className="h-5 w-5 text-primary" />
               </div>
               <div className="min-w-0">
@@ -208,8 +208,8 @@ export default function SubstratePage() {
               <span className="font-semibold truncate text-right">{substrate.quantity} {substrate.unit}</span>
             </div>
             {substrate.supplier_id && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Dodávateľ:</span>
+              <div className="flex items-center justify-between text-sm gap-2 min-w-0">
+                <span className="text-muted-foreground shrink-0">Dodávateľ:</span>
                 <span className="truncate text-right">{getSupplierName(substrate.supplier_id)}</span>
               </div>
             )}

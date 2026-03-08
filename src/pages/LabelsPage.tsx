@@ -37,7 +37,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Tag, Plus, Pencil, Trash2, Package, CreditCard as Edit, X } from 'lucide-react';
+import { Tag, Plus, Pencil, Trash2, Package, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -181,7 +181,7 @@ export default function LabelsPage() {
         }}>
           <div className="flex items-start justify-between gap-2 min-w-0">
             <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <Tag className="h-5 w-5 text-primary" />
               </div>
               <div className="min-w-0">
@@ -209,14 +209,14 @@ export default function LabelsPage() {
               <span className="font-semibold truncate text-right">{label.quantity} ks</span>
             </div>
             {label.size && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Veľkosť:</span>
+              <div className="flex items-center justify-between text-sm gap-2 min-w-0">
+                <span className="text-muted-foreground shrink-0">Veľkosť:</span>
                 <span className="truncate text-right">{label.size}</span>
               </div>
             )}
             {label.supplier_id && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Dodávateľ:</span>
+              <div className="flex items-center justify-between text-sm gap-2 min-w-0">
+                <span className="text-muted-foreground shrink-0">Dodávateľ:</span>
                 <span className="truncate text-right">{getSupplierName(label.supplier_id)}</span>
               </div>
             )}
