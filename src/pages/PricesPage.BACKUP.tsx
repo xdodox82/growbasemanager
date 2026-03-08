@@ -36,7 +36,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Euro, Plus, Pencil, Trash2, Percent, Leaf, Blend, X, Sprout, Flower, ChevronDown, ChevronUp } from 'lucide-react';
+import { Euro, Plus, Pencil, Trash2, Percent, Leaf, Blend, X, Sprout, Flower } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -71,19 +71,6 @@ const PricesPage = () => {
   const { data: vatSettings, loading: vatLoading, update: updateVatSettings, vatRate, isVatEnabled, calculateWithVat } = useVatSettings();
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
-
-  const toggleCardExpansion = (itemId: string) => {
-    setExpandedCards(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(itemId)) {
-        newSet.delete(itemId);
-      } else {
-        newSet.add(itemId);
-      }
-      return newSet;
-    });
-  };
 
   const isLoading = cropsLoading || blendsLoading || pricesLoading || vatLoading;
   
@@ -342,87 +329,36 @@ const PricesPage = () => {
   };
 
   // Mobile grouped price card component
-  const GroupedPriceCard = ({ group }: { group: GroupedPrice }) => {
-    const isExpanded = expandedCards.has(group.itemId);
-
-    return (
-      <Card
-        className="p-4 cursor-pointer transition-all hover:shadow-md"
-        onClick={() => toggleCardExpansion(group.itemId)}
-      >
-        {/* Collapsed - vždy viditeľné */}
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className="h-9 w-9 rounded-lg flex items-center justify-center bg-primary/10 flex-shrink-0">
-              {group.isCrop
-                ? <Leaf className="h-4 w-4 text-primary" />
-                : <Blend className="h-4 w-4 text-primary" />
-              }
+  const GroupedPriceCard = ({ group }: { group: GroupedPrice }) => (
+    <Card className="p-4">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <h4 className="font-medium">{group.itemName}</h4>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => openEditDialog(
+            group.isCrop ? group.itemId : null,
+            group.isCrop ? null : group.itemId,
+            group.prices
+          )}
+        >
+          <Pencil className="h-4 w-4 mr-1" />
+          Upraviť
+        </Button>
+      </div>
+      <div className="space-y-2">
+        {group.prices.map(price => (
+          <div key={price.id} className="flex items-center justify-between text-sm border-l-2 border-primary/20 pl-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant="outline" className="text-xs">{price.packaging_size}</Badge>
+              <Badge variant="secondary" className="text-xs">{getCustomerTypeLabel(price.customer_type)}</Badge>
             </div>
-            <div className="min-w-0 flex-1">
-              <h4 className="font-semibold text-base truncate">{group.itemName}</h4>
-              <p className="text-xs text-muted-foreground">{group.prices.length} cien</p>
-            </div>
+            <span className="font-mono font-medium">{price.unit_price.toFixed(2)} €</span>
           </div>
-          {isExpanded
-            ? <ChevronUp className="h-5 w-5 text-gray-400 flex-shrink-0" />
-            : <ChevronDown className="h-5 w-5 text-gray-400 flex-shrink-0" />
-          }
-        </div>
-
-        {/* Expanded - zobrazí sa po kliknutí */}
-        {isExpanded && (
-          <div
-            className="mt-4 pt-4 border-t space-y-3 animate-in slide-in-from-top duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Zoznam cien */}
-            <div className="space-y-2">
-              {group.prices.map(price => (
-                <div
-                  key={price.id}
-                  className="flex items-center justify-between text-sm bg-gray-50 rounded-lg px-3 py-2"
-                >
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="outline" className="text-xs">{price.packaging_size}</Badge>
-                    <Badge variant="secondary" className="text-xs">{getCustomerTypeLabel(price.customer_type)}</Badge>
-                  </div>
-                  <span className="font-mono font-semibold text-primary">{price.unit_price.toFixed(2)} €</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Akcie */}
-            <div className="flex gap-2 pt-2 border-t">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openEditDialog(
-                    group.isCrop ? group.itemId : null,
-                    group.isCrop ? null : group.itemId,
-                    group.prices
-                  );
-                }}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"
-              >
-                <Pencil className="h-4 w-4" />
-                Upraviť ceny
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setDeleteId(group.itemId);
-                }}
-                className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        )}
-      </Card>
-    );
-  };
+        ))}
+      </div>
+    </Card>
+  );
 
   if (isLoading) {
     return (
@@ -521,9 +457,10 @@ const PricesPage = () => {
 
             {/* Filters */}
             {activeTab === 'crops' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1 md:text-sm md:mb-2">Kategória</label>
+              <div className="flex flex-col md:flex-row gap-4">
+                {/* 1. KATEGÓRIA PLODINY - DROPDOWN */}
+                <div className="flex-1">
+                  <label className="block text-sm font-medium mb-2">Kategória plodiny</label>
                   <Select
                     value={categoryFilter}
                     onValueChange={(value: any) => {
@@ -531,10 +468,14 @@ const PricesPage = () => {
                       setCropFilter('all');
                     }}
                   >
-                    <SelectTrigger className="w-full h-9 text-sm">
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Všetky kategórie" />
                     </SelectTrigger>
-                    <SelectContent position="popper" sideOffset={5} className="max-h-[300px]">
+                    <SelectContent
+                      position="popper"
+                      sideOffset={5}
+                      className="max-h-[300px]"
+                    >
                       <SelectItem value="all">Všetky kategórie</SelectItem>
                       <SelectItem value="microgreens">
                         <Leaf className="h-4 w-4 text-green-600 mr-2 inline" />Mikrozelenina
@@ -548,44 +489,65 @@ const PricesPage = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1 md:text-sm md:mb-2">Plodina</label>
+
+                {/* 2. PLODINA - DROPDOWN */}
+                <div className="flex-1">
+                  <label className="block text-sm font-medium mb-2">Plodina</label>
                   <Select value={cropFilter} onValueChange={setCropFilter}>
-                    <SelectTrigger className="w-full h-9 text-sm">
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Všetky plodiny" />
                     </SelectTrigger>
-                    <SelectContent position="popper" sideOffset={5} className="max-h-[300px]">
+                    <SelectContent
+                      position="popper"
+                      sideOffset={5}
+                      className="max-h-[300px]"
+                    >
                       <SelectItem value="all">Všetky plodiny</SelectItem>
                       {filteredCropsByCategory.map(crop => (
-                        <SelectItem key={crop.id} value={crop.id}>{crop.name}</SelectItem>
+                        <SelectItem key={crop.id} value={crop.id}>
+                          {crop.name}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1 md:text-sm md:mb-2">Zákazník</label>
+
+                {/* 3. ZÁKAZNÍK - DROPDOWN */}
+                <div className="flex-1">
+                  <label className="block text-sm font-medium mb-2">Zákazník</label>
                   <Select value={customerTypeFilterView} onValueChange={setCustomerTypeFilterView}>
-                    <SelectTrigger className="w-full h-9 text-sm">
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Všetci zákazníci" />
                     </SelectTrigger>
-                    <SelectContent position="popper" sideOffset={5} className="max-h-[300px]">
+                    <SelectContent
+                      position="popper"
+                      sideOffset={5}
+                      className="max-h-[300px]"
+                    >
                       {CUSTOMER_TYPES.map(type => (
-                        <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                        <SelectItem key={type.value} value={type.value}>
+                          {type.label}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
             ) : (
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1 md:text-sm md:mb-2">Zákazník</label>
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                 <Select value={customerTypeFilterView} onValueChange={setCustomerTypeFilterView}>
-                  <SelectTrigger className="w-full sm:w-[200px] h-9 text-sm">
+                  <SelectTrigger className="w-full sm:w-[200px]">
                     <SelectValue placeholder="Filter podľa typu zákazníka" />
                   </SelectTrigger>
-                  <SelectContent position="popper" sideOffset={5} className="max-h-[300px]">
+                  <SelectContent
+                    position="popper"
+                    sideOffset={5}
+                    className="max-h-[300px]"
+                  >
                     {CUSTOMER_TYPES.map(type => (
-                      <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
