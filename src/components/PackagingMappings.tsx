@@ -6,7 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Link2, Save, Loader2, Edit, CheckCircle, XCircle } from 'lucide-react';
+import { Link2, Save, Loader2, Pencil, CheckCircle, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { usePackagingMappings } from '@/hooks/usePackagingMappings';
@@ -414,41 +414,51 @@ export function PackagingMappings() {
           </div>
         </div>
 
-        <div className="rounded-lg border">
+        <div className="rounded-lg border overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[200px]">Plodina / Mix</TableHead>
-                <TableHead className="w-[100px]">Typ</TableHead>
-                <TableHead>Nastavené balenia</TableHead>
-                <TableHead className="w-[100px] text-right">Akcie</TableHead>
+                <TableHead>Plodina / Mix</TableHead>
+                <TableHead className="hidden sm:table-cell">Typ</TableHead>
+                <TableHead className="hidden md:table-cell">Nastavené balenia</TableHead>
+                <TableHead className="text-right">Akcie</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {crops.map((crop) => (
                 <TableRow key={crop.id}>
                   <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      {crop.name}
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="break-words leading-tight">{crop.name}</span>
                       {crop.mappings && crop.mappings.length > 0 ? (
-                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
                       ) : (
-                        <XCircle className="h-4 w-4 text-gray-400" />
+                        <XCircle className="h-4 w-4 text-gray-400 shrink-0" />
                       )}
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${
+                    <div className="sm:hidden mt-1">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${
                         crop.type === 'blend'
                           ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
                           : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                      }`}
-                    >
+                      }`}>
+                        {crop.type === 'blend' ? 'Mix' : 'Plodina'}
+                      </span>
+                    </div>
+                    <div className="md:hidden mt-1">
+                      {formatMappings(crop.mappings)}
+                    </div>
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${
+                      crop.type === 'blend'
+                        ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                        : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                    }`}>
                       {crop.type === 'blend' ? 'Mix' : 'Plodina'}
                     </span>
                   </TableCell>
-                  <TableCell>{formatMappings(crop.mappings)}</TableCell>
+                  <TableCell className="hidden md:table-cell">{formatMappings(crop.mappings)}</TableCell>
                   <TableCell className="text-right">
                     <Button
                       variant="outline"
@@ -456,8 +466,8 @@ export function PackagingMappings() {
                       onClick={() => openEditDialog(crop)}
                       className="gap-2"
                     >
-                      <Edit className="h-4 w-4" />
-                      Upraviť
+                      <Pencil className="h-4 w-4" />
+                      <span className="hidden sm:inline">Upraviť</span>
                     </Button>
                   </TableCell>
                 </TableRow>
