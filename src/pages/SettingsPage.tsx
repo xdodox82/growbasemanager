@@ -10,6 +10,7 @@ import { LoginHistory } from '@/components/auth/LoginHistory';
 import { WorkerPermissionsSettings } from '@/components/settings/WorkerPermissionsSettings';
 import { SidebarManagement } from '@/components/settings/SidebarManagement';
 import { DeliverySettings } from '@/components/settings/DeliverySettings';
+import { HarvestSettings } from '@/components/settings/HarvestSettings';
 import { VATSettings } from '@/components/settings/VATSettings';
 import { Globe, Moon, Sun } from 'lucide-react';
 import { Label } from '@/components/ui/label';
@@ -58,6 +59,8 @@ const SettingsPage = () => {
 
         {/* Delivery Settings */}
         <DeliverySettings />
+        {/* Harvest Settings */}
+        <HarvestSettings />
 
         {/* Security - 2FA */}
         <TwoFactorSettings />
