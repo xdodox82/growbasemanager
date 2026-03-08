@@ -2502,22 +2502,18 @@ export default function OrdersPage() {
           </div>
         </div>
 
-        <div className="space-y-2">
-          {/* Riadok 1: Typ zákazníka */}
+        {/* DESKTOP filtre */}
+        <div className="hidden md:flex flex-wrap gap-3 items-center">
           <CustomerTypeFilter
             value={filterCustomerType}
             onChange={setFilterCustomerType}
             showLabel={false}
           />
 
-          {/* Riadok 2: Zákazník */}
-          <div className="w-full">
+          <div className="w-[280px]">
             <SearchableCustomerSelect
               value={customerFilter}
-              onValueChange={(value) => {
-                console.log('👤 OrdersPage - Customer filter changed:', value);
-                setCustomerFilter(value);
-              }}
+              onValueChange={(value) => setCustomerFilter(value)}
               customers={customers?.filter(c => {
                 if (filterCustomerType === 'all') return true;
                 return c.customer_type === filterCustomerType;
@@ -2527,34 +2523,140 @@ export default function OrdersPage() {
             />
           </div>
 
-          {/* Riadok 3: Kategória + Plodina */}
+          <Select value={orderCategoryFilter} onValueChange={(value) => {
+            setOrderCategoryFilter(value);
+          }}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Kategória plodiny" />
+            </SelectTrigger>
+            <SelectContent position="popper" sideOffset={5}>
+              <SelectItem value="all">Všetky kategórie</SelectItem>
+              <SelectItem value="microgreens">
+                <Leaf className="h-4 w-4 text-green-600 mr-2 inline" />Mikrozelenina
+              </SelectItem>
+              <SelectItem value="microherbs">
+                <Sprout className="h-4 w-4 text-green-600 mr-2 inline" />Mikrobylinky
+              </SelectItem>
+              <SelectItem value="edible_flowers">
+                <Flower className="h-4 w-4 text-green-600 mr-2 inline" />Jedlé kvety
+              </SelectItem>
+              <SelectItem value="mix">
+                <Palette className="h-4 w-4 text-green-600 mr-2 inline" />Mixy
+              </SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={filterCrop} onValueChange={(value) => setFilterCrop(value)}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Všetky plodiny" />
+            </SelectTrigger>
+            <SelectContent className="max-h-[300px] overflow-y-auto z-[100]">
+              <SelectItem value="all">Všetky plodiny</SelectItem>
+              {orderCategoryFilter === 'mix'
+                ? blends?.map(blend => (
+                    <SelectItem key={blend.id} value={blend.name}>{blend.name}</SelectItem>
+                  ))
+                : crops?.filter(crop => {
+                    if (!orderCategoryFilter || orderCategoryFilter === 'all') return true;
+                    return crop.category === orderCategoryFilter;
+                  }).map(crop => (
+                    <SelectItem key={crop?.id} value={crop?.name || ''}>{crop?.name}</SelectItem>
+                  ))
+              }
+            </SelectContent>
+          </Select>
+
+          <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="justify-start text-left font-normal h-10">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {selectedDates.length === 0
+                  ? 'Vyber dátum'
+                  : selectedDates.length === 1
+                  ? format(selectedDates[0], 'dd.MM.yyyy', { locale: sk })
+                  : `${selectedDates.length} dní`}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              {renderCalendar()}
+            </PopoverContent>
+          </Popover>
+
+          <Select value={filterPeriod} onValueChange={setFilterPeriod}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Všetky týždne" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Všetky týždne</SelectItem>
+              <SelectItem value="this_week">Tento týždeň</SelectItem>
+              <SelectItem value="next_week">Budúci týždeň</SelectItem>
+              <SelectItem value="last_week">Minulý týždeň</SelectItem>
+              <SelectItem value="last_2_weeks">Pred 2 týždňami</SelectItem>
+              <SelectItem value="last_month">Minulý mesiac</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Všetky stavy" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Všetky stavy</SelectItem>
+              <SelectItem value="cakajuca">Čakajúca</SelectItem>
+              <SelectItem value="potvrdena">Potvrdená</SelectItem>
+              <SelectItem value="pripravena">Pripravená</SelectItem>
+              <SelectItem value="dorucena">Doručená</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <div className="flex items-center gap-2">
+            <Switch
+              id="archive-toggle"
+              checked={showArchive}
+              onCheckedChange={setShowArchive}
+            />
+            <Label htmlFor="archive-toggle" className="text-sm font-medium cursor-pointer">
+              Zobraziť archív
+            </Label>
+          </div>
+        </div>
+
+        {/* MOBILE filtre */}
+        <div className="md:hidden space-y-2">
+          <CustomerTypeFilter
+            value={filterCustomerType}
+            onChange={setFilterCustomerType}
+            showLabel={false}
+          />
+
+          <div className="w-full">
+            <SearchableCustomerSelect
+              value={customerFilter}
+              onValueChange={(value) => setCustomerFilter(value)}
+              customers={customers?.filter(c => {
+                if (filterCustomerType === 'all') return true;
+                return c.customer_type === filterCustomerType;
+              })}
+              placeholder="Hľadať zákazníka..."
+              allowAll={true}
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-2">
-            <Select value={orderCategoryFilter} onValueChange={(value) => {
-              setOrderCategoryFilter(value);
-            }}>
+            <Select value={orderCategoryFilter} onValueChange={(value) => setOrderCategoryFilter(value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Kategória" />
               </SelectTrigger>
               <SelectContent position="popper" sideOffset={5}>
-                <SelectItem value="all">Všetky kategórie</SelectItem>
-                <SelectItem value="microgreens">
-                  <Leaf className="h-4 w-4 text-green-600 mr-2 inline" />Mikrozelenina
-                </SelectItem>
-                <SelectItem value="microherbs">
-                  <Sprout className="h-4 w-4 text-green-600 mr-2 inline" />Mikrobylinky
-                </SelectItem>
-                <SelectItem value="edible_flowers">
-                  <Flower className="h-4 w-4 text-green-600 mr-2 inline" />Jedlé kvety
-                </SelectItem>
-                <SelectItem value="mix">
-                  <Palette className="h-4 w-4 text-green-600 mr-2 inline" />Mixy
-                </SelectItem>
+                <SelectItem value="all">Všetky</SelectItem>
+                <SelectItem value="microgreens">Mikrozelenina</SelectItem>
+                <SelectItem value="microherbs">Mikrobylinky</SelectItem>
+                <SelectItem value="edible_flowers">Jedlé kvety</SelectItem>
+                <SelectItem value="mix">Mixy</SelectItem>
               </SelectContent>
             </Select>
 
-            <Select value={filterCrop} onValueChange={(value) => {
-              setFilterCrop(value);
-            }}>
+            <Select value={filterCrop} onValueChange={(value) => setFilterCrop(value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Plodina" />
               </SelectTrigger>
@@ -2575,7 +2677,6 @@ export default function OrdersPage() {
             </Select>
           </div>
 
-          {/* Riadok 4: Dátum + Týždeň */}
           <div className="grid grid-cols-2 gap-2">
             <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
               <PopoverTrigger asChild>
@@ -2610,7 +2711,6 @@ export default function OrdersPage() {
             </Select>
           </div>
 
-          {/* Riadok 5: Stav + Archív */}
           <div className="flex items-center gap-2">
             <Select value={filterStatus} onValueChange={setFilterStatus}>
               <SelectTrigger className="flex-1">
@@ -2627,11 +2727,11 @@ export default function OrdersPage() {
 
             <div className="flex items-center gap-2 shrink-0">
               <Switch
-                id="archive-toggle"
+                id="archive-toggle-mobile"
                 checked={showArchive}
                 onCheckedChange={setShowArchive}
               />
-              <Label htmlFor="archive-toggle" className="text-sm cursor-pointer whitespace-nowrap">
+              <Label htmlFor="archive-toggle-mobile" className="text-sm cursor-pointer whitespace-nowrap">
                 Archív
               </Label>
             </div>
