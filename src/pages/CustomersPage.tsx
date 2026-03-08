@@ -124,12 +124,23 @@ const CustomersPage = () => {
     bank_account: '',
   });
 
-  const filteredCustomers = customers.filter(c => {
-    const matchesCustomer = selectedCustomerId === 'all' || c.id === selectedCustomerId;
-    const matchesType = typeFilter === 'all' || c.customer_type === typeFilter;
-    const matchesRoute = routeFilter === 'all' || c.delivery_route_id === routeFilter;
-    return matchesCustomer && matchesType && matchesRoute;
-  });
+  const filteredCustomers = customers
+    .filter(c => {
+      const matchesCustomer = selectedCustomerId === 'all' || c.id === selectedCustomerId;
+      const matchesType = typeFilter === 'all' || c.customer_type === typeFilter;
+      const matchesRoute = routeFilter === 'all' || c.delivery_route_id === routeFilter;
+      return matchesCustomer && matchesType && matchesRoute;
+    })
+    .sort((a, b) => {
+      const getLastName = (c: typeof a) => {
+        const fullName = (c.customer_type === 'gastro' || c.customer_type === 'wholesale') && c.company_name
+          ? c.company_name
+          : c.name;
+        const parts = fullName.trim().split(' ');
+        return parts[parts.length - 1].toLowerCase();
+      };
+      return getLastName(a).localeCompare(getLastName(b), 'sk');
+    });
 
   // Customer statistics - order count and total volume per customer
   const customerStats = useMemo(() => {
