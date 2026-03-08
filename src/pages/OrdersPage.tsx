@@ -284,7 +284,7 @@ export default function OrdersPage() {
     custom_crop_name: ''
   });
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
-  const [deliverySettings, setDeliverySettings] = useState<any>(null);
+  const { getDeliveryDaysArray: getDeliveryDaysFromSettings } = useDeliveryDays();
   const [isPriceConfigured, setIsPriceConfigured] = useState(true);
 
   const goToPreviousMonth = () => {
@@ -296,13 +296,8 @@ export default function OrdersPage() {
   };
 
   const isDeliveryDay = (date: Date) => {
-    if (!deliverySettings) return false;
-    const dayOfWeek = getDay(date);
-    const dayMap: Record<number, string> = {
-      1: 'monday', 2: 'tuesday', 3: 'wednesday',
-      4: 'thursday', 5: 'friday', 6: 'saturday', 0: 'sunday'
-    };
-    return deliverySettings[dayMap[dayOfWeek]] === true;
+    const deliveryDays = getDeliveryDaysFromSettings();
+    return deliveryDays.includes(getDay(date));
   };
 
   const hasOrdersOnDate = (date: Date) => {
@@ -585,7 +580,7 @@ export default function OrdersPage() {
     try {
       setLoading(true);
       setDataLoaded(false);
-      const [ordersRes, customersRes, cropsRes, blendsRes, routesRes, pricesRes, packagingsRes, deliveryDaysRes, profileRes, plantingsRes] = await Promise.all([
+      const [ordersRes, customersRes, cropsRes, blendsRes, routesRes, pricesRes, packagingsRes, deliveryDaysRes, plantingsRes] = await Promise.all([
         supabase.from('orders').select('*, order_items(*)').order('created_at', { ascending: false }),
         supabase.from('customers').select('*').order('name'),
         supabase.from('products').select('*').order('name'),
@@ -594,7 +589,6 @@ export default function OrdersPage() {
         supabase.from('prices').select('*'),
         supabase.from('packagings').select('*').order('name'),
         supabase.from('delivery_days').select('*').order('day_of_week'),
-        supabase.from('profiles').select('delivery_settings').maybeSingle(),
         supabase.from('planting_plans').select('*').order('harvest_date'),
       ]);
 
@@ -607,13 +601,6 @@ export default function OrdersPage() {
       if (packagingsRes.data) setPackagings(packagingsRes.data);
       if (deliveryDaysRes.data) setDeliveryDays(deliveryDaysRes.data);
       if (plantingsRes.data) setPlantings(plantingsRes.data);
-      if (profileRes.data?.delivery_settings) {
-        console.log('✅ Delivery settings loaded:', profileRes.data.delivery_settings);
-        setDeliverySettings(profileRes.data.delivery_settings);
-      } else {
-        console.warn('⚠️ No delivery settings found in profile');
-        setDeliverySettings(null);
-      }
 
       setDataLoaded(true);
     } catch (error) {
