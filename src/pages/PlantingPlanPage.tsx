@@ -1198,7 +1198,7 @@ const PlantingPlanPage = () => {
 
   return (
     <MainLayout>
-      <PullToRefresh onRefresh={handleRefresh}>
+      <PullToRefresh onRefresh={handleRefresh} className="overflow-visible">
         <div className="pb-20 md:pb-6 bg-background">
           <PageHeader
             title="Plán sadenia"
