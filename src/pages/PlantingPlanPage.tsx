@@ -1199,7 +1199,7 @@ const PlantingPlanPage = () => {
   return (
     <MainLayout>
       <PullToRefresh onRefresh={handleRefresh}>
-        <div className="min-h-screen overflow-y-auto pb-20 md:pb-6 bg-background">
+        <div className="pb-20 md:pb-6 bg-background">
           <PageHeader
             title="Plán sadenia"
             description="Generovanie a správa plánu sadenia podľa objednávok"
@@ -1320,7 +1320,7 @@ const PlantingPlanPage = () => {
                 description="Vygenerujte plán sadenia pre vybrané obdobie."
               />
             ) : viewMode === 'cards' ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 overflow-y-auto max-h-[calc(100vh-200px)]">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {filteredPlans.map(plan => (
                   <Card
                     key={plan.id}
