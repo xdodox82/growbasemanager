@@ -26,7 +26,7 @@ import { ViewToggle, ViewMode } from '@/components/ui/view-toggle';
 import { Checkbox } from '@/components/ui/checkbox';
 import { usePackagings, useSuppliers, DbPackaging } from '@/hooks/useSupabaseData';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, Package, CalendarIcon, X } from 'lucide-react';
+import { Plus, CreditCard as Edit, Trash2, Package, Calendar as CalendarIcon, X } from 'lucide-react';
 import { PackagingMappings } from '@/components/PackagingMappings';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { format } from 'date-fns';

@@ -25,7 +25,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ViewToggle, ViewMode } from '@/components/ui/view-toggle';
 import { useSubstrates, useSuppliers, DbSubstrate } from '@/hooks/useSupabaseData';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, Layers, CalendarIcon, X } from 'lucide-react';
+import { Plus, CreditCard as Edit, Trash2, Layers, Calendar as CalendarIcon, X } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';
 import { sk } from 'date-fns/locale';

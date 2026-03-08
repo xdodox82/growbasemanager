@@ -28,7 +28,7 @@ import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useSeeds, useSuppliers, useCrops, DbSeed } from '@/hooks/useSupabaseData';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, Wheat, CalendarIcon, FileText, Upload, X, ExternalLink, Archive, Undo2, Leaf, Sprout, Flower } from 'lucide-react';
+import { Plus, CreditCard as Edit, Trash2, Wheat, Calendar as CalendarIcon, FileText, Upload, X, ExternalLink, Archive, Undo2, Leaf, Sprout, Flower } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';
