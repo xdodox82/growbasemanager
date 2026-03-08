@@ -36,7 +36,7 @@ export function HarvestSettings() {
       const { data } = await supabase
         .from('profiles')
         .select('harvest_settings')
-        .eq('id', user.id)
+        .eq('user_id', user.id)
         .maybeSingle();
       if (data?.harvest_settings) {
         setSettings({ ...DEFAULT_SETTINGS, ...data.harvest_settings });
@@ -53,15 +53,14 @@ export function HarvestSettings() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
       const { error } = await supabase
         .from('profiles')
-        .upsert({
-          id: user.id,
-          harvest_settings: settings
-        }, {
-          onConflict: 'id'
-        });
+        .update({ harvest_settings: settings })
+        .eq('user_id', user.id);
+
       if (error) throw error;
+
       toast({ title: 'Uložené', description: 'Dni zberu boli úspešne uložené' });
     } catch (error) {
       console.error('Error saving harvest settings:', error);
