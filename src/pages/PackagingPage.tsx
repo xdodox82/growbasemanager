@@ -160,7 +160,15 @@ export default function PackagingPage() {
 
   const renderGridView = () => (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 w-full min-w-0">
-      {packagings.map((packaging) => (
+      {[...packagings].sort((a, b) => {
+  const sizeOrder = ['250ml', '500ml', '750ml', '1000ml', '1200ml'];
+  const aIndex = sizeOrder.indexOf(a.size || '');
+  const bIndex = sizeOrder.indexOf(b.size || '');
+  if (aIndex === -1 && bIndex === -1) return 0;
+  if (aIndex === -1) return 1;
+  if (bIndex === -1) return -1;
+  return aIndex - bIndex;
+}).map((packaging) => (
         <Card key={packaging.id} className="p-4 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer overflow-hidden" onClick={() => {
           console.log('🔍 Opening detail for packaging:', packaging);
           setSelectedPackaging(packaging);
@@ -234,7 +242,15 @@ export default function PackagingPage() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {packagings.map((packaging) => (
+          {[...packagings].sort((a, b) => {
+  const sizeOrder = ['250ml', '500ml', '750ml', '1000ml', '1200ml'];
+  const aIndex = sizeOrder.indexOf(a.size || '');
+  const bIndex = sizeOrder.indexOf(b.size || '');
+  if (aIndex === -1 && bIndex === -1) return 0;
+  if (aIndex === -1) return 1;
+  if (bIndex === -1) return -1;
+  return aIndex - bIndex;
+}).map((packaging) => (
             <TableRow
               key={packaging.id}
               className="cursor-pointer hover:bg-gray-50"
