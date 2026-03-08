@@ -233,9 +233,9 @@ export default function ConsumableInventoryPage() {
           }
         />
       ) : (
-        <div className="space-y-6 w-full min-w-0">
+        <div className="space-y-6">
           {itemsByCategory.map(({ category, items: categoryItems }) => (
-            <Card key={category} className="overflow-hidden">
+            <Card key={category}>
               <div className="p-4 border-b">
                 <h3 className="text-lg font-semibold">{category}</h3>
                 <p className="text-sm text-muted-foreground">{categoryItems.length} položiek</p>
@@ -245,8 +245,8 @@ export default function ConsumableInventoryPage() {
                   <TableRow>
                     <TableHead>Názov</TableHead>
                     <TableHead>Množstvo</TableHead>
-                    <TableHead className="hidden sm:table-cell">Min. množstvo</TableHead>
-                    <TableHead className="hidden sm:table-cell">Stav</TableHead>
+                    <TableHead>Min. množstvo</TableHead>
+                    <TableHead>Stav</TableHead>
                     <TableHead className="text-right">Akcie</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -256,21 +256,21 @@ export default function ConsumableInventoryPage() {
                       console.log('🔍 Opening detail for consumable item:', item);
                       setSelectedItem(item);
                     }}>
-                      <TableCell className="max-w-[140px]">
-                        <div className="min-w-0">
-                          <p className="font-medium break-words leading-tight">{item.name}</p>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{item.name}</p>
                           {item.notes && (
                             <p className="text-sm text-muted-foreground mt-1">{item.notes}</p>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="whitespace-nowrap">
+                      <TableCell>
                         {item.quantity} {item.unit}
                       </TableCell>
-                      <TableCell className="hidden sm:table-cell">
+                      <TableCell>
                         {item.min_quantity ? `${item.min_quantity} ${item.unit}` : '-'}
                       </TableCell>
-                      <TableCell className="hidden sm:table-cell">
+                      <TableCell>
                         {item.min_quantity && item.quantity <= item.min_quantity ? (
                           <Badge variant="destructive">Nízky stav</Badge>
                         ) : (

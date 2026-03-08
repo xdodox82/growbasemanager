@@ -173,25 +173,25 @@ export default function LabelsPage() {
   };
 
   const renderGridView = () => (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 w-full min-w-0">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {labels.map((label) => (
-        <Card key={label.id} className="p-4 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer overflow-hidden" onClick={() => {
+        <Card key={label.id} className="p-4 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer" onClick={() => {
           console.log('🔍 Opening detail for label:', label);
           setSelectedLabel(label);
         }}>
-          <div className="flex items-start justify-between gap-2 min-w-0">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Tag className="h-5 w-5 text-primary" />
               </div>
-              <div className="min-w-0">
-                <h3 className="font-semibold break-words leading-tight min-w-0">{label.name}</h3>
+              <div>
+                <h3 className="font-semibold">{label.name}</h3>
                 <Badge variant="secondary" className="mt-1 text-xs">
                   {LABEL_TYPES[label.type as keyof typeof LABEL_TYPES] || label.type}
                 </Badge>
               </div>
             </div>
-            <div className="flex gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(label)}>
                 <Pencil className="h-4 w-4" />
               </Button>
@@ -204,26 +204,26 @@ export default function LabelsPage() {
           </div>
 
           <div className="mt-4 space-y-2">
-            <div className="flex items-center justify-between text-sm gap-2 min-w-0">
-              <span className="text-muted-foreground shrink-0">Množstvo:</span>
-              <span className="font-semibold truncate text-right">{label.quantity} ks</span>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Množstvo:</span>
+              <span className="font-semibold">{label.quantity} ks</span>
             </div>
             {label.size && (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Veľkosť:</span>
-                <span className="truncate text-right">{label.size}</span>
+                <span>{label.size}</span>
               </div>
             )}
             {label.supplier_id && (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Dodávateľ:</span>
-                <span className="truncate text-right">{getSupplierName(label.supplier_id)}</span>
+                <span>{getSupplierName(label.supplier_id)}</span>
               </div>
             )}
           </div>
 
           {label.notes && (
-            <p className="mt-3 text-sm text-muted-foreground border-t border-border pt-3 break-words">
+            <p className="mt-3 text-sm text-muted-foreground border-t border-border pt-3">
               {label.notes}
             </p>
           )}

@@ -382,27 +382,27 @@ export default function SeedsPage() {
   );
 
   const renderGridView = () => (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 w-full min-w-0">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {filteredSeeds.map((seed) => {
         const extSeed = seed as unknown as ExtendedSeed;
         return (
-          <Card key={seed.id} className="p-4 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer overflow-hidden" onClick={() => {
+          <Card key={seed.id} className="p-4 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer" onClick={() => {
             console.log('🔍 Opening detail for seed:', seed);
             setSelectedSeed(seed);
           }}>
-            <div className="flex items-start justify-between gap-2 min-w-0">
-              <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                   <Wheat className="h-5 w-5 text-primary" />
                 </div>
-                <div className="min-w-0">
-                  <h3 className="font-semibold break-words leading-tight min-w-0">{getCropName(seed.crop_id)}</h3>
+                <div>
+                  <h3 className="font-semibold">{getCropName(seed.crop_id)}</h3>
                   <Badge variant="secondary" className="mt-1 text-xs">
                     {seed.quantity} {seed.unit}
                   </Badge>
                 </div>
               </div>
-              <div className="flex gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+              <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                 {archiveFilter === 'current' && (
                   <Button
                     variant="ghost"
@@ -440,43 +440,43 @@ export default function SeedsPage() {
             </div>
 
             <div className="mt-4 space-y-2">
-              <div className="flex items-center justify-between text-sm gap-2 min-w-0">
-                <span className="text-muted-foreground shrink-0">Dodávateľ:</span>
-                <span className="truncate text-right">{getSupplierName(seed.supplier_id)}</span>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Dodávateľ:</span>
+                <span>{getSupplierName(seed.supplier_id)}</span>
               </div>
               {seed.lot_number && (
-                <div className="flex items-center justify-between text-sm gap-2 min-w-0">
-                  <span className="text-muted-foreground shrink-0">Šarža:</span>
-                  <span className="truncate text-right">{seed.lot_number}</span>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Šarža:</span>
+                  <span>{seed.lot_number}</span>
                 </div>
               )}
               {extSeed.stocking_date && (
-                <div className="flex items-center justify-between text-sm gap-2 min-w-0">
-                  <span className="text-muted-foreground shrink-0">Naskladnenie:</span>
-                  <span className="truncate text-right">{format(new Date(extSeed.stocking_date), 'dd.MM.yyyy')}</span>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Naskladnenie:</span>
+                  <span>{format(new Date(extSeed.stocking_date), 'dd.MM.yyyy')}</span>
                 </div>
               )}
               {extSeed.consumption_start_date && (
-                <div className="flex items-center justify-between text-sm gap-2 min-w-0">
-                  <span className="text-muted-foreground shrink-0">Začiatok spotreby:</span>
-                  <span className="truncate text-right">{format(new Date(extSeed.consumption_start_date), 'dd.MM.yyyy')}</span>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Začiatok spotreby:</span>
+                  <span>{format(new Date(extSeed.consumption_start_date), 'dd.MM.yyyy')}</span>
                 </div>
               )}
               {seed.purchase_date && (
-                <div className="flex items-center justify-between text-sm gap-2 min-w-0">
-                  <span className="text-muted-foreground shrink-0">Nákup:</span>
-                  <span className="truncate text-right">{format(new Date(seed.purchase_date), 'dd.MM.yyyy')}</span>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Nákup:</span>
+                  <span>{format(new Date(seed.purchase_date), 'dd.MM.yyyy')}</span>
                 </div>
               )}
               {seed.expiry_date && (
-                <div className="flex items-center justify-between text-sm gap-2 min-w-0">
-                  <span className="text-muted-foreground shrink-0">Expirácia:</span>
-                  <span className="truncate text-right">{format(new Date(seed.expiry_date), 'LLLL yyyy', { locale: sk })}</span>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Expirácia:</span>
+                  <span>{format(new Date(seed.expiry_date), 'LLLL yyyy', { locale: sk })}</span>
                 </div>
               )}
               {extSeed.certificate_url && (
-                <div className="flex items-center justify-between text-sm gap-2 min-w-0">
-                  <span className="text-muted-foreground shrink-0">Certifikát:</span>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Certifikát:</span>
                   <div className="flex items-center gap-2">
                     <a
                       href={extSeed.certificate_url}
@@ -534,7 +534,7 @@ export default function SeedsPage() {
             </div>
 
             {seed.notes && (
-              <p className="mt-3 text-sm text-muted-foreground border-t border-border pt-3 break-words">
+              <p className="mt-3 text-sm text-muted-foreground border-t border-border pt-3 truncate">
                 {seed.notes}
               </p>
             )}

@@ -159,20 +159,20 @@ export default function PackagingPage() {
   }, {} as Record<string, number>);
 
   const renderGridView = () => (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 w-full min-w-0">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {packagings.map((packaging) => (
-        <Card key={packaging.id} className="p-4 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer overflow-hidden" onClick={() => {
+        <Card key={packaging.id} className="p-4 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer" onClick={() => {
           console.log('🔍 Opening detail for packaging:', packaging);
           setSelectedPackaging(packaging);
         }}>
-          <div className="flex items-start justify-between gap-2 min-w-0">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Package className="h-5 w-5 text-primary" />
               </div>
-              <div className="min-w-0">
-                <h3 className="font-semibold break-words leading-tight min-w-0">{packaging.name}</h3>
-                <div className="flex gap-1 mt-1 flex-wrap min-w-0">
+              <div>
+                <h3 className="font-semibold">{packaging.name}</h3>
+                <div className="flex gap-1 mt-1 flex-wrap">
                   {packaging.type && (
                     <Badge variant="secondary" className="text-xs">
                       {packaging.type}
@@ -186,7 +186,7 @@ export default function PackagingPage() {
                 </div>
               </div>
             </div>
-            <div className="flex gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(packaging)}>
                 <Edit className="h-4 w-4" />
               </Button>
@@ -197,20 +197,20 @@ export default function PackagingPage() {
           </div>
 
           <div className="mt-4 space-y-2">
-            <div className="flex items-center justify-between text-sm gap-2 min-w-0">
-              <span className="text-muted-foreground shrink-0">Počet:</span>
-              <span className="font-semibold truncate text-right">{packaging.quantity} ks</span>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Počet:</span>
+              <span className="font-semibold">{packaging.quantity} ks</span>
             </div>
             {packaging.supplier_id && (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Dodávateľ:</span>
-                <span className="truncate text-right">{getSupplierName(packaging.supplier_id)}</span>
+                <span>{getSupplierName(packaging.supplier_id)}</span>
               </div>
             )}
           </div>
 
           {packaging.notes && (
-            <p className="mt-3 text-sm text-muted-foreground border-t border-border pt-3 break-words">
+            <p className="mt-3 text-sm text-muted-foreground border-t border-border pt-3 truncate">
               {packaging.notes}
             </p>
           )}
