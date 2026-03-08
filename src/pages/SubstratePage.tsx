@@ -194,7 +194,7 @@ export default function SubstratePage() {
             </div>
             <div className="flex gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(substrate)}>
-                <Edit className="h-4 w-4" />
+                <Pencil className="h-4 w-4" />
               </Button>
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteId(substrate.id)}>
                 <Trash2 className="h-4 w-4 text-destructive" />
@@ -253,7 +253,7 @@ export default function SubstratePage() {
               <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                 <div className="flex justify-end gap-2">
                   <Button variant="ghost" size="icon" onClick={() => handleEdit(substrate)}>
-                    <Edit className="h-4 w-4" />
+                    <Pencil className="h-4 w-4" />
                   </Button>
                   <Button variant="ghost" size="icon" onClick={() => setDeleteId(substrate.id)}>
                     <Trash2 className="h-4 w-4 text-destructive" />
@@ -611,7 +611,7 @@ export default function SubstratePage() {
                 }}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
               >
-                <Edit className="h-4 w-4" />
+                <Pencil className="h-4 w-4" />
                 Upraviť
               </button>
             </div>

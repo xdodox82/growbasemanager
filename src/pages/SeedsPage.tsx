@@ -431,7 +431,7 @@ export default function SeedsPage() {
                   </Button>
                 )}
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(seed)}>
-                  <Edit className="h-4 w-4" />
+                  <Pencil className="h-4 w-4" />
                 </Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteId(seed.id)}>
                   <Trash2 className="h-4 w-4 text-destructive" />
@@ -716,7 +716,7 @@ export default function SeedsPage() {
                         </Button>
                       )}
                       <Button variant="ghost" size="icon" onClick={() => handleEdit(seed)}>
-                        <Edit className="h-4 w-4" />
+                        <Pencil className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" onClick={() => setDeleteId(seed.id)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
