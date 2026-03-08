@@ -1211,8 +1211,8 @@ const PlantingPlanPage = () => {
                   Generovať plán sadenia
                 </h2>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="grid gap-2">
+                <div className="flex flex-wrap items-end gap-4">
+                  <div className="grid gap-2 flex-1 min-w-[140px]">
                     <Label htmlFor="start-date">Dátum od</Label>
                     <Input
                       id="start-date"
@@ -1222,7 +1222,7 @@ const PlantingPlanPage = () => {
                     />
                   </div>
 
-                  <div className="grid gap-2">
+                  <div className="grid gap-2 flex-1 min-w-[140px]">
                     <Label htmlFor="end-date">Dátum do</Label>
                     <Input
                       id="end-date"
@@ -1232,7 +1232,8 @@ const PlantingPlanPage = () => {
                     />
                   </div>
 
-                  <div className="flex flex-col items-end gap-1">
+                  <div className="grid gap-2 flex-1 min-w-[180px]">
+                    <Label>&nbsp;</Label>
                     <Button
                       onClick={handleGenerate}
                       disabled={generating}
@@ -1242,16 +1243,13 @@ const PlantingPlanPage = () => {
                       {!generating && <Sparkles className="mr-2 h-4 w-4" />}
                       Vygenerovať plán
                     </Button>
-                    <p className="text-xs text-muted-foreground">
-                      Vytvorí výsevy z potvrdených objednávok
-                    </p>
                   </div>
                 </div>
               </div>
             </Card>
 
             <div className="space-y-6">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center justify-between gap-4">
               <div className="flex gap-2">
                 <Button
                   variant={viewMode === 'cards' ? 'default' : 'outline'}
