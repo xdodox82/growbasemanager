@@ -1265,6 +1265,7 @@ const PlantingPlanPage = () => {
                   variant={viewMode === 'list' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setViewMode('list')}
+                  className="hidden md:flex"
                 >
                   <List className="h-4 w-4 mr-2" />
                   Zoznam
