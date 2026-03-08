@@ -1319,150 +1319,196 @@ const PlantingPlanPage = () => {
                 description="Vygenerujte plán sadenia pre vybrané obdobie."
               />
             ) : viewMode === 'cards' ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {filteredPlans.map(plan => (
-                  <Card
-                    key={plan.id}
-                    className={`p-4 hover:border-primary/50 cursor-pointer transition-colors ${
-                      plan.status === 'completed' ? 'bg-green-50 border-green-200' :
-                      (plan as any).is_test ? 'bg-yellow-50 border-yellow-200' : ''
-                    }`}
-                    onClick={() => openDetailDialog(plan)}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {(plan as any).is_mixed ? (
-                          <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs h-8 px-3 flex items-center">
-                            <Layers className="h-3 w-3 mr-1" />
-                            KOMBINOVANÝ VÝSEV
-                          </Badge>
-                        ) : null}
-
-                        {(plan as any).is_test && (
-                          <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300 text-xs h-8 px-3 flex items-center">
-                            🧪 TEST
-                          </Badge>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant={plan.status === 'completed' ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => handleMarkComplete(plan.id, plan.crop_id, plan.sow_date)}
-                          disabled={!isAdmin}
-                          className={cn(
-                            "h-8 px-3 text-xs gap-1.5 rounded-full",
-                            plan.status === 'completed'
-                              ? "bg-green-600 hover:bg-green-700 text-white border-0"
-                              : "border-gray-300 hover:bg-gray-50 text-gray-700"
-                          )}
-                        >
-                          {plan.status === 'completed' ? (
-                            <CheckCircle className="h-4 w-4" />
+              <>
+                {/* MOBILE karty */}
+                <div className="md:hidden space-y-2">
+                  {filteredPlans.map(plan => (
+                    <Card
+                      key={plan.id}
+                      className={`p-3 cursor-pointer active:opacity-80 transition-opacity ${
+                        plan.status === 'completed' ? 'bg-green-50 border-green-200' :
+                        (plan as any).is_test ? 'bg-yellow-50 border-yellow-200' : ''
+                      }`}
+                      onClick={() => openDetailDialog(plan)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full bg-green-100">
+                          {(plan as any).is_mixed ? (
+                            <Layers className="h-4 w-4 text-green-600" />
                           ) : (
-                            <Circle className="h-4 w-4" />
+                            <Sprout className="h-4 w-4 text-green-600" />
                           )}
-                          <span>Hotovo</span>
-                        </Button>
-
-                        {plan.status === 'completed' && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleMarkPlanned(plan.id, plan.crop_id, plan.sow_date)}
-                            disabled={!isAdmin}
-                            className="h-8 px-3 text-xs text-gray-600 hover:text-gray-900"
-                          >
-                            Vrátiť späť
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-green-100">
-                        {(plan as any).is_mixed ? (
-                          <Layers className="h-5 w-5 text-green-600" />
-                        ) : (
-                          <Sprout className="h-5 w-5 text-green-600" />
-                        )}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="mb-2">
-                          {!(plan as any).is_mixed && (
-                            <h3 className="font-semibold text-base">{plan.crops?.name || 'Neznáma plodina'}</h3>
-                          )}
-                          <p className="text-xs text-muted-foreground">
-                            {formatDate(plan.sow_date)}
-                          </p>
                         </div>
 
-                        <div className="space-y-1">
-                          {(plan as any).is_mixed && (plan as any).mix_configuration ? (
-                            <div className="text-xs space-y-1">
-                              {(() => {
-                                try {
-                                  const mixConfig = JSON.parse((plan as any).mix_configuration);
-                                  return mixConfig.map((item: any, idx: number) => (
-                                    <div key={idx} className="flex items-center gap-1">
-                                      <span className="font-medium">{item.crop_name}</span>
-                                      <span className="text-muted-foreground">{item.percentage}%</span>
-                                    </div>
-                                  ));
-                                } catch (e) {
-                                  return <span className="text-muted-foreground">Chyba načítania mixu</span>;
-                                }
-                              })()}
-                            </div>
-                          ) : null}
-                          <div className="space-y-1">
-                            {sortTrayCombinations(plan.trays).map((tray, idx) => (
-                              <p key={idx} className="text-sm">
-                                {tray.count} × {tray.size}
-                                <span className="text-xs text-muted-foreground ml-2">
-                                  ({formatGrams(tray.seeds_per_tray)}g/tácka)
-                                </span>
-                              </p>
-                            ))}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {(plan as any).is_mixed ? (
+                              <span className="font-semibold text-sm">Kombinovaný výsev</span>
+                            ) : (
+                              <span className="font-semibold text-sm truncate">{plan.crops?.name || 'Neznáma plodina'}</span>
+                            )}
+                            {(plan as any).is_test && (
+                              <span className="text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded">🧪 TEST</span>
+                            )}
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Celkom: {formatGrams(plan.total_seed_grams || 0)}g
-                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-xs text-muted-foreground">{formatDate(plan.sow_date)}</span>
+                            <span className="text-xs text-muted-foreground">•</span>
+                            <span className="text-xs text-muted-foreground">
+                              {sortTrayCombinations(plan.trays).map((t) => `${t.count}×${t.size}`).join(', ')}
+                            </span>
+                          </div>
                         </div>
 
-                        {(plan as any).notes && (
-                          <p className="text-xs text-gray-500 mt-2 line-clamp-2">
-                            📝 {(plan as any).notes}
-                          </p>
-                        )}
-
-                        <div className="mt-3 flex gap-1" onClick={(e) => e.stopPropagation()}>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8"
-                            onClick={() => openEditDialog(plan)}
+                        <div className="flex-shrink-0 flex items-center gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              plan.status === 'completed'
+                                ? handleMarkPlanned(plan.id, plan.crop_id, plan.sow_date)
+                                : handleMarkComplete(plan.id, plan.crop_id, plan.sow_date);
+                            }}
                             disabled={!isAdmin}
+                            className={`h-8 w-8 rounded-full flex items-center justify-center transition-colors ${
+                              plan.status === 'completed'
+                                ? 'bg-green-600 text-white'
+                                : 'border-2 border-gray-300 text-gray-300'
+                            }`}
                           >
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8"
-                            onClick={() => setDeleteId(plan.id)}
-                            disabled={!isAdmin}
-                          >
-                            <Trash2 className="h-3 w-3 text-destructive" />
-                          </Button>
+                            {plan.status === 'completed' ? (
+                              <CheckCircle className="h-5 w-5" />
+                            ) : (
+                              <Circle className="h-5 w-5" />
+                            )}
+                          </button>
                         </div>
                       </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
+                    </Card>
+                  ))}
+                </div>
+
+                {/* DESKTOP karty */}
+                <div className="hidden md:grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {filteredPlans.map(plan => (
+                    <Card
+                      key={plan.id}
+                      className={`p-4 hover:border-primary/50 cursor-pointer transition-colors ${
+                        plan.status === 'completed' ? 'bg-green-50 border-green-200' :
+                        (plan as any).is_test ? 'bg-yellow-50 border-yellow-200' : ''
+                      }`}
+                      onClick={() => openDetailDialog(plan)}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {(plan as any).is_mixed ? (
+                            <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs h-8 px-3 flex items-center">
+                              <Layers className="h-3 w-3 mr-1" />
+                              KOMBINOVANÝ VÝSEV
+                            </Badge>
+                          ) : null}
+                          {(plan as any).is_test && (
+                            <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300 text-xs h-8 px-3 flex items-center">
+                              🧪 TEST
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            variant={plan.status === 'completed' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => handleMarkComplete(plan.id, plan.crop_id, plan.sow_date)}
+                            disabled={!isAdmin}
+                            className={cn(
+                              "h-8 px-3 text-xs gap-1.5 rounded-full",
+                              plan.status === 'completed'
+                                ? "bg-green-600 hover:bg-green-700 text-white border-0"
+                                : "border-gray-300 hover:bg-gray-50 text-gray-700"
+                            )}
+                          >
+                            {plan.status === 'completed' ? (
+                              <CheckCircle className="h-4 w-4" />
+                            ) : (
+                              <Circle className="h-4 w-4" />
+                            )}
+                            <span>Hotovo</span>
+                          </Button>
+                          {plan.status === 'completed' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleMarkPlanned(plan.id, plan.crop_id, plan.sow_date)}
+                              disabled={!isAdmin}
+                              className="h-8 px-3 text-xs text-gray-600 hover:text-gray-900"
+                            >
+                              Vrátiť späť
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-green-100">
+                          {(plan as any).is_mixed ? (
+                            <Layers className="h-5 w-5 text-green-600" />
+                          ) : (
+                            <Sprout className="h-5 w-5 text-green-600" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="mb-2">
+                            {!(plan as any).is_mixed && (
+                              <h3 className="font-semibold text-base">{plan.crops?.name || 'Neznáma plodina'}</h3>
+                            )}
+                            <p className="text-xs text-muted-foreground">{formatDate(plan.sow_date)}</p>
+                          </div>
+                          <div className="space-y-1">
+                            {(plan as any).is_mixed && (plan as any).mix_configuration ? (
+                              <div className="text-xs space-y-1">
+                                {(() => {
+                                  try {
+                                    const mixConfig = JSON.parse((plan as any).mix_configuration);
+                                    return mixConfig.map((item: any, idx: number) => (
+                                      <div key={idx} className="flex items-center gap-1">
+                                        <span className="font-medium">{item.crop_name}</span>
+                                        <span className="text-muted-foreground">{item.percentage}%</span>
+                                      </div>
+                                    ));
+                                  } catch (e) {
+                                    return <span className="text-muted-foreground">Chyba načítania mixu</span>;
+                                  }
+                                })()}
+                              </div>
+                            ) : null}
+                            <div className="space-y-1">
+                              {sortTrayCombinations(plan.trays).map((tray, idx) => (
+                                <p key={idx} className="text-sm">
+                                  {tray.count} × {tray.size}
+                                  <span className="text-xs text-muted-foreground ml-2">
+                                    ({formatGrams(tray.seeds_per_tray)}g/tácka)
+                                  </span>
+                                </p>
+                              ))}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Celkom: {formatGrams(plan.total_seed_grams || 0)}g
+                            </p>
+                          </div>
+                          {(plan as any).notes && (
+                            <p className="text-xs text-gray-500 mt-2 line-clamp-2">📝 {(plan as any).notes}</p>
+                          )}
+                          <div className="mt-3 flex gap-1" onClick={(e) => e.stopPropagation()}>
+                            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEditDialog(plan)} disabled={!isAdmin}>
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setDeleteId(plan.id)} disabled={!isAdmin}>
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </>
             ) : viewMode === 'list' ? (
               <Card>
                 <Table>
