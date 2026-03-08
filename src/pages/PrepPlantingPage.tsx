@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Sprout, Box, Calendar, Check, Loader2 } from 'lucide-react';
+import { Sprout, Box, Calendar, Check, Loader2, Layers } from 'lucide-react';
 import { format, startOfDay, getWeek, getYear, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
 import { sk } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
@@ -206,7 +206,79 @@ export default function PrepPlantingPage() {
             description="V zvolenom období nie sú naplánované žiadne siatby."
           />
         ) : (
-          <Card className="p-6">
+          <>
+          <div className="md:hidden space-y-3">
+  {plannedPlans.map((plan) => {
+    const isCombined = plan.is_combined;
+    const isSaving = savingPlanId === plan.id;
+    const substrateType = (plan as any).substrate_type || 'mixed';
+    const substrateNote = (plan as any).substrate_note;
+
+    return (
+      <Card key={plan.id} className="p-4">
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="text-sm font-medium">
+                {format(new Date(plan.sow_date), 'd. MMM yyyy', { locale: sk })}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {isCombined ? (
+                <Badge variant="outline" className="gap-1">
+                  <Layers className="h-3 w-3" />Mix
+                </Badge>
+              ) : (
+                <span className="font-semibold text-base">{getCropName(plan.crop_id)}</span>
+              )}
+            </div>
+          </div>
+          <div className="text-right shrink-0 ml-3">
+            <p className="text-2xl font-bold">{plan.tray_count || 1}</p>
+            <p className="text-xs text-muted-foreground">tácok</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 mb-3 text-sm">
+          <div>
+            <p className="text-xs text-muted-foreground mb-0.5">Veľkosť</p>
+            <Badge variant="secondary">{TRAY_SIZE_LABELS[plan.tray_size || 'XL'] || plan.tray_size}</Badge>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-0.5">Substrát</p>
+            <p className="font-medium text-sm">{SUBSTRATE_TYPE_LABELS[substrateType] || 'Miešaný'}</p>
+            {substrateNote && <p className="text-xs text-muted-foreground italic">{substrateNote}</p>}
+          </div>
+        </div>
+
+        {plan.notes && (
+          <p className="text-xs text-muted-foreground mb-3 bg-muted/30 rounded p-2">
+            📝 {plan.notes}
+          </p>
+        )}
+
+        <Button
+          size="sm"
+          onClick={() => markAsReady(plan.id)}
+          disabled={isSaving}
+          className="w-full"
+        >
+          {isSaving ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <>
+              <Check className="h-4 w-4 mr-1" />
+              Hotovo
+            </>
+          )}
+        </Button>
+      </Card>
+    );
+  })}
+</div>
+
+          <Card className="hidden md:block p-6">
           <Table>
             <TableHeader>
               <TableRow>
@@ -286,6 +358,7 @@ export default function PrepPlantingPage() {
               </p>
             </div>
           </Card>
+          </>
         )}
       </div>
     </MainLayout>
