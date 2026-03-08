@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
@@ -1198,8 +1197,7 @@ const PlantingPlanPage = () => {
 
   return (
     <MainLayout>
-      <PullToRefresh onRefresh={handleRefresh} className="overflow-visible">
-        <div className="pb-20 md:pb-6 bg-background">
+      <div className="pb-20 md:pb-6 bg-background">
           <PageHeader
             title="Plán sadenia"
             description="Generovanie a správa plánu sadenia podľa objednávok"
@@ -1707,7 +1705,6 @@ const PlantingPlanPage = () => {
             </div>
           </div>
         </div>
-      </PullToRefresh>
 
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
