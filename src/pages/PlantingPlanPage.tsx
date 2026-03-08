@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { PageHeader, EmptyState } from '@/components/ui/page-components';
 import { useAuth } from '@/hooks/useAuth';
+import { useHarvestDays } from '@/hooks/useHarvestDays';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -134,6 +135,7 @@ type ViewMode = 'cards' | 'list' | 'calendar';
 
 const PlantingPlanPage = () => {
   const { isAdmin } = useAuth();
+  const { getHarvestDateForDelivery } = useHarvestDays();
   const { toast } = useToast();
   const isMobile = useIsMobile();
 
@@ -495,15 +497,17 @@ const PlantingPlanPage = () => {
     }>();
 
     orders.forEach(order => {
+      const harvestDate = getHarvestDateForDelivery(order.delivery_date);
+
       order.order_items?.forEach((item: any) => {
         if (!item.crop_id || !item.crops) return;
 
-        const key = `${item.crop_id}_${order.delivery_date}`;
+        const key = `${item.crop_id}_${harvestDate}`;
 
         if (!groups.has(key)) {
           groups.set(key, {
             crop: item.crops,
-            harvestDate: order.delivery_date,
+            harvestDate: harvestDate,
             totalRequired: 0,
             orderIds: [],
           });
@@ -513,7 +517,6 @@ const PlantingPlanPage = () => {
         const grams = parseFloat(item.packaging_size?.replace(/[^0-9.]/g, '') || '0');
         group.totalRequired += grams * (item.quantity || 0);
 
-        // Add order ID if not already in the list
         if (!group.orderIds.includes(order.id)) {
           group.orderIds.push(order.id);
         }
