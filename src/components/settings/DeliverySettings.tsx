@@ -262,7 +262,7 @@ export function DeliverySettings() {
           <div>
             <h2 className="text-lg font-semibold">Rozvozové trasy</h2>
             <p className="text-sm text-muted-foreground">
-              Nastavte ceny dopravy a limity pre bezplatnú dopravu pre každú trasu
+              Nastavte ceny dopravy, limity pre bezplatnú dopravu a spravujte zákazníkov pre každú trasu
             </p>
           </div>
         </div>
