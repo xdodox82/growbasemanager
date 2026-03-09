@@ -5,9 +5,10 @@ import { Leaf, Sprout, Flower, Palette } from 'lucide-react';
 interface CategoryFilterProps {
   value: string;
   onChange: (value: string) => void;
+  hideLabel?: boolean;
 }
 
-export function CategoryFilter({ value, onChange }: CategoryFilterProps) {
+export function CategoryFilter({ value, onChange, hideLabel }: CategoryFilterProps) {
   console.log('🎨 CategoryFilter render - value:', value);
 
   const handleChange = (newValue: string) => {
@@ -17,7 +18,7 @@ export function CategoryFilter({ value, onChange }: CategoryFilterProps) {
 
   return (
     <div className="flex flex-col gap-1">
-      <Label className="text-sm font-medium text-gray-700 text-center block">Kategória</Label>
+      {!hideLabel && <Label className="text-sm font-medium text-gray-700 text-center block">Kategória</Label>}
       <Select
         value={value}
         onValueChange={handleChange}

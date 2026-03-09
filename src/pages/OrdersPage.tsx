@@ -3317,12 +3317,14 @@ export default function OrdersPage() {
 {/* SEKCIA: VÝBER PLODINY A KATEGÓRIE */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-p-4 bg-slate-50 p-4 rounded-lg">
                         <div className="space-y-2">
+                          <Label className="text-sm text-left block">Kategória</Label>
                           <CategoryFilter
                             value={categoryFilter}
                             onChange={(newValue) => {
                               console.log('🔄 OrdersPage received category change:', newValue);
                               setCategoryFilter(newValue);
                             }}
+                            hideLabel={true}
                           />
                         </div>
 
