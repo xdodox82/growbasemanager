@@ -1288,14 +1288,6 @@ function DeliveryPage() {
         title="Rozvoz"
         description="Prehľad objednávok na rozvoz a správa trás"
       >
-        <Button variant="outline" onClick={exportToExcel} className="gap-2">
-          <FileSpreadsheet className="h-4 w-4" />
-          Export Excel
-        </Button>
-        <Button variant="outline" onClick={exportToPDF} className="gap-2">
-          <FileText className="h-4 w-4" />
-          Export PDF
-        </Button>
       </PageHeader>
 
       <Tabs defaultValue="delivery" className="w-full">
@@ -1397,6 +1389,17 @@ function DeliveryPage() {
             </div>
           </div>
 
+          <div className="flex gap-2 items-end pb-0.5">
+            <Button variant="outline" size="sm" onClick={exportToExcel} className="gap-2">
+              <FileSpreadsheet className="h-4 w-4" />
+              Excel
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportToPDF} className="gap-2">
+              <FileText className="h-4 w-4" />
+              PDF
+            </Button>
+          </div>
+
         </div>
       </div>
 
@@ -1470,22 +1473,28 @@ function DeliveryPage() {
       </Card>
 
       <div className="space-y-6">
-        {/* Summary Card */}
-        <Card className="p-4 md:p-6">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Truck className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold">
-                {format(selectedDate, 'd. MMMM yyyy', { locale: sk })}
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                {totalItemsCount} položiek celkom • {pendingCount} na rozvoz • {deliveredCount} doručených
-              </p>
-            </div>
-          </div>
-        </Card>
+        {/* Finančný report - vždy hore ak sú nejaké objednávky */}
+        {allOrdersForReport.length > 0 && (
+          <Card className="p-4 bg-green-50 border-green-200">
+            <button
+              onClick={() => setFinancialReportOpen(true)}
+              className="w-full flex items-center justify-between hover:bg-green-100 rounded-lg p-2 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <Euro className="h-6 w-6 text-green-600" />
+                <div className="text-left">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Finančné zúčtovanie rozvozu
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    {format(selectedDate, 'd. MMMM yyyy', { locale: sk })} • {totalItemsCount} položiek • {pendingCount} na rozvoz • {deliveredCount} doručených
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="h-5 w-5 text-gray-400" />
+            </button>
+          </Card>
+        )}
 
         {sortedPendingOrders.length === 0 && sortedDeliveredOrders.length === 0 ? (
           <EmptyState
@@ -1966,29 +1975,6 @@ function DeliveryPage() {
               </Card>
             )}
           </>
-        )}
-
-        {/* Finančný report riadok */}
-        {pendingOrders.length > 0 && (
-          <Card className="p-4 bg-green-50 border-green-200">
-            <button
-              onClick={() => setFinancialReportOpen(true)}
-              className="w-full flex items-center justify-between hover:bg-green-100 rounded-lg p-2 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <Euro className="h-6 w-6 text-green-600" />
-                <div className="text-left">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Finančné zúčtovanie rozvozu
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    Kliknutím zobrazíte detail úhrad
-                  </p>
-                </div>
-              </div>
-              <ChevronRight className="h-5 w-5 text-gray-400" />
-            </button>
-          </Card>
         )}
       </div>
         </TabsContent>
