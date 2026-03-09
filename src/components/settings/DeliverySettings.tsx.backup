@@ -3,13 +3,10 @@ import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Truck, Edit, Trash2, Users } from 'lucide-react';
+import { Truck, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useCustomers } from '@/hooks/useSupabaseData';
 
 type DeliveryRoute = {
   id: string;
@@ -29,11 +26,6 @@ export function DeliverySettings() {
   const [editingRoute, setEditingRoute] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Partial<DeliveryRoute>>({});
   const [isCreatingNew, setIsCreatingNew] = useState(false);
-  const { data: customers, update: updateCustomer } = useCustomers();
-  const [isCustomersDialogOpen, setIsCustomersDialogOpen] = useState(false);
-  const [managingRouteId, setManagingRouteId] = useState<string | null>(null);
-  const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<string>>(new Set());
-  const [customerTypeFilter, setCustomerTypeFilter] = useState<string>('all');
 
   useEffect(() => {
     loadRoutes();
@@ -198,43 +190,6 @@ export function DeliverySettings() {
       });
     }
   };
-
-  const getCustomersForRoute = (routeId: string) => {
-    return customers.filter(c => c.delivery_route_id === routeId);
-  };
-
-  const openCustomersDialog = (routeId: string) => {
-    setManagingRouteId(routeId);
-    const assignedCustomers = customers.filter(c => c.delivery_route_id === routeId);
-    setSelectedCustomerIds(new Set(assignedCustomers.map(c => c.id)));
-    setCustomerTypeFilter('all');
-    setIsCustomersDialogOpen(true);
-  };
-
-  const handleSaveCustomers = async () => {
-    if (!managingRouteId) return;
-    const currentlyAssigned = customers.filter(c => c.delivery_route_id === managingRouteId);
-    const toUnassign = currentlyAssigned.filter(c => !selectedCustomerIds.has(c.id));
-    const toAssign = Array.from(selectedCustomerIds).filter(
-      id => !currentlyAssigned.some(c => c.id === id)
-    );
-    await Promise.all([
-      ...toUnassign.map(c => updateCustomer(c.id, { delivery_route_id: null })),
-      ...toAssign.map(id => updateCustomer(id, { delivery_route_id: managingRouteId })),
-    ]);
-    toast({ title: 'Zákazníci uložení', description: `${selectedCustomerIds.size} zákazníkov priradených k trase.` });
-    setIsCustomersDialogOpen(false);
-    setManagingRouteId(null);
-    setSelectedCustomerIds(new Set());
-  };
-
-  const toggleCustomerSelection = (customerId: string) => {
-    const newSet = new Set(selectedCustomerIds);
-    if (newSet.has(customerId)) { newSet.delete(customerId); } else { newSet.add(customerId); }
-    setSelectedCustomerIds(newSet);
-  };
-
-  const currentRoute = managingRouteId ? routes.find(r => r.id === managingRouteId) : null;
 
   if (isLoading) {
     return (
@@ -588,31 +543,6 @@ export function DeliverySettings() {
                     <p className="text-muted-foreground">Min. zdarma: {Number(route.wholesale_min_free_delivery).toFixed(2).replace('.', ',')}€</p>
                   </div>
                 </div>
-                <div className="border-t pt-3 mt-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Users className="h-4 w-4" />
-                      <span>{getCustomersForRoute(route.id).length} zákazníkov</span>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openCustomersDialog(route.id)}
-                    >
-                      <Users className="h-4 w-4 mr-1" />
-                      Spravovať zákazníkov
-                    </Button>
-                  </div>
-                  {getCustomersForRoute(route.id).length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {getCustomersForRoute(route.id).map(c => (
-                        <Badge key={c.id} variant="secondary" className="text-xs">
-                          {c.company_name || c.name}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
                 <div className="flex justify-end mt-3 pt-3 border-t">
                   <Button
                     variant="destructive"
@@ -634,60 +564,6 @@ export function DeliverySettings() {
           </p>
         )}
       </div>
-
-      <Dialog open={isCustomersDialogOpen} onOpenChange={setIsCustomersDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Zákazníci trasy — {currentRoute?.name}</DialogTitle>
-            <DialogDescription>Vyberte zákazníkov priradených do tejto trasy</DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <div className="flex gap-2 mb-4">
-              {['all','home','gastro','wholesale'].map(type => (
-                <Button
-                  key={type}
-                  variant={customerTypeFilter === type ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setCustomerTypeFilter(type)}
-                >
-                  {type === 'all' ? 'Všetci' : type === 'home' ? 'Domáci' : type === 'gastro' ? 'Gastro' : 'VO'}
-                </Button>
-              ))}
-            </div>
-            <div className="space-y-2">
-              {customers
-                .filter(c => customerTypeFilter === 'all' || c.customer_type === customerTypeFilter)
-                .map(customer => {
-                  const isSelected = selectedCustomerIds.has(customer.id);
-                  const otherRoute = customer.delivery_route_id && customer.delivery_route_id !== managingRouteId
-                    ? routes.find(r => r.id === customer.delivery_route_id)
-                    : null;
-                  return (
-                    <div
-                      key={customer.id}
-                      className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-accent/50 transition-colors ${isSelected ? 'bg-primary/5 border-primary' : ''}`}
-                      onClick={() => toggleCustomerSelection(customer.id)}
-                    >
-                      <Checkbox checked={isSelected} onCheckedChange={() => toggleCustomerSelection(customer.id)} />
-                      <div className="flex-1">
-                        <p className="font-medium">{customer.company_name || customer.name}</p>
-                        {customer.address && <p className="text-sm text-muted-foreground">{customer.address}</p>}
-                        {otherRoute && <Badge variant="outline" className="mt-1 text-xs">Aktuálne: {otherRoute.name}</Badge>}
-                      </div>
-                      <Badge variant={customer.customer_type === 'home' ? 'default' : 'secondary'}>
-                        {customer.customer_type === 'home' ? 'Domáci' : customer.customer_type === 'gastro' ? 'Gastro' : 'VO'}
-                      </Badge>
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCustomersDialogOpen(false)}>Zrušiť</Button>
-            <Button onClick={handleSaveCustomers}>Uložiť ({selectedCustomerIds.size} vybraných)</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </Card>
   );
 }

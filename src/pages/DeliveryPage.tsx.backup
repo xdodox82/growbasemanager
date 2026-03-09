@@ -33,6 +33,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SearchableCustomerSelect } from '@/components/orders/SearchableCustomerSelect';
 import { format, isSameDay, startOfDay, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday } from 'date-fns';
 import { sk } from 'date-fns/locale';
@@ -40,6 +41,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useInventoryConsumption } from '@/hooks/useInventoryConsumption';
 import { cn } from '@/lib/utils';
 import * as XLSX from 'xlsx';
+import { RouteManagement } from '@/components/delivery/RouteManagement';
 import { DeliveryDaysSettings } from '@/components/delivery/DeliveryDaysSettings';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -1287,6 +1289,22 @@ function DeliveryPage() {
         description="Prehľad objednávok na rozvoz a správa trás"
       >
       </PageHeader>
+
+      <Tabs defaultValue="delivery" className="w-full">
+        <div className="mb-6">
+          <TabsList className="grid grid-cols-2">
+            <TabsTrigger value="delivery">
+              <Truck className="h-4 w-4 mr-2" />
+              Rozvoz
+            </TabsTrigger>
+            <TabsTrigger value="routes">
+              <Settings className="h-4 w-4 mr-2" />
+              Správa trás
+            </TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="delivery" className="space-y-6">
       {/* DESKTOP Filter - rovnaké šírky, centrované labely */}
       <div className="hidden md:block space-y-3 p-4 bg-white border-b mb-6">
 
@@ -1959,6 +1977,12 @@ function DeliveryPage() {
           </>
         )}
       </div>
+        </TabsContent>
+
+        <TabsContent value="routes" className="space-y-6">
+          <RouteManagement />
+        </TabsContent>
+      </Tabs>
 
       {/* Detail Dialog */}
       <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
