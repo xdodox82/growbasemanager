@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Truck, CreditCard as Edit, Trash2, Users } from 'lucide-react';
+import { Truck, Pencil, Trash2, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
@@ -244,7 +244,7 @@ export function DeliverySettings() {
             <Truck className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold">Nastavenia dopravy podľa trás</h2>
+            <h2 className="text-lg font-semibold">Rozvozové trasy</h2>
             <p className="text-sm text-muted-foreground">Načítavam...</p>
           </div>
         </div>
@@ -260,7 +260,7 @@ export function DeliverySettings() {
             <Truck className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold">Nastavenia dopravy podľa trás</h2>
+            <h2 className="text-lg font-semibold">Rozvozové trasy</h2>
             <p className="text-sm text-muted-foreground">
               Nastavte ceny dopravy a limity pre bezplatnú dopravu pre každú trasu
             </p>
@@ -422,14 +422,24 @@ export function DeliverySettings() {
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-lg">{route.name}</h3>
               {editingRoute !== route.id && !isCreatingNew && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleEdit(route)}
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Upraviť
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEdit(route)}
+                  >
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Upraviť
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleDeleteRoute(route.id)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Odstrániť
+                  </Button>
+                </div>
               )}
             </div>
 
@@ -589,7 +599,7 @@ export function DeliverySettings() {
                   </div>
                 </div>
                 <div className="border-t pt-3 mt-3">
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Users className="h-4 w-4" />
                       <span>{getCustomersForRoute(route.id).length} zákazníkov</span>
@@ -604,24 +614,61 @@ export function DeliverySettings() {
                     </Button>
                   </div>
                   {getCustomersForRoute(route.id).length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {getCustomersForRoute(route.id).map(c => (
-                        <Badge key={c.id} variant="secondary" className="text-xs">
-                          {c.company_name || c.name}
-                        </Badge>
-                      ))}
+                    <div className="space-y-1">
+                      {/* Domáci */}
+                      {getCustomersForRoute(route.id).filter(c => c.customer_type === 'home').length > 0 && (
+                        <div className="flex flex-wrap gap-1 items-center">
+                          <span className="text-xs font-medium text-blue-600 w-16 shrink-0">Domáci:</span>
+                          {getCustomersForRoute(route.id)
+                            .filter(c => c.customer_type === 'home')
+                            .map(c => (
+                              <span key={c.id} className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                                {c.company_name || c.name}
+                              </span>
+                            ))}
+                        </div>
+                      )}
+                      {/* Gastro */}
+                      {getCustomersForRoute(route.id).filter(c => c.customer_type === 'gastro').length > 0 && (
+                        <div className="flex flex-wrap gap-1 items-center">
+                          <span className="text-xs font-medium text-orange-600 w-16 shrink-0">Gastro:</span>
+                          {getCustomersForRoute(route.id)
+                            .filter(c => c.customer_type === 'gastro')
+                            .map(c => (
+                              <span key={c.id} className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 border border-orange-200">
+                                {c.company_name || c.name}
+                              </span>
+                            ))}
+                        </div>
+                      )}
+                      {/* Veľkoobchod */}
+                      {getCustomersForRoute(route.id).filter(c => c.customer_type === 'wholesale').length > 0 && (
+                        <div className="flex flex-wrap gap-1 items-center">
+                          <span className="text-xs font-medium text-purple-600 w-16 shrink-0">VO:</span>
+                          {getCustomersForRoute(route.id)
+                            .filter(c => c.customer_type === 'wholesale')
+                            .map(c => (
+                              <span key={c.id} className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200">
+                                {c.company_name || c.name}
+                              </span>
+                            ))}
+                        </div>
+                      )}
+                      {/* Bez typu */}
+                      {getCustomersForRoute(route.id).filter(c => !c.customer_type).length > 0 && (
+                        <div className="flex flex-wrap gap-1 items-center">
+                          <span className="text-xs font-medium text-gray-500 w-16 shrink-0">Ostatní:</span>
+                          {getCustomersForRoute(route.id)
+                            .filter(c => !c.customer_type)
+                            .map(c => (
+                              <span key={c.id} className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
+                                {c.company_name || c.name}
+                              </span>
+                            ))}
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
-                <div className="flex justify-end mt-3 pt-3 border-t">
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleDeleteRoute(route.id)}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Odstrániť trasu
-                  </Button>
                 </div>
               </>
             )}

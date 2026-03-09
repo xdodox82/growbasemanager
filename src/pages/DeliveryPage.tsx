@@ -1173,7 +1173,7 @@ function DeliveryPage() {
       <MainLayout>
         <PageHeader
           title="Rozvoz"
-          description="Prehľad objednávok na rozvoz a správa trás"
+          description="Prehľad objednávok na rozvoz"
         />
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
@@ -1284,7 +1284,7 @@ function DeliveryPage() {
     <MainLayout>
       <PageHeader
         title="Rozvoz"
-        description="Prehľad objednávok na rozvoz a správa trás"
+        description="Prehľad objednávok na rozvoz"
       >
       </PageHeader>
       {/* DESKTOP Filter - rovnaké šírky, centrované labely */}
