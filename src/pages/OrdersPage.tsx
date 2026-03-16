@@ -21,7 +21,7 @@ import { RecurringOrderDeleteDialog } from '@/components/orders/RecurringOrderDe
 import { RecurringOrderExtendDialog } from '@/components/orders/RecurringOrderExtendDialog';
 import { BulkDateChangeDialog } from '@/components/orders/BulkDateChangeDialog';
 import { useDeliveryDays } from '@/hooks/useDeliveryDays';
-import { ShoppingCart, Plus, Grid3x3, List, FileSpreadsheet, FileText, Pencil, Copy, Trash2, Calendar, Package, Truck, House, Utensils, Store, Scissors, X, MapPin, RefreshCw, Check, Leaf, Sprout, Flower, Palette, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ShoppingCart, Plus, Grid3x3, List, FileSpreadsheet, FileText, Pencil, Copy, Trash2, Calendar, Package, Truck, House, Utensils, Store, Scissors, X, MapPin, RefreshCw, Check, Leaf, Sprout, Flower, Palette, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Smartphone } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO, getDay, addWeeks, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday } from 'date-fns';
@@ -2846,7 +2846,15 @@ export default function OrdersPage() {
                             <ShoppingCart className="h-4 w-4" />
                           </div>
                           <div>
-                            <div className="font-semibold text-sm text-gray-900">{order.customer_name || 'Bez názvu'}</div>
+                            <div className="flex items-center gap-2">
+                              <div className="font-semibold text-sm text-gray-900">{order.customer_name || 'Bez názvu'}</div>
+                              {order.source === 'app' && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
+                                  <Smartphone className="w-3 h-3" />
+                                  APP
+                                </span>
+                              )}
+                            </div>
                             {order.order_items && order.order_items.length > 0 && (
                               <div className="text-xs text-gray-500">
                                 {(order.order_items || []).reduce((sum, item) => sum + (item?.quantity || 0), 0)} položiek
@@ -2934,7 +2942,15 @@ export default function OrdersPage() {
                       )}
                     </div>
                     <div>
-                      <h3 className="font-bold text-base text-gray-900">{order.customer_name || 'Bez názvu'}</h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-base text-gray-900">{order.customer_name || 'Bez názvu'}</h3>
+                        {order.source === 'app' && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
+                            <Smartphone className="w-3 h-3" />
+                            APP
+                          </span>
+                        )}
+                      </div>
                       <div className="flex items-center flex-wrap gap-2 mt-1.5">
                         <Badge className={`border ${getStatusBadgeClass(order.status)} text-xs font-semibold px-2.5 py-0.5`}>
                           {getStatusLabel(order.status)}
@@ -3905,7 +3921,15 @@ export default function OrdersPage() {
               <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
                 <div>
                   <div className="text-sm text-gray-600">Zákazník</div>
-                  <div className="font-semibold text-gray-900">{selectedOrderDetail.customer_name || 'Bez názvu'}</div>
+                  <div className="flex items-center gap-2">
+                    <div className="font-semibold text-gray-900">{selectedOrderDetail.customer_name || 'Bez názvu'}</div>
+                    {selectedOrderDetail.source === 'app' && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
+                        <Smartphone className="w-3 h-3" />
+                        APP
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <div className="text-sm text-gray-600">Dátum dodania</div>
