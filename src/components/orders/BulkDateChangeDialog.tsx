@@ -22,6 +22,24 @@ interface AffectedOrder {
   status: string;
 }
 
+const getOrderCountText = (count: number): string => {
+  if (count === 1) return '1 objednávka';
+  if (count >= 2 && count <= 4) return `${count} objednávky`;
+  return `${count} objednávok`;
+};
+
+const getWillBeMovedText = (count: number): string => {
+  if (count === 1) return 'Bude presunutá 1 objednávka';
+  if (count >= 2 && count <= 4) return `Budú presunuté ${count} objednávky`;
+  return `Bude presunutých ${count} objednávok`;
+};
+
+const getMoveButtonText = (count: number): string => {
+  if (count === 1) return 'Presunúť 1 objednávku';
+  if (count >= 2 && count <= 4) return `Presunúť ${count} objednávky`;
+  return `Presunúť ${count} objednávok`;
+};
+
 export function BulkDateChangeDialog({ open, onOpenChange, onSuccess }: BulkDateChangeDialogProps) {
   const { toast } = useToast();
   const [step, setStep] = useState(1);
@@ -177,7 +195,7 @@ export function BulkDateChangeDialog({ open, onOpenChange, onSuccess }: BulkDate
               {!loading && originalDate && (
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-sm font-medium text-blue-900">
-                    Nájdených {affectedOrders.length} objednávok na tento dátum
+                    Nájdených {getOrderCountText(affectedOrders.length)} na tento dátum
                   </p>
                   {affectedOrders.length === 0 && (
                     <p className="text-sm text-blue-700 mt-1">
@@ -251,7 +269,7 @@ export function BulkDateChangeDialog({ open, onOpenChange, onSuccess }: BulkDate
 
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                   <p className="text-sm font-medium text-green-900">
-                    Bude presunutých {affectedOrders.length} objednávok
+                    {getWillBeMovedText(affectedOrders.length)}
                   </p>
                   <p className="text-sm text-green-700 mt-1">
                     z {format(parseISO(originalDate), 'dd.MM.yyyy', { locale: sk })} na{' '}
@@ -285,7 +303,7 @@ export function BulkDateChangeDialog({ open, onOpenChange, onSuccess }: BulkDate
                   Presúvam...
                 </>
               ) : (
-                `Presunúť ${affectedOrders.length} objednávok`
+                getMoveButtonText(affectedOrders.length)
               )}
             </Button>
           </DialogFooter>

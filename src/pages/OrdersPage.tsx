@@ -2474,14 +2474,6 @@ export default function OrdersPage() {
               <Plus className="h-4 w-4 mr-2" />
               Nová objednávka
             </Button>
-            <Button
-              onClick={() => setBulkDateChangeOpen(true)}
-              variant="outline"
-              className="border-blue-300 text-blue-700 hover:bg-blue-50"
-            >
-              <CalendarIcon className="h-4 w-4 mr-2" />
-              Hromadná zmena termínu
-            </Button>
             <div className="hidden md:flex items-center gap-1 bg-gray-100 rounded-lg p-1">
               <Button
                 variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
@@ -2500,6 +2492,13 @@ export default function OrdersPage() {
                 <List className="h-4 w-4" />
               </Button>
             </div>
+            <Button
+              onClick={() => setBulkDateChangeOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border-2 border-green-600 text-green-600 bg-white hover:bg-green-50 transition-colors"
+            >
+              <CalendarIcon className="h-4 w-4" />
+              Hromadná zmena termínu
+            </Button>
           </div>
           <div className="flex gap-2">
             <Button variant="outline">
