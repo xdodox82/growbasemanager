@@ -142,6 +142,16 @@ const sortOrderItemsByValue = (items: OrderItem[]): OrderItem[] => {
   });
 };
 
+// Helper function to format order notes - replace freq tags with Slovak text
+const formatOrderNotes = (notes: string | null): string | null => {
+  if (!notes) return null;
+  let result = notes;
+  result = result.replace(/freq:biweekly/g, 'Opakovaná každé 2 týždne');
+  result = result.replace(/freq:weekly/g, 'Opakovaná týždenne');
+  result = result.trim();
+  return result.length > 0 ? result : null;
+};
+
 const deleteOrderItemsDirectFetch = async (orderId: string) => {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -2874,7 +2884,7 @@ export default function OrdersPage() {
                           <Badge className={`border ${getStatusBadgeClass(order.status)} text-xs font-semibold px-2 py-0.5`}>
                             {getStatusLabel(order.status)}
                           </Badge>
-                          {(order.parent_order_id || (order.is_recurring && (order.recurring_weeks || 0) > 1)) && (
+                          {(order.parent_order_id || (order.is_recurring && (order.recurring_weeks || 0) > 1) || order.notes?.includes('freq:weekly') || order.notes?.includes('freq:biweekly')) && (
                             <div className="flex items-center" title="Opakujúca sa objednávka">
                               <RefreshCw className="h-4 w-4 text-blue-600" />
                             </div>
@@ -2953,7 +2963,7 @@ export default function OrdersPage() {
                             APP
                           </span>
                         )}
-                        {(order.parent_order_id || (order.is_recurring && (order.recurring_weeks || 0) > 1)) && (
+                        {(order.parent_order_id || (order.is_recurring && (order.recurring_weeks || 0) > 1) || order.notes?.includes('freq:weekly') || order.notes?.includes('freq:biweekly')) && (
                           <div className="flex items-center" title="Opakujúca sa objednávka">
                             <RefreshCw className="h-4 w-4 text-blue-600" />
                           </div>
@@ -4025,10 +4035,10 @@ export default function OrdersPage() {
               )}
               {/* ========== KONIEC PWA RECURRING INFO ========== */}
 
-              {selectedOrderDetail.notes && (
+              {formatOrderNotes(selectedOrderDetail.notes) && (
                 <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
                   <div className="text-sm font-semibold text-blue-900 mb-1">Poznámky:</div>
-                  <div className="text-sm text-blue-800">{selectedOrderDetail.notes}</div>
+                  <div className="text-sm text-blue-800">{formatOrderNotes(selectedOrderDetail.notes)}</div>
                 </div>
               )}
 
