@@ -565,12 +565,18 @@ export default function OrdersPage() {
     calculateDelivery();
   }, [customerId, customers, routes, route, orderItems, freeDelivery, manualDeliveryAmount]);
 
+  const getDeliveryFormLabel = (form: string | null | undefined): string => {
+    if (!form || form === 'cut' || form === 'rezana') return 'Zrezaná';
+    if (form === 'live' || form === 'ziva') return 'Živá';
+    return form;
+  };
+
   const loadData = async () => {
     try {
       setLoading(true);
       setDataLoaded(false);
       const [ordersRes, customersRes, cropsRes, blendsRes, routesRes, pricesRes, packagingsRes, deliveryDaysRes, plantingsRes] = await Promise.all([
-        supabase.from('orders').select('*, order_items(*)').order('created_at', { ascending: false }),
+        supabase.from('orders').select('*, order_items(*), customers(id, name, delivery_route_id, delivery_routes(id, name))').order('created_at', { ascending: false }),
         supabase.from('customers').select('*').order('name'),
         supabase.from('products').select('*').order('name'),
         supabase.from('blends').select('*').order('name'),
@@ -3629,7 +3635,7 @@ export default function OrdersPage() {
                           {(orderItems || []).map((item, index) => {
                             if (!item) return null;
                             const itemPrice = (item?.quantity || 0) * (parseFloat(item?.price_per_unit?.toString().replace(',', '.')) || 0);
-                            const formLabel = item?.delivery_form === 'rezana' ? 'Zrezaná' : 'Živá';
+                            const formLabel = getDeliveryFormLabel(item?.delivery_form);
                             return (
                               <div key={index} className="bg-white p-3 rounded-lg border border-green-200 shadow-sm">
                                 <div className="flex justify-between items-center">
@@ -3915,7 +3921,9 @@ export default function OrdersPage() {
                   ) : (
                     <div className="flex items-center gap-2">
                       <Truck className="h-4 w-4" />
-                      <span className="font-semibold text-gray-900">{selectedOrderDetail.route || '-'}</span>
+                      <span className="font-semibold text-gray-900">
+                        {selectedOrderDetail.route || (selectedOrderDetail as any).customers?.delivery_routes?.name || '-'}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -3993,7 +4001,7 @@ export default function OrdersPage() {
                   {sortOrderItemsByValue(selectedOrderDetail.order_items || []).map((item, idx) => {
                     if (!item) return null;
                     const itemPrice = (item?.quantity || 0) * (parseFloat(item?.price_per_unit?.toString().replace(',', '.')) || 0);
-                    const formLabel = item?.delivery_form === 'rezana' ? 'Zrezaná' : 'Živá';
+                    const formLabel = getDeliveryFormLabel(item?.delivery_form);
                     const weightDisplay = item?.packaging_size ? (item.packaging_size.includes('g') || item.packaging_size.includes('kg') ? item.packaging_size : `${item.packaging_size}g`) : '-';
                     return (
                       <div key={idx} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg border border-gray-200">
