@@ -2942,19 +2942,17 @@ export default function OrdersPage() {
                       )}
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-base text-gray-900">{order.customer_name || 'Bez názvu'}</h3>
+                      <h3 className="font-bold text-base text-gray-900">{order.customer_name || 'Bez názvu'}</h3>
+                      <div className="flex items-center flex-wrap gap-2 mt-1.5">
+                        <Badge className={`border ${getStatusBadgeClass(order.status)} text-xs font-semibold px-2.5 py-0.5`}>
+                          {getStatusLabel(order.status)}
+                        </Badge>
                         {order.source === 'app' && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
                             <Smartphone className="w-3 h-3" />
                             APP
                           </span>
                         )}
-                      </div>
-                      <div className="flex items-center flex-wrap gap-2 mt-1.5">
-                        <Badge className={`border ${getStatusBadgeClass(order.status)} text-xs font-semibold px-2.5 py-0.5`}>
-                          {getStatusLabel(order.status)}
-                        </Badge>
                         {(order.parent_order_id || (order.is_recurring && (order.recurring_weeks || 0) > 1)) && (
                           <div className="flex items-center" title="Opakujúca sa objednávka">
                             <RefreshCw className="h-4 w-4 text-blue-600" />
@@ -4011,6 +4009,21 @@ export default function OrdersPage() {
                 </div>
               )}
               {/* ========== KONIEC RECURRING INFO ========== */}
+
+              {/* ========== PWA RECURRING ORDER INFO ========== */}
+              {!selectedOrderDetail?.is_recurring && selectedOrderDetail?.notes?.includes('freq:') && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <RefreshCw className="w-4 h-4 text-blue-600" />
+                    <span className="font-medium text-blue-800">Opakovaná objednávka</span>
+                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">PWA</span>
+                  </div>
+                  <p className="text-sm text-blue-700">
+                    {selectedOrderDetail.notes?.includes('freq:weekly') ? 'Frekvencia: každý týždeň' : 'Frekvencia: každé 2 týždne'}
+                  </p>
+                </div>
+              )}
+              {/* ========== KONIEC PWA RECURRING INFO ========== */}
 
               {selectedOrderDetail.notes && (
                 <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
