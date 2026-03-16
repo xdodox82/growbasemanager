@@ -142,12 +142,14 @@ const sortOrderItemsByValue = (items: OrderItem[]): OrderItem[] => {
   });
 };
 
-// Helper function to format order notes - replace freq tags with Slovak text
+// Helper function to format order notes - strip freq tags and Slovak translations
 const formatOrderNotes = (notes: string | null): string | null => {
   if (!notes) return null;
   let result = notes;
-  result = result.replace(/freq:biweekly/g, 'Opakovaná každé 2 týždne');
-  result = result.replace(/freq:weekly/g, 'Opakovaná týždenne');
+  result = result.replace(/freq:biweekly/g, '');
+  result = result.replace(/freq:weekly/g, '');
+  result = result.replace(/Opakovaná každé 2 týždne/g, '');
+  result = result.replace(/Opakovaná týždenne/g, '');
   result = result.trim();
   return result.length > 0 ? result : null;
 };
