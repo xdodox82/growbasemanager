@@ -3887,7 +3887,7 @@ export default function OrdersPage() {
       <BulkDateChangeDialog
         open={bulkDateChangeOpen}
         onOpenChange={setBulkDateChangeOpen}
-        onSuccess={fetchOrders}
+        onSuccess={loadData}
       />
 
       <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
