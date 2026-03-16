@@ -302,6 +302,32 @@ export interface Database {
           updated_at?: string | null
         }
       }
+      delivery_exceptions: {
+        Row: {
+          id: string
+          date: string
+          type: string
+          note: string | null
+          user_id: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          date: string
+          type?: string
+          note?: string | null
+          user_id?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          date?: string
+          type?: string
+          note?: string | null
+          user_id?: string | null
+          created_at?: string | null
+        }
+      }
       delivery_routes: {
         Row: {
           id: string

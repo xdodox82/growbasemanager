@@ -19,6 +19,7 @@ import { CustomerTypeFilter } from '@/components/filters/CustomerTypeFilter';
 import { RecurringOrderEditDialog } from '@/components/orders/RecurringOrderEditDialog';
 import { RecurringOrderDeleteDialog } from '@/components/orders/RecurringOrderDeleteDialog';
 import { RecurringOrderExtendDialog } from '@/components/orders/RecurringOrderExtendDialog';
+import { BulkDateChangeDialog } from '@/components/orders/BulkDateChangeDialog';
 import { useDeliveryDays } from '@/hooks/useDeliveryDays';
 import { ShoppingCart, Plus, Grid3x3, List, FileSpreadsheet, FileText, Pencil, Copy, Trash2, Calendar, Package, Truck, House, Utensils, Store, Scissors, X, MapPin, RefreshCw, Check, Leaf, Sprout, Flower, Palette, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -266,6 +267,7 @@ export default function OrdersPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [bulkDateChangeOpen, setBulkDateChangeOpen] = useState(false);
   const [selectedOrderDetail, setSelectedOrderDetail] = useState<Order | null>(null);
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
 
@@ -2472,6 +2474,14 @@ export default function OrdersPage() {
               <Plus className="h-4 w-4 mr-2" />
               Nová objednávka
             </Button>
+            <Button
+              onClick={() => setBulkDateChangeOpen(true)}
+              variant="outline"
+              className="border-blue-300 text-blue-700 hover:bg-blue-50"
+            >
+              <CalendarIcon className="h-4 w-4 mr-2" />
+              Hromadná zmena termínu
+            </Button>
             <div className="hidden md:flex items-center gap-1 bg-gray-100 rounded-lg p-1">
               <Button
                 variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
@@ -3872,6 +3882,12 @@ export default function OrdersPage() {
         onClose={() => setExtendDialog({ open: false, order: null })}
         onConfirm={handleExtendConfirm}
         currentEndDate={extendDialog.order?.recurring_end_date}
+      />
+
+      <BulkDateChangeDialog
+        open={bulkDateChangeOpen}
+        onOpenChange={setBulkDateChangeOpen}
+        onSuccess={fetchOrders}
       />
 
       <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>

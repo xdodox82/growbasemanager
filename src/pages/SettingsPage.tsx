@@ -13,6 +13,7 @@ import { DeliverySettings } from '@/components/settings/DeliverySettings';
 import { HarvestSettings } from '@/components/settings/HarvestSettings';
 import { DeliveryDaysSettings } from '@/components/settings/DeliveryDaysSettings';
 import { VATSettings } from '@/components/settings/VATSettings';
+import { DeliveryExceptionsSettings } from '@/components/settings/DeliveryExceptionsSettings';
 import { Globe, Moon, Sun } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -64,6 +65,9 @@ const SettingsPage = () => {
         <HarvestSettings />
         {/* Delivery Days Settings */}
         <DeliveryDaysSettings />
+
+        {/* Delivery Exceptions / Holidays */}
+        <DeliveryExceptionsSettings />
 
         {/* Security - 2FA */}
         <TwoFactorSettings />
