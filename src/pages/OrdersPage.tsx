@@ -4136,6 +4136,33 @@ export default function OrdersPage() {
                 </div>
               </div>
 
+              {(selectedOrderDetail.created_at || (selectedOrderDetail as any).cancelled_at) && (
+                <div className="mt-2 pt-2 border-t border-gray-200 space-y-1">
+                  {selectedOrderDetail.created_at && (
+                    <p className="text-xs text-gray-400">
+                      📅 Vytvorená: {new Date(selectedOrderDetail.created_at).toLocaleString('sk-SK', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  )}
+                  {(selectedOrderDetail as any).cancelled_at && (
+                    <p className="text-xs text-gray-400">
+                      ❌ Zrušená: {new Date((selectedOrderDetail as any).cancelled_at).toLocaleString('sk-SK', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="flex justify-end gap-2 pt-4 border-t">
                 <Button variant="outline" onClick={() => setDetailModalOpen(false)}>
                   Zatvoriť
