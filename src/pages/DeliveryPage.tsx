@@ -62,6 +62,7 @@ interface SortableOrderRowProps {
   getPackagingSummary: (summary: Record<string, number>, itemName?: string) => string;
   openInGoogleMaps: (address: string) => void;
   markOrderDelivered: (orderId: string) => void;
+  markOrderOnTheWay: (orderId: string) => void;
   handleMarkAsPaid: (orderId: string, notes: string | null) => void;
   handleMarkAsUnpaid: (orderId: string, notes: string | null) => void;
   onOrderClick: (order: any) => void;
@@ -77,6 +78,7 @@ function SortableOrderRow({
   getPackagingSummary,
   openInGoogleMaps,
   markOrderDelivered,
+  markOrderOnTheWay,
   handleMarkAsPaid,
   handleMarkAsUnpaid,
   onOrderClick,
@@ -251,6 +253,20 @@ function SortableOrderRow({
             </button>
           )}
 
+          {/* Na ceste ikona - zobrazí sa len ak je status packed */}
+          {order.status === 'packed' && (
+            <button
+              title="Označiť ako na ceste"
+              onClick={(e) => {
+                e.stopPropagation();
+                markOrderOnTheWay(order.id);
+              }}
+              className="p-2 rounded-full text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+            >
+              <Truck className="h-6 w-6" />
+            </button>
+          )}
+
           {/* Doručené ikona */}
           <button
             title="Označiť ako doručené"
@@ -368,9 +384,9 @@ function DeliveryPage() {
 
     // Filter by status based on archive setting
     if (showArchive) {
-      return order.status === 'ready' || order.status === 'delivered';
+      return ['ready', 'packed', 'on_the_way', 'delivered'].includes(order.status || '');
     } else {
-      return order.status === 'ready';
+      return ['ready', 'packed', 'on_the_way'].includes(order.status || '');
     }
   });
 
@@ -397,13 +413,13 @@ function DeliveryPage() {
     });
   }
 
-  // Split into pending (ready) and delivered orders
-  const pendingOrders = ordersForDate.filter(order => order.status === 'ready');
+  // Split into pending (ready/packed/on_the_way) and delivered orders
+  const pendingOrders = ordersForDate.filter(order => ['ready', 'packed', 'on_the_way'].includes(order.status || ''));
   const deliveredOrders = ordersForDate.filter(order => order.status === 'delivered');
 
-  // All orders for financial report (delivered + ready)
+  // All orders for financial report (delivered + ready/packed/on_the_way)
   const allOrdersForReport = ordersForDate.filter(order =>
-    order.status === 'ready' || order.status === 'delivered'
+    ['ready', 'packed', 'on_the_way', 'delivered'].includes(order.status || '')
   );
 
   const getCropName = (cropId: string | null) => {
@@ -950,11 +966,21 @@ function DeliveryPage() {
   };
 
   const returnToReady = async (orderId: string) => {
-    const { error } = await updateOrder(orderId, { status: 'ready' });
+    const { error } = await updateOrder(orderId, { status: 'packed' });
     if (!error) {
       toast({
         title: 'Vrátené',
         description: 'Objednávka bola vrátená do zoznamu na rozvoz.',
+      });
+    }
+  };
+
+  const markOrderOnTheWay = async (orderId: string) => {
+    const { error } = await updateOrder(orderId, { status: 'on_the_way' });
+    if (!error) {
+      toast({
+        title: '🚚 Na ceste',
+        description: 'Objednávka je na ceste k zákazníkovi.',
       });
     }
   };
@@ -1165,7 +1191,7 @@ function DeliveryPage() {
 
   // Dates with orders for calendar highlighting
   const orderDates = orders
-    .filter(o => (o.status === 'ready' || o.status === 'delivered') && o.delivery_date)
+    .filter(o => ['ready', 'packed', 'on_the_way', 'delivered'].includes(o.status || '') && o.delivery_date)
     .map(o => startOfDay(new Date(o.delivery_date!)));
 
   if (isLoading) {
@@ -1601,6 +1627,20 @@ function DeliveryPage() {
                               <span className="hidden sm:inline">Zapl.</span>
                             </button>
 
+                            {/* Na ceste - zobrazí sa len ak je status packed */}
+                            {order.status === 'packed' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  markOrderOnTheWay(order.id);
+                                }}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium bg-blue-500 text-white hover:bg-blue-600"
+                              >
+                                <Truck className="h-6 w-6" />
+                                <span className="hidden sm:inline">Na ceste</span>
+                              </button>
+                            )}
+
                             {/* Doručené */}
                             <button
                               onClick={(e) => {
@@ -1647,6 +1687,7 @@ function DeliveryPage() {
                                 getPackagingSummary={getPackagingSummary}
                                 openInGoogleMaps={openInGoogleMaps}
                                 markOrderDelivered={markOrderDelivered}
+                                markOrderOnTheWay={markOrderOnTheWay}
                                 handleMarkAsPaid={handleMarkAsPaid}
                                 handleMarkAsUnpaid={handleMarkAsUnpaid}
                                 navigationMode={navigationMode}

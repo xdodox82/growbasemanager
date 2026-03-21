@@ -689,7 +689,7 @@ export default function HarvestPackingPage() {
   // ✅ Automaticky nastaví status pri zabalení
   const updateOrderStatus = async (orderId: string, isCompleting: boolean) => {
     try {
-      const newStatus = isCompleting ? 'ready' : null;
+      const newStatus = isCompleting ? 'packed' : null;
 
       const { error } = await supabase
         .from('orders')
@@ -703,8 +703,8 @@ export default function HarvestPackingPage() {
 
       if (isCompleting) {
         toast({
-          title: '✓ Pripravené na rozvoz',
-          description: 'Objednávka je pripravená na rozvoz',
+          title: '📦 Zabalená',
+          description: 'Objednávka je zabalená a pripravená na rozvoz',
         });
       }
     } catch (error) {
