@@ -1539,119 +1539,152 @@ function DeliveryPage() {
                       item.orders.map(order => (
                         <div
                           key={order.id}
-                          className="bg-white rounded-lg border p-4 cursor-pointer"
-                          onClick={() => {
-                            setSelectedOrderDetail(order);
-                            setDetailModalOpen(true);
-                          }}
+                          className={`rounded-2xl border-2 overflow-hidden shadow-sm ${
+                            order.status === 'on_the_way'
+                              ? 'border-blue-400 bg-blue-50'
+                              : order.status === 'packed'
+                              ? 'border-amber-400 bg-amber-50'
+                              : 'border-gray-200 bg-white'
+                          }`}
                         >
-                          {/* Riadok 1: Meno + Cena */}
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="font-bold text-base">{order.customerName}</span>
-                            <span className="text-green-600 font-bold text-lg">
-                              {order.totalPrice.toFixed(2)} €
+                          {/* Status bar */}
+                          <div className={`px-4 py-1.5 flex items-center justify-between ${
+                            order.status === 'on_the_way'
+                              ? 'bg-blue-500'
+                              : order.status === 'packed'
+                              ? 'bg-amber-500'
+                              : 'bg-gray-400'
+                          }`}>
+                            <span className="text-white text-xs font-bold">
+                              {order.status === 'on_the_way' ? '🚚 Na ceste' :
+                               order.status === 'packed' ? '📦 Zabalená' : '✓ Pripravená'}
                             </span>
+                            {order.isPaid && (
+                              <span className="text-white text-xs font-bold bg-white/20 px-2 py-0.5 rounded-full">
+                                💳 Zaplatené
+                              </span>
+                            )}
                           </div>
 
-                          {/* Riadok 3: Akčné tlačidlá */}
-                          <div className="flex items-center gap-2 pt-3 border-t">
-                            {/* Telefón */}
-                            {order.customerPhone && (
-                              <a
-                                href={`tel:${order.customerPhone}`}
-                                onClick={(e) => e.stopPropagation()}
-                                className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100"
-                              >
-                                <Phone className="h-5 w-5 text-blue-600" />
-                              </a>
-                            )}
+                          <div className="p-4">
+                            {/* Meno + Cena */}
+                            <div className="flex justify-between items-start mb-3">
+                              <div>
+                                <p className="font-bold text-xl text-gray-900">{order.customerName}</p>
+                                {order.customerAddress && (
+                                  <p className="text-xs text-gray-500 mt-0.5">{order.customerAddress}</p>
+                                )}
+                                {order.deliveryNotes && (
+                                  <p className="text-xs text-amber-600 mt-0.5">📍 {order.deliveryNotes}</p>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <p className="text-2xl font-bold text-green-600">{order.totalPrice.toFixed(2)} €</p>
+                                {(order.deliveryFee || 0) > 0 && (
+                                  <p className="text-xs text-gray-400">+ {order.deliveryFee.toFixed(2)} € doprava</p>
+                                )}
+                              </div>
+                            </div>
 
-                            {/* Navigácia */}
-                            {order.customerAddress && (
-                              <>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openNavigation(order.customerAddress);
-                                  }}
-                                  onTouchStart={(e) => {
-                                    const startX = e.touches[0].clientX;
-                                    const handleTouchMove = (moveEvent: TouchEvent) => {
-                                      const deltaX = moveEvent.touches[0].clientX - startX;
-                                      if (Math.abs(deltaX) > 30) {
-                                        handleNavToggle();
-                                        document.removeEventListener('touchmove', handleTouchMove);
-                                      }
-                                    };
-                                    document.addEventListener('touchmove', handleTouchMove);
-                                    document.addEventListener('touchend', () => {
-                                      document.removeEventListener('touchmove', handleTouchMove);
-                                    }, { once: true });
-                                  }}
-                                  className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 active:bg-blue-200 select-none"
+                            {/* Položky */}
+                            <div className="bg-gray-50 rounded-xl p-3 mb-3 space-y-1">
+                              {order.itemsDetail.map((item, idx) => (
+                                <div key={idx} className="flex justify-between text-sm">
+                                  <span className="text-gray-700">{item.quantity} × {item.size}g {item.name}</span>
+                                  <span className="font-semibold text-gray-900">{item.price.toFixed(2)} €</span>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Akčné tlačidlá — veľké, dobre klikateľné */}
+                            <div className="grid grid-cols-2 gap-2 mb-2">
+                              {/* Navigácia */}
+                              {order.customerAddress && (
+                                <div className="flex gap-1">
+                                  <a
+                                    href={navApp === 'waze'
+                                      ? `https://waze.com/ul?q=${encodeURIComponent(order.customerAddress)}`
+                                      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.customerAddress)}`
+                                    }
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-blue-600 text-white rounded-xl font-semibold text-sm"
+                                  >
+                                    <Navigation className="h-5 w-5" />
+                                    {navApp === 'waze' ? 'Waze' : 'Maps'}
+                                  </a>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleNavToggle(); }}
+                                    className="px-3 py-3 bg-blue-100 text-blue-700 rounded-xl text-xs font-bold"
+                                  >
+                                    ⇄
+                                  </button>
+                                </div>
+                              )}
+
+                              {/* Telefón */}
+                              {order.customerPhone && (
+                                <a
+                                  href={`tel:${order.customerPhone}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="flex items-center justify-center gap-2 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold text-sm"
                                 >
-                                  <Navigation className="h-5 w-5 text-blue-600" />
-                                </button>
+                                  <Phone className="h-5 w-5" />
+                                  Volať
+                                </a>
+                              )}
+                            </div>
 
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleNavToggle();
-                                  }}
-                                  className="text-xs text-gray-500 px-2 py-1 rounded bg-gray-100"
-                                >
-                                  {navApp === 'waze' ? 'Waze' : 'Maps'}
-                                </button>
-                              </>
-                            )}
-
-                            <div className="flex-1" />
-
-                            {/* Zaplatené */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (order.isPaid) {
-                                  handleMarkAsUnpaid(order.id, order.notes);
-                                } else {
-                                  handleMarkAsPaid(order.id, order.notes);
-                                }
-                              }}
-                              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium ${
-                                order.isPaid
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-gray-100 text-gray-700'
-                              }`}
-                            >
-                              <CreditCard className="h-6 w-6" />
-                              <span className="hidden sm:inline">Zapl.</span>
-                            </button>
-
-                            {/* Na ceste - zobrazí sa len ak je status packed */}
-                            {order.status === 'packed' && (
+                            <div className="grid grid-cols-3 gap-2">
+                              {/* Zaplatené */}
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  markOrderOnTheWay(order.id);
+                                  if (order.isPaid) {
+                                    handleMarkAsUnpaid(order.id, order.notes);
+                                  } else {
+                                    handleMarkAsPaid(order.id, order.notes);
+                                  }
                                 }}
-                                className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium bg-blue-500 text-white hover:bg-blue-600"
+                                className={`flex flex-col items-center justify-center gap-1 py-3 rounded-xl text-xs font-bold transition-colors ${
+                                  order.isPaid
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-100 text-gray-600'
+                                }`}
                               >
-                                <Truck className="h-6 w-6" />
-                                <span className="hidden sm:inline">Na ceste</span>
+                                <CreditCard className="h-6 w-6" />
+                                {order.isPaid ? 'Zaplatené' : 'Nezaplatené'}
                               </button>
-                            )}
 
-                            {/* Doručené */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                markOrderDelivered(order.id);
-                              }}
-                              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-700"
-                            >
-                              <CheckCircle2 className="h-6 w-6" />
-                              <span className="hidden sm:inline">Dor.</span>
-                            </button>
+                              {/* Na ceste - len ak packed */}
+                              {order.status === 'packed' ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    markOrderOnTheWay(order.id);
+                                  }}
+                                  className="flex flex-col items-center justify-center gap-1 py-3 bg-blue-500 text-white rounded-xl text-xs font-bold"
+                                >
+                                  <Truck className="h-6 w-6" />
+                                  Na ceste
+                                </button>
+                              ) : (
+                                <div className="rounded-xl bg-gray-50" />
+                              )}
+
+                              {/* Doručené */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  markOrderDelivered(order.id);
+                                }}
+                                className="flex flex-col items-center justify-center gap-1 py-3 bg-green-600 text-white rounded-xl text-xs font-bold"
+                              >
+                                <CheckCircle2 className="h-6 w-6" />
+                                Doručené
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))
