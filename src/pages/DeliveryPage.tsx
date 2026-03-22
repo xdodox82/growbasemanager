@@ -1598,6 +1598,41 @@ function DeliveryPage() {
                               </div>
                             </div>
 
+                            {/* Vždy viditeľné mini tlačidlá */}
+                            {!expandedOrderIds.has(order.id) && (
+                              <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (order.isPaid) {
+                                      handleMarkAsUnpaid(order.id, order.notes);
+                                    } else {
+                                      handleMarkAsPaid(order.id, order.notes);
+                                    }
+                                  }}
+                                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-colors ${
+                                    order.isPaid
+                                      ? 'bg-green-600 text-white'
+                                      : 'bg-gray-100 text-gray-600'
+                                  }`}
+                                >
+                                  <CreditCard className="h-5 w-5" />
+                                  {order.isPaid ? 'Zaplatené' : 'Nezaplatené'}
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    markOrderDelivered(order.id);
+                                  }}
+                                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm font-bold hover:bg-green-600 hover:text-white transition-colors"
+                                >
+                                  <CheckCircle2 className="h-5 w-5" />
+                                  Doručené
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Rozbalený obsah */}
                             {expandedOrderIds.has(order.id) && (
                               <div onClick={(e) => e.stopPropagation()}>
                                 {/* Položky */}
