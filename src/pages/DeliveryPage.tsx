@@ -1649,7 +1649,7 @@ function DeliveryPage() {
                                 }}
                                 className={`flex flex-col items-center justify-center gap-1 py-3 rounded-xl text-xs font-bold transition-colors ${
                                   order.isPaid
-                                    ? 'bg-blue-600 text-white'
+                                    ? 'bg-green-600 text-white'
                                     : 'bg-gray-100 text-gray-600'
                                 }`}
                               >
@@ -1679,7 +1679,7 @@ function DeliveryPage() {
                                   e.stopPropagation();
                                   markOrderDelivered(order.id);
                                 }}
-                                className="flex flex-col items-center justify-center gap-1 py-3 bg-green-600 text-white rounded-xl text-xs font-bold"
+                                className="flex flex-col items-center justify-center gap-1 py-3 bg-gray-100 text-gray-600 rounded-xl text-xs font-bold hover:bg-green-600 hover:text-white transition-colors"
                               >
                                 <CheckCircle2 className="h-6 w-6" />
                                 Doručené
