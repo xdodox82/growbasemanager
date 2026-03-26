@@ -759,6 +759,8 @@ function DeliveryPage() {
           price: calculateOrderTotal(order, customerType),
         }],
         deliveryOrder: (order as any).delivery_order || 999,
+        voucherCode: (order as any).voucher_code || null,
+        voucherDiscount: (order as any).voucher_discount || 0,
       });
       return acc;
     }, {} as Record<string, {
@@ -792,6 +794,8 @@ function DeliveryPage() {
           price: number;
         }>;
         deliveryOrder: number;
+        voucherCode: string | null;
+        voucherDiscount: number;
       }[]
     }>);
 
@@ -1597,6 +1601,21 @@ function DeliveryPage() {
                                 )}
                               </div>
                             </div>
+                            {(order as any).voucherCode && (
+                              <div className="mt-2 px-3 py-2 bg-green-100 rounded-xl border border-green-300 w-full">
+                                <div className="flex items-center justify-between">
+                                  <p className="text-xs font-bold text-green-700">💳 Zaplatené poukazom</p>
+                                  <p className="text-xs font-bold text-green-700">-{((order as any).voucherDiscount || 0).toFixed(2)} €</p>
+                                </div>
+                                {((order as any).voucherDiscount || 0) >= order.totalPrice ? (
+                                  <p className="text-xs text-green-600 mt-0.5">✅ Plne hradené — nepýtať hotovosť</p>
+                                ) : (
+                                  <p className="text-xs text-green-600 mt-0.5">
+                                    K úhrade v hotovosti: {Math.max(0, order.totalPrice - ((order as any).voucherDiscount || 0)).toFixed(2)} €
+                                  </p>
+                                )}
+                              </div>
+                            )}
 
                             {/* Vždy viditeľné mini tlačidlá */}
                             {!expandedOrderIds.has(order.id) && (
@@ -2190,6 +2209,28 @@ function DeliveryPage() {
                     {selectedOrderDetail.totalPrice.toFixed(2)} €
                   </span>
                 </div>
+                {(selectedOrderDetail as any).voucherCode && (
+                  <div className="mt-3 p-3 bg-green-50 rounded-xl border-2 border-green-300">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm font-bold text-green-700">💳 Darčekový poukaz</p>
+                      <p className="text-sm font-bold text-green-700">
+                        -{((selectedOrderDetail as any).voucherDiscount || 0).toFixed(2)} €
+                      </p>
+                    </div>
+                    <p className="text-xs text-green-600 font-mono mb-1">
+                      Kód: {(selectedOrderDetail as any).voucherCode}
+                    </p>
+                    {((selectedOrderDetail as any).voucherDiscount || 0) >= selectedOrderDetail.totalPrice ? (
+                      <p className="text-sm font-bold text-green-700 text-center mt-2 py-1 bg-green-100 rounded-lg">
+                        ✅ Plne hradené poukazom — NEPÝTAŤ HOTOVOSŤ
+                      </p>
+                    ) : (
+                      <p className="text-sm font-bold text-orange-600 text-center mt-2 py-1 bg-orange-50 rounded-lg border border-orange-200">
+                        💵 K úhrade v hotovosti: {Math.max(0, selectedOrderDetail.totalPrice - ((selectedOrderDetail as any).voucherDiscount || 0)).toFixed(2)} €
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end gap-2 pt-4 border-t">
