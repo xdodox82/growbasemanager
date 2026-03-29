@@ -29,7 +29,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Shield, User, Loader2, AlertTriangle, Plus, Trash2 } from 'lucide-react';
+import { Users, Shield, User, Loader as Loader2, TriangleAlert as AlertTriangle, Plus, Trash2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { WorkerPermissionsSettings } from '@/components/settings/WorkerPermissionsSettings';
 
@@ -73,16 +73,18 @@ const UsersPage = () => {
 
       if (rolesError) throw rolesError;
 
-      const usersWithRoles: UserWithRole[] = (profiles || []).map((profile) => {
-        const userRole = roles?.find((r) => r.user_id === profile.user_id);
-        return {
-          id: profile.user_id,
-          email: profile.email || '',
-          fullName: profile.full_name,
-          role: (userRole?.role as 'admin' | 'worker') || 'worker',
-          createdAt: profile.created_at,
-        };
-      });
+      const usersWithRoles: UserWithRole[] = (profiles || [])
+        .filter((profile) => roles?.some((r) => r.user_id === profile.user_id))
+        .map((profile) => {
+          const userRole = roles?.find((r) => r.user_id === profile.user_id);
+          return {
+            id: profile.user_id,
+            email: profile.email || '',
+            fullName: profile.full_name,
+            role: (userRole?.role as 'admin' | 'worker') || 'worker',
+            createdAt: profile.created_at,
+          };
+        });
 
       setUsers(usersWithRoles);
     } catch (error) {
