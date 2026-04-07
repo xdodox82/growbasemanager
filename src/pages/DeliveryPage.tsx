@@ -1542,7 +1542,7 @@ function DeliveryPage() {
                         setRozvozStarted(false);
                         return;
                       }
-                      const packedOrders = pendingOrders.filter(o => o.status === 'packed');
+                      const packedOrders = pendingOrders.filter(o => o.status === 'packed' || o.status === 'on_the_way');
                       if (packedOrders.length === 0) {
                         toast({ title: 'Žiadne zabalené objednávky', description: 'Nie sú žiadne zabalené objednávky na prepnutie.' });
                         return;
