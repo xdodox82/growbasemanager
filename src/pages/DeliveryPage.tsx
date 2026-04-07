@@ -315,6 +315,7 @@ function DeliveryPage() {
 
   const [navApp, setNavApp] = useState<'waze' | 'maps'>('waze');
   const [expandedOrderIds, setExpandedOrderIds] = useState<Set<string>>(new Set());
+  const [rozvozStarted, setRozvozStarted] = useState(false);
 
   const handleNavToggle = () => {
     const next = navApp === 'waze' ? 'maps' : 'waze';
@@ -334,6 +335,7 @@ function DeliveryPage() {
     if (selectedDates.length > 0) {
       setSelectedDate(selectedDates[0]);
     }
+    setRozvozStarted(false);
   }, [selectedDates]);
 
   const handleDateChange = (date: Date | undefined) => {
@@ -1536,22 +1538,27 @@ function DeliveryPage() {
                   </div>
                   <button
                     onClick={async () => {
+                      if (rozvozStarted) return;
                       const packedOrders = pendingOrders.filter(o => o.status === 'packed');
                       if (packedOrders.length === 0) {
                         toast({ title: 'Žiadne zabalené objednávky', description: 'Nie sú žiadne zabalené objednávky na prepnutie.' });
                         return;
                       }
-                      if (!window.confirm(`Prepnúť ${packedOrders.length} zabalených objednávok na "Na ceste"?`)) return;
                       for (const order of packedOrders) {
                         await updateOrder(order.id, { status: 'on_the_way' });
                       }
                       await refetchOrders();
-                      toast({ title: '🚚 Rozvoz spustený!', description: `${packedOrders.length} objednávok je teraz na ceste.` });
+                      setRozvozStarted(true);
+                      toast({ title: '🚚 Rozvoz spustený!', description: `${packedOrders.length} objednávok je na ceste.` });
                     }}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold text-sm hover:bg-blue-700 transition-colors"
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-colors ${
+                      rozvozStarted
+                        ? 'bg-green-600 text-white cursor-default'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
                   >
                     <Truck className="h-4 w-4" />
-                    🚚 Štart rozvozu
+                    {rozvozStarted ? '✅ Na ceste' : '🚚 Štart rozvozu'}
                   </button>
                 </div>
                 <DndContext
