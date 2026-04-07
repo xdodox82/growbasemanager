@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Home, Utensils, Store } from 'lucide-react';
+import { Chrome as Home, Utensils, Store } from 'lucide-react';
 
 interface CustomerTypeFilterProps {
   value: string;
@@ -11,7 +11,7 @@ export function CustomerTypeFilter({ value, onChange, showLabel = true }: Custom
   return (
     <div className="flex items-center gap-2">
       {showLabel && <span className="text-sm text-gray-600 font-medium">Typ:</span>}
-      <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+      <div className="flex gap-1 flex-wrap bg-gray-100 rounded-lg p-1">
         <Button
           variant={value === 'all' ? 'default' : 'ghost'}
           size="sm"

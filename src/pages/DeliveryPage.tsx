@@ -1322,10 +1322,12 @@ function DeliveryPage() {
       <div className="hidden md:block space-y-3 p-4 bg-white border-b mb-6">
 
         {/* Typ zákazníka - presné ikony z HarvestPackingPage */}
-        <CustomerTypeFilter
-          value={selectedCustomerType}
-          onChange={setSelectedCustomerType}
-        />
+        <div className="flex justify-start">
+          <CustomerTypeFilter
+            value={selectedCustomerType}
+            onChange={setSelectedCustomerType}
+          />
+        </div>
 
         {/* Polia s labelmi - VŠETKY flex-1, centrované labely */}
         <div className="flex gap-3 items-end">
@@ -1532,6 +1534,25 @@ function DeliveryPage() {
                       </p>
                     </div>
                   </div>
+                  <button
+                    onClick={async () => {
+                      const packedOrders = pendingOrders.filter(o => o.status === 'packed');
+                      if (packedOrders.length === 0) {
+                        toast({ title: 'Žiadne zabalené objednávky', description: 'Nie sú žiadne zabalené objednávky na prepnutie.' });
+                        return;
+                      }
+                      if (!window.confirm(`Prepnúť ${packedOrders.length} zabalených objednávok na "Na ceste"?`)) return;
+                      for (const order of packedOrders) {
+                        await updateOrder(order.id, { status: 'on_the_way' });
+                      }
+                      await refetchOrders();
+                      toast({ title: '🚚 Rozvoz spustený!', description: `${packedOrders.length} objednávok je teraz na ceste.` });
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold text-sm hover:bg-blue-700 transition-colors"
+                  >
+                    <Truck className="h-4 w-4" />
+                    🚚 Štart rozvozu
+                  </button>
                 </div>
                 <DndContext
                   sensors={sensors}
@@ -1602,7 +1623,7 @@ function DeliveryPage() {
                               </div>
                             </div>
                             {(order as any).voucherCode && (
-                              <div className="mt-2 px-3 py-2 bg-green-100 rounded-xl border border-green-300 w-full">
+                              <div className="mt-2 mb-2 px-3 py-2 bg-green-100 rounded-xl border border-green-300 w-full">
                                 <div className="flex items-center justify-between">
                                   <p className="text-xs font-bold text-green-700">💳 Zaplatené poukazom</p>
                                   <p className="text-xs font-bold text-green-700">-{((order as any).voucherDiscount || 0).toFixed(2)} €</p>
@@ -1620,24 +1641,33 @@ function DeliveryPage() {
                             {/* Vždy viditeľné mini tlačidlá */}
                             {!expandedOrderIds.has(order.id) && (
                               <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (order.isPaid) {
-                                      handleMarkAsUnpaid(order.id, order.notes);
-                                    } else {
-                                      handleMarkAsPaid(order.id, order.notes);
-                                    }
-                                  }}
-                                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-colors ${
-                                    order.isPaid
-                                      ? 'bg-green-600 text-white'
-                                      : 'bg-gray-100 text-gray-600'
-                                  }`}
-                                >
-                                  <CreditCard className="h-5 w-5" />
-                                  {order.isPaid ? 'Zaplatené' : 'Nezaplatené'}
-                                </button>
+                                {(() => {
+                                  const fullyPaidByVoucher = (order.voucherDiscount || 0) >= order.totalPrice && order.totalPrice > 0;
+                                  return (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (fullyPaidByVoucher) return;
+                                        if (order.isPaid) {
+                                          handleMarkAsUnpaid(order.id, order.notes);
+                                        } else {
+                                          handleMarkAsPaid(order.id, order.notes);
+                                        }
+                                      }}
+                                      disabled={fullyPaidByVoucher}
+                                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-colors ${
+                                        fullyPaidByVoucher
+                                          ? 'bg-green-600 text-white opacity-75 cursor-not-allowed'
+                                          : order.isPaid
+                                          ? 'bg-green-600 text-white'
+                                          : 'bg-gray-100 text-gray-600'
+                                      }`}
+                                    >
+                                      <CreditCard className="h-5 w-5" />
+                                      {fullyPaidByVoucher ? '✅ Poukazom' : order.isPaid ? 'Zaplatené' : 'Nezaplatené'}
+                                    </button>
+                                  );
+                                })()}
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
