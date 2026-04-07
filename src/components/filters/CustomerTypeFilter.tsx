@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Chrome as Home, Utensils, Store } from 'lucide-react';
+import { House, Utensils, Store } from 'lucide-react';
 
 interface CustomerTypeFilterProps {
   value: string;
@@ -26,7 +26,7 @@ export function CustomerTypeFilter({ value, onChange, showLabel = true }: Custom
           onClick={() => onChange('home')}
           className={value === 'home' ? 'h-8 bg-[#10b981] hover:bg-[#059669]' : 'h-8'}
         >
-          <Home className="h-4 w-4 mr-1" />
+          <House className="h-4 w-4 mr-1" />
           Domáci
         </Button>
         <Button
