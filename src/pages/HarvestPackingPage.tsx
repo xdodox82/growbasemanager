@@ -978,14 +978,27 @@ export default function HarvestPackingPage() {
               {item.package_type || 'rPET'}
             </span>
 
-            {order.notes && (
-              <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-white border border-red-500 rounded text-sm">
-                <AlertTriangle className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                <span className="text-red-700 font-semibold">
-                  Poznámka: {order.notes}
-                </span>
-              </div>
-            )}
+            {(() => {
+              const isRecurring = order.notes?.includes('freq:weekly') || order.notes?.includes('freq:biweekly');
+              const cleanNotes = order.notes?.replace(/freq:(weekly|biweekly)/g, '').replace(/\|/g, '').trim();
+              return (
+                <>
+                  {isRecurring && (
+                    <span title="Opakovaná objednávka" className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-sm">
+                      🔄
+                    </span>
+                  )}
+                  {cleanNotes && (
+                    <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-white border border-red-500 rounded text-sm">
+                      <AlertTriangle className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                      <span className="text-red-700 font-semibold">
+                        Poznámka: {cleanNotes}
+                      </span>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
 
             {item.returned_packaging_count > 0 && (
               <span className="inline-flex items-center px-1.5 py-0.5 bg-blue-50 text-blue-600 text-sm font-medium rounded">
