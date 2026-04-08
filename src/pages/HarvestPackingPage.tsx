@@ -342,7 +342,39 @@ export default function HarvestPackingPage() {
         return 0;
       });
 
-      setOrders(allOrders);
+      // Načítaj packaging_mappings pre doplnenie chýbajúcich údajov pri PWA objednávkach
+      const { data: packagingMappings } = await supabase
+        .from('packaging_mappings')
+        .select('crop_id, weight_g, packagings(type, size)');
+
+      const enrichedOrders = allOrders.map(order => ({
+        ...order,
+        items: (order.items || []).map((item: any) => {
+          // Ak už má package_ml a package_type, nechaj ako je
+          if (item.package_ml && item.package_type) return item;
+
+          // Hľadaj v packaging_mappings podľa crop_id a packaging_size
+          if (item.crop_id && item.packaging_size) {
+            const weightG = parseInt(String(item.packaging_size).replace(/[^0-9]/g, ''));
+            const mapping = (packagingMappings || []).find(
+              (m: any) => m.crop_id === item.crop_id && m.weight_g === weightG
+            );
+            if (mapping && mapping.packagings) {
+              const pkg = mapping.packagings as any;
+              const volumeMatch = pkg.size?.match(/(\d+)/);
+              const volumeMl = volumeMatch ? parseInt(volumeMatch[1]) : null;
+              return {
+                ...item,
+                package_type: item.package_type || pkg.type || 'rPET',
+                package_ml: item.package_ml || volumeMl,
+              };
+            }
+          }
+          return item;
+        })
+      }));
+
+      setOrders(enrichedOrders);
 
     } catch (error) {
       console.error('Error loading orders:', error);
