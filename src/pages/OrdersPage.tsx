@@ -2416,6 +2416,14 @@ export default function OrdersPage() {
 
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
+      case 'growing':
+        return 'bg-green-100 text-green-800 border-green-300';
+      case 'packed':
+        return 'bg-amber-100 text-amber-800 border-amber-300';
+      case 'on_the_way':
+        return 'bg-sky-100 text-sky-800 border-sky-300';
+      case 'pending_approval':
+        return 'bg-purple-100 text-purple-800 border-purple-300';
       case 'cakajuca':
       case 'pending':
         return 'bg-yellow-100 text-yellow-800 border-yellow-300';
@@ -2441,17 +2449,21 @@ export default function OrdersPage() {
     const labels: Record<string, string> = {
       'cakajuca': 'Čakajúca',
       'pending': 'Čakajúca',
+      'pending_approval': 'Čaká na schválenie',
       'potvrdena': 'Potvrdená',
       'confirmed': 'Potvrdená',
+      'growing': 'Rastie',
       'packaging_ready': 'Obaly pripravené',
+      'packed': 'Zabalená',
       'pripravena': 'Pripravená',
       'ready': 'Pripravená na rozvoz',
+      'on_the_way': 'Na ceste',
       'dorucena': 'Doručená',
       'delivered': 'Doručená',
       'zrusena': 'Zrušená',
       'cancelled': 'Zrušená',
     };
-    return labels[status] ?? status;
+    return labels[status] || 'Nová';
   };
 
   const formatDeliveryDate = (dateString: string) => {
