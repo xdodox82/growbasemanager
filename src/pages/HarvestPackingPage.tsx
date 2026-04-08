@@ -128,7 +128,7 @@ export default function HarvestPackingPage() {
       const completed = new Set<string>();
 
       orders.forEach(order => {
-        if (order.status === 'ready') {
+        if (['ready', 'packed', 'on_the_way', 'delivered', 'dorucena'].includes(order.status)) {
           order.items?.forEach(item => {
             const itemKey = `${order.id}-${item.id || 0}`;
             completed.add(itemKey);
