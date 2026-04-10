@@ -47,6 +47,7 @@ import { Users, Plus, Pencil, Trash2, Mail, Phone, MapPin, Navigation, Loader as
 import { useToast } from '@/hooks/use-toast';
 import { CustomerTypeFilter } from '@/components/filters/CustomerTypeFilter';
 import { SearchableCustomerSelect } from '@/components/orders/SearchableCustomerSelect';
+import { supabase } from '@/integrations/supabase/client';
 
 const FILTER_STORAGE_KEY = 'customers_default_filters';
 
@@ -65,6 +66,7 @@ const CustomersPage = () => {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedCustomerDetail, setSelectedCustomerDetail] = useState<DbCustomer | null>(null);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [customerCredits, setCustomerCredits] = useState<Record<string, { credit: number; wallet_enabled: boolean }>>({});
   const [navApp, setNavApp] = useState<'waze' | 'maps'>('waze');
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const saved = localStorage.getItem(FILTER_STORAGE_KEY);
@@ -296,6 +298,23 @@ const CustomersPage = () => {
     }
   };
 
+  const fetchCustomerWallet = async (customerId: string) => {
+    const { data } = await supabase
+      .from('customers')
+      .select('credit, wallet_enabled')
+      .eq('id', customerId)
+      .maybeSingle();
+    if (data) {
+      setCustomerCredits(prev => ({
+        ...prev,
+        [customerId]: {
+          credit: data.credit || 0,
+          wallet_enabled: data.wallet_enabled || false,
+        }
+      }));
+    }
+  };
+
   const toggleCardExpansion = (customerId: string) => {
     setExpandedCards(prev => {
       const newSet = new Set(prev);
@@ -303,6 +322,7 @@ const CustomersPage = () => {
         newSet.delete(customerId);
       } else {
         newSet.add(customerId);
+        fetchCustomerWallet(customerId);
       }
       return newSet;
     });
@@ -823,6 +843,7 @@ const CustomersPage = () => {
                   if (window.innerWidth >= 768) {
                     setSelectedCustomerDetail(customer);
                     setDetailModalOpen(true);
+                    fetchCustomerWallet(customer.id);
                   } else {
                     toggleCardExpansion(customer.id);
                   }
@@ -1066,6 +1087,27 @@ const CustomersPage = () => {
                           )}
                         </div>
 
+                        {customerCredits[customer.id]?.wallet_enabled && (
+                          <div
+                            style={{
+                              background: 'linear-gradient(135deg, #3B6D11, #639922)',
+                              borderRadius: '10px',
+                              padding: '10px 14px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              marginBottom: '8px',
+                            }}
+                          >
+                            <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '12px', margin: 0 }}>
+                              Pugilar
+                            </p>
+                            <p style={{ color: 'white', fontSize: '18px', fontWeight: 700, margin: 0 }}>
+                              {(customerCredits[customer.id]?.credit || 0).toFixed(2).replace('.', ',')} €
+                            </p>
+                          </div>
+                        )}
+
                         {/* Action Buttons - EXPANDED ONLY */}
                         <div className="flex gap-2 pt-2 border-t">
 
@@ -1075,6 +1117,7 @@ const CustomersPage = () => {
                               e.stopPropagation();
                               setSelectedCustomerDetail(customer);
                               setDetailModalOpen(true);
+                              fetchCustomerWallet(customer.id);
                             }}
                             className="flex-1 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
                           >
@@ -1395,6 +1438,33 @@ const CustomersPage = () => {
                   <div>Celková suma: <span className="font-semibold">{(customerStats[selectedCustomerDetail.id]?.totalSpent || 0).toFixed(2)} €</span></div>
                 </div>
               </div>
+
+              {customerCredits[selectedCustomerDetail.id]?.wallet_enabled && (
+                <div className="pt-2 border-t">
+                  <div
+                    style={{
+                      background: 'linear-gradient(135deg, #3B6D11, #639922)',
+                      borderRadius: '12px',
+                      padding: '1rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <div>
+                      <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px', margin: '0 0 2px' }}>
+                        Pugilar — zostatok
+                      </p>
+                      <p style={{ color: 'white', fontSize: '24px', fontWeight: 700, margin: 0 }}>
+                        {(customerCredits[selectedCustomerDetail.id]?.credit || 0).toFixed(2).replace('.', ',')} €
+                      </p>
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: '8px', padding: '6px 12px' }}>
+                      <p style={{ color: 'white', fontSize: '12px', margin: 0 }}>Zelená peňaženka</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="flex gap-2 justify-end pt-4">
                 <Button
