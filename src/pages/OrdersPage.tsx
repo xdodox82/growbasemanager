@@ -243,6 +243,7 @@ export default function OrdersPage() {
   const [customerFilter, setCustomerFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [showArchive, setShowArchive] = useState(false);
+  const [showCancelled, setShowCancelled] = useState(false);
 
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -665,7 +666,7 @@ export default function OrdersPage() {
     if (!showArchive && (order?.status === 'dorucena' || order?.status === 'delivered')) {
       return false;
     }
-    if (order?.status === 'cancelled' || order?.status === 'zrusena') {
+    if (!showCancelled && (order?.status === 'cancelled' || order?.status === 'zrusena')) {
       return false;
     }
 
@@ -2662,6 +2663,16 @@ export default function OrdersPage() {
               Zobraziť archív
             </Label>
           </div>
+          <div className="flex items-center gap-2">
+            <Switch
+              id="cancelled-toggle"
+              checked={showCancelled}
+              onCheckedChange={setShowCancelled}
+            />
+            <Label htmlFor="cancelled-toggle" className="text-sm font-medium cursor-pointer">
+              Zobraziť zrušené
+            </Label>
+          </div>
         </div>
 
         {/* MOBILE filtre */}
@@ -2776,6 +2787,16 @@ export default function OrdersPage() {
               />
               <Label htmlFor="archive-toggle-mobile" className="text-sm cursor-pointer whitespace-nowrap">
                 Archív
+              </Label>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Switch
+                id="cancelled-toggle-mobile"
+                checked={showCancelled}
+                onCheckedChange={setShowCancelled}
+              />
+              <Label htmlFor="cancelled-toggle-mobile" className="text-sm cursor-pointer whitespace-nowrap">
+                Zrušené
               </Label>
             </div>
           </div>
