@@ -662,7 +662,10 @@ export default function OrdersPage() {
     }
 
     // Archive filter: if showArchive is false, only show active orders (not completed)
-    if (!showArchive && order?.status === 'dorucena') {
+    if (!showArchive && (order?.status === 'dorucena' || order?.status === 'delivered')) {
+      return false;
+    }
+    if (order?.status === 'cancelled' || order?.status === 'zrusena') {
       return false;
     }
 
