@@ -193,7 +193,7 @@ const PricesPage = () => {
     });
 
     return groups.sort((a, b) => a.itemName.localeCompare(b.itemName, 'sk'));
-  }, [filteredCropPrices]);
+  }, [filteredCropPrices, crops]);
 
   const groupedBlendPrices = useMemo(() => {
     const groups: GroupedPrice[] = [];
@@ -214,7 +214,7 @@ const PricesPage = () => {
     });
 
     return groups.sort((a, b) => a.itemName.localeCompare(b.itemName, 'sk'));
-  }, [filteredBlendPrices]);
+  }, [filteredBlendPrices, blends]);
 
   const resetForm = () => {
     setFormData({
