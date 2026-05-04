@@ -2499,7 +2499,11 @@ export default function OrdersPage() {
             <SelectContent>
               <SelectItem value="all">Všetky stavy</SelectItem>
               <SelectItem value="cakajuca">Čakajúca</SelectItem>
+              <SelectItem value="pending_approval">Čaká na schválenie</SelectItem>
               <SelectItem value="potvrdena">Potvrdená</SelectItem>
+              <SelectItem value="growing">Rastie</SelectItem>
+              <SelectItem value="packed">Zabalená</SelectItem>
+              <SelectItem value="on_the_way">Na ceste</SelectItem>
               <SelectItem value="pripravena">Pripravená</SelectItem>
               <SelectItem value="dorucena">Doručená</SelectItem>
             </SelectContent>
@@ -2625,7 +2629,11 @@ export default function OrdersPage() {
               <SelectContent>
                 <SelectItem value="all">Všetky stavy</SelectItem>
                 <SelectItem value="cakajuca">Čakajúca</SelectItem>
+                <SelectItem value="pending_approval">Čaká na schválenie</SelectItem>
                 <SelectItem value="potvrdena">Potvrdená</SelectItem>
+                <SelectItem value="growing">Rastie</SelectItem>
+                <SelectItem value="packed">Zabalená</SelectItem>
+                <SelectItem value="on_the_way">Na ceste</SelectItem>
                 <SelectItem value="pripravena">Pripravená</SelectItem>
                 <SelectItem value="dorucena">Doručená</SelectItem>
               </SelectContent>
@@ -2748,7 +2756,7 @@ export default function OrdersPage() {
                           <div>
                             <div className="flex items-center gap-2">
                               <div className="font-semibold text-sm text-gray-900">{order.customer_name || 'Bez názvu'}</div>
-                              {order.source === 'app' && (
+                              {(order as any).order_source === 'app' && (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
                                   <Smartphone className="w-3 h-3" />
                                   APP
@@ -2847,7 +2855,7 @@ export default function OrdersPage() {
                         <Badge className={`border ${getStatusBadgeClass(order.status)} text-xs font-semibold px-2.5 py-0.5`}>
                           {getStatusLabel(order.status)}
                         </Badge>
-                        {order.source === 'app' && (
+                        {(order as any).order_source === 'app' && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
                             <Smartphone className="w-3 h-3" />
                             APP
@@ -3794,7 +3802,7 @@ export default function OrdersPage() {
                   <div className="text-sm text-gray-600">Zákazník</div>
                   <div className="flex items-center gap-2">
                     <div className="font-semibold text-gray-900">{selectedOrderDetail.customer_name || 'Bez názvu'}</div>
-                    {selectedOrderDetail.source === 'app' && (
+                    {(selectedOrderDetail as any).order_source === 'app' && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
                         <Smartphone className="w-3 h-3" />
                         APP
@@ -3917,10 +3925,10 @@ export default function OrdersPage() {
                       <div key={idx} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg border border-gray-200">
                         <div className="flex-1">
                           <div className="font-semibold text-gray-900">
-                            {item?.quantity || 0}ks • {item?.crop_name || '-'}
+                            {item?.quantity || 0}× {item?.crop_name || '-'}{item?.packaging_size ? ` ${weightDisplay}` : ''}
                           </div>
                           <div className="text-sm text-gray-600">
-                            {weightDisplay} • {formLabel}
+                            {formLabel}
                             {item?.packaging_type && ` • ${item.packaging_type}`}
                             {item?.packaging_volume_ml && ` • ${item.packaging_volume_ml}ml`}
                           </div>
