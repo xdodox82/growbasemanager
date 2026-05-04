@@ -58,15 +58,22 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
   const PREHLAD_PATHS = ['/', '/today', '/calendar'];
   const PRODUKCIA_PATHS = ['/planting', '/prep-planting', '/prep-packaging', '/harvest-packing', '/delivery'];
 
-  const [isPrehladOpen, setIsPrehladOpen] = useState(
-    PREHLAD_PATHS.includes(location.pathname)
-  );
-  const [isProdukciaOpen, setIsProdukciaOpen] = useState(
-    PRODUKCIA_PATHS.includes(location.pathname)
-  );
-  const [isSpravaOpen, setIsSpravaOpen] = useState(
-    !PREHLAD_PATHS.includes(location.pathname) && !PRODUKCIA_PATHS.includes(location.pathname)
-  );
+  const [isPrehladOpen, setIsPrehladOpen] = useState(() => {
+    const saved = localStorage.getItem('sidebar-prehlad');
+    return saved !== null ? saved === 'true' : PREHLAD_PATHS.includes(location.pathname);
+  });
+  const [isProdukciaOpen, setIsProdukciaOpen] = useState(() => {
+    const saved = localStorage.getItem('sidebar-produkcia');
+    return saved !== null ? saved === 'true' : PRODUKCIA_PATHS.includes(location.pathname);
+  });
+  const [isSpravaOpen, setIsSpravaOpen] = useState(() => {
+    const saved = localStorage.getItem('sidebar-sprava');
+    return saved !== null ? saved === 'true' : !PREHLAD_PATHS.includes(location.pathname) && !PRODUKCIA_PATHS.includes(location.pathname);
+  });
+
+  const togglePrehlad = () => setIsPrehladOpen(v => { const n = !v; localStorage.setItem('sidebar-prehlad', String(n)); return n; });
+  const toggleProdukcia = () => setIsProdukciaOpen(v => { const n = !v; localStorage.setItem('sidebar-produkcia', String(n)); return n; });
+  const toggleSprava = () => setIsSpravaOpen(v => { const n = !v; localStorage.setItem('sidebar-sprava', String(n)); return n; });
 
   // Load sidebar settings from profiles
   useEffect(() => {
@@ -165,7 +172,7 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
 
           {/* ── PREHĽAD ── */}
           <button
-            onClick={() => setIsPrehladOpen(v => !v)}
+            onClick={togglePrehlad}
             className="flex w-full items-center gap-1 px-3 mb-1 hover:text-sidebar-foreground transition-colors"
           >
             <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform duration-200', isPrehladOpen && 'rotate-90')} />
@@ -202,7 +209,7 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
 
           {/* ── PRODUKCIA ── */}
           <button
-            onClick={() => setIsProdukciaOpen(v => !v)}
+            onClick={toggleProdukcia}
             className="flex w-full items-center gap-1 px-3 mb-1 hover:text-sidebar-foreground transition-colors"
           >
             <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform duration-200', isProdukciaOpen && 'rotate-90')} />
@@ -241,7 +248,7 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
 
           {/* ── SPRÁVA ── */}
           <button
-            onClick={() => setIsSpravaOpen(v => !v)}
+            onClick={toggleSprava}
             className="flex w-full items-center gap-1 px-3 mb-1 hover:text-sidebar-foreground transition-colors"
           >
             <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform duration-200', isSpravaOpen && 'rotate-90')} />
