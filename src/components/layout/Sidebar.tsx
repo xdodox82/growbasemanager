@@ -54,9 +54,34 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
   const [isCostsOpen, setIsCostsOpen] = useState(
     location.pathname.startsWith('/costs')
   );
-  const [isPrehladOpen, setIsPrehladOpen] = useState(true);
-  const [isProdukciaOpen, setIsProdukciaOpen] = useState(true);
-  const [isSpravaOpen, setIsSpravaOpen] = useState(true);
+
+  type GroupName = 'prehlad' | 'produkcia' | 'sprava';
+
+  const getGroupForPath = (pathname: string): GroupName => {
+    if (['/', '/today', '/calendar'].includes(pathname)) return 'prehlad';
+    if (['/planting', '/prep-planting', '/prep-packaging', '/harvest-packing', '/delivery'].includes(pathname)) return 'produkcia';
+    return 'sprava';
+  };
+
+  const [openGroup, setOpenGroup] = useState<GroupName | null>(() => {
+    const saved = localStorage.getItem('sidebar-open-group') as GroupName | null;
+    return saved ?? getGroupForPath(location.pathname);
+  });
+
+  useEffect(() => {
+    const group = getGroupForPath(location.pathname);
+    setOpenGroup(group);
+    localStorage.setItem('sidebar-open-group', group);
+  }, [location.pathname]);
+
+  const toggleGroup = (group: GroupName) => {
+    setOpenGroup(prev => {
+      const next = prev === group ? null : group;
+      if (next) localStorage.setItem('sidebar-open-group', next);
+      else localStorage.removeItem('sidebar-open-group');
+      return next;
+    });
+  };
 
   // Load sidebar settings from profiles
   useEffect(() => {
@@ -155,13 +180,13 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
 
           {/* ── PREHĽAD ── */}
           <button
-            onClick={() => setIsPrehladOpen(v => !v)}
+            onClick={() => toggleGroup('prehlad')}
             className="flex w-full items-center gap-1 px-3 mb-1 hover:text-sidebar-foreground transition-colors"
           >
-            <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform duration-200', isPrehladOpen && 'rotate-90')} />
+            <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform duration-200', openGroup === 'prehlad' && 'rotate-90')} />
             <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Prehľad</span>
           </button>
-          <div className={cn('overflow-hidden transition-all duration-200', isPrehladOpen ? 'max-h-60' : 'max-h-0')}>
+          <div className={cn('overflow-hidden transition-all duration-200', openGroup === 'prehlad' ? 'max-h-60' : 'max-h-0')}>
             <div className="space-y-0.5 pb-1">
               {[
                 { id: 'dashboard', name: 'Dashboard', href: '/', icon: Home },
@@ -192,13 +217,13 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
 
           {/* ── PRODUKCIA ── */}
           <button
-            onClick={() => setIsProdukciaOpen(v => !v)}
+            onClick={() => toggleGroup('produkcia')}
             className="flex w-full items-center gap-1 px-3 mb-1 hover:text-sidebar-foreground transition-colors"
           >
-            <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform duration-200', isProdukciaOpen && 'rotate-90')} />
+            <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform duration-200', openGroup === 'produkcia' && 'rotate-90')} />
             <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Produkcia</span>
           </button>
-          <div className={cn('overflow-hidden transition-all duration-200', isProdukciaOpen ? 'max-h-60' : 'max-h-0')}>
+          <div className={cn('overflow-hidden transition-all duration-200', openGroup === 'produkcia' ? 'max-h-60' : 'max-h-0')}>
             <div className="space-y-0.5 pb-1">
               {[
                 { id: 'planting', name: 'Plán sadenia', href: '/planting', icon: CalendarDays },
@@ -231,13 +256,13 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
 
           {/* ── SPRÁVA ── */}
           <button
-            onClick={() => setIsSpravaOpen(v => !v)}
+            onClick={() => toggleGroup('sprava')}
             className="flex w-full items-center gap-1 px-3 mb-1 hover:text-sidebar-foreground transition-colors"
           >
-            <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform duration-200', isSpravaOpen && 'rotate-90')} />
+            <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform duration-200', openGroup === 'sprava' && 'rotate-90')} />
             <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Správa</span>
           </button>
-          <div className={cn('overflow-hidden transition-all duration-200', isSpravaOpen ? 'max-h-[600px]' : 'max-h-0')}>
+          <div className={cn('overflow-hidden transition-all duration-200', openGroup === 'sprava' ? 'max-h-[600px]' : 'max-h-0')}>
             <div className="space-y-0.5 pb-1">
               {[
                 { id: 'customers', name: 'Zákazníci', href: '/customers', icon: Users },
