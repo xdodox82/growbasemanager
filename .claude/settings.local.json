@@ -23,7 +23,9 @@
       "Bash(cat)",
       "Bash(python3 /tmp/remove_console_logs.py)",
       "Bash(python *)",
-      "Bash(node *)"
+      "Bash(node *)",
+      "Bash(Get-ChildItem *)",
+      "Bash(Select-Object FullName)"
     ]
   }
 }

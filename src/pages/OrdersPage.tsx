@@ -429,14 +429,23 @@ export default function OrdersPage() {
   useEffect(() => {
     if (customerId && customers) {
       const selectedCustomer = customers.find(c => c.id === customerId);
-      if (selectedCustomer && (selectedCustomer as any).default_packaging_type) {
-        setCurrentItem(prev => ({
-          ...prev,
-          packaging_type: (selectedCustomer as any).default_packaging_type || 'rPET'
-        }));
+      if (selectedCustomer) {
+        if ((selectedCustomer as any).default_packaging_type) {
+          setCurrentItem(prev => ({
+            ...prev,
+            packaging_type: (selectedCustomer as any).default_packaging_type || 'rPET'
+          }));
+        }
+        // Auto-populate route from customer's assigned delivery route (only for new orders)
+        if (!editingOrder && selectedCustomer.delivery_route_id && routes?.length) {
+          const customerRoute = routes.find(r => r.id === selectedCustomer.delivery_route_id);
+          if (customerRoute) {
+            setRoute(customerRoute.name);
+          }
+        }
       }
     }
-  }, [customerId, customers]);
+  }, [customerId, customers, routes, editingOrder]);
 
   useEffect(() => {
     const fetchPriceAutomatically = async () => {
@@ -1558,10 +1567,12 @@ export default function OrdersPage() {
         delivery_price: Number(parseFloat(deliveryPrice.toFixed(2))),
         charge_delivery: !freeDelivery,
         route: route || null,
+        delivery_route_id: customer?.delivery_route_id || null,
         notes: orderNotes || null,
         is_recurring: orderType === 'tyzdenne' || orderType === 'dvojtyzdenne',
         recurrence_pattern: orderType !== 'jednorazova' ? orderType : null,
         recurring_weeks: orderType !== 'jednorazova' ? parseInt(weekCount) || 1 : null,
+        order_source: 'manual',
         user_id: user.id
       };
 
@@ -1846,11 +1857,13 @@ export default function OrdersPage() {
               delivery_price: Number(parseFloat(deliveryPrice.toFixed(2))),
               charge_delivery: !freeDelivery,
               route: route || null,
+              delivery_route_id: customer?.delivery_route_id || null,
               notes: orderNotes || null,
               is_recurring: true,
               recurrence_pattern: orderType,
               recurring_weeks: recurringCount,
               parent_order_id: newOrder.id,
+              order_source: 'recurring',
               user_id: user.id
             };
 

@@ -45,6 +45,7 @@ export interface DbCustomer {
   dic: string | null;
   ic_dph: string | null;
   bank_account: string | null;
+  uses_returnable_containers: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -88,6 +89,8 @@ export interface DbOrder {
   skipped: boolean | null;
   recurring_weeks: number | null;
   total_price: number | null;
+  delivery_route_id: string | null;
+  order_source: string | null;
   created_at: string;
   order_items?: DbOrderItem[];
 }

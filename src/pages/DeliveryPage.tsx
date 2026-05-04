@@ -410,8 +410,9 @@ function DeliveryPage() {
   // Filter by route if selected
   if (routeFilter !== 'all') {
     ordersForDate = ordersForDate.filter(order => {
-      const customer = customers.find(c => c.id === order.customer_id);
-      return customer?.delivery_route_id === routeFilter;
+      const routeId = (order as any).delivery_route_id
+        ?? customers.find(c => c.id === order.customer_id)?.delivery_route_id;
+      return routeId === routeFilter;
     });
   }
 
@@ -580,7 +581,8 @@ function DeliveryPage() {
   const calculateDeliveryTotal = () => {
     return allOrdersForReport.reduce((sum, order) => {
       const customer = customers?.find(c => c.id === order.customer_id);
-      const route = routes?.find(r => r.id === customer?.delivery_route_id);
+      const routeId = (order as any).delivery_route_id ?? customer?.delivery_route_id;
+      const route = routes?.find(r => r.id === routeId);
       const orderTotal = calculateOrderTotal(order, customer?.customer_type || null);
       const deliveryFee = calculateDeliveryFee(orderTotal, customer, route, customer?.customer_type || null, (order as any).charge_delivery);
       return sum + deliveryFee;
@@ -598,7 +600,8 @@ function DeliveryPage() {
     const total = paid.reduce((sum, order) => {
       const customer = customers?.find(c => c.id === order.customer_id);
       const orderTotal = calculateOrderTotal(order, customer?.customer_type || null);
-      const route = routes?.find(r => r.id === customer?.delivery_route_id);
+      const routeId = (order as any).delivery_route_id ?? customer?.delivery_route_id;
+      const route = routes?.find(r => r.id === routeId);
       const deliveryFee = calculateDeliveryFee(orderTotal, customer, route, customer?.customer_type || null, (order as any).charge_delivery);
       return sum + orderTotal + deliveryFee;
     }, 0);
@@ -623,7 +626,8 @@ function DeliveryPage() {
       .reduce((sum, order) => {
         const customer = customers?.find(c => c.id === order.customer_id);
         const orderTotal = calculateOrderTotal(order, customer?.customer_type || null);
-        const route = routes?.find(r => r.id === customer?.delivery_route_id);
+        const routeId = (order as any).delivery_route_id ?? customer?.delivery_route_id;
+        const route = routes?.find(r => r.id === routeId);
         const deliveryFee = calculateDeliveryFee(orderTotal, customer, route, customer?.customer_type || null, (order as any).charge_delivery);
         return sum + orderTotal + deliveryFee;
       }, 0);
@@ -638,7 +642,8 @@ function DeliveryPage() {
       .reduce((sum, order) => {
         const customer = customers?.find(c => c.id === order.customer_id);
         const orderTotal = calculateOrderTotal(order, customer?.customer_type || null);
-        const route = routes?.find(r => r.id === customer?.delivery_route_id);
+        const routeId = (order as any).delivery_route_id ?? customer?.delivery_route_id;
+        const route = routes?.find(r => r.id === routeId);
         const deliveryFee = calculateDeliveryFee(orderTotal, customer, route, customer?.customer_type || null, (order as any).charge_delivery);
         return sum + orderTotal + deliveryFee;
       }, 0);
@@ -695,7 +700,8 @@ function DeliveryPage() {
       const customerType = customer?.customer_type || 'home';
       const paymentMethod = (customer as any)?.payment_method || 'cash';
       const itemsDetail = getOrderItemsDetail(order.id, customerType);
-      const route = routes?.find(r => r.id === customer?.delivery_route_id);
+      const routeId = (order as any).delivery_route_id ?? customer?.delivery_route_id;
+      const route = routes?.find(r => r.id === routeId);
       // ✅ VŽDY prepočítaj z order_items
       const orderTotal = calculateOrderTotal(order, customerType);
       const chargeDelivery = (order as any).charge_delivery !== false;

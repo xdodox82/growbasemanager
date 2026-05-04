@@ -116,6 +116,7 @@ const CustomersPage = () => {
     customer_type: '' as string | null,
     payment_method: 'cash' as 'cash' | 'card' | 'invoice',
     free_delivery: false,
+    uses_returnable_containers: false,
     default_packaging_type: 'rPET' as string,
     // Business fields for gastro/wholesale
     company_name: '',
@@ -177,6 +178,7 @@ const CustomersPage = () => {
       customer_type: null,
       payment_method: 'cash',
       free_delivery: false,
+      uses_returnable_containers: false,
       default_packaging_type: 'rPET',
       company_name: '',
       contact_name: '',
@@ -200,6 +202,7 @@ const CustomersPage = () => {
       customer_type: (customer as any).customer_type || null,
       payment_method: (customer as any).payment_method || 'cash',
       free_delivery: (customer as any).free_delivery || false,
+      uses_returnable_containers: (customer as any).uses_returnable_containers || false,
       default_packaging_type: (customer as any).default_packaging_type || 'rPET',
       company_name: (customer as any).company_name || '',
       contact_name: (customer as any).contact_name || '',
@@ -236,6 +239,7 @@ const CustomersPage = () => {
       customer_type: formData.customer_type || null,
       payment_method: formData.payment_method,
       free_delivery: formData.free_delivery,
+      uses_returnable_containers: formData.uses_returnable_containers,
       default_packaging_type: formData.default_packaging_type || 'rPET',
       company_name: formData.company_name || null,
       contact_name: formData.contact_name || null,
@@ -548,6 +552,21 @@ const CustomersPage = () => {
                         </div>
                       </div>
 
+                      {/* Riadok 1b: Vratné obaly */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-2">
+                          <Label className="text-sm">Používa vratné obaly</Label>
+                          <div className="flex items-center h-10">
+                            <Switch
+                              id="uses-returnable-containers"
+                              checked={formData.uses_returnable_containers}
+                              onCheckedChange={(checked) => setFormData({ ...formData, uses_returnable_containers: checked })}
+                            />
+                            <Label htmlFor="uses-returnable-containers" className="text-sm cursor-pointer ml-2">Áno</Label>
+                          </div>
+                        </div>
+                      </div>
+
                       {/* Riadok 2: Spôsob platby | Predvolený typ obalu */}
                       <div className="grid grid-cols-2 gap-3">
                         <div className="grid gap-1.5">
@@ -737,6 +756,21 @@ const CustomersPage = () => {
                               onCheckedChange={(checked) => setFormData({ ...formData, free_delivery: checked })}
                             />
                             <Label htmlFor="free-delivery-gastro" className="text-sm cursor-pointer ml-2">Áno</Label>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Riadok 1b: Vratné obaly */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-2">
+                          <Label className="text-sm">Používa vratné obaly</Label>
+                          <div className="flex items-center h-10">
+                            <Switch
+                              id="uses-returnable-containers-gastro"
+                              checked={formData.uses_returnable_containers}
+                              onCheckedChange={(checked) => setFormData({ ...formData, uses_returnable_containers: checked })}
+                            />
+                            <Label htmlFor="uses-returnable-containers-gastro" className="text-sm cursor-pointer ml-2">Áno</Label>
                           </div>
                         </div>
                       </div>
