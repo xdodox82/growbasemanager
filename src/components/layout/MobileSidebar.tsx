@@ -54,6 +54,9 @@ export function MobileSidebar({ onClose }: MobileSidebarProps) {
   const [isCostsOpen, setIsCostsOpen] = useState(
     location.pathname.startsWith('/costs')
   );
+  const [isPrehladOpen, setIsPrehladOpen] = useState(true);
+  const [isProdukciaOpen, setIsProdukciaOpen] = useState(true);
+  const [isSpravaOpen, setIsSpravaOpen] = useState(true);
 
   const handleSignOut = async () => {
     await signOut();
@@ -129,185 +132,201 @@ export function MobileSidebar({ onClose }: MobileSidebarProps) {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-3 py-4 overflow-y-auto">
+          <nav className="flex-1 px-3 py-3 overflow-y-auto">
 
             {/* ── PREHĽAD ── */}
-            <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Prehľad</p>
-            <div className="space-y-0.5">
-              {prehlad.map((item) => {
-                const isActive = location.pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    to={item.href}
-                    onClick={handleLinkClick}
-                    className={cn(
-                      'flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200',
-                      isActive
-                        ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent'
-                    )}
-                  >
-                    <item.icon className="h-5 w-5" />
-                    {item.name}
-                  </Link>
-                );
-              })}
+            <button
+              onClick={() => setIsPrehladOpen(v => !v)}
+              className="flex w-full items-center gap-1 px-3 mb-1 hover:text-sidebar-foreground transition-colors"
+            >
+              <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform duration-200', isPrehladOpen && 'rotate-90')} />
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Prehľad</span>
+            </button>
+            <div className={cn('overflow-hidden transition-all duration-200', isPrehladOpen ? 'max-h-60' : 'max-h-0')}>
+              <div className="space-y-0.5 pb-1">
+                {prehlad.map((item) => {
+                  const isActive = location.pathname === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      to={item.href}
+                      onClick={handleLinkClick}
+                      className={cn(
+                        'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
+                        isActive
+                          ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
+                          : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent'
+                      )}
+                    >
+                      <item.icon className="h-4 w-4 shrink-0" />
+                      {item.name}
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
 
-            <div className="my-3 border-t border-sidebar-border/60" />
+            <div className="my-2 border-t border-sidebar-border/60" />
 
             {/* ── PRODUKCIA ── */}
-            <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Produkcia</p>
-            <div className="space-y-0.5">
-              {produkcia.map((item) => {
-                const isActive = location.pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    to={item.href}
-                    onClick={handleLinkClick}
-                    className={cn(
-                      'flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200',
-                      isActive
-                        ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent'
-                    )}
-                  >
-                    <item.icon className="h-5 w-5" />
-                    {item.name}
-                  </Link>
-                );
-              })}
+            <button
+              onClick={() => setIsProdukciaOpen(v => !v)}
+              className="flex w-full items-center gap-1 px-3 mb-1 hover:text-sidebar-foreground transition-colors"
+            >
+              <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform duration-200', isProdukciaOpen && 'rotate-90')} />
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Produkcia</span>
+            </button>
+            <div className={cn('overflow-hidden transition-all duration-200', isProdukciaOpen ? 'max-h-60' : 'max-h-0')}>
+              <div className="space-y-0.5 pb-1">
+                {produkcia.map((item) => {
+                  const isActive = location.pathname === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      to={item.href}
+                      onClick={handleLinkClick}
+                      className={cn(
+                        'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
+                        isActive
+                          ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
+                          : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent'
+                      )}
+                    >
+                      <item.icon className="h-4 w-4 shrink-0" />
+                      {item.name}
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
 
-            <div className="my-3 border-t border-sidebar-border/60" />
+            <div className="my-2 border-t border-sidebar-border/60" />
 
             {/* ── SPRÁVA ── */}
-            <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Správa</p>
-            <div className="space-y-0.5">
-              {sprava.map((item) => {
-                const isActive = location.pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    to={item.href}
-                    onClick={handleLinkClick}
+            <button
+              onClick={() => setIsSpravaOpen(v => !v)}
+              className="flex w-full items-center gap-1 px-3 mb-1 hover:text-sidebar-foreground transition-colors"
+            >
+              <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform duration-200', isSpravaOpen && 'rotate-90')} />
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Správa</span>
+            </button>
+            <div className={cn('overflow-hidden transition-all duration-200', isSpravaOpen ? 'max-h-[600px]' : 'max-h-0')}>
+              <div className="space-y-0.5 pb-1">
+                {sprava.map((item) => {
+                  const isActive = location.pathname === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      to={item.href}
+                      onClick={handleLinkClick}
+                      className={cn(
+                        'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
+                        isActive
+                          ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
+                          : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent'
+                      )}
+                    >
+                      <item.icon className="h-4 w-4 shrink-0" />
+                      {item.name}
+                    </Link>
+                  );
+                })}
+
+                {/* Sklad submenu */}
+                <div>
+                  <button
+                    onClick={() => setIsInventoryOpen(!isInventoryOpen)}
                     className={cn(
-                      'flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200',
-                      isActive
-                        ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent'
+                      'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
+                      isInventoryActive
+                        ? 'bg-primary/20 text-primary'
+                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                     )}
                   >
-                    <item.icon className="h-5 w-5" />
-                    {item.name}
-                  </Link>
-                );
-              })}
+                    <Warehouse className="h-4 w-4 shrink-0" />
+                    Sklad
+                    <ChevronRight className={cn('ml-auto h-3.5 w-3.5 transition-transform duration-200', isInventoryOpen && 'rotate-90')} />
+                  </button>
+                  <div className={cn('overflow-hidden transition-all duration-200 ml-4', isInventoryOpen ? 'max-h-60' : 'max-h-0')}>
+                    <div className="space-y-0.5 pt-0.5">
+                      {inventoryItems.map((item) => {
+                        const isActive = location.pathname === item.href;
+                        return (
+                          <Link
+                            key={item.href}
+                            to={item.href}
+                            onClick={handleLinkClick}
+                            className={cn(
+                              'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
+                              isActive
+                                ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
+                                : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                            )}
+                          >
+                            <item.icon className="h-3.5 w-3.5 shrink-0" />
+                            {item.name}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
 
-              {/* Sklad submenu */}
-              <div>
-                <button
-                  onClick={() => setIsInventoryOpen(!isInventoryOpen)}
+                {/* Náklady submenu */}
+                <div>
+                  <button
+                    onClick={() => setIsCostsOpen(!isCostsOpen)}
+                    className={cn(
+                      'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
+                      isCostsActive
+                        ? 'bg-primary/20 text-primary'
+                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                    )}
+                  >
+                    <Receipt className="h-4 w-4 shrink-0" />
+                    Náklady
+                    <ChevronRight className={cn('ml-auto h-3.5 w-3.5 transition-transform duration-200', isCostsOpen && 'rotate-90')} />
+                  </button>
+                  <div className={cn('overflow-hidden transition-all duration-200 ml-4', isCostsOpen ? 'max-h-60' : 'max-h-0')}>
+                    <div className="space-y-0.5 pt-0.5">
+                      {costsItems.map((item) => {
+                        const isActive = location.pathname === item.href;
+                        return (
+                          <Link
+                            key={item.href}
+                            to={item.href}
+                            onClick={handleLinkClick}
+                            className={cn(
+                              'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
+                              isActive
+                                ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
+                                : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                            )}
+                          >
+                            <item.icon className="h-3.5 w-3.5 shrink-0" />
+                            {item.name}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Reporty */}
+                <Link
+                  to="/reports"
+                  onClick={handleLinkClick}
                   className={cn(
-                    'flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200',
-                    isInventoryActive
-                      ? 'bg-primary/20 text-primary'
+                    'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
+                    location.pathname === '/reports'
+                      ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
                       : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                   )}
                 >
-                  <Warehouse className="h-5 w-5" />
-                  Sklad
-                  {isInventoryOpen ? (
-                    <ChevronDown className="ml-auto h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="ml-auto h-4 w-4" />
-                  )}
-                </button>
-                {isInventoryOpen && (
-                  <div className="ml-4 mt-0.5 space-y-0.5">
-                    {inventoryItems.map((item) => {
-                      const isActive = location.pathname === item.href;
-                      return (
-                        <Link
-                          key={item.href}
-                          to={item.href}
-                          onClick={handleLinkClick}
-                          className={cn(
-                            'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
-                            isActive
-                              ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                              : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                          )}
-                        >
-                          <item.icon className="h-4 w-4" />
-                          {item.name}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
+                  <FileText className="h-4 w-4 shrink-0" />
+                  Reporty
+                </Link>
               </div>
-
-              {/* Náklady submenu */}
-              <div>
-                <button
-                  onClick={() => setIsCostsOpen(!isCostsOpen)}
-                  className={cn(
-                    'flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200',
-                    isCostsActive
-                      ? 'bg-primary/20 text-primary'
-                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                  )}
-                >
-                  <Receipt className="h-5 w-5" />
-                  Náklady
-                  {isCostsOpen ? (
-                    <ChevronDown className="ml-auto h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="ml-auto h-4 w-4" />
-                  )}
-                </button>
-                {isCostsOpen && (
-                  <div className="ml-4 mt-0.5 space-y-0.5">
-                    {costsItems.map((item) => {
-                      const isActive = location.pathname === item.href;
-                      return (
-                        <Link
-                          key={item.href}
-                          to={item.href}
-                          onClick={handleLinkClick}
-                          className={cn(
-                            'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
-                            isActive
-                              ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                              : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                          )}
-                        >
-                          <item.icon className="h-4 w-4" />
-                          {item.name}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Reporty */}
-              <Link
-                to="/reports"
-                onClick={handleLinkClick}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200',
-                  location.pathname === '/reports'
-                    ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                    : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                )}
-              >
-                <FileText className="h-5 w-5" />
-                Reporty
-              </Link>
             </div>
           </nav>
 
