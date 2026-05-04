@@ -108,21 +108,6 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
     return sidebarSettings[itemId] !== false;
   };
 
-  const navigation = [
-    { id: 'dashboard', name: 'Dashboard', href: '/', icon: Home },
-    { id: 'today', name: 'Dnešné úlohy', href: '/today', icon: CheckSquare },
-    { id: 'customers', name: 'Zákazníci', href: '/customers', icon: Users },
-    { id: 'suppliers', name: 'Dodávatelia', href: '/suppliers', icon: Building2 },
-    { id: 'crops', name: 'Plodiny', href: '/crops', icon: Sprout },
-    { id: 'blends', name: 'Mixy', href: '/blends', icon: Blend },
-    { id: 'prices', name: 'Ceny', href: '/prices', icon: DollarSign },
-    { id: 'orders', name: 'Objednávky', href: '/orders', icon: ShoppingCart },
-    { id: 'planting', name: 'Plán sadenia', href: '/planting', icon: CalendarDays },
-    { id: 'prep-planting', name: 'Príprava na sadenie', href: '/prep-planting', icon: Box },
-    { id: 'prep-packaging', name: 'Príprava obalov', href: '/prep-packaging', icon: Tag },
-    { id: 'harvest-packing', name: 'Zber a balenie', href: '/harvest-packing', icon: Scissors },
-    { id: 'delivery', name: 'Rozvoz', href: '/delivery', icon: Truck },
-  ].filter(item => isItemVisible(item.id));
 
   const inventoryItems = [
     { name: 'Osivo', href: '/inventory/seeds', icon: Wheat },
@@ -163,139 +148,203 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
         </div>
 
         {/* Navigation */}
-        <nav ref={navRef} onScroll={handleScroll} className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
-          {navigation.map((item) => {
-            const isActive = location.pathname === item.href;
-            return (
+        <nav ref={navRef} onScroll={handleScroll} className="flex-1 px-3 py-4 overflow-y-auto">
+
+          {/* ── PREHĽAD ── */}
+          <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Prehľad</p>
+          <div className="space-y-0.5">
+            {[
+              { id: 'dashboard', name: 'Dashboard', href: '/', icon: Home },
+              { id: 'today', name: 'Dnešné úlohy', href: '/today', icon: CheckSquare },
+              { id: 'calendar', name: 'Kalendár', href: '/calendar', icon: Calendar },
+            ].filter(item => isItemVisible(item.id)).map((item) => {
+              const isActive = location.pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                    isActive
+                      ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
+                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                  )}
+                >
+                  <item.icon className="h-5 w-5" />
+                  {item.name}
+                </Link>
+              );
+            })}
+          </div>
+
+          <div className="my-3 border-t border-sidebar-border/60" />
+
+          {/* ── PRODUKCIA ── */}
+          <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Produkcia</p>
+          <div className="space-y-0.5">
+            {[
+              { id: 'planting', name: 'Plán sadenia', href: '/planting', icon: CalendarDays },
+              { id: 'prep-planting', name: 'Príprava na sadenie', href: '/prep-planting', icon: Box },
+              { id: 'prep-packaging', name: 'Príprava obalov', href: '/prep-packaging', icon: Tag },
+              { id: 'harvest-packing', name: 'Zber a balenie', href: '/harvest-packing', icon: Scissors },
+              { id: 'delivery', name: 'Rozvoz', href: '/delivery', icon: Truck },
+            ].filter(item => isItemVisible(item.id)).map((item) => {
+              const isActive = location.pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                    isActive
+                      ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
+                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                  )}
+                >
+                  <item.icon className="h-5 w-5" />
+                  {item.name}
+                </Link>
+              );
+            })}
+          </div>
+
+          <div className="my-3 border-t border-sidebar-border/60" />
+
+          {/* ── SPRÁVA ── */}
+          <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Správa</p>
+          <div className="space-y-0.5">
+            {[
+              { id: 'customers', name: 'Zákazníci', href: '/customers', icon: Users },
+              { id: 'suppliers', name: 'Dodávatelia', href: '/suppliers', icon: Building2 },
+              { id: 'orders', name: 'Objednávky', href: '/orders', icon: ShoppingCart },
+              { id: 'crops', name: 'Plodiny', href: '/crops', icon: Sprout },
+              { id: 'blends', name: 'Mixy', href: '/blends', icon: Blend },
+              { id: 'prices', name: 'Ceny', href: '/prices', icon: DollarSign },
+            ].filter(item => isItemVisible(item.id)).map((item) => {
+              const isActive = location.pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                    isActive
+                      ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
+                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                  )}
+                >
+                  <item.icon className="h-5 w-5" />
+                  {item.name}
+                </Link>
+              );
+            })}
+
+            {/* Sklad s submenu */}
+            {isItemVisible('inventory') && (
+              <div>
+                <button
+                  onClick={() => setIsInventoryOpen(!isInventoryOpen)}
+                  className={cn(
+                    'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                    isInventoryActive
+                      ? 'bg-primary/20 text-primary'
+                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                  )}
+                >
+                  <Warehouse className="h-5 w-5" />
+                  Sklad
+                  {isInventoryOpen ? (
+                    <ChevronDown className="ml-auto h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="ml-auto h-4 w-4" />
+                  )}
+                </button>
+                {isInventoryOpen && (
+                  <div className="ml-4 mt-0.5 space-y-0.5">
+                    {inventoryItems.map((item) => {
+                      const isActive = location.pathname === item.href;
+                      return (
+                        <Link
+                          key={item.href}
+                          to={item.href}
+                          className={cn(
+                            'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
+                            isActive
+                              ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
+                              : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                          )}
+                        >
+                          <item.icon className="h-4 w-4" />
+                          {item.name}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Náklady s submenu */}
+            {isItemVisible('costs') && (
+              <div>
+                <button
+                  onClick={() => setIsCostsOpen(!isCostsOpen)}
+                  className={cn(
+                    'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                    isCostsActive
+                      ? 'bg-primary/20 text-primary'
+                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                  )}
+                >
+                  <Receipt className="h-5 w-5" />
+                  Náklady
+                  {isCostsOpen ? (
+                    <ChevronDown className="ml-auto h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="ml-auto h-4 w-4" />
+                  )}
+                </button>
+                {isCostsOpen && (
+                  <div className="ml-4 mt-0.5 space-y-0.5">
+                    {costsItems.map((item) => {
+                      const isActive = location.pathname === item.href;
+                      return (
+                        <Link
+                          key={item.href}
+                          to={item.href}
+                          className={cn(
+                            'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
+                            isActive
+                              ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
+                              : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                          )}
+                        >
+                          <item.icon className="h-4 w-4" />
+                          {item.name}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Reporty */}
+            {isItemVisible('reports') && (
               <Link
-                key={item.href}
-                to={item.href}
+                to="/reports"
                 className={cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
-                  isActive
+                  location.pathname === '/reports'
                     ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
                     : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                 )}
               >
-                <item.icon className="h-5 w-5" />
-                {item.name}
+                <FileText className="h-5 w-5" />
+                Reporty
               </Link>
-            );
-          })}
-
-          {/* 14. Sklad s submenu */}
-          <div>
-            <button
-              onClick={() => setIsInventoryOpen(!isInventoryOpen)}
-              className={cn(
-                'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
-                isInventoryActive
-                  ? 'bg-primary/20 text-primary'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-              )}
-            >
-              <Warehouse className="h-5 w-5" />
-              Sklad
-              {isInventoryOpen ? (
-                <ChevronDown className="ml-auto h-4 w-4" />
-              ) : (
-                <ChevronRight className="ml-auto h-4 w-4" />
-              )}
-            </button>
-            {isInventoryOpen && (
-              <div className="ml-4 mt-1 space-y-1">
-                {inventoryItems.map((item) => {
-                  const isActive = location.pathname === item.href;
-                  return (
-                    <Link
-                      key={item.href}
-                      to={item.href}
-                      className={cn(
-                        'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
-                        isActive
-                          ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                          : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                      )}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      {item.name}
-                    </Link>
-                  );
-                })}
-              </div>
             )}
           </div>
-
-          {/* 15. Náklady s submenu */}
-          <div>
-            <button
-              onClick={() => setIsCostsOpen(!isCostsOpen)}
-              className={cn(
-                'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
-                isCostsActive
-                  ? 'bg-primary/20 text-primary'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-              )}
-            >
-              <Receipt className="h-5 w-5" />
-              Náklady
-              {isCostsOpen ? (
-                <ChevronDown className="ml-auto h-4 w-4" />
-              ) : (
-                <ChevronRight className="ml-auto h-4 w-4" />
-              )}
-            </button>
-            {isCostsOpen && (
-              <div className="ml-4 mt-1 space-y-1">
-                {costsItems.map((item) => {
-                  const isActive = location.pathname === item.href;
-                  return (
-                    <Link
-                      key={item.href}
-                      to={item.href}
-                      className={cn(
-                        'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
-                        isActive
-                          ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                          : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                      )}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      {item.name}
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* 16. Kalendár */}
-          <Link
-            to="/calendar"
-            className={cn(
-              'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
-              location.pathname === '/calendar'
-                ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-            )}
-          >
-            <Calendar className="h-5 w-5" />
-            Kalendár
-          </Link>
-
-          {/* 17. Reporty */}
-          <Link
-            to="/reports"
-            className={cn(
-              'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
-              location.pathname === '/reports'
-                ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-            )}
-          >
-            <FileText className="h-5 w-5" />
-            Reporty
-          </Link>
         </nav>
 
         {/* Footer */}

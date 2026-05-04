@@ -61,20 +61,27 @@ export function MobileSidebar({ onClose }: MobileSidebarProps) {
     navigate('/auth');
   };
 
-  const menuItems = [
+  const prehlad = [
     { name: 'Dashboard', href: '/', icon: Home },
     { name: 'Dnešné úlohy', href: '/today', icon: CheckSquare },
-    { name: 'Zákazníci', href: '/customers', icon: Users },
-    { name: 'Dodávatelia', href: '/suppliers', icon: Building2 },
-    { name: 'Plodiny', href: '/crops', icon: Sprout },
-    { name: 'Mixy', href: '/blends', icon: Blend },
-    { name: 'Ceny', href: '/prices', icon: DollarSign },
-    { name: 'Objednávky', href: '/orders', icon: ShoppingCart },
+    { name: 'Kalendár', href: '/calendar', icon: Calendar },
+  ];
+
+  const produkcia = [
     { name: 'Plán sadenia', href: '/planting', icon: CalendarDays },
     { name: 'Príprava na sadenie', href: '/prep-planting', icon: Box },
     { name: 'Príprava obalov', href: '/prep-packaging', icon: Tag },
     { name: 'Zber a balenie', href: '/harvest-packing', icon: Scissors },
     { name: 'Rozvoz', href: '/delivery', icon: Truck },
+  ];
+
+  const sprava = [
+    { name: 'Zákazníci', href: '/customers', icon: Users },
+    { name: 'Dodávatelia', href: '/suppliers', icon: Building2 },
+    { name: 'Objednávky', href: '/orders', icon: ShoppingCart },
+    { name: 'Plodiny', href: '/crops', icon: Sprout },
+    { name: 'Mixy', href: '/blends', icon: Blend },
+    { name: 'Ceny', href: '/prices', icon: DollarSign },
   ];
 
   const inventoryItems = [
@@ -122,144 +129,186 @@ export function MobileSidebar({ onClose }: MobileSidebarProps) {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
-            {menuItems.map((item) => {
-              const isActive = location.pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  to={item.href}
-                  onClick={handleLinkClick}
+          <nav className="flex-1 px-3 py-4 overflow-y-auto">
+
+            {/* ── PREHĽAD ── */}
+            <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Prehľad</p>
+            <div className="space-y-0.5">
+              {prehlad.map((item) => {
+                const isActive = location.pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    to={item.href}
+                    onClick={handleLinkClick}
+                    className={cn(
+                      'flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200',
+                      isActive
+                        ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
+                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent'
+                    )}
+                  >
+                    <item.icon className="h-5 w-5" />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </div>
+
+            <div className="my-3 border-t border-sidebar-border/60" />
+
+            {/* ── PRODUKCIA ── */}
+            <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Produkcia</p>
+            <div className="space-y-0.5">
+              {produkcia.map((item) => {
+                const isActive = location.pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    to={item.href}
+                    onClick={handleLinkClick}
+                    className={cn(
+                      'flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200',
+                      isActive
+                        ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
+                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent'
+                    )}
+                  >
+                    <item.icon className="h-5 w-5" />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </div>
+
+            <div className="my-3 border-t border-sidebar-border/60" />
+
+            {/* ── SPRÁVA ── */}
+            <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Správa</p>
+            <div className="space-y-0.5">
+              {sprava.map((item) => {
+                const isActive = location.pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    to={item.href}
+                    onClick={handleLinkClick}
+                    className={cn(
+                      'flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200',
+                      isActive
+                        ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
+                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent'
+                    )}
+                  >
+                    <item.icon className="h-5 w-5" />
+                    {item.name}
+                  </Link>
+                );
+              })}
+
+              {/* Sklad submenu */}
+              <div>
+                <button
+                  onClick={() => setIsInventoryOpen(!isInventoryOpen)}
                   className={cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200',
-                    isActive
-                      ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent'
+                    'flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200',
+                    isInventoryActive
+                      ? 'bg-primary/20 text-primary'
+                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                   )}
                 >
-                  <item.icon className="h-5 w-5" />
-                  {item.name}
-                </Link>
-              );
-            })}
+                  <Warehouse className="h-5 w-5" />
+                  Sklad
+                  {isInventoryOpen ? (
+                    <ChevronDown className="ml-auto h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="ml-auto h-4 w-4" />
+                  )}
+                </button>
+                {isInventoryOpen && (
+                  <div className="ml-4 mt-0.5 space-y-0.5">
+                    {inventoryItems.map((item) => {
+                      const isActive = location.pathname === item.href;
+                      return (
+                        <Link
+                          key={item.href}
+                          to={item.href}
+                          onClick={handleLinkClick}
+                          className={cn(
+                            'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                            isActive
+                              ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
+                              : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                          )}
+                        >
+                          <item.icon className="h-4 w-4" />
+                          {item.name}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
 
-            {/* Sklad submenu */}
-            <div>
-              <button
-                onClick={() => setIsInventoryOpen(!isInventoryOpen)}
+              {/* Náklady submenu */}
+              <div>
+                <button
+                  onClick={() => setIsCostsOpen(!isCostsOpen)}
+                  className={cn(
+                    'flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200',
+                    isCostsActive
+                      ? 'bg-primary/20 text-primary'
+                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                  )}
+                >
+                  <Receipt className="h-5 w-5" />
+                  Náklady
+                  {isCostsOpen ? (
+                    <ChevronDown className="ml-auto h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="ml-auto h-4 w-4" />
+                  )}
+                </button>
+                {isCostsOpen && (
+                  <div className="ml-4 mt-0.5 space-y-0.5">
+                    {costsItems.map((item) => {
+                      const isActive = location.pathname === item.href;
+                      return (
+                        <Link
+                          key={item.href}
+                          to={item.href}
+                          onClick={handleLinkClick}
+                          className={cn(
+                            'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                            isActive
+                              ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
+                              : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                          )}
+                        >
+                          <item.icon className="h-4 w-4" />
+                          {item.name}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Reporty */}
+              <Link
+                to="/reports"
+                onClick={handleLinkClick}
                 className={cn(
-                  'flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200',
-                  isInventoryActive
-                    ? 'bg-primary/20 text-primary'
+                  'flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200',
+                  location.pathname === '/reports'
+                    ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
                     : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                 )}
               >
-                <Warehouse className="h-5 w-5" />
-                Sklad
-                {isInventoryOpen ? (
-                  <ChevronDown className="ml-auto h-4 w-4" />
-                ) : (
-                  <ChevronRight className="ml-auto h-4 w-4" />
-                )}
-              </button>
-              {isInventoryOpen && (
-                <div className="ml-4 mt-1 space-y-1">
-                  {inventoryItems.map((item) => {
-                    const isActive = location.pathname === item.href;
-                    return (
-                      <Link
-                        key={item.href}
-                        to={item.href}
-                        onClick={handleLinkClick}
-                        className={cn(
-                          'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
-                          isActive
-                            ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                            : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                        )}
-                      >
-                        <item.icon className="h-4 w-4" />
-                        {item.name}
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
+                <FileText className="h-5 w-5" />
+                Reporty
+              </Link>
             </div>
-
-            {/* Náklady submenu */}
-            <div>
-              <button
-                onClick={() => setIsCostsOpen(!isCostsOpen)}
-                className={cn(
-                  'flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200',
-                  isCostsActive
-                    ? 'bg-primary/20 text-primary'
-                    : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                )}
-              >
-                <Receipt className="h-5 w-5" />
-                Náklady
-                {isCostsOpen ? (
-                  <ChevronDown className="ml-auto h-4 w-4" />
-                ) : (
-                  <ChevronRight className="ml-auto h-4 w-4" />
-                )}
-              </button>
-              {isCostsOpen && (
-                <div className="ml-4 mt-1 space-y-1">
-                  {costsItems.map((item) => {
-                    const isActive = location.pathname === item.href;
-                    return (
-                      <Link
-                        key={item.href}
-                        to={item.href}
-                        onClick={handleLinkClick}
-                        className={cn(
-                          'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
-                          isActive
-                            ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                            : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                        )}
-                      >
-                        <item.icon className="h-4 w-4" />
-                        {item.name}
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Kalendár */}
-            <Link
-              to="/calendar"
-              onClick={handleLinkClick}
-              className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200',
-                location.pathname === '/calendar'
-                  ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-              )}
-            >
-              <Calendar className="h-5 w-5" />
-              Kalendár
-            </Link>
-
-            {/* Reporty */}
-            <Link
-              to="/reports"
-              onClick={handleLinkClick}
-              className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200',
-                location.pathname === '/reports'
-                  ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-              )}
-            >
-              <FileText className="h-5 w-5" />
-              Reporty
-            </Link>
           </nav>
 
           {/* Footer */}
