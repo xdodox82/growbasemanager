@@ -71,6 +71,7 @@ export interface DbOrder {
   customer_id: string | null;
   crop_id: string | null;
   blend_id: string | null;
+  crop_name: string | null;
   quantity: number;
   unit: string | null;
   order_date: string;
@@ -88,6 +89,7 @@ export interface DbOrder {
   recurring_weeks: number | null;
   total_price: number | null;
   created_at: string;
+  order_items?: DbOrderItem[];
 }
 
 export interface DbOrderItem {
@@ -95,6 +97,7 @@ export interface DbOrderItem {
   order_id: string;
   crop_id: string | null;
   blend_id: string | null;
+  crop_name: string | null;
   quantity: number;
   unit: string | null;
   packaging_size: string | null;
@@ -491,6 +494,7 @@ export function useOrders() {
         .from('orders')
         .select(`
           *,
+          order_items(*),
           customer:customers(
             name,
             phone,

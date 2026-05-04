@@ -63,6 +63,37 @@ export default function ReportsPage() {
     return suppliers.find(s => s.id === supplierId)?.name || '-';
   };
 
+  const ORDER_STATUS_LABELS: Record<string, string> = {
+    pending: 'Čaká',
+    pending_approval: 'Čaká na schválenie',
+    growing: 'Rastie',
+    prepared: 'Pripravená',
+    ready: 'Pripravená',
+    delivered: 'Doručená',
+    cancelled: 'Zrušená',
+  };
+
+  const getStatusLabel = (status: string | null) => {
+    if (!status) return '-';
+    return ORDER_STATUS_LABELS[status] || status;
+  };
+
+  const getOrderItemLabel = (order: typeof filteredOrders[number]) => {
+    if (order.order_items && order.order_items.length > 0) {
+      return order.order_items
+        .map(item => item.crop_name || (item.crop_id ? getCropName(item.crop_id) : item.blend_id ? getBlendName(item.blend_id) : '-'))
+        .join(', ');
+    }
+    return order.crop_name || (order.crop_id ? getCropName(order.crop_id) : order.blend_id ? getBlendName(order.blend_id) : '-');
+  };
+
+  const getOrderQuantityLabel = (order: typeof filteredOrders[number]) => {
+    if (order.order_items && order.order_items.length > 0) {
+      return order.order_items.map(item => `${item.quantity} ${item.unit || 'g'}`).join(', ');
+    }
+    return `${order.quantity} ${order.unit || 'g'}`;
+  };
+
   // Orders report data
   const filteredOrders = orders.filter(order => {
     if (!order.delivery_date) return false;
@@ -82,14 +113,21 @@ export default function ReportsPage() {
     cancelled: filteredOrders.filter(o => o.status === 'cancelled').length,
   };
 
-  // Group orders by crop/blend
+  // Group orders by crop/blend (supports multi-item orders via order_items)
   const totalQuantityByItem = filteredOrders.reduce((acc, order) => {
-    const key = order.crop_id || order.blend_id || 'unknown';
-    const name = order.crop_id ? getCropName(order.crop_id) : order.blend_id ? getBlendName(order.blend_id) : 'Neznáme';
-    if (!acc[key]) {
-      acc[key] = { name, quantity: 0 };
+    if (order.order_items && order.order_items.length > 0) {
+      order.order_items.forEach(item => {
+        const key = item.crop_id || item.blend_id || 'unknown';
+        const name = item.crop_name || (item.crop_id ? getCropName(item.crop_id) : item.blend_id ? getBlendName(item.blend_id) : 'Neznáme');
+        if (!acc[key]) acc[key] = { name, quantity: 0 };
+        acc[key].quantity += item.quantity || 0;
+      });
+    } else {
+      const key = order.crop_id || order.blend_id || 'unknown';
+      const name = order.crop_name || (order.crop_id ? getCropName(order.crop_id) : order.blend_id ? getBlendName(order.blend_id) : 'Neznáme');
+      if (!acc[key]) acc[key] = { name, quantity: 0 };
+      acc[key].quantity += order.quantity || 0;
     }
-    acc[key].quantity += order.quantity || 0;
     return acc;
   }, {} as Record<string, { name: string; quantity: number }>);
 
@@ -279,9 +317,9 @@ export default function ReportsPage() {
     const rows = filteredOrders.map(order => [
       order.delivery_date ? format(new Date(order.delivery_date), 'dd.MM.yyyy') : '-',
       getCustomerName(order.customer_id),
-      order.status || '-',
-      order.crop_id ? getCropName(order.crop_id) : order.blend_id ? getBlendName(order.blend_id) : '-',
-      `${order.quantity} ${order.unit || 'g'}`,
+      getStatusLabel(order.status),
+      getOrderItemLabel(order),
+      getOrderQuantityLabel(order),
     ]);
 
     const csvContent = [
@@ -352,13 +390,12 @@ export default function ReportsPage() {
 
   const exportOrdersToExcel = () => {
     const data = filteredOrders.map(order => ({
-      'Číslo': (order as any).order_number || '-',
+      'Číslo': order.order_number || '-',
       'Dátum': order.delivery_date ? format(new Date(order.delivery_date), 'dd.MM.yyyy') : '-',
       'Zákazník': getCustomerName(order.customer_id),
-      'Stav': order.status || '-',
-      'Položka': order.crop_id ? getCropName(order.crop_id) : order.blend_id ? getBlendName(order.blend_id) : '-',
-      'Množstvo': order.quantity,
-      'Jednotka': order.unit || 'g',
+      'Stav': getStatusLabel(order.status),
+      'Položka': getOrderItemLabel(order),
+      'Množstvo': getOrderQuantityLabel(order),
       'Forma': order.delivery_form === 'cut' ? 'Rezaná' : order.delivery_form === 'live' ? 'Živá' : order.delivery_form || '-',
       'Balenie': order.packaging_size || '-',
       'Poznámky': order.notes || '',
@@ -388,12 +425,12 @@ export default function ReportsPage() {
     doc.text(`Obdobie: ${format(new Date(dateFrom), 'd.M.yyyy')} - ${format(new Date(dateTo), 'd.M.yyyy')}`, 14, 28);
     
     const tableData = filteredOrders.map(order => [
-      (order as any).order_number || '-',
+      order.order_number || '-',
       order.delivery_date ? format(new Date(order.delivery_date), 'dd.MM.yyyy') : '-',
       getCustomerName(order.customer_id),
-      order.status || '-',
-      order.crop_id ? getCropName(order.crop_id) : order.blend_id ? getBlendName(order.blend_id) : '-',
-      `${order.quantity} ${order.unit || 'g'}`,
+      getStatusLabel(order.status),
+      getOrderItemLabel(order),
+      getOrderQuantityLabel(order),
     ]);
 
     autoTable(doc, {
@@ -694,11 +731,9 @@ export default function ReportsPage() {
                       <TableRow key={order.id}>
                         <TableCell>{order.delivery_date ? format(new Date(order.delivery_date), 'dd.MM.yyyy') : '-'}</TableCell>
                         <TableCell className="font-medium">{getCustomerName(order.customer_id)}</TableCell>
-                        <TableCell className="hidden sm:table-cell">{order.status}</TableCell>
-                        <TableCell>{order.crop_id ? getCropName(order.crop_id) : order.blend_id ? getBlendName(order.blend_id) : '-'}</TableCell>
-                        <TableCell className="text-right">
-                          {order.quantity} {order.unit || 'g'}
-                        </TableCell>
+                        <TableCell className="hidden sm:table-cell">{getStatusLabel(order.status)}</TableCell>
+                        <TableCell>{getOrderItemLabel(order)}</TableCell>
+                        <TableCell className="text-right">{getOrderQuantityLabel(order)}</TableCell>
                       </TableRow>
                     ))}
                     {filteredOrders.length === 0 && (
