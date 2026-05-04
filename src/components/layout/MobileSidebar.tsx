@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/i18n/LanguageContext';
@@ -55,33 +55,18 @@ export function MobileSidebar({ onClose }: MobileSidebarProps) {
     location.pathname.startsWith('/costs')
   );
 
-  type GroupName = 'prehlad' | 'produkcia' | 'sprava';
+  const PREHLAD_PATHS = ['/', '/today', '/calendar'];
+  const PRODUKCIA_PATHS = ['/planting', '/prep-planting', '/prep-packaging', '/harvest-packing', '/delivery'];
 
-  const getGroupForPath = (pathname: string): GroupName => {
-    if (['/', '/today', '/calendar'].includes(pathname)) return 'prehlad';
-    if (['/planting', '/prep-planting', '/prep-packaging', '/harvest-packing', '/delivery'].includes(pathname)) return 'produkcia';
-    return 'sprava';
-  };
-
-  const [openGroup, setOpenGroup] = useState<GroupName | null>(() => {
-    const saved = localStorage.getItem('sidebar-open-group') as GroupName | null;
-    return saved ?? getGroupForPath(location.pathname);
-  });
-
-  useEffect(() => {
-    const group = getGroupForPath(location.pathname);
-    setOpenGroup(group);
-    localStorage.setItem('sidebar-open-group', group);
-  }, [location.pathname]);
-
-  const toggleGroup = (group: GroupName) => {
-    setOpenGroup(prev => {
-      const next = prev === group ? null : group;
-      if (next) localStorage.setItem('sidebar-open-group', next);
-      else localStorage.removeItem('sidebar-open-group');
-      return next;
-    });
-  };
+  const [isPrehladOpen, setIsPrehladOpen] = useState(
+    PREHLAD_PATHS.includes(location.pathname)
+  );
+  const [isProdukciaOpen, setIsProdukciaOpen] = useState(
+    PRODUKCIA_PATHS.includes(location.pathname)
+  );
+  const [isSpravaOpen, setIsSpravaOpen] = useState(
+    !PREHLAD_PATHS.includes(location.pathname) && !PRODUKCIA_PATHS.includes(location.pathname)
+  );
 
   const handleSignOut = async () => {
     await signOut();
@@ -161,13 +146,13 @@ export function MobileSidebar({ onClose }: MobileSidebarProps) {
 
             {/* ── PREHĽAD ── */}
             <button
-              onClick={() => toggleGroup('prehlad')}
+              onClick={() => setIsPrehladOpen(v => !v)}
               className="flex w-full items-center gap-1 px-3 mb-1 hover:text-sidebar-foreground transition-colors"
             >
-              <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform duration-200', openGroup === 'prehlad' && 'rotate-90')} />
+              <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform duration-200', isPrehladOpen && 'rotate-90')} />
               <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Prehľad</span>
             </button>
-            <div className={cn('overflow-hidden transition-all duration-200', openGroup === 'prehlad' ? 'max-h-60' : 'max-h-0')}>
+            <div className={cn('overflow-hidden transition-all duration-200', isPrehladOpen ? 'max-h-60' : 'max-h-0')}>
               <div className="space-y-0.5 pb-1">
                 {prehlad.map((item) => {
                   const isActive = location.pathname === item.href;
@@ -195,13 +180,13 @@ export function MobileSidebar({ onClose }: MobileSidebarProps) {
 
             {/* ── PRODUKCIA ── */}
             <button
-              onClick={() => toggleGroup('produkcia')}
+              onClick={() => setIsProdukciaOpen(v => !v)}
               className="flex w-full items-center gap-1 px-3 mb-1 hover:text-sidebar-foreground transition-colors"
             >
-              <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform duration-200', openGroup === 'produkcia' && 'rotate-90')} />
+              <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform duration-200', isProdukciaOpen && 'rotate-90')} />
               <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Produkcia</span>
             </button>
-            <div className={cn('overflow-hidden transition-all duration-200', openGroup === 'produkcia' ? 'max-h-60' : 'max-h-0')}>
+            <div className={cn('overflow-hidden transition-all duration-200', isProdukciaOpen ? 'max-h-60' : 'max-h-0')}>
               <div className="space-y-0.5 pb-1">
                 {produkcia.map((item) => {
                   const isActive = location.pathname === item.href;
@@ -229,13 +214,13 @@ export function MobileSidebar({ onClose }: MobileSidebarProps) {
 
             {/* ── SPRÁVA ── */}
             <button
-              onClick={() => toggleGroup('sprava')}
+              onClick={() => setIsSpravaOpen(v => !v)}
               className="flex w-full items-center gap-1 px-3 mb-1 hover:text-sidebar-foreground transition-colors"
             >
-              <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform duration-200', openGroup === 'sprava' && 'rotate-90')} />
+              <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform duration-200', isSpravaOpen && 'rotate-90')} />
               <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Správa</span>
             </button>
-            <div className={cn('overflow-hidden transition-all duration-200', openGroup === 'sprava' ? 'max-h-[600px]' : 'max-h-0')}>
+            <div className={cn('overflow-hidden transition-all duration-200', isSpravaOpen ? 'max-h-[600px]' : 'max-h-0')}>
               <div className="space-y-0.5 pb-1">
                 {sprava.map((item) => {
                   const isActive = location.pathname === item.href;
