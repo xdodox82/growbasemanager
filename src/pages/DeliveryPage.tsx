@@ -372,8 +372,6 @@ function DeliveryPage() {
   };
 
   // Get orders for delivery on the selected date
-  console.log('📅 DeliveryPage - Selected dates:', selectedDates);
-  console.log('📦 DeliveryPage - All orders:', orders.length);
 
   let ordersForDate = orders.filter(order => {
     if (!order.delivery_date) return false;
@@ -523,41 +521,26 @@ function DeliveryPage() {
     const notes = order?.notes || '';
     const result = notes.toLowerCase().includes('zaplatené') || notes.toLowerCase().includes('zaplatene');
 
-    console.log('🔍 isOrderPaid check:', {
-      orderId: order.id,
-      notes: notes,
-      includes: result
-    });
-
     return result;
   };
 
   // Mark order as paid
   const handleMarkAsPaid = async (orderId: string, currentNotes: string | null) => {
-    console.log('💳 MARKING AS PAID:', orderId);
 
     const order = orders.find(o => o.id === orderId);
-    console.log('  Current order:', order);
-    console.log('  Current notes:', currentNotes);
-    console.log('  Current isPaid:', order ? isOrderPaid(order) : 'N/A');
 
     const newNotes = currentNotes ? `${currentNotes} | Zaplatené` : 'Zaplatené';
-    console.log('  New notes:', newNotes);
 
     const { error, data } = await updateOrder(orderId, { notes: newNotes });
-    console.log('  Supabase response:', { error, data });
 
     if (!error) {
       toast({
         title: 'Platba zaznamenaná',
         description: 'Objednávka bola označená ako zaplatená.'
       });
-      console.log('  Should refetch orders now!');
 
       // Refetch orders from DB
-      console.log('  🔄 Calling refetchOrders...');
       await refetchOrders();
-      console.log('  ✅ Refetch complete!');
     } else {
       console.error('  ERROR:', error);
     }
@@ -565,30 +548,21 @@ function DeliveryPage() {
 
   // Mark order as unpaid
   const handleMarkAsUnpaid = async (orderId: string, currentNotes: string | null) => {
-    console.log('💳 MARKING AS UNPAID:', orderId);
 
     const order = orders.find(o => o.id === orderId);
-    console.log('  Current order:', order);
-    console.log('  Current notes:', currentNotes);
-    console.log('  Current isPaid:', order ? isOrderPaid(order) : 'N/A');
 
     const newNotes = currentNotes?.replace(/\s*\|\s*Zaplatené/gi, '').replace(/Zaplatené\s*\|?\s*/gi, '').replace(/zaplatené/gi, '').trim() || '';
-    console.log('  New notes:', newNotes);
 
     const { error, data } = await updateOrder(orderId, { notes: newNotes || null });
-    console.log('  Supabase response:', { error, data });
 
     if (!error) {
       toast({
         title: 'Platba zrušená',
         description: 'Označenie platby bolo odstránené.'
       });
-      console.log('  Should refetch orders now!');
 
       // Refetch orders from DB
-      console.log('  🔄 Calling refetchOrders...');
       await refetchOrders();
-      console.log('  ✅ Refetch complete!');
     } else {
       console.error('  ERROR:', error);
     }
@@ -618,23 +592,17 @@ function DeliveryPage() {
   };
 
   const calculatePaid = () => {
-    console.log('💰 Calculating paid...');
-    console.log('  All orders for report:', allOrdersForReport.length);
 
-    console.log('  ✅ Using isOrderPaid for delivered + ready orders:');
     const paid = allOrdersForReport.filter(o => isOrderPaid(o));
-    console.log('    Found:', paid.length, paid.map(o => ({ id: o.id, status: o.status })));
 
     const total = paid.reduce((sum, order) => {
       const customer = customers?.find(c => c.id === order.customer_id);
       const orderTotal = calculateOrderTotal(order, customer?.customer_type || null);
       const route = routes?.find(r => r.id === customer?.delivery_route_id);
       const deliveryFee = calculateDeliveryFee(orderTotal, customer, route, customer?.customer_type || null, (order as any).charge_delivery);
-      console.log('    Order', order.id, `(${order.status}):`, orderTotal, '+', deliveryFee, '=', orderTotal + deliveryFee);
       return sum + orderTotal + deliveryFee;
     }, 0);
 
-    console.log('  TOTAL PAID:', total);
     return total;
   };
 
@@ -675,7 +643,6 @@ function DeliveryPage() {
         return sum + orderTotal + deliveryFee;
       }, 0);
   };
-
 
   const getOrderItemsDetail = (orderId: string, customerType?: string | null) => {
     const items = orderItems.filter(item => item.order_id === orderId);
@@ -829,7 +796,6 @@ function DeliveryPage() {
 
   // Apply filters to pending and delivered orders
   const filteredPendingOrders = useMemo(() => {
-    console.log('🔍 DeliveryPage - Pending orders:', sortedPendingOrders.length);
     return sortedPendingOrders
       .map(([key, group]) => {
         let filteredOrders = group.orders;

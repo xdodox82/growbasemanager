@@ -142,26 +142,18 @@ export default function HarvestPackingPage() {
 
   // Načítaj dostupné veľkosti balení z objednávok
   useEffect(() => {
-    console.log('🔍 DEBUGGING availableSizes');
-    console.log('Orders count:', orders.length);
-    console.log('Orders:', orders);
 
     if (orders.length > 0) {
       const sizes = orders.flatMap(order => {
-        console.log('Order items:', order.items);
         return order.items?.map(item => {
-          console.log('Item packaging_size:', item.packaging_size);
           return item.packaging_size;
         }) || [];
       });
-
-      console.log('All sizes:', sizes);
 
       const uniqueSizes = [...new Set(sizes)]
         .filter((size): size is number => size != null)
         .sort((a, b) => a - b);
 
-      console.log('Unique sizes:', uniqueSizes);
       setAvailableSizes(uniqueSizes);
     }
   }, [orders]);
@@ -218,8 +210,6 @@ export default function HarvestPackingPage() {
         return;
       }
 
-      console.log('📅 Loading orders for multiple dates:', selectedDates.map(d => format(d, 'yyyy-MM-dd')));
-
       const allOrders: any[] = [];
       const uniqueOrderIds = new Set<string>();
 
@@ -251,8 +241,6 @@ export default function HarvestPackingPage() {
           })
           .filter((id): id is string => typeof id === 'string' && id.length > 0) || [];
 
-        console.log('📦 Order IDs from planting plans for', dateStr, ':', orderIdsFromPlans.length);
-
         // SPÔSOB 2: Načítaj orders priamo podľa delivery_date (pre mixy bez plans)
         const { data: directOrders } = await supabase
           .from('orders')
@@ -273,8 +261,6 @@ export default function HarvestPackingPage() {
             )
           `)
           .eq('delivery_date', dateStr);
-
-        console.log('📦 Direct orders by delivery_date for', dateStr, ':', directOrders?.length || 0);
 
         // Načítaj orders z planting_plans
         const { data: ordersFromPlans, error: ordersError } = orderIdsFromPlans.length > 0
@@ -303,8 +289,6 @@ export default function HarvestPackingPage() {
           console.error('❌ Error loading orders from plans:', ordersError);
         }
 
-        console.log('📦 Orders from planting plans for', dateStr, ':', ordersFromPlans?.length || 0);
-
         // Kombinuj obe skupiny orders
         const dateOrders = [
           ...(ordersFromPlans || []),
@@ -319,21 +303,6 @@ export default function HarvestPackingPage() {
           }
         });
       }
-
-      console.log('✅ Total unique orders from all dates:', allOrders.length);
-      console.log('📋 Orders detail:', allOrders.map(order => ({
-        id: order.id,
-        customer: order.customer?.name,
-        items_count: order.items?.length || 0,
-        items: order.items?.map(item => ({
-          crop_id: item.crop_id,
-          blend_id: item.blend_id,
-          crop_name: item.crop?.name,
-          blend_name: item.blend?.name,
-          packaging_size: item.packaging_size,
-          quantity: item.quantity
-        }))
-      })));
 
       // Zoradi podľa customer_type
       allOrders.sort((a, b) => {
@@ -393,9 +362,6 @@ export default function HarvestPackingPage() {
   }, [blends, categoryFilter]);
 
   const filteredOrders = useMemo(() => {
-    console.log('🔍 Filtering orders...');
-    console.log('  Total orders:', orders.length);
-    console.log('  Filters:', { customerTypeFilter, categoryFilter, cropFilter, customerFilter });
 
     // FILTER LEN NA ZÁKAZNÍKA - kategória a plodina sa filtrujú až v groupovaní!
     return orders.filter(order => {
@@ -414,21 +380,10 @@ export default function HarvestPackingPage() {
   }, [orders, customerTypeFilter, customerFilter, categoryFilter, cropFilter, crops]);
 
   const groupedByProduct = useMemo(() => {
-    console.log('🔍 GROUPING PRODUCTS - categoryFilter:', categoryFilter);
-    console.log('🔄 Starting grouping...', {
-      filteredOrdersCount: filteredOrders.length,
-      categoryFilter: categoryFilter,
-      cropFilter: cropFilter
-    });
 
     const groups: Record<string, ProductGroup> = {};
 
     filteredOrders.forEach((order, orderIndex) => {
-      console.log(`  📝 Processing order ${orderIndex + 1}/${filteredOrders.length}:`, {
-        order_id: order.id,
-        customer: order.customer?.name,
-        items_count: order.items?.length || 0
-      });
 
       order.items?.forEach(item => {
         const productId = item.crop_id || item.blend_id || 'unknown';
@@ -437,15 +392,6 @@ export default function HarvestPackingPage() {
         const blend = item.blend || blends.find(b => b.id === item.blend_id);
         const productName = crop?.name || blend?.name || item.crop_name || 'Neznámy produkt';
         const category = crop?.category;
-
-        console.log('  📦 Item check:', {
-          productName,
-          productType,
-          categoryFilter,
-          crop_id: item.crop_id,
-          blend_id: item.blend_id,
-          category
-        });
 
         // FILTER NA ÚROVNI ITEM - aplikuj kategóriu a crop filter
         // 1. Filter kategórie
@@ -465,7 +411,6 @@ export default function HarvestPackingPage() {
         })();
 
         if (!categoryMatch) {
-          console.log('    ❌ Filtered out - category mismatch');
           return;
         }
 
@@ -473,7 +418,6 @@ export default function HarvestPackingPage() {
         if (cropFilter !== 'all') {
           const cropMatch = item.crop_id === cropFilter || item.blend_id === cropFilter;
           if (!cropMatch) {
-            console.log('    ❌ Filtered out - crop/blend mismatch');
             return;
           }
         }
@@ -481,12 +425,9 @@ export default function HarvestPackingPage() {
         // 3. Filter pre veľkosť balenia
         if (packagingSizeFilter !== 'all') {
           if (item.packaging_size?.toString() !== packagingSizeFilter) {
-            console.log('    ❌ Filtered out - packaging size mismatch');
             return;
           }
         }
-
-        console.log('    ✅ PASSED - all filters matched');
 
         if (!groups[productId]) {
           groups[productId] = {
@@ -516,12 +457,6 @@ export default function HarvestPackingPage() {
   const singleProducts = groupedByProduct.filter(g => g.productType === 'crop' && !completedProducts.has(g.productId));
   const mixProducts = groupedByProduct.filter(g => g.productType === 'blend' && !completedProducts.has(g.productId));
   const completedProductsList = groupedByProduct.filter(g => completedProducts.has(g.productId));
-
-  console.log('📦 Grouped products:', groupedByProduct.length);
-  console.log('🌱 Single products:', singleProducts.length);
-  console.log('🎨 Mix products:', mixProducts.length);
-  console.log('✅ Completed products:', completedProductsList.length);
-  console.log('🔍 Category filter:', categoryFilter);
 
   useEffect(() => {
     const savedOrder = localStorage.getItem('harvestPacking_singleOrder');
@@ -1149,7 +1084,6 @@ export default function HarvestPackingPage() {
       </div>
     );
   };
-
 
   if (loading) {
     return (

@@ -99,7 +99,6 @@ const Dashboard = () => {
 
   // Calculate harvest capacity for next 7 days
   const calculateHarvestCapacity = () => {
-    console.log('📊 Počítam kapacitu zberu...');
 
     // Get next 7 days
     const today = new Date();
@@ -130,8 +129,6 @@ const Dashboard = () => {
         return pHarvestDate === harvestDate &&
                (p.status === 'sown' || p.status === 'growing' || p.status === 'planned');
       });
-
-      console.log(`📅 ${harvestDate}: ${plantingsForDate.length} výsevov`);
 
       // Calculate capacity for each planting
       plantingsForDate.forEach(p => {
@@ -172,8 +169,6 @@ const Dashboard = () => {
         const deliveryDate = (o.delivery_date || '').split('T')[0];
         return deliveryDate === deliveryDate1 || deliveryDate === deliveryDate2Str;
       });
-
-      console.log(`📦 ${harvestDate}: ${ordersForDate.length} objednávok`);
 
       // First pass: collect all package sizes for each crop
       const packageSizesByCrop: Record<string, Set<number>> = {};
@@ -239,7 +234,6 @@ const Dashboard = () => {
       });
     });
 
-    console.log('✅ Kapacita vypočítaná:', capacityByDate);
     return capacityByDate;
   };
 
@@ -313,11 +307,6 @@ const Dashboard = () => {
   const dateLocale = locales[language as keyof typeof locales] || locales.sk;
 
   // Debug logs
-  console.log('📊 Dashboard Stats:');
-  console.log(`- Total crops: ${crops.length}`);
-  console.log(`- Active orders: ${activeOrders.length}`);
-  console.log(`- Active customers: ${activeCustomersCount}`);
-  console.log(`- Trays in growth: ${traysInGrowth}`);
 
   // Upcoming notifications - next 3 days
   const upcomingNotifications = useMemo(() => {

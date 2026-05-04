@@ -177,7 +177,6 @@ export default function LabelsPage() {
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 w-full min-w-0">
       {labels.map((label) => (
         <Card key={label.id} className="p-4 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer overflow-hidden" onClick={() => {
-          console.log('🔍 Opening detail for label:', label);
           setSelectedLabel(label);
         }}>
           <div className="flex items-start justify-between gap-2 min-w-0">

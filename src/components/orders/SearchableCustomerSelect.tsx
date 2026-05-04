@@ -85,7 +85,6 @@ export function SearchableCustomerSelect({
                 <CommandItem
                   value="všetci zákazníci all"
                   onSelect={() => {
-                    console.log('🔍 Customer selected: ALL');
                     onValueChange('all');
                     setOpen(false);
                   }}
@@ -104,7 +103,6 @@ export function SearchableCustomerSelect({
                   key={customer.id}
                   value={`${customer.name} ${customer.company_name} ${customer.customer_type}`}
                   onSelect={() => {
-                    console.log('🔍 Customer selected:', customer.company_name || customer.name);
                     onValueChange(customer.id);
                     setOpen(false);
                   }}

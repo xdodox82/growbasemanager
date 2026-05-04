@@ -179,19 +179,12 @@ const deleteOrderItemsDirectFetch = async (orderId: string) => {
 };
 
 const createOrderItemDirectFetch = async (itemData: any) => {
-  console.log('🚀 VERSION 2.0 - NEW SCHEMA ACTIVE - Using package_ml, package_type, has_label_req');
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
   const { data: { session } } = await supabase.auth.getSession();
   const accessToken = session?.access_token || supabaseAnonKey;
-
-  console.log('✅ Final Payload with NEW SCHEMA:', {
-    package_type: itemData.package_type,
-    package_ml: itemData.package_ml,
-    has_label_req: itemData.has_label_req
-  });
 
   const response = await fetch(`${supabaseUrl}/rest/v1/rpc/create_order_item_with_packaging`, {
     method: 'POST',
@@ -210,12 +203,10 @@ const createOrderItemDirectFetch = async (itemData: any) => {
     throw new Error(`RPC call failed: ${response.status} ${response.statusText} - ${errorText}`);
   }
 
-  console.log('✅ RPC SUCCESS - Item created with new schema');
   return response;
 };
 
 export default function OrdersPage() {
-  console.log('[OrdersPage] Component rendering started');
   const { toast } = useToast();
   const { getDeliveryDaysArray } = useDeliveryDays();
   const isMobile = useIsMobile();
@@ -425,20 +416,13 @@ export default function OrdersPage() {
     if (deliveryDate && orderItems && orderItems.length > 0) {
       const issues = checkCapacityForOrder(deliveryDate, orderItems);
       if (issues.length > 0) {
-        console.log('⚠️ Capacity issues detected:', issues);
       }
     }
   }, [deliveryDate, orderItems]);
 
   // Monitor customer filter changes
-  useEffect(() => {
-    console.log('🔍 OrdersPage customer filter:', customerFilter);
-    console.log('🔍 OrdersPage customer type filter:', filterCustomerType);
-  }, [customerFilter, filterCustomerType]);
-
   // Reset customer filter when customer type filter changes
   useEffect(() => {
-    console.log('🔄 OrdersPage - Customer type changed, resetting customer filter');
     setCustomerFilter('all');
   }, [filterCustomerType]);
 
@@ -453,17 +437,6 @@ export default function OrdersPage() {
       }
     }
   }, [customerId, customers]);
-
-  // DEBUG useEffect - sleduje zmeny v currentItem
-  useEffect(() => {
-    console.log('🔄 CurrentItem changed:', {
-      packaging_size: currentItem?.packaging_size,
-      is_special_item: currentItem?.is_special_item,
-      crop_id: currentItem?.crop_id,
-      blend_id: currentItem?.blend_id,
-      quantity: currentItem?.quantity
-    });
-  }, [currentItem]);
 
   useEffect(() => {
     const fetchPriceAutomatically = async () => {
@@ -485,7 +458,6 @@ export default function OrdersPage() {
 
     fetchPriceAutomatically();
   }, [currentItem.crop_id, currentItem.blend_id, currentItem.packaging_size, customerType, currentItem.is_special_item]);
-
 
   // REACTIVE DELIVERY CALCULATION: Recalculate whenever customer, items, or delivery settings change
   useEffect(() => {
@@ -564,15 +536,6 @@ export default function OrdersPage() {
       setCalculatedDeliveryPrice(finalDeliveryPrice);
 
       // Enhanced logging pre debugging
-      console.log('═══════════════════════════════════════');
-      console.log('🚚 PREPOČET DOPRAVY');
-      console.log('═══════════════════════════════════════');
-      console.log(`📦 Položky: ${(orderItems || []).length}`);
-      console.log(`💰 Subtotal: ${subtotal.toFixed(2)}€`);
-      console.log(`📊 Threshold (${custType}): ${threshold}€`);
-      console.log(`🚗 Fee: ${fee}€`);
-      console.log(`✅ VÝSLEDNÁ DOPRAVA: ${finalDeliveryPrice.toFixed(2)}€ ${finalDeliveryPrice === 0 ? '🎉 ZDARMA!' : ''}`);
-      console.log('═══════════════════════════════════════');
     };
 
     calculateDelivery();
@@ -731,48 +694,35 @@ export default function OrdersPage() {
   });
 
   const filteredCropsByCategory = useMemo(() => {
-    console.log('🔍 Filtering crops by category:', categoryFilter);
-    console.log('📊 Total crops:', crops?.length);
-    console.log('📊 All crop categories in DB:', [...new Set(crops?.map(c => c.category))]);
-    console.log('📊 Sample crops with categories:', crops?.slice(0, 5).map(c => ({ name: c.name, category: c.category })));
 
     if (!categoryFilter || categoryFilter === 'all') {
-      console.log('✅ Returning all crops');
       return crops;
     }
 
     // If "mix" category is selected, return empty array (blends are shown separately)
     if (categoryFilter === 'mix') {
-      console.log('🎨 Mix category selected - hiding crops');
       return [];
     }
 
     // Now categoryFilter uses database values directly: 'microgreens', 'microherbs', 'edible_flowers'
     const filtered = crops.filter(crop => {
       const matches = crop.category === categoryFilter;
-      console.log(`  Crop "${crop.name}" category="${crop.category}" matches filter "${categoryFilter}": ${matches}`);
       return matches;
     });
-    console.log(`✅ Filtered crops (${categoryFilter}):`, filtered.length, filtered.map(c => c.name));
     return filtered;
   }, [crops, categoryFilter]);
 
   const filteredBlendsByCategory = useMemo(() => {
-    console.log('🔍 Filtering blends by category:', categoryFilter);
-    console.log('📊 Total blends:', blends?.length);
 
     // Only show blends when "mix" category is selected
     if (categoryFilter === 'mix') {
-      console.log('✅ Showing blends for mix category:', blends?.length);
       return blends;
     }
     // If no category filter or "all", show blends in "Mixy" group
     if (!categoryFilter || categoryFilter === 'all') {
-      console.log('✅ Showing all blends:', blends?.length);
       return blends;
     }
     // Otherwise don't show blends
-    console.log('❌ Hiding blends for category:', categoryFilter);
     return [];
   }, [blends, categoryFilter]);
 
@@ -784,7 +734,6 @@ export default function OrdersPage() {
 
       // Osobný odber je vždy zdarma
       if (order.route === 'Osobný odber') {
-        console.log('[getDeliveryFee] Personal pickup - free');
         return 0;
       }
 
@@ -838,21 +787,16 @@ export default function OrdersPage() {
         minFreeThreshold = parseFloat((deliveryRoute?.wholesale_min_free_delivery || 0).toString());
       }
 
-      console.log(`[getDeliveryFee] Order ${order.id?.substring(0, 8)}: Customer ${customer.name} (${customerType}), Route: ${deliveryRoute.name}, Subtotal: ${orderSubtotal.toFixed(2)}€, Threshold: ${minFreeThreshold.toFixed(2)}€, Fee: ${deliveryFee.toFixed(2)}€`);
-
       // SMIŽANY RULE: If min_free_delivery is 0, delivery is automatically free
       if (minFreeThreshold === 0) {
-        console.log(`[getDeliveryFee] Free delivery (Smižany rule: threshold is 0)`);
         return 0;
       }
 
       // STRICT RULE: If orderSubtotal >= minFreeThreshold, free delivery
       if (orderSubtotal >= minFreeThreshold) {
-        console.log(`[getDeliveryFee] Free delivery (threshold met)`);
         return 0;
       }
 
-      console.log(`[getDeliveryFee] Charging delivery fee: ${deliveryFee.toFixed(2)}€`);
       return deliveryFee;
     } catch (error) {
       console.error('[OrdersPage] Error calculating delivery fee:', error);
@@ -959,12 +903,6 @@ export default function OrdersPage() {
     : '';
 
   const openNew = () => {
-    console.log('🔍 CRASH DIAGNOSTIKA - Nová objednávka');
-    console.log('- Existuje dialog state?', typeof setIsDialogOpen === 'function');
-    console.log('- Existuje setIsDialogOpen?', typeof setIsDialogOpen);
-    console.log('- customers array length:', customers?.length || 0);
-    console.log('- crops array length:', crops?.length || 0);
-    console.log('- blends array length:', blends?.length || 0);
 
     try {
       setEditingOrder(null);
@@ -996,9 +934,7 @@ export default function OrdersPage() {
         is_special_item: false,
         custom_crop_name: ''
       });
-      console.log('✅ Všetky state premenné nastavené');
       setIsDialogOpen(true);
-      console.log('✅ Dialog otvorený');
     } catch (error) {
       console.error('❌ Error v openNew:', error);
       toast({ title: 'Chyba', description: 'Nepodarilo sa otvoriť formulár', variant: 'destructive' });
@@ -1041,11 +977,7 @@ export default function OrdersPage() {
         return;
       }
 
-      console.log('📦 Loaded order items for edit:', orderItems);
       if (orderItems && orderItems.length > 0) {
-        console.log('🔍 First item packaging_size from DB:', orderItems[0]?.packaging_size);
-        console.log('🔍 First item package_type from DB:', orderItems[0]?.package_type);
-        console.log('🔍 First item package_ml from DB:', orderItems[0]?.package_ml);
       }
 
       setEditingOrder(order);
@@ -1097,10 +1029,7 @@ export default function OrdersPage() {
         };
       });
 
-      console.log('🗺️ Mapped items:', mappedItems);
       if (mappedItems.length > 0) {
-        console.log('🗺️ First mapped item packaging_size:', mappedItems[0]?.packaging_size);
-        console.log('🗺️ First mapped item packaging_type:', mappedItems[0]?.packaging_type);
       }
 
       setOrderItems(mappedItems);
@@ -1144,16 +1073,9 @@ export default function OrdersPage() {
       const order = extendDialog.order;
       const parentId = order.recurring_order_id || order.parent_order_id || order.id;
 
-      console.log('=== EXTENDING RECURRING ORDER ===');
-      console.log('Parent ID:', parentId);
-      console.log('Additional weeks:', additionalWeeks);
-      console.log('Current end date:', order.recurring_end_date);
-
       // Calculate new end date
       const currentEndDate = order.recurring_end_date ? new Date(order.recurring_end_date) : new Date();
       const newEndDate = addWeeks(currentEndDate, additionalWeeks);
-
-      console.log('New end date:', format(newEndDate, 'yyyy-MM-dd'));
 
       // Find all related orders in this recurring series
       const { data: relatedOrders, error: fetchError } = await supabase
@@ -1168,16 +1090,10 @@ export default function OrdersPage() {
         throw new Error('Nenašli sa žiadne súvisiace objednávky');
       }
 
-      console.log('Found related orders:', relatedOrders.length);
-
       // Get the last order to use as template
       const lastOrder = relatedOrders[relatedOrders.length - 1];
       const currentTotalWeeks = order.recurring_total_weeks || relatedOrders.length;
       const newTotalWeeks = currentTotalWeeks + additionalWeeks;
-
-      console.log('Last order date:', lastOrder.delivery_date);
-      console.log('Current total weeks:', currentTotalWeeks);
-      console.log('New total weeks:', newTotalWeeks);
 
       // Update all existing orders with new end date and total weeks
       const updatePromises = relatedOrders.map(ro =>
@@ -1232,8 +1148,6 @@ export default function OrdersPage() {
         newOrdersData.push(newOrder);
       }
 
-      console.log('Creating new orders:', newOrdersData.length);
-
       // Insert new orders
       const { data: insertedOrders, error: insertError } = await supabase
         .from('orders')
@@ -1241,8 +1155,6 @@ export default function OrdersPage() {
         .select();
 
       if (insertError) throw insertError;
-
-      console.log('Inserted orders:', insertedOrders);
 
       // Clone order items for each new order
       if (lastOrderItems && lastOrderItems.length > 0 && insertedOrders) {
@@ -1280,7 +1192,6 @@ export default function OrdersPage() {
 
         if (itemsInsertError) throw itemsInsertError;
 
-        console.log('Inserted order items:', newOrderItems.length);
       }
 
       toast({
@@ -1341,7 +1252,6 @@ export default function OrdersPage() {
 
       const itemType = cropId ? 'crop' : 'blend';
       const itemId = cropId || blendId;
-      console.log(`📦 Auto-fetching packaging for ${itemType} ${itemId}, weight ${weightG}g`);
 
       const query = supabase
         .from('packaging_mappings')
@@ -1367,11 +1277,9 @@ export default function OrdersPage() {
           packaging_volume_ml: volumeMl
         };
 
-        console.log('✅ Auto-selected packaging:', result);
         return result;
       }
 
-      console.log('⚠️ No packaging mapping found for this', itemType, 'and weight');
       return null;
     } catch (error) {
       console.error('❌ Error fetching packaging mapping:', error);
@@ -1435,7 +1343,6 @@ export default function OrdersPage() {
   };
 
   const checkCapacityForOrder = (orderDate: string, items: OrderItem[]) => {
-    console.log('🔍 Kontrolujem kapacitu pre objednávku:', { orderDate, items });
 
     // Získaj harvest date (objednávka môže byť deň zberu alebo deň po zbere)
     const orderDateObj = new Date(orderDate);
@@ -1452,8 +1359,6 @@ export default function OrdersPage() {
       const pHarvest = new Date(p.harvest_date).toISOString().split('T')[0];
       return pHarvest === harvestDate1Str || pHarvest === harvestDate2Str;
     });
-
-    console.log(`📅 Relevantné výsevy pre ${orderDate}:`, relevantPlantings.length);
 
     // Vypočítaj kapacitu pre každú plodinu+package_size
     const capacity: Record<string, number> = {};
@@ -1516,7 +1421,6 @@ export default function OrdersPage() {
       }
     });
 
-    console.log('📊 Kontrola kapacity:', { capacity, ordered, issues });
     return issues;
   };
 
@@ -1560,12 +1464,10 @@ export default function OrdersPage() {
       // PRIORITY 1: Free Delivery Toggle (forces 0€)
       if (freeDelivery) {
         deliveryPrice = 0;
-        console.log('💶 Manual override: Free delivery toggle ON');
       }
       // PRIORITY 2: Manual Delivery Amount (specific amount entered)
       else if (manualDeliveryAmount && manualDeliveryAmount.trim() !== '') {
         deliveryPrice = parseFloat(manualDeliveryAmount) || 0;
-        console.log('💶 Manual override: Delivery amount set to', deliveryPrice);
       }
       // PRIORITY 3: Auto-calculate from route settings
       else if (customer) {
@@ -1611,15 +1513,6 @@ export default function OrdersPage() {
               deliveryPrice = deliveryFee;
             }
 
-            console.log('💶 Auto-calculated delivery price from route:', {
-              routeName: deliveryRoute.name,
-              customerType: custType,
-              orderSubtotal: totalPrice,
-              deliveryFee,
-              minFreeDelivery,
-              finalDeliveryPrice: deliveryPrice,
-              freeDeliveryException: customer.free_delivery
-            });
           } else {
             console.warn('⚠️ No delivery route selected or invalid route');
           }
@@ -1649,23 +1542,11 @@ export default function OrdersPage() {
 
           if (minFreeDelivery !== 0 && totalPrice < minFreeDelivery) {
             deliveryPrice = deliveryFee;
-            console.log('✅ VALIDATION: Recalculated delivery fee:', deliveryPrice);
           }
         }
       }
 
       const finalTotalPrice = totalPrice + deliveryPrice;
-
-      console.log('💾 SAVING ORDER:', {
-        customerType: customer?.customer_type,
-        route: route,
-        subtotal: totalPrice.toFixed(2),
-        deliveryPrice: deliveryPrice.toFixed(2),
-        totalPrice: finalTotalPrice.toFixed(2),
-        chargeDelivery: !freeDelivery,
-        freeDeliveryToggle: freeDelivery,
-        manualAmount: manualDeliveryAmount
-      });
 
       const orderData = {
         customer_id: customerId,
@@ -1691,7 +1572,6 @@ export default function OrdersPage() {
 
         // Check if we need to update all future orders
         if (updateAllFutureOrders) {
-          console.log('=== UPDATING ALL FUTURE RECURRING ORDERS ===');
 
           // Find parent order ID (either parent_order_id or current order id if it's the parent)
           const parentId = editingOrder.parent_order_id || editingOrder.id;
@@ -1714,13 +1594,11 @@ export default function OrdersPage() {
               id: o.id,
               delivery_date: o.delivery_date
             }));
-            console.log(`Found ${ordersToUpdate.length} orders to update:`, ordersToUpdate);
           }
         }
 
         // Update each order individually to preserve delivery_date
         for (const orderToUpdate of ordersToUpdate) {
-          console.log(`=== UPDATING ORDER ${orderToUpdate.id} (delivery: ${orderToUpdate.delivery_date}) ===`);
 
           // Prepare order data, preserving original delivery_date
           const updateData = {
@@ -1742,7 +1620,6 @@ export default function OrdersPage() {
         // Update order items for all selected orders
         for (const orderToUpdate of ordersToUpdate) {
           const orderId = orderToUpdate.id;
-          console.log(`=== UPDATING ORDER ITEMS FOR ORDER ${orderId} ===`);
 
           // Delete existing items
           await deleteOrderItemsDirectFetch(orderId);
@@ -1785,7 +1662,6 @@ export default function OrdersPage() {
           // Insert new items
           for (let idx = 0; idx < items.length; idx++) {
             const item = items[idx];
-            console.log(`Item ${idx + 1} for order ${orderId}:`, item);
 
             const itemData = {
               order_id: orderId,
@@ -1811,7 +1687,6 @@ export default function OrdersPage() {
 
             try {
               await createOrderItemDirectFetch(itemData);
-              console.log(`✅ DIRECT FETCH SUCCESS Item ${idx + 1} for order ${orderId}`);
             } catch (itemError) {
               console.error(`=== DIRECT FETCH ERROR Item ${idx + 1} for order ${orderId} ===`, itemError);
               throw itemError;
@@ -1894,14 +1769,8 @@ export default function OrdersPage() {
             };
           });
 
-          console.log(`=== INSERTING ORDER_ITEMS FOR ORDER ${orderId} VIA RPC ===`);
-
           for (let idx = 0; idx < items.length; idx++) {
             const item = items[idx];
-            console.log(`Item ${idx + 1}:`, item);
-            console.log(`  package_type: ${item.packaging_type}`);
-            console.log(`  package_ml: ${item.packaging_volume_ml}`);
-            console.log(`  has_label_req: ${item.has_label}`);
 
             const itemData = {
               order_id: orderId,
@@ -1927,7 +1796,6 @@ export default function OrdersPage() {
 
             try {
               await createOrderItemDirectFetch(itemData);
-              console.log(`✅ DIRECT FETCH SUCCESS Item ${idx + 1} for order ${orderId}`);
             } catch (itemError) {
               console.error(`=== DIRECT FETCH ERROR Item ${idx + 1} for order ${orderId} ===`, itemError);
               throw itemError;
@@ -1957,7 +1825,6 @@ export default function OrdersPage() {
         const recurringCount = isRecurring ? parseInt(weekCount) || 1 : 1;
 
         if (isRecurring && recurringCount > 1) {
-          console.log(`=== CREATING ${recurringCount - 1} CHILD ORDERS ===`);
 
           const childOrders = [];
 
@@ -1967,8 +1834,6 @@ export default function OrdersPage() {
             const newDate = new Date(deliveryDate);
             newDate.setDate(newDate.getDate() + (weeksToAdd * 7));
             const newDateString = newDate.toISOString().split('T')[0];
-
-            console.log(`Child order ${i}: ${newDateString} (${weeksToAdd} weeks from parent)`);
 
             // Create child order data
             const childOrderData = {
@@ -2003,11 +1868,8 @@ export default function OrdersPage() {
             throw childError;
           }
 
-          console.log(`✅ Created ${insertedChildOrders.length} child orders`);
-
           // Create order items for each child order
           for (const childOrder of insertedChildOrders) {
-            console.log(`Creating items for child order ${childOrder.id} (${childOrder.delivery_date})`);
             await createOrderItemsForOrder(childOrder.id);
           }
 
@@ -2117,7 +1979,6 @@ export default function OrdersPage() {
       const orderToDelete = recurringDeleteDialog.order;
 
       if (deleteAllFuture) {
-        console.log('=== DELETING ALL FUTURE RECURRING ORDERS ===');
 
         // Find parent order ID
         const parentId = orderToDelete.parent_order_id || orderToDelete.id;
@@ -2136,7 +1997,6 @@ export default function OrdersPage() {
 
         if (relatedOrders && relatedOrders.length > 0) {
           const orderIds = relatedOrders.map(o => o.id);
-          console.log(`Deleting ${orderIds.length} orders:`, orderIds);
 
           // First delete order_items (foreign key constraint)
           const { error: itemsError } = await supabase
@@ -2166,7 +2026,6 @@ export default function OrdersPage() {
           });
         }
       } else {
-        console.log('=== DELETING SINGLE ORDER ===');
 
         // Delete order items first
         const { error: itemsError } = await supabase
@@ -2211,8 +2070,6 @@ export default function OrdersPage() {
 
   const duplicateOrder = async (order: Order) => {
     try {
-      console.log('=== STARTING ORDER DUPLICATION ===');
-      console.log('Original order:', order);
 
       // Sanitize and ensure proper data types - convert everything to valid numbers or 0
       const sanitizeNumber = (val: any, defaultValue = 0): number => {
@@ -2269,8 +2126,6 @@ export default function OrdersPage() {
         orderData.delivery_order = order.delivery_order;
       }
 
-      console.log('Sanitized order data for insert:', orderData);
-
       // Get current user for user_id
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -2297,11 +2152,8 @@ export default function OrdersPage() {
         throw error;
       }
 
-      console.log('✅ Order created successfully:', newOrder);
-
       // Copy all order items with completely sanitized data
       if (order.order_items && order.order_items.length > 0) {
-        console.log('Processing', order.order_items.length, 'order items...');
 
         const items = order.order_items.map((item, index) => {
           // Create completely clean item with SNAKE_CASE database columns
@@ -2335,20 +2187,11 @@ export default function OrdersPage() {
           if (item.custom_crop_name) cleanItem.custom_crop_name = item.custom_crop_name;
           if (item.pieces !== undefined && item.pieces !== null) cleanItem.pieces = Number(item.pieces) || 0;
 
-          console.log(`Item ${index + 1} sanitized:`, cleanItem);
           return cleanItem;
         });
 
-        console.log('Inserting items:', items);
-
-        console.log('=== INSERTING ORDER_ITEMS (DUPLICATE ORDER) VIA RPC ===');
-
         for (let idx = 0; idx < items.length; idx++) {
           const item = items[idx];
-          console.log(`Item ${idx + 1}:`, item);
-          console.log(`  package_type: ${item.packaging_type}`);
-          console.log(`  package_ml: ${item.packaging_volume_ml}`);
-          console.log(`  has_label_req: ${item.has_label}`);
 
           const itemData = {
             order_id: newOrder.id,
@@ -2374,7 +2217,6 @@ export default function OrdersPage() {
 
           try {
             await createOrderItemDirectFetch(itemData);
-            console.log(`✅ DIRECT FETCH SUCCESS (DUPLICATE ORDER) Item ${idx + 1}`);
           } catch (itemError) {
             console.error('❌ DIRECT FETCH FAILED (DUPLICATE ORDER) Item', idx + 1);
             console.error('Error object:', JSON.stringify(itemError, null, 2));
@@ -2383,7 +2225,6 @@ export default function OrdersPage() {
           }
         }
 
-        console.log('✅ Order items created successfully');
       }
 
       // Reload data
@@ -2397,11 +2238,9 @@ export default function OrdersPage() {
         .single();
 
       if (allOrdersQuery.data) {
-        console.log('Opening edit dialog for new order');
         openEdit(allOrdersQuery.data);
       }
 
-      console.log('=== DUPLICATION COMPLETED SUCCESSFULLY ===');
       toast({ title: 'Úspech', description: 'Objednávka zduplikovaná - prosím vyberte nový dátum dodania' });
     } catch (error: any) {
       console.error('=== DUPLICATION FAILED ===');
@@ -3127,13 +2966,6 @@ export default function OrdersPage() {
               const safePrices = prices || [];
               const safePackagings = packagings || [];
 
-              console.log('🎨 Dialog rendering with:', {
-                customers: safeCustomers.length,
-                crops: safeCrops.length,
-                blends: safeBlends.length,
-                routes: safeRoutes.length
-              });
-
               return (
                 <>
                   <DialogHeader>
@@ -3218,8 +3050,6 @@ export default function OrdersPage() {
                             customers={safeCustomers}
                             value={customerId || ''}
                             onValueChange={(newCustomerId) => {
-                              console.log('🔍 Dialog - Customer selected:', newCustomerId);
-                              console.log('🔍 Dialog - Customer object:', safeCustomers.find(c => c.id === newCustomerId));
                               setCustomerId(newCustomerId);
                               const selectedCustomer = safeCustomers.find(c => c.id === newCustomerId);
                               if (selectedCustomer && (selectedCustomer as any).delivery_route_id) {
@@ -3337,7 +3167,6 @@ export default function OrdersPage() {
                           value={weekCount}
                           onChange={(e) => {
                             const inputValue = e.target.value;
-                            console.log('weekCount onChange:', inputValue);
                             if (inputValue === '') {
                               setWeekCount('');
                             } else {
@@ -3398,7 +3227,6 @@ export default function OrdersPage() {
                           <CategoryFilter
                             value={categoryFilter}
                             onChange={(newValue) => {
-                              console.log('🔄 OrdersPage received category change:', newValue);
                               setCategoryFilter(newValue);
                             }}
                             hideLabel={true}
@@ -3478,12 +3306,6 @@ export default function OrdersPage() {
                             </SelectTrigger>
                             <SelectContent className="bg-white z-[9999]">
                               {(() => {
-                                console.log('🌾 All crops count:', crops?.length);
-                                console.log('🔍 Category filter:', categoryFilter);
-                                console.log('✅ Filtered crops count:', filteredCropsByCategory?.length);
-                                console.log('✅ Filtered crops:', filteredCropsByCategory?.map(c => c.name));
-                                console.log('🎨 Filtered blends count:', filteredBlendsByCategory?.length);
-                                console.log('🎨 Filtered blends:', filteredBlendsByCategory?.map(b => b.name));
                                 return null;
                               })()}
                               {filteredCropsByCategory.length > 0 && (
@@ -3512,8 +3334,6 @@ export default function OrdersPage() {
                         <div className="space-y-2">
                           <Label>Váha</Label>
                           {(() => {
-                            console.log('🎯 Current item packaging_size in form:', currentItem?.packaging_size);
-                            console.log('🎯 Current item is_special_item:', currentItem?.is_special_item);
                             return null;
                           })()}
                           {currentItem?.is_special_item ? (
@@ -3522,7 +3342,6 @@ export default function OrdersPage() {
                               value={currentItem?.packaging_size || ''}
                               onChange={(e) => {
                                 const val = e.target.value;
-                                console.log('📝 Input onChange - new value:', val);
                                 setCurrentItem(prev => ({ ...prev, packaging_size: val }));
                               }}
                               onBlur={(e) => {
@@ -3537,7 +3356,6 @@ export default function OrdersPage() {
                             <Select
                               value={currentItem?.packaging_size || ''}
                               onValueChange={async (value) => {
-                                console.log('📝 Select onChange - new value:', value);
                                 setCurrentItem(prev => ({ ...prev, packaging_size: value }));
                                 // AUTOMATIC FETCHING OF PRICE AND PACKAGING
                                 if ((currentItem?.crop_id || currentItem?.blend_id) && customerType) {
@@ -3725,10 +3543,6 @@ export default function OrdersPage() {
                                   </div>
                                   <div className="flex gap-1">
                                     <Button variant="ghost" size="sm" onClick={() => {
-                                      console.log('✏️ Editing item:', item);
-                                      console.log('✏️ Item packaging_size:', item?.packaging_size);
-                                      console.log('✏️ Item packaging_type:', item?.packaging_type);
-                                      console.log('✏️ Item packaging_volume_ml:', item?.packaging_volume_ml);
 
                                       // OPRAVA: Normalizuj packaging_size - pridaj "g" ak chýba
                                       let normalizedPackagingSize = String(item?.packaging_size || '');
@@ -3743,8 +3557,6 @@ export default function OrdersPage() {
                                         quantity: Number(item?.quantity || 1),
                                         price_per_unit: item?.price_per_unit?.toString() || ''
                                       });
-
-                                      console.log('✏️ After setCurrentItem, normalized packaging_size:', normalizedPackagingSize);
 
                                       removeItem(index);
                                     }} className="ml-2">

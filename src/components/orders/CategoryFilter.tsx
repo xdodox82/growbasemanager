@@ -9,10 +9,8 @@ interface CategoryFilterProps {
 }
 
 export function CategoryFilter({ value, onChange, hideLabel }: CategoryFilterProps) {
-  console.log('🎨 CategoryFilter render - value:', value);
 
   const handleChange = (newValue: string) => {
-    console.log('📁 Category onChange triggered - old:', value, '→ new:', newValue);
     onChange(newValue);
   };
 

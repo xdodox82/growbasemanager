@@ -319,7 +319,6 @@ export default function SeedsPage() {
     }
   };
 
-
   const handleArchiveSeed = async () => {
     if (!archiveDialogId) return;
 
@@ -387,7 +386,6 @@ export default function SeedsPage() {
         const extSeed = seed as unknown as ExtendedSeed;
         return (
           <Card key={seed.id} className="p-4 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer overflow-hidden" onClick={() => {
-            console.log('🔍 Opening detail for seed:', seed);
             setSelectedSeed(seed);
           }}>
             <div className="flex items-start justify-between gap-2 min-w-0">
@@ -492,23 +490,15 @@ export default function SeedsPage() {
                         e.preventDefault();
                         e.stopPropagation();
 
-                        console.log('🗑️ DELETE CLICKED');
-                        console.log('Seed:', seed);
-
                         if (!confirm('Naozaj vymazať certifikát?')) {
-                          console.log('❌ Cancelled');
                           return;
                         }
-
-                        console.log('✅ Confirmed');
 
                         try {
                           const { data, error } = await supabase
                             .from('seeds')
                             .update({ certificate_url: null })
                             .eq('id', seed.id);
-
-                          console.log('📊 Response:', { data, error });
 
                           if (error) {
                             console.error('❌ Error:', error);
@@ -591,23 +581,15 @@ export default function SeedsPage() {
                               e.preventDefault();
                               e.stopPropagation();
 
-                              console.log('🗑️ DELETE CLICKED');
-                              console.log('Seed:', seed);
-
                               if (!confirm('Naozaj vymazať certifikát?')) {
-                                console.log('❌ Cancelled');
                                 return;
                               }
-
-                              console.log('✅ Confirmed');
 
                               try {
                                 const { data, error } = await supabase
                                   .from('seeds')
                                   .update({ certificate_url: null })
                                   .eq('id', seed.id);
-
-                                console.log('📊 Response:', { data, error });
 
                                 if (error) {
                                   console.error('❌ Error:', error);
@@ -659,23 +641,15 @@ export default function SeedsPage() {
                             e.preventDefault();
                             e.stopPropagation();
 
-                            console.log('🗑️ DELETE CLICKED');
-                            console.log('Seed:', seed);
-
                             if (!confirm('Naozaj vymazať certifikát?')) {
-                              console.log('❌ Cancelled');
                               return;
                             }
-
-                            console.log('✅ Confirmed');
 
                             try {
                               const { data, error } = await supabase
                                 .from('seeds')
                                 .update({ certificate_url: null })
                                 .eq('id', seed.id);
-
-                              console.log('📊 Response:', { data, error });
 
                               if (error) {
                                 console.error('❌ Error:', error);
@@ -975,23 +949,15 @@ export default function SeedsPage() {
 
                           if (!editingSeed) return;
 
-                          console.log('🗑️ DELETE CLICKED');
-                          console.log('Seed:', editingSeed);
-
                           if (!confirm('Naozaj vymazať certifikát?')) {
-                            console.log('❌ Cancelled');
                             return;
                           }
-
-                          console.log('✅ Confirmed');
 
                           try {
                             const { data, error } = await supabase
                               .from('seeds')
                               .update({ certificate_url: null })
                               .eq('id', editingSeed.id);
-
-                            console.log('📊 Response:', { data, error });
 
                             if (error) {
                               console.error('❌ Error:', error);
@@ -1329,23 +1295,15 @@ export default function SeedsPage() {
                         e.preventDefault();
                         e.stopPropagation();
 
-                        console.log('🗑️ DELETE CLICKED');
-                        console.log('Seed:', selectedSeed);
-
                         if (!confirm('Naozaj vymazať certifikát?')) {
-                          console.log('❌ Cancelled');
                           return;
                         }
-
-                        console.log('✅ Confirmed');
 
                         try {
                           const { data, error } = await supabase
                             .from('seeds')
                             .update({ certificate_url: null })
                             .eq('id', selectedSeed.id);
-
-                          console.log('📊 Response:', { data, error });
 
                           if (error) {
                             console.error('❌ Error:', error);

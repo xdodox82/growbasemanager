@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git config *)",
+      "Bash(git pull *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Jozef Polomský\\\\Desktop\\\\GrowBase\\\\growbasemanager\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Sort-Object)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
+      "Bash(Get-ChildItem -Path \"src\" -Recurse -Include \"*.tsx\",\"*.ts\")",
+      "Bash(Select-String -Pattern \"console\\\\.log\")",
+      "Bash(Select-Object Filename, LineNumber, Line)",
+      "Bash(Format-Table -AutoSize)",
+      "Bash(awk -F: '{print $1}')",
+      "Bash(Remove-Item \"C:\\\\Users\\\\Jozef Polomský\\\\Desktop\\\\GrowBase\\\\growbasemanager\\\\src\\\\pages\\\\orders.txt\" -Force)",
+      "Bash(Remove-Item \"C:\\\\Users\\\\Jozef Polomský\\\\Desktop\\\\GrowBase\\\\growbasemanager\\\\src\\\\pages\\\\LabelsPage.BACKUP.tsx\" -Force)",
+      "Bash(Remove-Item \"C:\\\\Users\\\\Jozef Polomský\\\\Desktop\\\\GrowBase\\\\growbasemanager\\\\src\\\\components\\\\settings\\\\DeliverySettings.tsx.backup\" -Force)",
+      "Bash(Write-Output \"Done\")",
+      "Bash(cat)",
+      "Bash(python3 /tmp/remove_console_logs.py)",
+      "Bash(python *)",
+      "Bash(node *)"
+    ]
+  }
+}

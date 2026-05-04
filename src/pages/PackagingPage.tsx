@@ -170,7 +170,6 @@ export default function PackagingPage() {
   return aIndex - bIndex;
 }).map((packaging) => (
         <Card key={packaging.id} className="p-4 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer overflow-hidden" onClick={() => {
-          console.log('🔍 Opening detail for packaging:', packaging);
           setSelectedPackaging(packaging);
         }}>
           <div className="flex items-start justify-between gap-2 min-w-0">

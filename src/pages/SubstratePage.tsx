@@ -177,7 +177,6 @@ export default function SubstratePage() {
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 w-full min-w-0">
       {substrates.map((substrate) => (
         <Card key={substrate.id} className="p-4 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer overflow-hidden" onClick={() => {
-          console.log('🔍 Opening detail for substrate:', substrate);
           setSelectedSubstrate(substrate);
         }}>
           <div className="flex items-start justify-between gap-2 min-w-0">

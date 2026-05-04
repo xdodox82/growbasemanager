@@ -44,7 +44,6 @@ const generatePackagingSKU = async (
         .single();
 
       if (!product?.sku_prefix) {
-        console.log(`⚠️ Product ${cropId} has no SKU prefix`);
         return null;
       }
 
@@ -61,7 +60,6 @@ const generatePackagingSKU = async (
         .single();
 
       if (!blend?.sku_prefix) {
-        console.log(`⚠️ Blend ${blendId} has no SKU prefix`);
         return null;
       }
 
@@ -72,7 +70,6 @@ const generatePackagingSKU = async (
     if (!skuPrefix || !categoryCode) return null;
 
     const generatedSKU = `${categoryCode}-${skuPrefix}-${weightG}`;
-    console.log(`✨ Generated SKU: ${generatedSKU}`);
     return generatedSKU;
   } catch (error) {
     console.error('Error generating SKU:', error);
@@ -108,8 +105,6 @@ export function PackagingMappings() {
         supabase.from('packagings').select('id, name, type, size').order('name'),
       ]);
 
-      console.log('📦 Loaded packagings:', packagingsRes.data);
-
       const allItems: Crop[] = [];
 
       // Load mappings for all crops
@@ -121,7 +116,6 @@ export function PackagingMappings() {
               .select('weight_g, packaging_id, sku, packagings(id, name, size)')
               .eq('crop_id', crop.id);
 
-            console.log(`📋 Mappings for ${crop.name}:`, mappings);
             const formattedMappings = (mappings || []).map((m: any) => ({
               weight_g: m.weight_g,
               volume: m.packagings?.size || '',
@@ -146,7 +140,6 @@ export function PackagingMappings() {
               .select('weight_g, packaging_id, sku, packagings(id, name, size)')
               .eq('blend_id', blend.id);
 
-            console.log(`📋 Mappings for ${blend.name} (Mix):`, mappings);
             const formattedMappings = (mappings || []).map((m: any) => ({
               weight_g: m.weight_g,
               volume: m.packagings?.size || '',
@@ -195,8 +188,6 @@ export function PackagingMappings() {
 
     const { data: mappings } = await query;
 
-    console.log(`🔧 Opening edit dialog for ${item.name} (${item.type}), mappings:`, mappings);
-
     const idMap: Record<number, string> = {};
     const enabledMap: Record<number, boolean> = {};
 
@@ -207,7 +198,6 @@ export function PackagingMappings() {
       }
     });
 
-    console.log('🗺️ Packaging ID mappings:', idMap);
     setPackagingIdMappings(idMap);
     setEnabledWeights(enabledMap);
     setIsDialogOpen(true);
@@ -237,7 +227,6 @@ export function PackagingMappings() {
     } else {
       setPackagingIdMappings({ ...packagingIdMappings, [weight]: packagingId });
     }
-    console.log(`📝 Updated packaging for ${weight}g:`, packagingId);
   };
 
   const handleSaveConfiguration = async () => {
@@ -285,8 +274,6 @@ export function PackagingMappings() {
           })
       );
 
-      console.log('💾 Saving mappings for', editingCrop.name, `(${editingCrop.type}):`, mappingsToInsert);
-
       if (mappingsToInsert.length > 0) {
         // Insert new mappings with SKU
         const { error: insertError } = await supabase
@@ -295,7 +282,6 @@ export function PackagingMappings() {
 
         if (insertError) throw insertError;
 
-        console.log('✅ Mappings saved successfully with SKUs');
       }
 
       toast({
@@ -396,8 +382,6 @@ export function PackagingMappings() {
       </Card>
     );
   }
-
-  console.log('🔍 All Packagings in State:', packagings);
 
   return (
     <>
@@ -533,7 +517,6 @@ export function PackagingMappings() {
                         <SelectContent>
                           <SelectItem value="none">-</SelectItem>
                           {(() => {
-                            console.log(`📦 Rendering dropdown for ${weight}g with ${packagings.length} packagings:`, packagings.map(p => ({ id: p.id, size: p.size, name: p.name })));
                             return packagings
                               .sort((a, b) => {
                                 const aNum = parseInt(a.size || '0');

@@ -113,7 +113,6 @@ export default function PrepPackagingPage() {
 
   useEffect(() => {
     const fetchCustomers = async () => {
-      console.log('👥 Fetching customers...');
       const { data, error } = await supabase
         .from('customers')
         .select('*')
@@ -122,11 +121,6 @@ export default function PrepPackagingPage() {
       if (error) {
         console.error('❌ Error fetching customers:', error);
       } else {
-        console.log('✅ Customers loaded:', data?.length);
-        console.log('   Sample customers:', data?.slice(0, 3).map(c => ({
-          name: c.name,
-          customer_type: c.customer_type
-        })));
         setCustomers(data || []);
       }
     };
@@ -160,8 +154,6 @@ export default function PrepPackagingPage() {
         return;
       }
 
-      console.log('🔍 Fetching orders for dates:', selectedDates.map(d => format(d, 'yyyy-MM-dd')));
-
       const allOrdersData = [];
 
       for (const date of selectedDates) {
@@ -184,7 +176,6 @@ export default function PrepPackagingPage() {
         if (error) {
           console.error('❌ Error fetching orders for', dateStr, ':', error);
         } else if (data) {
-          console.log('✅ Fetched', data.length, 'orders for', dateStr);
           allOrdersData.push(...data);
         }
       }
@@ -194,7 +185,6 @@ export default function PrepPackagingPage() {
         new Map(allOrdersData.map(o => [o.id, o])).values()
       );
 
-      console.log('📊 Total unique orders:', uniqueOrders.length);
       setAllOrders(uniqueOrders);
     };
 
@@ -202,27 +192,18 @@ export default function PrepPackagingPage() {
   }, [selectedDates]);
 
   useEffect(() => {
-    console.log('🔧 Applying filters...');
-    console.log('  allOrders count:', allOrders.length);
-    console.log('  customerTypeFilter:', customerTypeFilter);
-    console.log('  categoryFilter:', categoryFilter);
 
     let filtered = [...allOrders];
 
     if (customerTypeFilter !== 'all') {
       filtered = filtered.filter(order => order.customer_type === customerTypeFilter);
-      console.log('  After customer type filter:', filtered.length);
     }
 
-    console.log('  customerFilter:', customerFilter);
     if (customerFilter && customerFilter !== 'all') {
-      console.log('  🎯 Filtering by specific customer:', customerFilter);
       filtered = filtered.filter(order => {
         const matches = order.customer_id === customerFilter;
-        console.log(`    Order ${order.id} customer_id="${order.customer_id}" matches "${customerFilter}": ${matches}`);
         return matches;
       });
-      console.log('  After specific customer filter:', filtered.length);
     }
 
     if (categoryFilter !== 'all') {
@@ -235,14 +216,9 @@ export default function PrepPackagingPage() {
           order.items?.some((item: any) => item.crop?.category === categoryFilter)
         );
       }
-      console.log('  After category filter:', filtered.length);
     }
 
     if (sizeFilter !== 'all') {
-      console.log('  🔍 Size filter:', sizeFilter);
-      console.log('  🔍 Items package_ml:',
-        allOrders.flatMap(o => o.items || []).map(i => i.package_ml)
-      );
 
       // Preveď filter hodnotu na číslo (napr. "750ml" → 750)
       const filterValue = parseInt(sizeFilter.replace('ml', ''));
@@ -250,17 +226,9 @@ export default function PrepPackagingPage() {
       filtered = filtered.filter(order =>
         order.items?.some((item: any) => item.package_ml === filterValue)
       );
-      console.log('  After size filter:', filtered.length);
     }
 
     if (labelFilter !== 'all') {
-      console.log('  🔍 Label filter:', labelFilter);
-      console.log('  🔍 Items has_label_req:',
-        allOrders.flatMap(o => o.items || []).map(i => i.has_label_req)
-      );
-      console.log('  🔍 Items needs_label:',
-        allOrders.flatMap(o => o.items || []).map(i => i.needs_label)
-      );
 
       const needsLabel = labelFilter === 'yes';
       filtered = filtered.filter(order =>
@@ -268,7 +236,6 @@ export default function PrepPackagingPage() {
           item.has_label_req === needsLabel || item.needs_label === needsLabel
         )
       );
-      console.log('  After label filter:', filtered.length);
     }
 
     if (packagingTypeFilter !== 'all') {
@@ -277,10 +244,8 @@ export default function PrepPackagingPage() {
           item.package_type === packagingTypeFilter
         )
       );
-      console.log('  After packaging filter:', filtered.length);
     }
 
-    console.log('✅ Final filteredOrders count:', filtered.length);
     setFilteredOrders(filtered);
   }, [allOrders, customerTypeFilter, customerFilter, categoryFilter, sizeFilter, labelFilter, packagingTypeFilter]);
 
@@ -297,7 +262,6 @@ export default function PrepPackagingPage() {
         }
       });
 
-      console.log('🔄 Loading packaging_ready items from DB:', prepared.size);
       setPreparedItems(prepared);
     }
   }, [filteredOrders]);
@@ -439,13 +403,10 @@ export default function PrepPackagingPage() {
   };
 
   const groupedItems = (() => {
-    console.log('📦 Creating groupedItems from filteredOrders:', filteredOrders.length);
     const groups: Record<string, GroupedItem> = {};
 
     filteredOrders.forEach(order => {
-      console.log('  Processing order:', order.id, 'items count:', order.items?.length);
       if (!order.items || order.items.length === 0) {
-        console.log('    ⚠️ Order has no items, skipping');
         return;
       }
 
@@ -457,7 +418,6 @@ export default function PrepPackagingPage() {
         const packageSize = item.packaging_size;
         const packageMl = item.package_ml;
         if (!packageSize) {
-          console.log('    ⚠️ Item has no packaging_size, skipping');
           return;
         }
 
@@ -468,7 +428,6 @@ export default function PrepPackagingPage() {
 
         // NEW KEY: bez has_label
         const key = `${cropName}-${packageSize}`;
-        console.log('    ✓ Item:', cropName, packageSize, 'package_ml:', packageMl, 'label:', hasLabel, 'has_label_req:', item.has_label_req);
 
         if (!groups[key]) {
           groups[key] = {
@@ -538,7 +497,6 @@ export default function PrepPackagingPage() {
       return a.crop_name.localeCompare(b.crop_name);
     });
 
-    console.log('📦 Final groupedItems count:', result.length);
     return result;
   })();
 
@@ -572,7 +530,6 @@ export default function PrepPackagingPage() {
 
   const saveCropOrder = (order: Record<string, number>) => {
     localStorage.setItem('prep_packaging_order', JSON.stringify(order));
-    console.log('✅ Crop order saved:', order);
   };
 
   const sortGroupsByCropOrder = (groups: typeof unpreparedGroups) => {
@@ -757,27 +714,15 @@ export default function PrepPackagingPage() {
                 <SearchableCustomerSelect
                   value={customerFilter}
                   onValueChange={(value) => {
-                    console.log('👤 Customer filter changed:', value);
                     setCustomerFilter(value);
                   }}
                   customers={(() => {
-                    console.log('👥 DIAGNOSTIKA ZÁKAZNÍK FILTER:');
-                    console.log('  All customers count:', customers?.length);
-                    console.log('  customerTypeFilter:', customerTypeFilter);
-                    console.log('  Sample customers:', customers?.slice(0, 3).map(c => ({
-                      name: c.name,
-                      customer_type: c.customer_type
-                    })));
 
                     const filtered = customers?.filter(c => {
                       if (customerTypeFilter === 'all') return true;
                       const matches = c.customer_type === customerTypeFilter;
-                      console.log(`  Customer "${c.name}" type="${c.customer_type}" matches "${customerTypeFilter}": ${matches}`);
                       return matches;
                     });
-
-                    console.log('  ✅ Filtered customers count:', filtered?.length);
-                    console.log('  ✅ Filtered customer names:', filtered?.map(c => c.name));
 
                     return filtered;
                   })()}

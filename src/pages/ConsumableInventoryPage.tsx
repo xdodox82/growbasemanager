@@ -253,7 +253,6 @@ export default function ConsumableInventoryPage() {
                 <TableBody>
                   {categoryItems.map((item) => (
                     <TableRow key={item.id} className="cursor-pointer hover:bg-muted/50" onClick={() => {
-                      console.log('🔍 Opening detail for consumable item:', item);
                       setSelectedItem(item);
                     }}>
                       <TableCell className="max-w-[140px]">

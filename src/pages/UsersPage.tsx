@@ -176,12 +176,6 @@ const UsersPage = () => {
     setIsCreating(true);
 
     try {
-      console.log('[CREATE USER] Calling RPC: admin_create_user_v3');
-      console.log('[CREATE USER] Data:', {
-        email: newUserData.email,
-        fullName: newUserData.fullName,
-        role: newUserData.role,
-      });
 
       const { data, error } = await supabase.rpc('admin_create_user_v3', {
         p_email: newUserData.email,
@@ -189,8 +183,6 @@ const UsersPage = () => {
         p_full_name: newUserData.fullName || '',
         p_role: newUserData.role,
       });
-
-      console.log('[CREATE USER] RPC Response:', { data, error });
 
       if (error) {
         console.error('[CREATE USER] RPC error:', error);
@@ -217,8 +209,6 @@ const UsersPage = () => {
 
         throw new Error(errorMsg);
       }
-
-      console.log('[CREATE USER] SUCCESS - User ID:', data.user_id);
 
       toast({
         title: 'Používateľ vytvorený',
@@ -260,14 +250,10 @@ const UsersPage = () => {
     setIsDeleting(true);
 
     try {
-      console.log('[DELETE USER] Calling RPC: admin_delete_user');
-      console.log('[DELETE USER] User ID:', deleteUserId);
 
       const { data, error } = await supabase.rpc('admin_delete_user', {
         p_user_id_to_delete: deleteUserId,
       });
-
-      console.log('[DELETE USER] RPC Response:', { data, error });
 
       if (error) {
         console.error('[DELETE USER] RPC error:', error);
@@ -283,8 +269,6 @@ const UsersPage = () => {
         console.error('[DELETE USER] RPC returned error:', data.error);
         throw new Error(data.error || 'Nepodarilo sa zmazať používateľa');
       }
-
-      console.log('[DELETE USER] SUCCESS');
 
       setUsers((prev) => prev.filter((u) => u.id !== deleteUserId));
       setDeleteUserId(null);

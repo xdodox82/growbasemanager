@@ -241,7 +241,6 @@ const PlantingPlanPage = () => {
     setCustomSeedDensity(0);
   };
 
-
   const fetchCrops = useCallback(async () => {
     try {
       const { data, error } = await supabase
@@ -271,25 +270,12 @@ const PlantingPlanPage = () => {
 
       if (error) throw error;
 
-      console.log('🔍 RAW data z DB:', plansData?.length, 'záznamov');
-      console.log('🔍 Unique plodiny:', [...new Set(plansData?.map(p => p.crops?.name))]);
-      console.log('🔍 Detail všetkých plodín:', plansData?.map(p => ({
-        crop: p.crops?.name,
-        date: p.sow_date,
-        size: p.tray_size
-      })));
-
       const plansWithConfig = (plansData || []).map((plan) => {
         let trayConfig = null;
-
-        console.log(`RAW tray_configs for ${plan.crops?.name}:`, plan.crops?.tray_configs);
 
         if (plan.crops?.tray_configs) {
           const configs = plan.crops.tray_configs;
           const traySize = plan.tray_size;
-
-          console.log(`Looking for size: ${traySize}`);
-          console.log(`Config for ${traySize}:`, configs[traySize]);
 
           if (configs[traySize]) {
             const sizeConfig = configs[traySize];
@@ -306,8 +292,6 @@ const PlantingPlanPage = () => {
             };
           }
         }
-
-        console.log(`FINAL Config for ${plan.crops?.name} ${plan.tray_size}:`, trayConfig);
 
         return {
           ...plan,
@@ -337,7 +321,6 @@ const PlantingPlanPage = () => {
 
   // Group planting plans by crop_id + sow_date for UI display
   const groupedPlans = useMemo(() => {
-    console.log('🔍 PRED grouping:', plans.length, 'plánov');
 
     const grouped = new Map<string, GroupedPlantingPlan>();
 
@@ -376,13 +359,6 @@ const PlantingPlanPage = () => {
 
     const result = Array.from(grouped.values());
 
-    console.log('🔍 PO grouping:', result.length, 'skupín');
-    console.log('🔍 Grouped plodiny:', result.map(g => ({
-      crop: g.crops?.name,
-      date: g.sow_date,
-      trays: g.trays?.length
-    })));
-
     return result;
   }, [plans]);
 
@@ -392,9 +368,6 @@ const PlantingPlanPage = () => {
     try {
       const formattedStartDate = startDate;
       const formattedEndDate = endDate;
-
-      console.log('🔍 Filter statusov:', ['cakajuca', 'potvrdena', 'pripravena']);
-      console.log('🔍 Obdobie:', formattedStartDate, 'až', formattedEndDate);
 
       const { data: orders, error: ordersError } = await supabase
         .from('orders')
@@ -420,14 +393,6 @@ const PlantingPlanPage = () => {
         .lte('delivery_date', formattedEndDate)
         .in('status', ['cakajuca', 'potvrdena', 'pripravena']);
 
-      console.log('📦 Načítané objednávky:', orders?.length);
-      console.log('📦 Statusy objednávok:', orders?.map(o => ({
-        id: o.id,
-        status: o.status,
-        date: o.delivery_date,
-        items: o.order_items?.length
-      })));
-
       if (ordersError) {
         console.error('Orders fetch error:', ordersError);
         throw ordersError;
@@ -442,13 +407,6 @@ const PlantingPlanPage = () => {
       }
 
       const grouped = groupOrdersByCropAndHarvestDate(orders);
-      console.log('📦 Zoskupené skupiny:', grouped.length);
-      console.log('📦 Detail skupín:', grouped.map(g => ({
-        crop: g.crop.name,
-        harvestDate: g.harvestDate,
-        totalRequired: g.totalRequired,
-        orderIds: g.orderIds
-      })));
 
       if (grouped.length === 0) {
         toast({
@@ -461,13 +419,9 @@ const PlantingPlanPage = () => {
       let createdCount = 0;
 
       for (const group of grouped) {
-        console.log(`🌱 Spracovávam skupinu: ${group.crop.name}, zber ${group.harvestDate}, potreba ${group.totalRequired}g, objednávky: ${group.orderIds.join(', ')}`);
         const created = await createPlantingTasksForGroup(group);
-        console.log(`✅ Vytvorené: ${created}`);
         createdCount += created;
       }
-
-      console.log(`🎉 Celkom vytvorených: ${createdCount}`);
 
       toast({
         title: 'Plán vygenerovaný',
@@ -543,8 +497,6 @@ const PlantingPlanPage = () => {
     const reserve = reservePercent / 100;
     const withReserve = totalRequired * (1 + reserve);
 
-    console.log(`📊 Požiadavka: ${totalRequired}g + rezerva ${reservePercent}% = ${Math.round(withReserve)}g`);
-
     // 1. VYMAŽ existujúce AUTO-GENEROVANÉ plány pre túto kombináciu
     const { error: deleteError } = await supabase
       .from('planting_plans')
@@ -556,13 +508,10 @@ const PlantingPlanPage = () => {
     if (deleteError) {
       console.error('Chyba pri mazaní:', deleteError);
     } else {
-      console.log(`🗑️ Vymazané existujúce plány pre ${crop.name}, zberu: ${harvestDate}`);
     }
 
     // 2. Optimalizuj tácky
     const trayConfig = optimizeTrayConfiguration(crop, withReserve);
-
-    console.log(`🎯 Optimalizácia tácok:`, trayConfig);
 
     // 3. VYTVOR nové plány (INSERT, nie UPDATE)
     let created = 0;
@@ -582,7 +531,6 @@ const PlantingPlanPage = () => {
 
       if (!insertError) {
         created++;
-        console.log(`➕ Vytvorený: ${tray.count}×${tray.size}`);
       } else {
         console.error(`❌ Chyba pri vytváraní plánu ${tray.size}:`, insertError);
       }
@@ -622,8 +570,6 @@ const PlantingPlanPage = () => {
       return [];
     }
 
-    console.log(`✅ Dostupné veľkosti:`, sizes);
-
     const result: Array<{ size: string; count: number; seedsPerTray: number; yieldPerTray: number }> = [];
     let remaining = requiredYield;
 
@@ -639,7 +585,6 @@ const PlantingPlanPage = () => {
           seedsPerTray: perfectSize.seeds,
           yieldPerTray: perfectSize.yield
         });
-        console.log(`  📦 1× ${perfectSize.name} (${perfectSize.yield}g pokryje ${Math.round(remaining)}g)`);
         return result;
       }
     }
@@ -656,7 +601,6 @@ const PlantingPlanPage = () => {
           yieldPerTray: xlSize.yield
         });
         remaining -= xlCount * xlSize.yield;
-        console.log(`  📦 ${xlCount}× XL (${xlSize.yield}g každá, zostáva ${Math.round(remaining)}g)`);
       }
     }
 
@@ -686,11 +630,8 @@ const PlantingPlanPage = () => {
           seedsPerTray: selectedSize.seeds,
           yieldPerTray: selectedSize.yield
         });
-        console.log(`  📦 1× ${selectedSize.name} (${selectedSize.yield}g)`);
       }
     }
-
-    console.log(`📊 Výsledná konfigurácia:`, result);
 
     return result;
   }
@@ -784,8 +725,6 @@ const PlantingPlanPage = () => {
   };
 
   const openDetailDialog = (plan: GroupedPlantingPlan | PlantingPlan) => {
-    console.log('=== OPENING DETAIL DIALOG ===');
-    console.log('Plan data:', plan);
 
     setSelectedPlan(plan as any);
     setIsDetailDialogOpen(true);
@@ -988,23 +927,6 @@ const PlantingPlanPage = () => {
       }
     }
 
-    console.log(isEdit ? '=== UPDATING PLANTING ===' : '=== CREATING PLANTING ===');
-    console.log('Selected Crop ID:', selectedCropId);
-    console.log('Sow Date:', sowDate);
-    console.log('Tray Size:', selectedTraySize);
-    console.log('Tray Count:', trayCount);
-    console.log('Seed Density:', seedDensity);
-    console.log('Is Mixed:', isMixedPlanting);
-
-    console.log('=== UKLADANIE VÝSEVU ===');
-    console.log('isMixedPlanting:', isMixedPlanting);
-    console.log('mixedSeedDensity:', mixedSeedDensity);
-    console.log('useCustomDensity:', useCustomDensity);
-    console.log('customSeedDensity:', customSeedDensity);
-    console.log('dbSeedDensity:', dbSeedDensity);
-    console.log('Final seedDensity:', seedDensity);
-    console.log('Total seed grams (seedDensity × trayCount):', totalSeedGrams);
-
     try {
       // NOTE: Test functionality temporarily removed due to Supabase PostgREST cache bug
       // Bug report filed: GitHub issue & Supabase support ticket
@@ -1027,11 +949,6 @@ const PlantingPlanPage = () => {
         is_test: isTest,
         notes: notes.trim() || null
       };
-
-      console.log('=== UKLADÁM DO DB ===');
-      console.log('Ukladám seed_amount_grams:', dataToSave.seed_amount_grams);
-      console.log('Ukladám total_seed_grams:', dataToSave.total_seed_grams);
-      console.log(isEdit ? 'Updating data:' : 'Inserting data:', JSON.stringify(dataToSave, null, 2));
 
       let error;
       if (isEdit) {
@@ -1063,8 +980,6 @@ const PlantingPlanPage = () => {
         setSaving(false);
         return;
       }
-
-      console.log(isEdit ? 'Update successful' : 'Insert successful');
 
       toast({
         title: isEdit ? 'Uložené' : 'Výsev vytvorený',
@@ -1114,10 +1029,8 @@ const PlantingPlanPage = () => {
   };
 
   const filteredPlans = useMemo(() => {
-    console.log('🔍 PRED filter (statusFilter=' + statusFilter + '):', groupedPlans.length, 'plánov');
     if (statusFilter === 'all') return groupedPlans;
     const filtered = groupedPlans.filter(plan => plan.status === statusFilter);
-    console.log('🔍 PO filter:', filtered.length, 'plánov');
     return filtered;
   }, [groupedPlans, statusFilter]);
 
@@ -1191,9 +1104,6 @@ const PlantingPlanPage = () => {
       return new Date();
     }
   };
-
-  console.log('🎨 RENDERUJEM:', filteredPlans.length, 'plánov');
-  console.log('🎨 Dátumy v plansByDate:', Object.keys(plansByDate));
 
   return (
     <MainLayout>
@@ -1904,15 +1814,10 @@ const PlantingPlanPage = () => {
                           const mixConfig = JSON.parse((selectedPlan as any).mix_configuration);
                           const totalDensity = selectedPlan.seed_amount_grams;
 
-                          console.log('=== ROZPAD SEMIEN DEBUG ===');
-                          console.log('seed_amount_grams z DB:', selectedPlan.seed_amount_grams);
-                          console.log('Mix config:', mixConfig);
-
                           const prepoctaneHodnoty = mixConfig.map((m: any) => {
                             const gramov = (totalDensity * m.percentage / 100).toFixed(1);
                             return `${m.crop_name}: ${gramov}g`;
                           });
-                          console.log('Prepočítané hodnoty:', prepoctaneHodnoty);
 
                           return mixConfig.map((mix: any, idx: number) => {
                             const mixDensity = totalDensity * (mix.percentage / 100);
