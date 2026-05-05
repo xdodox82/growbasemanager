@@ -2302,6 +2302,27 @@ export default function OrdersPage() {
     }
   };
 
+  const getStatusBorderColor = (status: string): string => {
+    switch (status) {
+      case 'growing':          return '#10b981';
+      case 'packed':           return '#f59e0b';
+      case 'on_the_way':       return '#0ea5e9';
+      case 'pending_approval': return '#a855f7';
+      case 'cakajuca':
+      case 'pending':          return '#eab308';
+      case 'potvrdena':
+      case 'confirmed':        return '#22c55e';
+      case 'pripravena':
+      case 'ready':
+      case 'packaging_ready':  return '#f97316';
+      case 'dorucena':
+      case 'delivered':        return '#3b82f6';
+      case 'zrusena':
+      case 'cancelled':        return '#ef4444';
+      default:                 return '#e5e7eb';
+    }
+  };
+
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
       'cakajuca': 'Čakajúca',
@@ -2342,6 +2363,23 @@ export default function OrdersPage() {
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
     toast({ title: 'Stav zmenený', description: `Objednávka označená: ${getStatusLabel(newStatus)}.` });
   };
+
+  useEffect(() => {
+    if (!detailModalOpen || !selectedOrderDetail) return;
+    const handleKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.key === 'e' || e.key === 'E') {
+        setDetailModalOpen(false);
+        openEdit(selectedOrderDetail);
+      }
+      if ((e.key === 'd' || e.key === 'D') && selectedOrderDetail.status === 'on_the_way') {
+        handleQuickStatusChange(selectedOrderDetail.id, 'dorucena');
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [detailModalOpen, selectedOrderDetail]);
 
   const formatDeliveryDate = (dateString: string) => {
     try {
@@ -2764,6 +2802,7 @@ export default function OrdersPage() {
                     <tr
                       key={order.id}
                       className="hover:bg-gray-50 cursor-pointer transition-colors"
+                      style={{ borderLeft: `4px solid ${getStatusBorderColor(order.status)}` }}
                       onClick={() => {
                         setSelectedOrderDetail(order);
                         setDetailModalOpen(true);
@@ -2775,7 +2814,7 @@ export default function OrdersPage() {
                             <ShoppingCart className="h-4 w-4" />
                           </div>
                           <div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <div className="font-semibold text-sm text-gray-900">{order.customer_name || 'Bez názvu'}</div>
                               {(order as any).order_source === 'app' && (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
@@ -2783,6 +2822,9 @@ export default function OrdersPage() {
                                   APP
                                 </span>
                               )}
+                              {order.customer_type === 'home' && <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200"><House className="w-3 h-3" />Domáci</span>}
+                              {order.customer_type === 'gastro' && <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200"><Utensils className="w-3 h-3" />Gastro</span>}
+                              {order.customer_type === 'wholesale' && <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-50 text-orange-700 border border-orange-200"><Store className="w-3 h-3" />VO</span>}
                             </div>
                             {order.order_items && order.order_items.length > 0 && (
                               <div className="text-xs text-gray-500">
@@ -2852,7 +2894,7 @@ export default function OrdersPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredOrders.map((order) => (
-              <Card key={order.id} className="p-5 hover:shadow-xl transition-all bg-white rounded-xl border border-gray-200 cursor-pointer" onClick={() => {
+              <Card key={order.id} className="p-5 hover:shadow-xl transition-all bg-white rounded-xl border border-gray-200 cursor-pointer" style={{ borderLeft: `4px solid ${getStatusBorderColor(order.status)}` }} onClick={() => {
                 setSelectedOrderDetail(order);
                 setDetailModalOpen(true);
               }}>
@@ -2882,6 +2924,9 @@ export default function OrdersPage() {
                             APP
                           </span>
                         )}
+                        {order.customer_type === 'home' && <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200"><House className="w-3 h-3" />Domáci</span>}
+                        {order.customer_type === 'gastro' && <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200"><Utensils className="w-3 h-3" />Gastro</span>}
+                        {order.customer_type === 'wholesale' && <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-50 text-orange-700 border border-orange-200"><Store className="w-3 h-3" />VO</span>}
                         {(order.parent_order_id || (order.is_recurring && (order.recurring_weeks || 0) > 1) || order.notes?.includes('freq:weekly') || order.notes?.includes('freq:biweekly')) && (
                           <div className="flex items-center" title="Opakujúca sa objednávka">
                             <RefreshCw className="h-4 w-4 text-blue-600" />
@@ -3906,33 +3951,51 @@ export default function OrdersPage() {
                         ) : (
                           <div>
                             <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Postup objednávky</div>
-                            <div className="flex items-start">
-                              {STATUS_STEPS.map((step, idx) => (
-                                <div key={idx} className="flex items-center flex-1">
-                                  <div className="flex flex-col items-center flex-1">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all ${
-                                      idx < currentStepIdx
-                                        ? 'bg-[#10b981] border-[#10b981]'
-                                        : idx === currentStepIdx
-                                        ? 'bg-[#10b981] border-[#10b981] shadow-md shadow-green-200'
-                                        : 'bg-white border-gray-300'
-                                    }`}>
-                                      {idx < currentStepIdx ? (
-                                        <Check className="h-4 w-4 text-white" />
-                                      ) : idx === currentStepIdx ? (
-                                        <div className="w-3 h-3 rounded-full bg-white" />
-                                      ) : null}
-                                    </div>
-                                    <span className={`text-[10px] font-medium text-center mt-1.5 leading-tight max-w-[52px] ${
-                                      idx === currentStepIdx ? 'text-[#10b981] font-bold' : idx < currentStepIdx ? 'text-gray-500' : 'text-gray-400'
-                                    }`}>{step.label}</span>
+                            {isMobile ? (
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs text-gray-400 w-14 text-right leading-tight">
+                                  {currentStepIdx > 0 ? STATUS_STEPS[currentStepIdx - 1].label : ''}
+                                </span>
+                                <div className="flex flex-col items-center flex-1">
+                                  <div className="w-10 h-10 rounded-full bg-[#10b981] border-2 border-[#10b981] shadow-md shadow-green-200 flex items-center justify-center">
+                                    <div className="w-3.5 h-3.5 rounded-full bg-white" />
                                   </div>
-                                  {idx < STATUS_STEPS.length - 1 && (
-                                    <div className={`h-0.5 w-4 flex-shrink-0 mb-5 ${idx < currentStepIdx ? 'bg-[#10b981]' : 'bg-gray-200'}`} />
-                                  )}
+                                  <span className="text-xs font-bold text-[#10b981] mt-1.5 text-center">{STATUS_STEPS[currentStepIdx]?.label}</span>
+                                  <span className="text-[10px] text-gray-400">{currentStepIdx + 1} / {STATUS_STEPS.length}</span>
                                 </div>
-                              ))}
-                            </div>
+                                <span className="text-xs text-gray-400 w-14 leading-tight">
+                                  {currentStepIdx < STATUS_STEPS.length - 1 ? STATUS_STEPS[currentStepIdx + 1].label : ''}
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="flex items-start">
+                                {STATUS_STEPS.map((step, idx) => (
+                                  <div key={idx} className="flex items-center flex-1">
+                                    <div className="flex flex-col items-center flex-1">
+                                      <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all ${
+                                        idx < currentStepIdx
+                                          ? 'bg-[#10b981] border-[#10b981]'
+                                          : idx === currentStepIdx
+                                          ? 'bg-[#10b981] border-[#10b981] shadow-md shadow-green-200'
+                                          : 'bg-white border-gray-300'
+                                      }`}>
+                                        {idx < currentStepIdx ? (
+                                          <Check className="h-4 w-4 text-white" />
+                                        ) : idx === currentStepIdx ? (
+                                          <div className="w-3 h-3 rounded-full bg-white" />
+                                        ) : null}
+                                      </div>
+                                      <span className={`text-[10px] font-medium text-center mt-1.5 leading-tight max-w-[52px] ${
+                                        idx === currentStepIdx ? 'text-[#10b981] font-bold' : idx < currentStepIdx ? 'text-gray-500' : 'text-gray-400'
+                                      }`}>{step.label}</span>
+                                    </div>
+                                    {idx < STATUS_STEPS.length - 1 && (
+                                      <div className={`h-0.5 w-4 flex-shrink-0 mb-5 ${idx < currentStepIdx ? 'bg-[#10b981]' : 'bg-gray-200'}`} />
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
