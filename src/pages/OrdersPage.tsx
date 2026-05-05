@@ -21,7 +21,7 @@ import { RecurringOrderDeleteDialog } from '@/components/orders/RecurringOrderDe
 import { RecurringOrderExtendDialog } from '@/components/orders/RecurringOrderExtendDialog';
 import { BulkDateChangeDialog } from '@/components/orders/BulkDateChangeDialog';
 import { useDeliveryDays } from '@/hooks/useDeliveryDays';
-import { ShoppingCart, Plus, Grid3x3, List, FileSpreadsheet, FileText, Pencil, Copy, Trash2, Calendar, Package, Truck, House, Utensils, Store, Scissors, X, MapPin, RefreshCw, Check, Leaf, Sprout, Flower, Palette, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Smartphone } from 'lucide-react';
+import { ShoppingCart, Plus, Grid3x3, List, FileSpreadsheet, FileText, Pencil, Copy, Trash2, Calendar, Package, Truck, House, Utensils, Store, Scissors, X, MapPin, RefreshCw, Check, Leaf, Sprout, Flower, Palette, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Smartphone, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO, getDay, addWeeks, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday } from 'date-fns';
@@ -271,6 +271,7 @@ export default function OrdersPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [detailActiveTab, setDetailActiveTab] = useState<'detail' | 'history'>('detail');
   const [bulkDateChangeOpen, setBulkDateChangeOpen] = useState(false);
   const [selectedOrderDetail, setSelectedOrderDetail] = useState<Order | null>(null);
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
@@ -2322,6 +2323,26 @@ export default function OrdersPage() {
     return labels[status] || 'Nová';
   };
 
+  const STATUS_STEPS = [
+    { keys: ['cakajuca', 'pending', 'pending_approval'], label: 'Čakajúca' },
+    { keys: ['potvrdena', 'confirmed'], label: 'Potvrdená' },
+    { keys: ['growing'], label: 'Rastie' },
+    { keys: ['packed', 'pripravena', 'ready', 'packaging_ready'], label: 'Zabalená' },
+    { keys: ['on_the_way'], label: 'Na ceste' },
+    { keys: ['dorucena', 'delivered'], label: 'Doručená' },
+  ];
+
+  const handleQuickStatusChange = async (orderId: string, newStatus: string) => {
+    const { error } = await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
+    if (error) {
+      toast({ title: 'Chyba', description: 'Nepodarilo sa zmeniť stav.', variant: 'destructive' });
+      return;
+    }
+    setSelectedOrderDetail(prev => prev ? { ...prev, status: newStatus } : null);
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+    toast({ title: 'Stav zmenený', description: `Objednávka označená: ${getStatusLabel(newStatus)}.` });
+  };
+
   const formatDeliveryDate = (dateString: string) => {
     try {
       if (!dateString) return '-';
@@ -3790,248 +3811,423 @@ export default function OrdersPage() {
         onSuccess={loadData}
       />
 
-      <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
+      <Dialog open={detailModalOpen} onOpenChange={(open) => { setDetailModalOpen(open); if (!open) setDetailActiveTab('detail'); }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">Detail objednávky</DialogTitle>
           </DialogHeader>
           {selectedOrderDetail && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
-                <div>
-                  <div className="text-sm text-gray-600">Zákazník</div>
-                  <div className="flex items-center gap-2">
-                    <div className="font-semibold text-gray-900">{selectedOrderDetail.customer_name || 'Bez názvu'}</div>
-                    {(selectedOrderDetail as any).order_source === 'app' && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
-                        <Smartphone className="w-3 h-3" />
-                        APP
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-600">Dátum dodania</div>
-                  <div className="font-semibold text-gray-900">{formatDeliveryDate(selectedOrderDetail.delivery_date)}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-600">Trasa</div>
-                  {selectedOrderDetail.route === 'Osobný odber' ? (
-                    <div className="flex items-center gap-2 text-green-600">
-                      <Store className="h-4 w-4" />
-                      <span className="font-semibold">Osobný odber</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <Truck className="h-4 w-4" />
-                      <span className="font-semibold text-gray-900">
-                        {selectedOrderDetail.route || (selectedOrderDetail as any).customers?.delivery_routes?.name || '-'}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <div className="col-span-2">
-                  <div className="text-sm text-gray-600 mb-1.5">Status</div>
-                  <div className="flex items-center flex-wrap gap-2">
-                    <Badge className={`border ${getStatusBadgeClass(selectedOrderDetail.status)} text-xs font-semibold px-2 py-0.5`}>
-                      {getStatusLabel(selectedOrderDetail.status)}
-                    </Badge>
-                    {(selectedOrderDetail.parent_order_id || (selectedOrderDetail.is_recurring && (selectedOrderDetail.recurring_weeks || 0) > 1)) && (
-                      <div className="flex items-center" title="Opakujúca sa objednávka">
-                        <RefreshCw className="h-4 w-4 text-blue-600" />
-                      </div>
-                    )}
-                  </div>
-                </div>
+
+              {/* Tab navigation */}
+              <div className="flex border-b border-gray-200 -mt-1">
+                <button
+                  onClick={() => setDetailActiveTab('detail')}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    detailActiveTab === 'detail'
+                      ? 'border-[#10b981] text-[#10b981]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Detail
+                </button>
+                <button
+                  onClick={() => setDetailActiveTab('history')}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+                    detailActiveTab === 'history'
+                      ? 'border-[#10b981] text-[#10b981]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <Clock className="h-3.5 w-3.5" />
+                  História
+                </button>
               </div>
 
-              {/* ========== RECURRING ORDER INFO ========== */}
-              {selectedOrderDetail?.is_recurring && selectedOrderDetail?.recurring_end_date && (
-                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <RefreshCw className="h-5 w-5 text-blue-600" />
-                    <span className="font-semibold text-blue-900">Opakovaná objednávka</span>
+              {/* ===== DETAIL TAB ===== */}
+              {detailActiveTab === 'detail' && (
+                <>
+                  {/* Customer + date info */}
+                  <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <div className="text-sm text-gray-600">Zákazník</div>
+                      <div className="flex items-center gap-2">
+                        <div className="font-semibold text-gray-900">{selectedOrderDetail.customer_name || 'Bez názvu'}</div>
+                        {(selectedOrderDetail as any).order_source === 'app' && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
+                            <Smartphone className="w-3 h-3" />
+                            APP
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-600">Dátum dodania</div>
+                      <div className="font-semibold text-gray-900">{formatDeliveryDate(selectedOrderDetail.delivery_date)}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-600">Trasa</div>
+                      {selectedOrderDetail.route === 'Osobný odber' ? (
+                        <div className="flex items-center gap-2 text-green-600">
+                          <Store className="h-4 w-4" />
+                          <span className="font-semibold">Osobný odber</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Truck className="h-4 w-4" />
+                          <span className="font-semibold text-gray-900">
+                            {selectedOrderDetail.route || (selectedOrderDetail as any).customers?.delivery_routes?.name || '-'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-end">
+                      {(selectedOrderDetail.parent_order_id || (selectedOrderDetail.is_recurring && (selectedOrderDetail.recurring_weeks || 0) > 1)) && (
+                        <div className="flex items-center gap-1.5 text-blue-600">
+                          <RefreshCw className="h-4 w-4" />
+                          <span className="text-sm font-medium">Opakovaná</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="space-y-2 text-sm">
-                    {/* Obdobie */}
-                    <div className="flex items-start gap-2">
-                      <span className="text-gray-600 min-w-[80px]">📅 Obdobie:</span>
-                      <span className="font-medium text-gray-900">
-                        {selectedOrderDetail.recurring_start_date && format(new Date(selectedOrderDetail.recurring_start_date), 'dd.MM.yyyy')}
-                        {' → '}
-                        {format(new Date(selectedOrderDetail.recurring_end_date), 'dd.MM.yyyy')}
+                  {/* Status Stepper */}
+                  {(() => {
+                    const s = selectedOrderDetail.status;
+                    const isCancelled = s === 'zrusena' || s === 'cancelled';
+                    const currentStepIdx = STATUS_STEPS.findIndex(step => step.keys.includes(s));
+                    return (
+                      <div className="p-4 bg-gray-50 rounded-lg">
+                        {isCancelled ? (
+                          <div className="flex items-center gap-2 text-red-600 justify-center py-1">
+                            <X className="h-5 w-5" />
+                            <span className="font-semibold">Zrušená objednávka</span>
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Postup objednávky</div>
+                            <div className="flex items-start">
+                              {STATUS_STEPS.map((step, idx) => (
+                                <div key={idx} className="flex items-center flex-1">
+                                  <div className="flex flex-col items-center flex-1">
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all ${
+                                      idx < currentStepIdx
+                                        ? 'bg-[#10b981] border-[#10b981]'
+                                        : idx === currentStepIdx
+                                        ? 'bg-[#10b981] border-[#10b981] shadow-md shadow-green-200'
+                                        : 'bg-white border-gray-300'
+                                    }`}>
+                                      {idx < currentStepIdx ? (
+                                        <Check className="h-4 w-4 text-white" />
+                                      ) : idx === currentStepIdx ? (
+                                        <div className="w-3 h-3 rounded-full bg-white" />
+                                      ) : null}
+                                    </div>
+                                    <span className={`text-[10px] font-medium text-center mt-1.5 leading-tight max-w-[52px] ${
+                                      idx === currentStepIdx ? 'text-[#10b981] font-bold' : idx < currentStepIdx ? 'text-gray-500' : 'text-gray-400'
+                                    }`}>{step.label}</span>
+                                  </div>
+                                  {idx < STATUS_STEPS.length - 1 && (
+                                    <div className={`h-0.5 w-4 flex-shrink-0 mb-5 ${idx < currentStepIdx ? 'bg-[#10b981]' : 'bg-gray-200'}`} />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Quick Action Buttons */}
+                  {(() => {
+                    const s = selectedOrderDetail.status;
+                    if (s === 'zrusena' || s === 'cancelled' || s === 'dorucena' || s === 'delivered') return null;
+                    const nextMap: Record<string, { key: string; label: string; className: string }> = {
+                      'cakajuca':       { key: 'potvrdena',  label: 'Potvrdiť objednávku',    className: 'bg-blue-500 hover:bg-blue-600 text-white' },
+                      'pending':        { key: 'potvrdena',  label: 'Potvrdiť objednávku',    className: 'bg-blue-500 hover:bg-blue-600 text-white' },
+                      'pending_approval': { key: 'potvrdena', label: 'Schváliť a potvrdiť',  className: 'bg-purple-500 hover:bg-purple-600 text-white' },
+                      'potvrdena':      { key: 'growing',    label: 'Označiť: Rastie',        className: 'bg-violet-500 hover:bg-violet-600 text-white' },
+                      'confirmed':      { key: 'growing',    label: 'Označiť: Rastie',        className: 'bg-violet-500 hover:bg-violet-600 text-white' },
+                      'growing':        { key: 'packed',     label: 'Označiť: Zabalená',      className: 'bg-amber-500 hover:bg-amber-600 text-white' },
+                      'packed':         { key: 'on_the_way', label: 'Odoslať: Na ceste',      className: 'bg-sky-500 hover:bg-sky-600 text-white' },
+                      'pripravena':     { key: 'on_the_way', label: 'Odoslať: Na ceste',      className: 'bg-sky-500 hover:bg-sky-600 text-white' },
+                      'ready':          { key: 'on_the_way', label: 'Odoslať: Na ceste',      className: 'bg-sky-500 hover:bg-sky-600 text-white' },
+                      'packaging_ready':{ key: 'on_the_way', label: 'Odoslať: Na ceste',      className: 'bg-sky-500 hover:bg-sky-600 text-white' },
+                      'on_the_way':     { key: 'dorucena',   label: '✓ Označiť ako Doručenú', className: 'bg-[#10b981] hover:bg-[#059669] text-white' },
+                    };
+                    const next = nextMap[s];
+                    if (!next) return null;
+                    return (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleQuickStatusChange(selectedOrderDetail.id, next.key)}
+                          className={`flex-1 py-2.5 px-4 rounded-lg font-semibold text-sm transition-colors ${next.className}`}
+                        >
+                          {next.label}
+                        </button>
+                        <button
+                          onClick={() => handleQuickStatusChange(selectedOrderDetail.id, 'zrusena')}
+                          className="px-3 py-2.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 text-sm font-medium transition-colors"
+                        >
+                          Zrušiť
+                        </button>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Recurring order info */}
+                  {selectedOrderDetail?.is_recurring && selectedOrderDetail?.recurring_end_date && (
+                    <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <RefreshCw className="h-5 w-5 text-blue-600" />
+                        <span className="font-semibold text-blue-900">Opakovaná objednávka</span>
+                      </div>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-start gap-2">
+                          <span className="text-gray-600 min-w-[80px]">📅 Obdobie:</span>
+                          <span className="font-medium text-gray-900">
+                            {selectedOrderDetail.recurring_start_date && format(new Date(selectedOrderDetail.recurring_start_date), 'dd.MM.yyyy')}
+                            {' → '}
+                            {format(new Date(selectedOrderDetail.recurring_end_date), 'dd.MM.yyyy')}
+                          </span>
+                        </div>
+                        {selectedOrderDetail.recurring_current_week && selectedOrderDetail.recurring_total_weeks && (
+                          <div className="flex items-start gap-2">
+                            <span className="text-gray-600 min-w-[80px]">🔢 Týždeň:</span>
+                            <span className="font-medium text-gray-900">
+                              {selectedOrderDetail.recurring_current_week} / {selectedOrderDetail.recurring_total_weeks}
+                            </span>
+                          </div>
+                        )}
+                        <div className="pt-3 mt-2 border-t border-blue-200">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openExtendDialog(selectedOrderDetail); }}
+                            className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                          >
+                            ➕ Predĺžiť objednávku
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* PWA recurring info */}
+                  {!selectedOrderDetail?.is_recurring && selectedOrderDetail?.notes?.includes('freq:') && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <RefreshCw className="w-4 h-4 text-blue-600" />
+                        <span className="font-medium text-blue-800">Opakovaná objednávka</span>
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">PWA</span>
+                      </div>
+                      <p className="text-sm text-blue-700">
+                        {selectedOrderDetail.notes?.includes('freq:weekly') ? 'Frekvencia: každý týždeň' : 'Frekvencia: každé 2 týždne'}
+                      </p>
+                    </div>
+                  )}
+
+                  {formatOrderNotes(selectedOrderDetail.notes) && (
+                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="text-sm font-semibold text-blue-900 mb-1">Poznámky:</div>
+                      <div className="text-sm text-blue-800">{formatOrderNotes(selectedOrderDetail.notes)}</div>
+                    </div>
+                  )}
+
+                  <div className="border-t pt-4">
+                    <h3 className="font-semibold text-base mb-3">Položky objednávky:</h3>
+                    <div className="space-y-2">
+                      {sortOrderItemsByValue(selectedOrderDetail.order_items || []).map((item, idx) => {
+                        if (!item) return null;
+                        const itemPrice = (item?.quantity || 0) * (parseFloat(item?.price_per_unit?.toString().replace(',', '.')) || 0);
+                        const formLabel = getDeliveryFormLabel(item?.delivery_form);
+                        const weightDisplay = item?.packaging_size ? (item.packaging_size.includes('g') || item.packaging_size.includes('kg') ? item.packaging_size : `${item.packaging_size}g`) : '-';
+                        return (
+                          <div key={idx} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg border border-gray-200">
+                            <div className="flex-1">
+                              <div className="font-semibold text-gray-900">
+                                {item?.quantity || 0}× {item?.crop_name || '-'}{item?.packaging_size ? ` ${weightDisplay}` : ''}
+                              </div>
+                              <div className="text-sm text-gray-600">
+                                {formLabel}
+                                {item?.packaging_type && ` • ${item.packaging_type}`}
+                                {item?.packaging_volume_ml && ` • ${item.packaging_volume_ml}ml`}
+                              </div>
+                              {item?.notes && (
+                                <div className="text-xs text-gray-500 mt-1 italic">{item.notes}</div>
+                              )}
+                            </div>
+                            <div className="font-bold text-[#10b981] text-lg ml-4">
+                              {itemPrice.toFixed(2)} €
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-4 space-y-2">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-600">Medzisúčet:</span>
+                      <span className="font-semibold text-gray-900">
+                        {(() => {
+                          if (selectedOrderDetail.order_items && Array.isArray(selectedOrderDetail.order_items)) {
+                            const subtotal = selectedOrderDetail.order_items.reduce((sum, item) => {
+                              if (!item) return sum;
+                              const qty = parseFloat(item.quantity?.toString() || '0');
+                              const pricePerUnit = parseFloat(item.price_per_unit?.toString().replace(',', '.') || '0');
+                              return sum + (qty * pricePerUnit);
+                            }, 0);
+                            return subtotal.toFixed(2);
+                          }
+                          return (selectedOrderDetail?.total_price || 0).toFixed(2);
+                        })()}€
                       </span>
                     </div>
-
-                    {/* Týždeň */}
-                    {selectedOrderDetail.recurring_current_week && selectedOrderDetail.recurring_total_weeks && (
-                      <div className="flex items-start gap-2">
-                        <span className="text-gray-600 min-w-[80px]">🔢 Týždeň:</span>
-                        <span className="font-medium text-gray-900">
-                          {selectedOrderDetail.recurring_current_week} / {selectedOrderDetail.recurring_total_weeks}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Tlačidlo predĺžiť */}
-                    <div className="pt-3 mt-2 border-t border-blue-200">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openExtendDialog(selectedOrderDetail);
-                        }}
-                        className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-                      >
-                        ➕ Predĺžiť objednávku
-                      </button>
+                    {(() => {
+                      if (customers.length === 0 || routes.length === 0) return null;
+                      const deliveryFee = getDeliveryFee(selectedOrderDetail);
+                      if (!selectedOrderDetail.charge_delivery || deliveryFee === 0) {
+                        return (
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-[#10b981] flex items-center gap-1 font-medium">
+                              <Truck className="h-3 w-3" />
+                              Doprava: Zdarma
+                            </span>
+                          </div>
+                        );
+                      }
+                      if (deliveryFee > 0) {
+                        return (
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-gray-600 flex items-center gap-1">
+                              <Truck className="h-3 w-3" />
+                              Doprava:
+                            </span>
+                            <span className="font-semibold text-gray-900">{deliveryFee.toFixed(2)} €</span>
+                          </div>
+                        );
+                      }
+                    })()}
+                    <div className="flex justify-between items-center pt-2 border-t border-gray-300">
+                      <span className="text-lg text-gray-700 font-semibold">Celkom:</span>
+                      <span className="text-3xl font-bold text-[#10b981]">
+                        {(getOrderTotal(selectedOrderDetail) || 0).toFixed(2)} €
+                      </span>
                     </div>
                   </div>
-                </div>
-              )}
-              {/* ========== KONIEC RECURRING INFO ========== */}
 
-              {/* ========== PWA RECURRING ORDER INFO ========== */}
-              {!selectedOrderDetail?.is_recurring && selectedOrderDetail?.notes?.includes('freq:') && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <RefreshCw className="w-4 h-4 text-blue-600" />
-                    <span className="font-medium text-blue-800">Opakovaná objednávka</span>
-                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">PWA</span>
+                  {(selectedOrderDetail.created_at || (selectedOrderDetail as any).cancelled_at) && (
+                    <div className="mt-2 pt-2 border-t border-gray-200 space-y-1">
+                      {selectedOrderDetail.created_at && (
+                        <p className="text-xs text-gray-400">
+                          📅 Vytvorená: {new Date(selectedOrderDetail.created_at).toLocaleString('sk-SK', {
+                            day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                          })}
+                        </p>
+                      )}
+                      {(selectedOrderDetail as any).cancelled_at && (
+                        <p className="text-xs text-gray-400">
+                          ❌ Zrušená: {new Date((selectedOrderDetail as any).cancelled_at).toLocaleString('sk-SK', {
+                            day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                          })}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* ===== HISTORY TAB ===== */}
+              {detailActiveTab === 'history' && (
+                <div className="py-2">
+                  <div className="relative pl-8">
+                    <div className="absolute left-3.5 top-3 bottom-3 w-0.5 bg-gray-200" />
+                    <div className="space-y-5">
+
+                      {/* Created */}
+                      <div className="flex gap-3 items-start relative">
+                        <div className="absolute -left-5 w-7 h-7 rounded-full bg-[#10b981] flex items-center justify-center z-10 shadow-sm">
+                          <Plus className="h-3.5 w-3.5 text-white" />
+                        </div>
+                        <div>
+                          <div className="font-semibold text-sm text-gray-900">Objednávka vytvorená</div>
+                          {selectedOrderDetail.created_at && (
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              {new Date(selectedOrderDetail.created_at).toLocaleString('sk-SK', {
+                                day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                              })}
+                            </div>
+                          )}
+                          {(selectedOrderDetail as any).order_source === 'app' && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200 mt-1">
+                              <Smartphone className="w-3 h-3" />
+                              Cez APP
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Current status (non-terminal) */}
+                      {selectedOrderDetail.status !== 'zrusena' && selectedOrderDetail.status !== 'cancelled' &&
+                       selectedOrderDetail.status !== 'dorucena' && selectedOrderDetail.status !== 'delivered' && (
+                        <div className="flex gap-3 items-start relative">
+                          <div className="absolute -left-5 w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center z-10 shadow-sm">
+                            <Clock className="h-3.5 w-3.5 text-white" />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-sm text-gray-900">
+                              Aktuálny stav: <span className="text-blue-600">{getStatusLabel(selectedOrderDetail.status)}</span>
+                            </div>
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              Plánované dodanie: {formatDeliveryDate(selectedOrderDetail.delivery_date)}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Delivered */}
+                      {(selectedOrderDetail.status === 'dorucena' || selectedOrderDetail.status === 'delivered') && (
+                        <div className="flex gap-3 items-start relative">
+                          <div className="absolute -left-5 w-7 h-7 rounded-full bg-[#10b981] flex items-center justify-center z-10 shadow-sm">
+                            <Check className="h-3.5 w-3.5 text-white" />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-sm text-[#10b981]">Objednávka doručená</div>
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              {formatDeliveryDate(selectedOrderDetail.delivery_date)}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Cancelled */}
+                      {(selectedOrderDetail.status === 'zrusena' || selectedOrderDetail.status === 'cancelled' || (selectedOrderDetail as any).cancelled_at) && (
+                        <div className="flex gap-3 items-start relative">
+                          <div className="absolute -left-5 w-7 h-7 rounded-full bg-red-500 flex items-center justify-center z-10 shadow-sm">
+                            <X className="h-3.5 w-3.5 text-white" />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-sm text-red-600">Objednávka zrušená</div>
+                            {(selectedOrderDetail as any).cancelled_at && (
+                              <div className="text-xs text-gray-500 mt-0.5">
+                                {new Date((selectedOrderDetail as any).cancelled_at).toLocaleString('sk-SK', {
+                                  day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                    </div>
                   </div>
-                  <p className="text-sm text-blue-700">
-                    {selectedOrderDetail.notes?.includes('freq:weekly') ? 'Frekvencia: každý týždeň' : 'Frekvencia: každé 2 týždne'}
+                  <p className="text-xs text-gray-400 text-center mt-6">
+                    Podrobná história zmien stavu nie je momentálne sledovaná.
                   </p>
                 </div>
               )}
-              {/* ========== KONIEC PWA RECURRING INFO ========== */}
 
-              {formatOrderNotes(selectedOrderDetail.notes) && (
-                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="text-sm font-semibold text-blue-900 mb-1">Poznámky:</div>
-                  <div className="text-sm text-blue-800">{formatOrderNotes(selectedOrderDetail.notes)}</div>
-                </div>
-              )}
-
-              <div className="border-t pt-4">
-                <h3 className="font-semibold text-base mb-3">Položky objednávky:</h3>
-                <div className="space-y-2">
-                  {sortOrderItemsByValue(selectedOrderDetail.order_items || []).map((item, idx) => {
-                    if (!item) return null;
-                    const itemPrice = (item?.quantity || 0) * (parseFloat(item?.price_per_unit?.toString().replace(',', '.')) || 0);
-                    const formLabel = getDeliveryFormLabel(item?.delivery_form);
-                    const weightDisplay = item?.packaging_size ? (item.packaging_size.includes('g') || item.packaging_size.includes('kg') ? item.packaging_size : `${item.packaging_size}g`) : '-';
-                    return (
-                      <div key={idx} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg border border-gray-200">
-                        <div className="flex-1">
-                          <div className="font-semibold text-gray-900">
-                            {item?.quantity || 0}× {item?.crop_name || '-'}{item?.packaging_size ? ` ${weightDisplay}` : ''}
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            {formLabel}
-                            {item?.packaging_type && ` • ${item.packaging_type}`}
-                            {item?.packaging_volume_ml && ` • ${item.packaging_volume_ml}ml`}
-                          </div>
-                          {item?.notes && (
-                            <div className="text-xs text-gray-500 mt-1 italic">{item.notes}</div>
-                          )}
-                        </div>
-                        <div className="font-bold text-[#10b981] text-lg ml-4">
-                          {itemPrice.toFixed(2)} €
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="border-t pt-4 space-y-2">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-600">Medzisúčet:</span>
-                  <span className="font-semibold text-gray-900">
-                    {(() => {
-                      if (selectedOrderDetail.order_items && Array.isArray(selectedOrderDetail.order_items)) {
-                        const subtotal = selectedOrderDetail.order_items.reduce((sum, item) => {
-                          if (!item) return sum;
-                          const qty = parseFloat(item.quantity?.toString() || '0');
-                          const pricePerUnit = parseFloat(item.price_per_unit?.toString().replace(',', '.') || '0');
-                          return sum + (qty * pricePerUnit);
-                        }, 0);
-                        return subtotal.toFixed(2);
-                      }
-                      return (selectedOrderDetail?.total_price || 0).toFixed(2);
-                    })()}€
-                  </span>
-                </div>
-                {(() => {
-                  if (customers.length === 0 || routes.length === 0) {
-                    return null;
-                  }
-
-                  const deliveryFee = getDeliveryFee(selectedOrderDetail);
-
-                  // If charge_delivery is false or deliveryFee is 0, show free shipping
-                  if (!selectedOrderDetail.charge_delivery || deliveryFee === 0) {
-                    return (
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-[#10b981] flex items-center gap-1 font-medium">
-                          <Truck className="h-3 w-3" />
-                          Doprava: Zdarma
-                        </span>
-                      </div>
-                    );
-                  }
-
-                  // Show delivery fee if it's greater than 0
-                  if (deliveryFee > 0) {
-                    return (
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-gray-600 flex items-center gap-1">
-                          <Truck className="h-3 w-3" />
-                          Doprava:
-                        </span>
-                        <span className="font-semibold text-gray-900">
-                          {deliveryFee.toFixed(2)} €
-                        </span>
-                      </div>
-                    );
-                  }
-                })()}
-                <div className="flex justify-between items-center pt-2 border-t border-gray-300">
-                  <span className="text-lg text-gray-700 font-semibold">Celkom:</span>
-                  <span className="text-3xl font-bold text-[#10b981]">
-                    {(getOrderTotal(selectedOrderDetail) || 0).toFixed(2)} €
-                  </span>
-                </div>
-              </div>
-
-              {(selectedOrderDetail.created_at || (selectedOrderDetail as any).cancelled_at) && (
-                <div className="mt-2 pt-2 border-t border-gray-200 space-y-1">
-                  {selectedOrderDetail.created_at && (
-                    <p className="text-xs text-gray-400">
-                      📅 Vytvorená: {new Date(selectedOrderDetail.created_at).toLocaleString('sk-SK', {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </p>
-                  )}
-                  {(selectedOrderDetail as any).cancelled_at && (
-                    <p className="text-xs text-gray-400">
-                      ❌ Zrušená: {new Date((selectedOrderDetail as any).cancelled_at).toLocaleString('sk-SK', {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </p>
-                  )}
-                </div>
-              )}
-
+              {/* Footer buttons */}
               <div className="flex justify-end gap-2 pt-4 border-t">
                 <Button variant="outline" onClick={() => setDetailModalOpen(false)}>
                   Zatvoriť
