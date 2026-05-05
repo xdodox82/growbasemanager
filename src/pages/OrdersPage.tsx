@@ -2407,197 +2407,161 @@ export default function OrdersPage() {
 
   return (
     <MainLayout>
-      <div className="p-6 space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Objednávky</h1>
-          <p className="text-sm text-gray-500 mt-1">Spravujte objednávky od zákazníkov</p>
-        </div>
-
-        <div className="flex flex-wrap gap-3 items-center justify-between">
-          <div className="flex gap-2 flex-1">
-            <Button onClick={openNew} className="bg-[#10b981] hover:bg-[#059669] text-white">
-              <Plus className="h-4 w-4 mr-2" />
+      <div className="p-6 space-y-4">
+        {/* ─── Topbar ─── */}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 leading-tight">Objednávky</h1>
+            <p className="text-xs text-gray-500">Spravujte objednávky od zákazníkov</p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button onClick={openNew} className="bg-[#10b981] hover:bg-[#059669] text-white h-9 text-sm">
+              <Plus className="h-4 w-4 mr-1.5" />
               Nová objednávka
             </Button>
-            <div className="hidden md:flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-              <Button
-                variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setViewMode('grid')}
-              >
+            <div className="hidden md:flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5">
+              <Button variant={viewMode === 'grid' ? 'secondary' : 'ghost'} size="icon" className="h-8 w-8" onClick={() => setViewMode('grid')}>
                 <Grid3x3 className="h-4 w-4" />
               </Button>
-              <Button
-                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setViewMode('list')}
-              >
+              <Button variant={viewMode === 'list' ? 'secondary' : 'ghost'} size="icon" className="h-8 w-8" onClick={() => setViewMode('list')}>
                 <List className="h-4 w-4" />
               </Button>
             </div>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              onClick={() => setBulkDateChangeOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-green-50 border border-green-200 text-gray-900 hover:bg-green-100 transition-colors"
-            >
-              <CalendarIcon className="h-4 w-4" />
-              Hromadná zmena termínu
+            <Button onClick={() => setBulkDateChangeOpen(true)} variant="outline" className="h-9 text-xs px-3 gap-1.5">
+              <CalendarIcon className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Zmena termínu</span>
             </Button>
-            <Button variant="outline">
-              <FileSpreadsheet className="h-4 w-4 mr-2" />
-              Export do Excelu
+            <Button variant="outline" className="h-9 text-xs px-3 gap-1.5">
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Excel</span>
             </Button>
-            <Button variant="outline">
-              <FileText className="h-4 w-4 mr-2" />
-              PDF
+            <Button variant="outline" className="h-9 text-xs px-3 gap-1.5">
+              <FileText className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">PDF</span>
             </Button>
           </div>
         </div>
 
-        {/* DESKTOP filtre */}
-        <div className="hidden md:flex flex-wrap gap-3 items-center">
-          <CustomerTypeFilter
-            value={filterCustomerType}
-            onChange={setFilterCustomerType}
-            showLabel={false}
-          />
-
-          <div className="w-[280px]">
-            <SearchableCustomerSelect
-              value={customerFilter}
-              onValueChange={(value) => setCustomerFilter(value)}
-              customers={customers?.filter(c => {
-                if (filterCustomerType === 'all') return true;
-                return c.customer_type === filterCustomerType;
-              })}
-              placeholder="Hľadať zákazníka..."
-              allowAll={true}
-            />
+        {/* ─── DESKTOP filtre ─── */}
+        <div className="hidden md:block space-y-2">
+          {/* Riadok 1: selects + prepínače */}
+          <div className="flex flex-wrap gap-2 items-center">
+            <CustomerTypeFilter value={filterCustomerType} onChange={setFilterCustomerType} showLabel={false} />
+            <div className="w-[260px]">
+              <SearchableCustomerSelect
+                value={customerFilter}
+                onValueChange={(value) => setCustomerFilter(value)}
+                customers={customers?.filter(c => {
+                  if (filterCustomerType === 'all') return true;
+                  return c.customer_type === filterCustomerType;
+                })}
+                placeholder="Hľadať zákazníka..."
+                allowAll={true}
+              />
+            </div>
+            <Select value={orderCategoryFilter} onValueChange={(value) => setOrderCategoryFilter(value)}>
+              <SelectTrigger className="w-[170px] h-9 text-sm">
+                <SelectValue placeholder="Kategória" />
+              </SelectTrigger>
+              <SelectContent position="popper" sideOffset={5}>
+                <SelectItem value="all">Všetky kategórie</SelectItem>
+                <SelectItem value="microgreens"><Leaf className="h-4 w-4 text-green-600 mr-2 inline" />Mikrozelenina</SelectItem>
+                <SelectItem value="microherbs"><Sprout className="h-4 w-4 text-green-600 mr-2 inline" />Mikrobylinky</SelectItem>
+                <SelectItem value="edible_flowers"><Flower className="h-4 w-4 text-green-600 mr-2 inline" />Jedlé kvety</SelectItem>
+                <SelectItem value="mix"><Palette className="h-4 w-4 text-green-600 mr-2 inline" />Mixy</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterCrop} onValueChange={(value) => setFilterCrop(value)}>
+              <SelectTrigger className="w-[155px] h-9 text-sm">
+                <SelectValue placeholder="Plodina" />
+              </SelectTrigger>
+              <SelectContent className="max-h-[300px] overflow-y-auto z-[100]">
+                <SelectItem value="all">Všetky plodiny</SelectItem>
+                {orderCategoryFilter === 'mix'
+                  ? blends?.map(blend => (<SelectItem key={blend.id} value={blend.name}>{blend.name}</SelectItem>))
+                  : crops?.filter(crop => {
+                      if (!orderCategoryFilter || orderCategoryFilter === 'all') return true;
+                      return (crop as any).category === orderCategoryFilter;
+                    }).map(crop => (<SelectItem key={crop?.id} value={crop?.name || ''}>{crop?.name}</SelectItem>))
+                }
+              </SelectContent>
+            </Select>
+            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="h-9 text-sm font-normal gap-2">
+                  <CalendarIcon className="h-3.5 w-3.5" />
+                  {selectedDates.length === 0 ? 'Dátum' : selectedDates.length === 1 ? format(selectedDates[0], 'dd.MM.yyyy', { locale: sk }) : `${selectedDates.length} dní`}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                {renderCalendar()}
+              </PopoverContent>
+            </Popover>
+            <div className="flex items-center gap-3 ml-auto">
+              <div className="flex items-center gap-1.5">
+                <Switch id="archive-toggle" checked={showArchive} onCheckedChange={setShowArchive} />
+                <Label htmlFor="archive-toggle" className="text-sm cursor-pointer whitespace-nowrap">Archív</Label>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Switch id="cancelled-toggle" checked={showCancelled} onCheckedChange={setShowCancelled} />
+                <Label htmlFor="cancelled-toggle" className="text-sm cursor-pointer whitespace-nowrap">Zrušené</Label>
+              </div>
+            </div>
           </div>
-
-          <Select value={orderCategoryFilter} onValueChange={(value) => {
-            setOrderCategoryFilter(value);
-          }}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Kategória plodiny" />
-            </SelectTrigger>
-            <SelectContent position="popper" sideOffset={5}>
-              <SelectItem value="all">Všetky kategórie</SelectItem>
-              <SelectItem value="microgreens">
-                <Leaf className="h-4 w-4 text-green-600 mr-2 inline" />Mikrozelenina
-              </SelectItem>
-              <SelectItem value="microherbs">
-                <Sprout className="h-4 w-4 text-green-600 mr-2 inline" />Mikrobylinky
-              </SelectItem>
-              <SelectItem value="edible_flowers">
-                <Flower className="h-4 w-4 text-green-600 mr-2 inline" />Jedlé kvety
-              </SelectItem>
-              <SelectItem value="mix">
-                <Palette className="h-4 w-4 text-green-600 mr-2 inline" />Mixy
-              </SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={filterCrop} onValueChange={(value) => setFilterCrop(value)}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Všetky plodiny" />
-            </SelectTrigger>
-            <SelectContent className="max-h-[300px] overflow-y-auto z-[100]">
-              <SelectItem value="all">Všetky plodiny</SelectItem>
-              {orderCategoryFilter === 'mix'
-                ? blends?.map(blend => (
-                    <SelectItem key={blend.id} value={blend.name}>{blend.name}</SelectItem>
-                  ))
-                : crops?.filter(crop => {
-                    if (!orderCategoryFilter || orderCategoryFilter === 'all') return true;
-                    return crop.category === orderCategoryFilter;
-                  }).map(crop => (
-                    <SelectItem key={crop?.id} value={crop?.name || ''}>{crop?.name}</SelectItem>
-                  ))
-              }
-            </SelectContent>
-          </Select>
-
-          <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="justify-start text-left font-normal h-10">
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {selectedDates.length === 0
-                  ? 'Vyber dátum'
-                  : selectedDates.length === 1
-                  ? format(selectedDates[0], 'dd.MM.yyyy', { locale: sk })
-                  : `${selectedDates.length} dní`}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              {renderCalendar()}
-            </PopoverContent>
-          </Popover>
-
-          <Select value={filterPeriod} onValueChange={setFilterPeriod}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Všetky týždne" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Všetky týždne</SelectItem>
-              <SelectItem value="this_week">Tento týždeň</SelectItem>
-              <SelectItem value="next_week">Budúci týždeň</SelectItem>
-              <SelectItem value="last_week">Minulý týždeň</SelectItem>
-              <SelectItem value="last_2_weeks">Pred 2 týždňami</SelectItem>
-              <SelectItem value="last_month">Minulý mesiac</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Všetky stavy" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Všetky stavy</SelectItem>
-              <SelectItem value="cakajuca">Čakajúca</SelectItem>
-              <SelectItem value="pending_approval">Čaká na schválenie</SelectItem>
-              <SelectItem value="potvrdena">Potvrdená</SelectItem>
-              <SelectItem value="growing">Rastie</SelectItem>
-              <SelectItem value="packed">Zabalená</SelectItem>
-              <SelectItem value="on_the_way">Na ceste</SelectItem>
-              <SelectItem value="pripravena">Pripravená</SelectItem>
-              <SelectItem value="dorucena">Doručená</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <div className="flex items-center gap-2">
-            <Switch
-              id="archive-toggle"
-              checked={showArchive}
-              onCheckedChange={setShowArchive}
-            />
-            <Label htmlFor="archive-toggle" className="text-sm font-medium cursor-pointer">
-              Zobraziť archív
-            </Label>
+          {/* Riadok 2: period chipy */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs text-gray-400 font-medium">Obdobie:</span>
+            {([
+              { value: 'all',          label: 'Všetky' },
+              { value: 'this_week',    label: 'Tento týždeň' },
+              { value: 'next_week',    label: 'Budúci týždeň' },
+              { value: 'last_week',    label: 'Minulý týždeň' },
+              { value: 'last_2_weeks', label: 'Pred 2T' },
+              { value: 'last_month',   label: 'Minulý mesiac' },
+            ] as const).map(p => (
+              <button
+                key={p.value}
+                onClick={() => setFilterPeriod(p.value)}
+                className={`px-2.5 py-0.5 rounded-full text-xs font-medium border transition-all ${
+                  filterPeriod === p.value
+                    ? 'bg-gray-800 text-white border-gray-800'
+                    : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
           </div>
-          <div className="flex items-center gap-2">
-            <Switch
-              id="cancelled-toggle"
-              checked={showCancelled}
-              onCheckedChange={setShowCancelled}
-            />
-            <Label htmlFor="cancelled-toggle" className="text-sm font-medium cursor-pointer">
-              Zobraziť zrušené
-            </Label>
+          {/* Riadok 3: status chipy */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs text-gray-400 font-medium">Stav:</span>
+            {([
+              { value: 'all',              label: 'Všetky',     on: 'bg-gray-700 text-white border-gray-700',        off: 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50' },
+              { value: 'cakajuca',         label: 'Čakajúca',   on: 'bg-yellow-500 text-white border-yellow-500',     off: 'bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100' },
+              { value: 'pending_approval', label: 'Schválenie', on: 'bg-purple-500 text-white border-purple-500',     off: 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100' },
+              { value: 'potvrdena',        label: 'Potvrdená',  on: 'bg-green-500 text-white border-green-500',       off: 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' },
+              { value: 'growing',          label: 'Rastie',     on: 'bg-[#10b981] text-white border-[#10b981]',       off: 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' },
+              { value: 'packed',           label: 'Zabalená',   on: 'bg-amber-500 text-white border-amber-500',       off: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' },
+              { value: 'on_the_way',       label: 'Na ceste',   on: 'bg-sky-500 text-white border-sky-500',           off: 'bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100' },
+              { value: 'pripravena',       label: 'Pripravená', on: 'bg-orange-500 text-white border-orange-500',     off: 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100' },
+              { value: 'dorucena',         label: 'Doručená',   on: 'bg-blue-500 text-white border-blue-500',         off: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' },
+            ] as const).map(s => (
+              <button
+                key={s.value}
+                onClick={() => setFilterStatus(s.value)}
+                className={`px-2.5 py-0.5 rounded-full text-xs font-medium border transition-all ${
+                  filterStatus === s.value ? s.on : s.off
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* MOBILE filtre */}
+        {/* ─── MOBILE filtre ─── */}
         <div className="md:hidden space-y-2">
-          <CustomerTypeFilter
-            value={filterCustomerType}
-            onChange={setFilterCustomerType}
-            showLabel={false}
-          />
-
+          <CustomerTypeFilter value={filterCustomerType} onChange={setFilterCustomerType} showLabel={false} />
           <div className="w-full">
             <SearchableCustomerSelect
               value={customerFilter}
@@ -2610,12 +2574,9 @@ export default function OrdersPage() {
               allowAll={true}
             />
           </div>
-
           <div className="grid grid-cols-2 gap-2">
             <Select value={orderCategoryFilter} onValueChange={(value) => setOrderCategoryFilter(value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Kategória" />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Kategória" /></SelectTrigger>
               <SelectContent position="popper" sideOffset={5}>
                 <SelectItem value="all">Všetky</SelectItem>
                 <SelectItem value="microgreens">Mikrozelenina</SelectItem>
@@ -2624,39 +2585,27 @@ export default function OrdersPage() {
                 <SelectItem value="mix">Mixy</SelectItem>
               </SelectContent>
             </Select>
-
             <Select value={filterCrop} onValueChange={(value) => setFilterCrop(value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Plodina" />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Plodina" /></SelectTrigger>
               <SelectContent className="max-h-[300px] overflow-y-auto z-[100]">
                 <SelectItem value="all">Všetky plodiny</SelectItem>
                 {orderCategoryFilter === 'mix'
-                  ? blends?.map(blend => (
-                      <SelectItem key={blend.id} value={blend.name}>{blend.name}</SelectItem>
-                    ))
+                  ? blends?.map(blend => (<SelectItem key={blend.id} value={blend.name}>{blend.name}</SelectItem>))
                   : crops?.filter(crop => {
                       if (!orderCategoryFilter || orderCategoryFilter === 'all') return true;
-                      return crop.category === orderCategoryFilter;
-                    }).map(crop => (
-                      <SelectItem key={crop?.id} value={crop?.name || ''}>{crop?.name}</SelectItem>
-                    ))
+                      return (crop as any).category === orderCategoryFilter;
+                    }).map(crop => (<SelectItem key={crop?.id} value={crop?.name || ''}>{crop?.name}</SelectItem>))
                 }
               </SelectContent>
             </Select>
           </div>
-
           <div className="grid grid-cols-2 gap-2">
             <Popover open={calendarOpenMobile} onOpenChange={setCalendarOpenMobile}>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="justify-start text-left font-normal h-10 w-full">
                   <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
                   <span className="truncate">
-                    {selectedDates.length === 0
-                      ? 'Dátum'
-                      : selectedDates.length === 1
-                      ? format(selectedDates[0], 'dd.MM.yyyy', { locale: sk })
-                      : `${selectedDates.length} dní`}
+                    {selectedDates.length === 0 ? 'Dátum' : selectedDates.length === 1 ? format(selectedDates[0], 'dd.MM.yyyy', { locale: sk }) : `${selectedDates.length} dní`}
                   </span>
                 </Button>
               </PopoverTrigger>
@@ -2664,11 +2613,8 @@ export default function OrdersPage() {
                 {renderCalendar(() => setCalendarOpenMobile(false))}
               </PopoverContent>
             </Popover>
-
             <Select value={filterPeriod} onValueChange={setFilterPeriod}>
-              <SelectTrigger>
-                <SelectValue placeholder="Obdobie" />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Obdobie" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Všetky týždne</SelectItem>
                 <SelectItem value="this_week">Tento týždeň</SelectItem>
@@ -2679,44 +2625,40 @@ export default function OrdersPage() {
               </SelectContent>
             </Select>
           </div>
-
-          <div className="flex items-center gap-2">
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="flex-1">
-                <SelectValue placeholder="Stav" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Všetky stavy</SelectItem>
-                <SelectItem value="cakajuca">Čakajúca</SelectItem>
-                <SelectItem value="pending_approval">Čaká na schválenie</SelectItem>
-                <SelectItem value="potvrdena">Potvrdená</SelectItem>
-                <SelectItem value="growing">Rastie</SelectItem>
-                <SelectItem value="packed">Zabalená</SelectItem>
-                <SelectItem value="on_the_way">Na ceste</SelectItem>
-                <SelectItem value="pripravena">Pripravená</SelectItem>
-                <SelectItem value="dorucena">Doručená</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <Switch
-                id="archive-toggle-mobile"
-                checked={showArchive}
-                onCheckedChange={setShowArchive}
-              />
-              <Label htmlFor="archive-toggle-mobile" className="text-sm cursor-pointer whitespace-nowrap">
-                Archív
-              </Label>
+          {/* Status chipy – horizontálne scrollovateľné */}
+          <div className="overflow-x-auto pb-1 -mx-1 px-1">
+            <div className="flex items-center gap-1.5 min-w-max">
+              {([
+                { value: 'all',              label: 'Všetky',     on: 'bg-gray-700 text-white border-gray-700',        off: 'bg-white text-gray-600 border-gray-300' },
+                { value: 'cakajuca',         label: 'Čakajúca',   on: 'bg-yellow-500 text-white border-yellow-500',     off: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
+                { value: 'pending_approval', label: 'Schválenie', on: 'bg-purple-500 text-white border-purple-500',     off: 'bg-purple-50 text-purple-700 border-purple-200' },
+                { value: 'potvrdena',        label: 'Potvrdená',  on: 'bg-green-500 text-white border-green-500',       off: 'bg-green-50 text-green-700 border-green-200' },
+                { value: 'growing',          label: 'Rastie',     on: 'bg-[#10b981] text-white border-[#10b981]',       off: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+                { value: 'packed',           label: 'Zabalená',   on: 'bg-amber-500 text-white border-amber-500',       off: 'bg-amber-50 text-amber-700 border-amber-200' },
+                { value: 'on_the_way',       label: 'Na ceste',   on: 'bg-sky-500 text-white border-sky-500',           off: 'bg-sky-50 text-sky-700 border-sky-200' },
+                { value: 'pripravena',       label: 'Pripravená', on: 'bg-orange-500 text-white border-orange-500',     off: 'bg-orange-50 text-orange-700 border-orange-200' },
+                { value: 'dorucena',         label: 'Doručená',   on: 'bg-blue-500 text-white border-blue-500',         off: 'bg-blue-50 text-blue-700 border-blue-200' },
+              ] as const).map(s => (
+                <button
+                  key={s.value}
+                  onClick={() => setFilterStatus(s.value)}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium border whitespace-nowrap transition-all ${
+                    filterStatus === s.value ? s.on : s.off
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Switch
-                id="cancelled-toggle-mobile"
-                checked={showCancelled}
-                onCheckedChange={setShowCancelled}
-              />
-              <Label htmlFor="cancelled-toggle-mobile" className="text-sm cursor-pointer whitespace-nowrap">
-                Zrušené
-              </Label>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <Switch id="archive-toggle-mobile" checked={showArchive} onCheckedChange={setShowArchive} />
+              <Label htmlFor="archive-toggle-mobile" className="text-sm cursor-pointer whitespace-nowrap">Archív</Label>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Switch id="cancelled-toggle-mobile" checked={showCancelled} onCheckedChange={setShowCancelled} />
+              <Label htmlFor="cancelled-toggle-mobile" className="text-sm cursor-pointer whitespace-nowrap">Zrušené</Label>
             </div>
           </div>
         </div>
