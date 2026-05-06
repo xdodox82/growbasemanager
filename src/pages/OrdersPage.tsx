@@ -240,6 +240,7 @@ export default function OrdersPage() {
   const [orderCategoryFilter, setOrderCategoryFilter] = useState<string>('all');
   const [customerFilter, setCustomerFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [filterRoute, setFilterRoute] = useState('all');
   const [showArchive, setShowArchive] = useState(false);
   const [showCancelled, setShowCancelled] = useState(false);
 
@@ -528,6 +529,9 @@ export default function OrdersPage() {
       });
       if (!hasMatchingCategory) return false;
     }
+
+    // Route filter
+    if (filterRoute !== 'all' && order?.route !== filterRoute) return false;
 
     // Archive filter: if showArchive is false, only show active orders (not completed)
     if (!showArchive && (order?.status === 'dorucena' || order?.status === 'delivered')) {
@@ -2214,6 +2218,32 @@ export default function OrdersPage() {
           onViewModeChange={setViewMode}
           onNewOrder={openNew}
           onBulkDateChange={() => setBulkDateChangeOpen(true)}
+          filterCustomerType={filterCustomerType}
+          onFilterCustomerTypeChange={setFilterCustomerType}
+          customerFilter={customerFilter}
+          onCustomerFilterChange={setCustomerFilter}
+          orderCategoryFilter={orderCategoryFilter}
+          onOrderCategoryFilterChange={setOrderCategoryFilter}
+          filterCrop={filterCrop}
+          onFilterCropChange={setFilterCrop}
+          filterRoute={filterRoute}
+          onFilterRouteChange={setFilterRoute}
+          showArchive={showArchive}
+          onShowArchiveChange={setShowArchive}
+          showCancelled={showCancelled}
+          onShowCancelledChange={setShowCancelled}
+          selectedDates={selectedDates}
+          onSelectedDatesChange={setSelectedDates}
+          calendarOpen={calendarOpen}
+          onCalendarOpenChange={setCalendarOpen}
+          calendarMonth={calendarMonth}
+          onCalendarMonthChange={setCalendarMonth}
+          customers={customers}
+          crops={crops}
+          blends={blends}
+          routes={routes}
+          orders={orders}
+          getDeliveryDaysArray={getDeliveryDaysFromSettings}
         />
 
         <OrdersFilterBar
