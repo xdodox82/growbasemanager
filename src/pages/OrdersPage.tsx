@@ -248,6 +248,7 @@ export default function OrdersPage() {
   const [calendarOpen, setCalendarOpen] = useState(false);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [wizardStep, setWizardStep] = useState(1);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [recurringEditDialog, setRecurringEditDialog] = useState<{
     open: boolean;
@@ -840,6 +841,7 @@ export default function OrdersPage() {
         is_special_item: false,
         custom_crop_name: ''
       });
+      setWizardStep(1);
       setIsDialogOpen(true);
     } catch (error) {
       console.error('❌ Error v openNew:', error);
@@ -957,6 +959,7 @@ export default function OrdersPage() {
         custom_crop_name: ''
       });
 
+      setWizardStep(1);
       setIsDialogOpen(true);
     } catch (error) {
       console.error('Error in proceedWithEdit:', error);
@@ -2286,762 +2289,423 @@ export default function OrdersPage() {
         )}
       </div>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) setWizardStep(1); }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto z-[60]">
           {(() => {
             try {
-              // Zabezpečenie: Ensure arrays exist
               const safeCustomers = customers || [];
-              const safeCrops = crops || [];
-              const safeBlends = blends || [];
               const safeRoutes = routes || [];
-              const safePrices = prices || [];
               const safePackagings = packagings || [];
+
+              /* Step indicator */
+              const stepLabels = ['Zákazník', 'Produkty', 'Doprava'];
+              const StepIndicator = () => (
+                <div className="flex items-center justify-center gap-0 mb-5 mt-1">
+                  {stepLabels.map((label, i) => {
+                    const n = i + 1;
+                    const done = wizardStep > n;
+                    const active = wizardStep === n;
+                    return (
+                      <div key={n} className="flex items-center">
+                        <div className="flex flex-col items-center">
+                          <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-colors ${
+                            done ? 'bg-[#10b981] border-[#10b981] text-white' :
+                            active ? 'bg-white border-[#10b981] text-[#10b981]' :
+                            'bg-white border-[#cbd5e1] text-[#94a3b8]'
+                          }`}>
+                            {done ? <Check className="h-3.5 w-3.5" /> : n}
+                          </div>
+                          <span className={`text-[10px] mt-1 font-medium ${active || done ? 'text-[#10b981]' : 'text-[#94a3b8]'}`}>{label}</span>
+                        </div>
+                        {i < stepLabels.length - 1 && (
+                          <div className={`w-14 h-0.5 mx-1 mb-4 transition-colors ${wizardStep > n ? 'bg-[#10b981]' : 'bg-[#e2e8f0]'}`} />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
 
               return (
                 <>
                   <DialogHeader>
-                    <DialogTitle>{editingOrder ? 'Upraviť objednávku' : 'Nová objednávka'}</DialogTitle>
+                    <DialogTitle className="text-base">{editingOrder ? 'Upraviť objednávku' : 'Nová objednávka'}</DialogTitle>
                   </DialogHeader>
 
-                  <div className="space-y-2.5 py-3">
-                    <div>
-                      <Label className="text-sm font-medium mb-1.5 block">Typ zákazníka</Label>
-                      <div className="grid grid-cols-3 gap-2">
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            setCustomerType('home');
-                            setCustomerId('');
-                            if ((currentItem?.crop_id || currentItem?.blend_id) && currentItem?.packaging_size) {
-                              const autoPrice = await autoFetchPrice(currentItem.packaging_size, 'home', currentItem.crop_id, currentItem.blend_id);
-                              setCurrentItem({ ...currentItem, price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || '') });
-                            }
-                          }}
-                          className={`h-16 p-2 rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
-                            customerType === 'home'
-                              ? 'border-[#10b981] bg-green-50'
-                              : 'border-slate-200 hover:border-slate-300'
-                          }`}
-                        >
-                          <House className={`h-5 w-5 mb-1 ${
-                            customerType === 'home' ? 'text-[#10b981]' : 'text-gray-400'
-                          }`} />
-                          <div className="text-xs font-medium">Domáci</div>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            setCustomerType('gastro');
-                            setCustomerId('');
-                            if ((currentItem?.crop_id || currentItem?.blend_id) && currentItem?.packaging_size) {
-                              const autoPrice = await autoFetchPrice(currentItem.packaging_size, 'gastro', currentItem.crop_id, currentItem.blend_id);
-                              setCurrentItem({ ...currentItem, price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || '') });
-                            }
-                          }}
-                          className={`h-16 p-2 rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
-                            customerType === 'gastro'
-                              ? 'border-blue-500 bg-blue-50'
-                              : 'border-slate-200 hover:border-slate-300'
-                          }`}
-                        >
-                          <Utensils className={`h-5 w-5 mb-1 ${
-                            customerType === 'gastro' ? 'text-blue-500' : 'text-gray-400'
-                          }`} />
-                          <div className="text-xs font-medium">Gastro</div>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            setCustomerType('wholesale');
-                            setCustomerId('');
-                            if ((currentItem?.crop_id || currentItem?.blend_id) && currentItem?.packaging_size) {
-                              const autoPrice = await autoFetchPrice(currentItem.packaging_size, 'wholesale', currentItem.crop_id, currentItem.blend_id);
-                              setCurrentItem({ ...currentItem, price_per_unit: autoPrice > 0 ? autoPrice.toString() : (currentItem?.price_per_unit || '') });
-                            }
-                          }}
-                          className={`h-16 p-2 rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
-                            customerType === 'wholesale'
-                              ? 'border-orange-500 bg-orange-50'
-                              : 'border-slate-200 hover:border-slate-300'
-                          }`}
-                        >
-                          <Store className={`h-5 w-5 mb-1 ${
-                            customerType === 'wholesale' ? 'text-orange-500' : 'text-gray-400'
-                          }`} />
-                          <div className="text-xs font-medium">VO</div>
-                        </button>
-                      </div>
-                    </div>
+                  <StepIndicator />
 
-                    <div className="grid grid-cols-2 gap-3">
+                  {/* STEP 1: Zákazník & Dodanie */}
+                  {wizardStep === 1 && (
+                    <div className="space-y-3">
                       <div>
-                        <Label className="text-sm">Zákazník *</Label>
-                        <div className="mt-0.5">
-                          <SearchableCustomerSelect
-                            customers={safeCustomers}
-                            value={customerId || ''}
-                            onValueChange={(newCustomerId) => {
-                              setCustomerId(newCustomerId);
-                              const selectedCustomer = safeCustomers.find(c => c.id === newCustomerId);
-                              if (selectedCustomer && (selectedCustomer as any).delivery_route_id) {
-                                const customerRoute = safeRoutes.find(r => r.id === (selectedCustomer as any).delivery_route_id);
-                                if (customerRoute) {
-                                  setRoute(customerRoute.name);
-                                }
-                              }
-                            }}
-                            filterByType={customerType}
-                            placeholder="Vyberte zákazníka"
-                            allowAll={false}
-                          />
+                        <Label className="text-xs font-semibold text-[#94a3b8] uppercase tracking-wider mb-2 block">Typ zákazníka</Label>
+                        <div className="grid grid-cols-3 gap-2">
+                          <button type="button" onClick={async () => { setCustomerType('home'); setCustomerId(''); if ((currentItem?.crop_id || currentItem?.blend_id) && currentItem?.packaging_size) { const p = await autoFetchPrice(currentItem.packaging_size, 'home', currentItem.crop_id, currentItem.blend_id); setCurrentItem(prev => ({ ...prev, price_per_unit: p > 0 ? p.toString() : (prev.price_per_unit || '') })); } }} className={`h-14 rounded-lg border-2 transition-all flex flex-col items-center justify-center gap-1 ${customerType === 'home' ? 'border-[#10b981] bg-emerald-50' : 'border-[#e2e8f0] hover:border-[#cbd5e1]'}`}>
+                            <House className={`h-4 w-4 ${customerType === 'home' ? 'text-[#10b981]' : 'text-[#94a3b8]'}`} />
+                            <span className="text-xs font-medium">Domáci</span>
+                          </button>
+                          <button type="button" onClick={async () => { setCustomerType('gastro'); setCustomerId(''); if ((currentItem?.crop_id || currentItem?.blend_id) && currentItem?.packaging_size) { const p = await autoFetchPrice(currentItem.packaging_size, 'gastro', currentItem.crop_id, currentItem.blend_id); setCurrentItem(prev => ({ ...prev, price_per_unit: p > 0 ? p.toString() : (prev.price_per_unit || '') })); } }} className={`h-14 rounded-lg border-2 transition-all flex flex-col items-center justify-center gap-1 ${customerType === 'gastro' ? 'border-blue-500 bg-blue-50' : 'border-[#e2e8f0] hover:border-[#cbd5e1]'}`}>
+                            <Utensils className={`h-4 w-4 ${customerType === 'gastro' ? 'text-blue-500' : 'text-[#94a3b8]'}`} />
+                            <span className="text-xs font-medium">Gastro</span>
+                          </button>
+                          <button type="button" onClick={async () => { setCustomerType('wholesale'); setCustomerId(''); if ((currentItem?.crop_id || currentItem?.blend_id) && currentItem?.packaging_size) { const p = await autoFetchPrice(currentItem.packaging_size, 'wholesale', currentItem.crop_id, currentItem.blend_id); setCurrentItem(prev => ({ ...prev, price_per_unit: p > 0 ? p.toString() : (prev.price_per_unit || '') })); } }} className={`h-14 rounded-lg border-2 transition-all flex flex-col items-center justify-center gap-1 ${customerType === 'wholesale' ? 'border-orange-500 bg-orange-50' : 'border-[#e2e8f0] hover:border-[#cbd5e1]'}`}>
+                            <Store className={`h-4 w-4 ${customerType === 'wholesale' ? 'text-orange-500' : 'text-[#94a3b8]'}`} />
+                            <span className="text-xs font-medium">VO</span>
+                          </button>
                         </div>
                       </div>
 
-                      <div>
-                        <Label className="text-sm">Trasa</Label>
-                        <select
-                          value={route || ''}
-                          onChange={(e) => setRoute(e.target.value)}
-                          className="mt-0.5 w-full h-10 px-3 border border-slate-200 rounded-md text-sm bg-white"
-                        >
-                          <option value="">Žiadna trasa</option>
-                          {(routes || []).map(r => (
-                            <option key={r?.id} value={r?.name}>{r?.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label className="text-sm">Dátum *</Label>
-                        <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "w-full h-10 justify-start text-left font-normal mt-1 border-slate-200",
-                                !deliveryDate && "text-muted-foreground"
-                              )}
-                            >
-                              <Calendar className="mr-2 h-4 w-4" />
-                              {deliveryDate ? format(new Date(deliveryDate), 'dd. MMMM yyyy', { locale: sk }) : "Vyberte dátum"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <CalendarComponent
-                              mode="single"
-                              selected={deliveryDate ? new Date(deliveryDate) : undefined}
-                              onSelect={(date) => {
-                                if (date) {
-                                  setDeliveryDate(format(date, 'yyyy-MM-dd'));
-                                  setDatePopoverOpen(false);
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-sm font-medium">Zákazník *</Label>
+                          <div className="mt-1">
+                            <SearchableCustomerSelect
+                              customers={safeCustomers}
+                              value={customerId || ''}
+                              onValueChange={(newId) => {
+                                setCustomerId(newId);
+                                const c = safeCustomers.find(c => c.id === newId);
+                                if (c && (c as any).delivery_route_id) {
+                                  const r = safeRoutes.find(r => r.id === (c as any).delivery_route_id);
+                                  if (r) setRoute(r.name);
                                 }
                               }}
-                              locale={sk}
-                              modifiers={{
-                                deliveryDay: (date) => {
-                                  const deliveryDays = getDeliveryDaysArray();
-                                  return deliveryDays.includes(getDay(date));
-                                }
-                              }}
-                              modifiersStyles={{
-                                deliveryDay: {
-                                  backgroundColor: '#d1fae5',
-                                  color: '#065f46',
-                                  fontWeight: 'bold'
-                                }
-                              }}
-                              initialFocus
+                              filterByType={customerType}
+                              placeholder="Vyberte zákazníka"
+                              allowAll={false}
                             />
-                          </PopoverContent>
-                        </Popover>
-                        {deliveryDayHint && (
-                          <p className="text-xs text-gray-500 mt-1">{deliveryDayHint}</p>
-                        )}
-                      </div>
-                      <div>
-                        <Label className="text-sm">Stav</Label>
-                        <select
-                          value={status || 'cakajuca'}
-                          onChange={(e) => setStatus(e.target.value)}
-                          className="mt-1 w-full h-10 px-3 border border-slate-200 rounded-md text-sm bg-white"
-                        >
-                          <option value="cakajuca">Čakajúca</option>
-                          <option value="potvrdena">Potvrdená</option>
-                          <option value="pripravena">Pripravená</option>
-                          <option value="dorucena">Doručená</option>
-                          <option value="zrusena">Zrušená</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label className="text-sm">Typ</Label>
-                        <select
-                          value={orderType || 'jednorazova'}
-                          onChange={(e) => setOrderType(e.target.value)}
-                          className="mt-1 w-full h-10 px-3 border border-slate-200 rounded-md text-sm bg-white"
-                        >
-                          <option value="jednorazova">Jednorazová</option>
-                          <option value="tyzdenne">Týždenne</option>
-                          <option value="dvojtyzdenne">Dvojtýždenne</option>
-                        </select>
-                      </div>
-                      <div>
-                        <Label className="text-sm">Počet týždňov</Label>
-                        <Input
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="1"
-                          value={weekCount}
-                          onChange={(e) => {
-                            const inputValue = e.target.value;
-                            if (inputValue === '') {
-                              setWeekCount('');
-                            } else {
-                              const cleanValue = inputValue.replace(/[^0-9]/g, '');
-                              if (cleanValue !== '') {
-                                const num = parseInt(cleanValue);
-                                if (num <= 52) {
-                                  setWeekCount(num);
-                                }
-                              }
-                            }
-                          }}
-                          onBlur={(e) => {
-                            const inputValue = e.target.value;
-                            if (inputValue === '') {
-                              setWeekCount(1);
-                            } else {
-                              const num = parseInt(inputValue);
-                              if (isNaN(num) || num < 1) {
-                                setWeekCount(1);
-                              } else if (num > 52) {
-                                setWeekCount(52);
-                              }
-                            }
-                          }}
-                          className="mt-1 h-10 border-slate-200"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Počet týždňov na opakovanie</p>
-                      </div>
-                    </div>
-
-                    <div className="border-t pt-2.5 mt-2.5">
-                      <h3 className="font-medium text-sm mb-2.5">Pridať produkt</h3>
-
-                      <div className="flex items-center space-x-2 mb-3">
-                        <input
-                          type="checkbox"
-                          id="special-item-modal"
-                          checked={currentItem?.is_special_item || false}
-                          onChange={(e) => {
-                            setCurrentItem({ ...currentItem, is_special_item: e.target.checked });
-                            // Allow manual price input for special items
-                            if (e.target.checked) {
-                              setIsPriceConfigured(true);
-                            }
-                          }}
-                          className="h-4 w-4"
-                        />
-                        <Label htmlFor="special-item-modal" className="text-sm cursor-pointer">
-                          Špeciálna položka (manuálne zadanie)
-                        </Label>
-                      </div>
-
-{/* SEKCIA: VÝBER PLODINY A KATEGÓRIE */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-p-4 bg-slate-50 p-4 rounded-lg items-end">
-                        <div className="space-y-2">
-                          <Label className="text-sm text-left block">Kategória</Label>
-                          <CategoryFilter
-                            value={categoryFilter}
-                            onChange={(newValue) => {
-                              setCategoryFilter(newValue);
-                            }}
-                            hideLabel={true}
-                          />
+                          </div>
                         </div>
-
-                        <div className="space-y-2">
-                          <Label>Plodina / Mix *</Label>
-                          <Select
-                            value={
-                              currentItem?.crop_id
-                                ? `crop:${currentItem.crop_id}`
-                                : currentItem?.blend_id
-                                ? `blend:${currentItem.blend_id}`
-                                : ""
-                            }
-                            onValueChange={async (value) => {
-                              const [type, id] = value.split(':');
-
-                              if (type === 'crop') {
-                                const selectedCrop = crops?.find(c => c.id === id);
-                                setCurrentItem(prev => ({
-                                  ...prev,
-                                  crop_id: id,
-                                  blend_id: undefined,
-                                  crop_name: selectedCrop?.name || ""
-                                }));
-
-                                // Auto-fetch price and packaging if weight is already selected
-                                if (currentItem?.packaging_size && customerType) {
-                                  const [price, pkg] = await Promise.all([
-                                    autoFetchPrice(currentItem.packaging_size, customerType, id, undefined),
-                                    autoFetchPackaging(currentItem.packaging_size, id, undefined)
-                                  ]);
-
-                                  // Track if price is configured
-                                  setIsPriceConfigured(price > 0);
-
-                                  setCurrentItem(prev => ({
-                                    ...prev,
-                                    price_per_unit: price > 0 ? price.toString() : '',
-                                    packaging_volume_ml: pkg?.packaging_volume_ml || prev.packaging_volume_ml,
-                                    packaging_id: pkg?.packaging_id || prev.packaging_id
-                                  }));
-                                }
-                              } else if (type === 'blend') {
-                                const selectedBlend = blends?.find(b => b.id === id);
-                                setCurrentItem(prev => ({
-                                  ...prev,
-                                  blend_id: id,
-                                  crop_id: undefined,
-                                  crop_name: selectedBlend?.name || ""
-                                }));
-
-                                // Auto-fetch price and packaging if weight is already selected
-                                if (currentItem?.packaging_size && customerType) {
-                                  const [price, pkg] = await Promise.all([
-                                    autoFetchPrice(currentItem.packaging_size, customerType, undefined, id),
-                                    autoFetchPackaging(currentItem.packaging_size, undefined, id)
-                                  ]);
-
-                                  // Track if price is configured
-                                  setIsPriceConfigured(price > 0);
-
-                                  setCurrentItem(prev => ({
-                                    ...prev,
-                                    price_per_unit: price > 0 ? price.toString() : '',
-                                    packaging_volume_ml: pkg?.packaging_volume_ml || prev.packaging_volume_ml,
-                                    packaging_id: pkg?.packaging_id || prev.packaging_id
-                                  }));
-                                }
-                              }
-                            }}
-                          >
-                            <SelectTrigger className="w-full h-10 bg-white border-slate-200">
-                              <SelectValue placeholder="Vyberte plodinu alebo mix" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-white z-[9999]">
-                              {(() => {
-                                return null;
-                              })()}
-                              {filteredCropsByCategory.length > 0 && (
-                                <SelectGroup>
-                                  <SelectLabel>Samostatné plodiny</SelectLabel>
-                                  {filteredCropsByCategory.map((crop) => (
-                                    <SelectItem key={crop.id} value={`crop:${crop.id}`}>{crop.name}</SelectItem>
-                                  ))}
-                                </SelectGroup>
-                              )}
-                              {filteredBlendsByCategory.length > 0 && (
-                                <SelectGroup>
-                                  <SelectLabel>Mixy</SelectLabel>
-                                  {filteredBlendsByCategory.map((blend) => (
-                                    <SelectItem key={blend.id} value={`blend:${blend.id}`}>{blend.name}</SelectItem>
-                                  ))}
-                                </SelectGroup>
-                              )}
-                            </SelectContent>
-                          </Select>
+                        <div>
+                          <Label className="text-sm font-medium">Trasa</Label>
+                          <select value={route || ''} onChange={(e) => setRoute(e.target.value)} className="mt-1 w-full h-10 px-3 border border-[#e2e8f0] rounded-md text-sm bg-white">
+                            <option value="">Žiadna trasa</option>
+                            {safeRoutes.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+                          </select>
                         </div>
                       </div>
 
-                      {/* SEKCIA: VÁHA A MNOŽSTVO */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg mt-2">
-                        <div className="space-y-2">
-                          <Label>Váha</Label>
-                          {(() => {
-                            return null;
-                          })()}
-                          {currentItem?.is_special_item ? (
-                            <Input
-                              placeholder="Zadajte váhu (napr. 30)"
-                              value={currentItem?.packaging_size || ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setCurrentItem(prev => ({ ...prev, packaging_size: val }));
-                              }}
-                              onBlur={(e) => {
-                                const val = e.target.value;
-                                if (val && !val.endsWith('g') && !isNaN(Number(val))) {
-                                  setCurrentItem(prev => ({ ...prev, packaging_size: val + 'g' }));
-                                }
-                              }}
-                              className="h-10 bg-white border-slate-200"
-                            />
-                          ) : (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-sm font-medium">Dátum dodania *</Label>
+                          <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" className={cn('w-full h-10 justify-start text-left font-normal mt-1 border-[#e2e8f0]', !deliveryDate && 'text-muted-foreground')}>
+                                <Calendar className="mr-2 h-4 w-4" />
+                                {deliveryDate ? format(new Date(deliveryDate), 'dd. MMM yyyy', { locale: sk }) : 'Vyberte dátum'}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <CalendarComponent
+                                mode="single"
+                                selected={deliveryDate ? new Date(deliveryDate) : undefined}
+                                onSelect={(date) => { if (date) { setDeliveryDate(format(date, 'yyyy-MM-dd')); setDatePopoverOpen(false); } }}
+                                locale={sk}
+                                modifiers={{ deliveryDay: (date) => getDeliveryDaysArray().includes(getDay(date)) }}
+                                modifiersStyles={{ deliveryDay: { backgroundColor: '#d1fae5', color: '#065f46', fontWeight: 'bold' } }}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          {deliveryDayHint && <p className="text-[11px] text-[#64748b] mt-1">{deliveryDayHint}</p>}
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium">Stav</Label>
+                          <select value={status || 'cakajuca'} onChange={(e) => setStatus(e.target.value)} className="mt-1 w-full h-10 px-3 border border-[#e2e8f0] rounded-md text-sm bg-white">
+                            <option value="cakajuca">Čakajúca</option>
+                            <option value="potvrdena">Potvrdená</option>
+                            <option value="pripravena">Pripravená</option>
+                            <option value="dorucena">Doručená</option>
+                            <option value="zrusena">Zrušená</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-sm font-medium">Typ objednávky</Label>
+                          <select value={orderType || 'jednorazova'} onChange={(e) => setOrderType(e.target.value)} className="mt-1 w-full h-10 px-3 border border-[#e2e8f0] rounded-md text-sm bg-white">
+                            <option value="jednorazova">Jednorazová</option>
+                            <option value="tyzdenne">Týždenne</option>
+                            <option value="dvojtyzdenne">Dvojtýždenne</option>
+                          </select>
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium">Počet týždňov</Label>
+                          <Input type="text" inputMode="numeric" placeholder="1" value={weekCount}
+                            onChange={(e) => { const v = e.target.value; if (v === '') { setWeekCount(''); return; } const clean = v.replace(/[^0-9]/g, ''); if (clean) { const n = parseInt(clean); if (n <= 52) setWeekCount(n); } }}
+                            onBlur={(e) => { const n = parseInt(e.target.value); if (!n || n < 1) setWeekCount(1); else if (n > 52) setWeekCount(52); }}
+                            className="mt-1 h-10 border-[#e2e8f0]" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* STEP 2: Produkty */}
+                  {wizardStep === 2 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 p-2.5 bg-[#fafafa] rounded-lg border border-[#e2e8f0]">
+                        <input type="checkbox" id="special-item-wiz" checked={currentItem?.is_special_item || false}
+                          onChange={(e) => { setCurrentItem(prev => ({ ...prev, is_special_item: e.target.checked })); if (e.target.checked) setIsPriceConfigured(true); }}
+                          className="h-4 w-4 rounded" />
+                        <Label htmlFor="special-item-wiz" className="text-sm cursor-pointer">Špeciálna položka (manuálne zadanie)</Label>
+                      </div>
+
+                      <div className="bg-[#fafafa] rounded-lg border border-[#e2e8f0] p-3 space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-xs font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">Kategória</Label>
+                            <CategoryFilter value={categoryFilter} onChange={setCategoryFilter} hideLabel={true} />
+                          </div>
+                          <div>
+                            <Label className="text-xs font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">Plodina / Mix *</Label>
                             <Select
-                              value={currentItem?.packaging_size || ''}
+                              value={currentItem?.crop_id ? `crop:${currentItem.crop_id}` : currentItem?.blend_id ? `blend:${currentItem.blend_id}` : ''}
                               onValueChange={async (value) => {
-                                setCurrentItem(prev => ({ ...prev, packaging_size: value }));
-                                // AUTOMATIC FETCHING OF PRICE AND PACKAGING
-                                if ((currentItem?.crop_id || currentItem?.blend_id) && customerType) {
-                                  const [price, pkg] = await Promise.all([
-                                    autoFetchPrice(value, customerType, currentItem.crop_id, currentItem.blend_id),
-                                    autoFetchPackaging(value, currentItem.crop_id, currentItem.blend_id)
-                                  ]);
-
-                                  // Track if price is configured
-                                  setIsPriceConfigured(price > 0);
-
-                                  setCurrentItem(prev => ({
-                                    ...prev,
-                                    price_per_unit: price > 0 ? price.toString() : '',
-                                    packaging_volume_ml: pkg?.packaging_volume_ml || prev.packaging_volume_ml,
-                                    packaging_id: pkg?.packaging_id || prev.packaging_id
-                                  }));
+                                const [type, id] = value.split(':');
+                                if (type === 'crop') {
+                                  const sel = crops?.find(c => c.id === id);
+                                  setCurrentItem(prev => ({ ...prev, crop_id: id, blend_id: undefined, crop_name: sel?.name || '' }));
+                                  if (currentItem?.packaging_size && customerType) {
+                                    const [price, pkg] = await Promise.all([autoFetchPrice(currentItem.packaging_size, customerType, id, undefined), autoFetchPackaging(currentItem.packaging_size, id, undefined)]);
+                                    setIsPriceConfigured(price > 0);
+                                    setCurrentItem(prev => ({ ...prev, price_per_unit: price > 0 ? price.toString() : '', packaging_volume_ml: pkg?.packaging_volume_ml || prev.packaging_volume_ml, packaging_id: pkg?.packaging_id || prev.packaging_id }));
+                                  }
+                                } else {
+                                  const sel = blends?.find(b => b.id === id);
+                                  setCurrentItem(prev => ({ ...prev, blend_id: id, crop_id: undefined, crop_name: sel?.name || '' }));
+                                  if (currentItem?.packaging_size && customerType) {
+                                    const [price, pkg] = await Promise.all([autoFetchPrice(currentItem.packaging_size, customerType, undefined, id), autoFetchPackaging(currentItem.packaging_size, undefined, id)]);
+                                    setIsPriceConfigured(price > 0);
+                                    setCurrentItem(prev => ({ ...prev, price_per_unit: price > 0 ? price.toString() : '', packaging_volume_ml: pkg?.packaging_volume_ml || prev.packaging_volume_ml, packaging_id: pkg?.packaging_id || prev.packaging_id }));
+                                  }
                                 }
                               }}
                             >
-                              <SelectTrigger className="w-full h-10 bg-white border-slate-200">
-                                <SelectValue placeholder="Vyberte gramáž" />
-                              </SelectTrigger>
+                              <SelectTrigger className="h-9 bg-white border-[#e2e8f0] text-sm"><SelectValue placeholder="Plodina / Mix" /></SelectTrigger>
                               <SelectContent className="bg-white z-[9999]">
-                                {['25g', '50g', '60g', '70g', '100g', '120g', '150g'].map((w) => (
-                                  <SelectItem key={w} value={w}>{w}</SelectItem>
-                                ))}
+                                {filteredCropsByCategory.length > 0 && (
+                                  <SelectGroup><SelectLabel>Plodiny</SelectLabel>
+                                    {filteredCropsByCategory.map(c => <SelectItem key={c.id} value={`crop:${c.id}`}>{c.name}</SelectItem>)}
+                                  </SelectGroup>
+                                )}
+                                {filteredBlendsByCategory.length > 0 && (
+                                  <SelectGroup><SelectLabel>Mixy</SelectLabel>
+                                    {filteredBlendsByCategory.map(b => <SelectItem key={b.id} value={`blend:${b.id}`}>{b.name}</SelectItem>)}
+                                  </SelectGroup>
+                                )}
                               </SelectContent>
                             </Select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-xs font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">Váha</Label>
+                            {currentItem?.is_special_item ? (
+                              <Input placeholder="napr. 30" value={currentItem?.packaging_size || ''}
+                                onChange={(e) => setCurrentItem(prev => ({ ...prev, packaging_size: e.target.value }))}
+                                onBlur={(e) => { const v = e.target.value; if (v && !v.endsWith('g') && !isNaN(Number(v))) setCurrentItem(prev => ({ ...prev, packaging_size: v + 'g' })); }}
+                                className="h-9 bg-white border-[#e2e8f0]" />
+                            ) : (
+                              <Select value={currentItem?.packaging_size || ''} onValueChange={async (value) => {
+                                setCurrentItem(prev => ({ ...prev, packaging_size: value }));
+                                if ((currentItem?.crop_id || currentItem?.blend_id) && customerType) {
+                                  const [price, pkg] = await Promise.all([autoFetchPrice(value, customerType, currentItem.crop_id, currentItem.blend_id), autoFetchPackaging(value, currentItem.crop_id, currentItem.blend_id)]);
+                                  setIsPriceConfigured(price > 0);
+                                  setCurrentItem(prev => ({ ...prev, price_per_unit: price > 0 ? price.toString() : '', packaging_volume_ml: pkg?.packaging_volume_ml || prev.packaging_volume_ml, packaging_id: pkg?.packaging_id || prev.packaging_id }));
+                                }
+                              }}>
+                                <SelectTrigger className="h-9 bg-white border-[#e2e8f0] text-sm"><SelectValue placeholder="Gramáž" /></SelectTrigger>
+                                <SelectContent className="bg-white z-[9999]">
+                                  {['25g','50g','60g','70g','100g','120g','150g'].map(w => <SelectItem key={w} value={w}>{w}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </div>
+                          <div>
+                            <Label className="text-xs font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">Množstvo (ks)</Label>
+                            <Input type="number" value={currentItem?.quantity || ''}
+                              onChange={(e) => { const v = e.target.value; setCurrentItem(prev => ({ ...prev, quantity: v === '' ? '' : (parseInt(v) || 1) })); }}
+                              onBlur={(e) => { if (!e.target.value || parseInt(e.target.value) < 1) setCurrentItem(prev => ({ ...prev, quantity: 1 })); }}
+                              className="h-9 bg-white border-[#e2e8f0]" />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-xs font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">Forma</Label>
+                            <select value={currentItem?.delivery_form || 'rezana'} onChange={(e) => setCurrentItem(prev => ({ ...prev, delivery_form: e.target.value }))} className="w-full h-9 px-3 border border-[#e2e8f0] rounded-md text-sm bg-white">
+                              <option value="rezana">Zrezaná</option>
+                              <option value="ziva">Živá</option>
+                            </select>
+                          </div>
+                          <div>
+                            <Label className="text-xs font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">Cena / ks (€)</Label>
+                            <Input type="text" inputMode="decimal" placeholder={!isPriceConfigured && !currentItem.is_special_item ? 'Chýba cena' : '0.00'}
+                              value={currentItem.price_per_unit || ''}
+                              onChange={(e) => setCurrentItem(prev => ({ ...prev, price_per_unit: e.target.value }))}
+                              disabled={!isPriceConfigured && !currentItem.is_special_item}
+                              className="h-9 border-[#e2e8f0] disabled:bg-[#f8fafc] disabled:cursor-not-allowed" />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-xs font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">Typ obalu</Label>
+                            <select value={currentItem?.packaging_type || 'rPET'} onChange={(e) => setCurrentItem(prev => ({ ...prev, packaging_type: e.target.value }))} className="w-full h-9 px-3 border border-[#e2e8f0] rounded-md text-sm bg-white">
+                              <option value="rPET">rPET</option>
+                              <option value="PET">PET</option>
+                              <option value="EKO">EKO</option>
+                              <option value="Vratný obal">Vratný obal</option>
+                            </select>
+                          </div>
+                          {currentItem?.packaging_type !== 'Vratný obal' && (
+                            <div>
+                              <Label className="text-xs font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">Veľkosť (ml)</Label>
+                              <select value={currentItem?.packaging_volume_ml || 250} onChange={(e) => { const vol = parseInt(e.target.value) || 250; const pkg = safePackagings.find((p: any) => p?.size && p.size.includes(vol.toString())); setCurrentItem(prev => ({ ...prev, packaging_volume_ml: vol, packaging_id: pkg?.id || prev.packaging_id })); }} className="w-full h-9 px-3 border border-[#e2e8f0] rounded-md text-sm bg-white">
+                                <option value="250">250 ml</option>
+                                <option value="500">500 ml</option>
+                                <option value="750">750 ml</option>
+                                <option value="1000">1000 ml</option>
+                                <option value="1200">1200 ml</option>
+                              </select>
+                            </div>
                           )}
                         </div>
 
-                        <div className="space-y-2">
-                          <Label>Množstvo (ks)</Label>
-                          <Input
-                            type="number"
-                            value={currentItem?.quantity || ''}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setCurrentItem(prev => ({
-                                ...prev,
-                                quantity: val === '' ? '' : (parseInt(val) || 1)
-                              }));
-                            }}
-                            onBlur={(e) => {
-                              if (e.target.value === '' || parseInt(e.target.value) < 1) {
-                                setCurrentItem(prev => ({ ...prev, quantity: 1 }));
-                              }
-                            }}
-                            className="h-10 bg-white border-slate-200"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4 mt-3">
-                        <div>
-                          <Label className="text-sm">Forma</Label>
-                          <select
-                            value={currentItem?.delivery_form || 'rezana'}
-                            onChange={(e) => setCurrentItem({ ...currentItem, delivery_form: e.target.value })}
-                            className="mt-1 w-full px-3 h-10 border border-slate-200 rounded-md text-sm bg-white"
-                          >
-                            <option value="rezana">Zrezaná</option>
-                            <option value="ziva">Živá</option>
-                          </select>
+                        <div className="flex items-center gap-2">
+                          <input type="checkbox" id="has_label_wiz" checked={currentItem?.has_label || false} onChange={(e) => setCurrentItem(prev => ({ ...prev, has_label: e.target.checked }))} className="h-4 w-4 rounded border-[#cbd5e1]" />
+                          <Label htmlFor="has_label_wiz" className="text-sm cursor-pointer font-normal">Etiketa</Label>
                         </div>
 
                         <div>
-                          <Label className="text-sm">Cena (€)</Label>
-                          <Input
-                            type="text"
-                            inputMode="decimal"
-                            placeholder={!isPriceConfigured && !currentItem.is_special_item ? 'Chýba cena' : '0.00'}
-                            value={currentItem.price_per_unit || ''}
-                            onChange={(e) => {
-                              setCurrentItem({ ...currentItem, price_per_unit: e.target.value });
-                            }}
-                            disabled={!isPriceConfigured && !currentItem.is_special_item}
-                            className="mt-1 h-10 border-slate-200 disabled:bg-slate-100 disabled:cursor-not-allowed"
-                          />
+                          <Label className="text-xs font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">Špeciálne požiadavky</Label>
+                          <textarea value={currentItem?.special_requirements || ''} onChange={(e) => setCurrentItem(prev => ({ ...prev, special_requirements: e.target.value }))} placeholder="Bez korienkov, extra rezané..." className="w-full px-3 py-2 border border-[#e2e8f0] rounded-md text-sm min-h-[56px] resize-none bg-white" />
                         </div>
-
-                        <div>
-                          <Label className="text-sm">Typ obalu</Label>
-                          <select
-                            value={currentItem?.packaging_type || 'rPET'}
-                            onChange={(e) => setCurrentItem({ ...currentItem, packaging_type: e.target.value })}
-                            className="mt-1 w-full px-3 h-10 border border-slate-200 rounded-md text-sm bg-white"
-                          >
-                            <option value="rPET">rPET</option>
-                            <option value="PET">PET</option>
-                            <option value="EKO">EKO</option>
-                            <option value="Vratný obal">Vratný obal</option>
-                          </select>
-                        </div>
-
-                        {currentItem?.packaging_type !== 'Vratný obal' && (
-                          <div>
-                            <Label className="text-sm">Veľkosť krabičky (ml)</Label>
-                            <select
-                              value={currentItem?.packaging_volume_ml || 250}
-                              onChange={(e) => {
-                                const volumeVal = parseInt(e.target.value) || 250;
-                                const selectedPkg = (packagings || []).find(p => p?.size && p.size.includes(volumeVal.toString()));
-                                setCurrentItem({
-                                  ...currentItem,
-                                  packaging_volume_ml: volumeVal,
-                                  packaging_id: selectedPkg?.id || currentItem?.packaging_id
-                                });
-                              }}
-                              className="mt-1 w-full px-3 h-10 border border-slate-200 rounded-md text-sm bg-white"
-                            >
-                              <option value="250">250ml</option>
-                              <option value="500">500ml</option>
-                              <option value="750">750ml</option>
-                              <option value="1000">1000ml</option>
-                              <option value="1200">1200ml</option>
-                            </select>
-                          </div>
-                        )}
                       </div>
 
-                      <div className="flex items-center space-x-2 mt-3">
-                        <input
-                          type="checkbox"
-                          id="has_label"
-                          checked={currentItem?.has_label || false}
-                          onChange={(e) => setCurrentItem({ ...currentItem, has_label: e.target.checked })}
-                          className="w-4 h-4 rounded border-gray-300"
-                        />
-                        <Label htmlFor="has_label" className="text-sm font-normal cursor-pointer">Etiketa</Label>
-                      </div>
-
-                      <div className="mt-3">
-                        <Label className="text-sm">Poznámky / Špeciálne požiadavky</Label>
-                        <textarea
-                          value={currentItem?.special_requirements || ''}
-                          onChange={(e) => setCurrentItem({ ...currentItem, special_requirements: e.target.value })}
-                          placeholder="Napríklad: bez koreňov, extra rezané, balenie oddelene..."
-                          className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md text-sm min-h-[60px] resize-y"
-                        />
-                      </div>
-
-                      <button
-                        onClick={addItemToList}
-                        className="mt-3 w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-                      >
-                        <Plus className="h-4 w-4" />
-                        Pridať položku do zoznamu
+                      <button onClick={addItemToList} className="w-full h-10 rounded-lg border-2 border-dashed border-[#10b981] text-[#10b981] text-sm font-medium hover:bg-emerald-50 transition-colors flex items-center justify-center gap-2">
+                        <Plus className="h-4 w-4" />Pridať do zoznamu
                       </button>
-                    </div>
 
-                    {(orderItems || []).length > 0 && (
-                      <div className="bg-green-50 border-2 border-green-300 rounded-lg p-4 mt-3">
-                        <h3 className="font-semibold text-sm mb-3 text-green-800 uppercase tracking-wide">Pridané položky</h3>
-                        <div className="space-y-2.5">
-                          {(orderItems || []).map((item, index) => {
-                            if (!item) return null;
-                            const itemPrice = (item?.quantity || 0) * (parseFloat(item?.price_per_unit?.toString().replace(',', '.')) || 0);
-                            const formLabel = getDeliveryFormLabel(item?.delivery_form);
-                            return (
-                              <div key={index} className="bg-white p-3 rounded-lg border border-green-200 shadow-sm">
-                                <div className="flex justify-between items-center">
-                                  <div className="flex-1">
-                                    <div className="text-sm text-gray-900 flex items-center gap-1 flex-wrap">
-                                      <span className="font-semibold">{item?.quantity || 0}ks</span>
-                                      <span>•</span>
-                                      <span className="font-medium">{item?.crop_name || '-'}</span>
-                                      <span>•</span>
-                                      <span className="text-gray-600">{item?.packaging_size ? (item.packaging_size.includes('g') || item.packaging_size.includes('kg') ? item.packaging_size : `${item.packaging_size}g`) : '-'}</span>
-                                      <span className="text-gray-500">({formLabel})</span>
-                                      {item?.has_label && (
-                                        <Badge variant="outline" className="text-xs px-1.5 py-0.5">
-                                          🏷️ Etiketa
-                                        </Badge>
-                                      )}
-                                      <span className="font-bold text-[#10b981]">--- {itemPrice.toFixed(2)} €</span>
-                                    </div>
-                                    <div className="text-xs text-gray-500 mt-1">
-                                      • Obal: {item?.packaging_type || 'rPET'} • {item?.packaging_volume_ml || 250}ml
-                                      {item?.special_requirements && (
-                                        <span className="text-orange-600 font-medium"> • {item.special_requirements}</span>
-                                      )}
-                                    </div>
+                      {(orderItems || []).length > 0 && (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                          <h4 className="text-xs font-semibold text-[#065f46] uppercase tracking-wider mb-2">Pridané položky ({orderItems.length})</h4>
+                          <div className="space-y-2">
+                            {orderItems.map((item, idx) => {
+                              if (!item) return null;
+                              const itemTotal = (item.quantity || 0) * (parseFloat(String(item.price_per_unit || '0').replace(',', '.')) || 0);
+                              return (
+                                <div key={idx} className="bg-white rounded-lg border border-emerald-200 px-3 py-2 flex items-center justify-between gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-medium text-[#0f172a] truncate">{item.quantity}ks × {item.crop_name} {item.packaging_size}</div>
+                                    <div className="text-[11px] text-[#64748b]">{item.packaging_type} {item.packaging_volume_ml}ml · {getDeliveryFormLabel(item.delivery_form)}{item.has_label ? ' · Etiketa' : ''}</div>
                                   </div>
-                                  <div className="flex gap-1">
-                                    <Button variant="ghost" size="sm" onClick={() => {
-
-                                      // OPRAVA: Normalizuj packaging_size - pridaj "g" ak chýba
-                                      let normalizedPackagingSize = String(item?.packaging_size || '');
-                                      if (normalizedPackagingSize && !normalizedPackagingSize.includes('g') && !normalizedPackagingSize.includes('kg') && !isNaN(Number(normalizedPackagingSize))) {
-                                        normalizedPackagingSize = normalizedPackagingSize + 'g';
-                                      }
-
-                                      // OPRAVA: Explicitný spread s typovou konverziou
-                                      setCurrentItem({
-                                        ...item,
-                                        packaging_size: normalizedPackagingSize,
-                                        quantity: Number(item?.quantity || 1),
-                                        price_per_unit: item?.price_per_unit?.toString() || ''
-                                      });
-
-                                      removeItem(index);
-                                    }} className="ml-2">
-                                      <Pencil className="h-4 w-4 text-blue-500" />
+                                  <span className="text-sm font-bold text-[#10b981] shrink-0">{itemTotal.toFixed(2)} €</span>
+                                  <div className="flex gap-0.5 shrink-0">
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                                      let ps = String(item?.packaging_size || '');
+                                      if (ps && !ps.includes('g') && !ps.includes('kg') && !isNaN(Number(ps))) ps += 'g';
+                                      setCurrentItem({ ...item, packaging_size: ps, quantity: Number(item.quantity || 1), price_per_unit: item.price_per_unit?.toString() || '' });
+                                      removeItem(idx);
+                                    }}>
+                                      <Pencil className="h-3.5 w-3.5 text-blue-500" />
                                     </Button>
-                                    <Button variant="ghost" size="sm" onClick={() => removeItem(index)}>
-                                      <Trash2 className="h-4 w-4 text-red-500" />
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeItem(idx)}>
+                                      <Trash2 className="h-3.5 w-3.5 text-red-400" />
                                     </Button>
                                   </div>
                                 </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mt-4 pt-4 border-t">
-                    <Label className="text-sm font-medium">Poznámky k objednávke</Label>
-                    <textarea
-                      value={orderNotes || ''}
-                      onChange={(e) => setOrderNotes(e.target.value)}
-                      placeholder="Poznámky alebo špeciálne pokyny pre objednávku..."
-                      className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md text-sm min-h-[80px] resize-y"
-                    />
-                  </div>
-
-                  <div className="mt-4 pt-4 border-t">
-                    <h3 className="font-medium text-sm mb-3">Nastavenia dopravy</h3>
-                    <div className="border rounded-lg p-3 space-y-3 bg-gray-50">
-                      <div className="flex items-center gap-3">
-                        <Switch
-                          id="free-delivery"
-                          checked={freeDelivery}
-                          onCheckedChange={(checked) => {
-                            setFreeDelivery(checked);
-                            if (checked) {
-                              setManualDeliveryAmount('');
-                            }
-                          }}
-                        />
-                        <Label htmlFor="free-delivery" className="text-sm font-medium cursor-pointer">
-                          Doprava zdarma
-                        </Label>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-sm">Manuálna suma dopravy (€)</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder="Auto-výpočet z trasy"
-                          value={manualDeliveryAmount}
-                          onChange={(e) => setManualDeliveryAmount(e.target.value)}
-                          disabled={freeDelivery}
-                          className="h-10 text-sm"
-                        />
-                        <p className="text-xs text-gray-500">
-                          {freeDelivery
-                            ? 'Doprava zdarma je zapnutá - manuálna suma je deaktivovaná'
-                            : 'Nechajte prázdne pre automatický výpočet podľa trasy'}
-                        </p>
-                      </div>
-                      <div className="pt-2 border-t space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">Vypočítaná doprava:</span>
-                          <span className="text-lg font-bold text-green-600">{calculatedDeliveryPrice.toFixed(2)} €</span>
-                        </div>
-                        {(() => {
-                          const showFreeDeliveryMessage = calculatedDeliveryPrice === 0 && orderItems && orderItems.length > 0 && !freeDelivery;
-
-                          if (showFreeDeliveryMessage) {
-                            return (
-                              <p className="text-sm text-green-600 font-bold flex items-center gap-1">
-                                <Check className="h-4 w-4" />
-                                Doprava zdarma
-                              </p>
-                            );
-                          }
-                          return null;
-                        })()}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* CAPACITY WARNING */}
-                  {(() => {
-                    if (!deliveryDate || !orderItems || orderItems.length === 0) {
-                      return null;
-                    }
-
-                    const capacityIssues = checkCapacityForOrder(deliveryDate, orderItems);
-
-                    if (capacityIssues.length === 0) return null;
-
-                    return (
-                      <div className="mb-4 p-4 bg-red-50 border-2 border-red-300 rounded-lg">
-                        <div className="flex items-start gap-3">
-                          <div className="flex-shrink-0 mt-0.5">
-                            <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                            </svg>
+                              );
+                            })}
                           </div>
-                          <div className="flex-1">
-                            <h3 className="font-bold text-red-800 mb-2">⚠️ NEDOSTATOK KAPACITY</h3>
-                            <p className="text-sm text-red-700 mb-3">
-                              Na dátum {new Date(deliveryDate).toLocaleDateString('sk-SK')} nemáte dostatok vysadených plodín:
-                            </p>
-                            <div className="space-y-2">
-                              {capacityIssues.map((issue, idx) => (
-                                <div key={idx} className="bg-white border border-red-200 rounded p-3 text-sm">
-                                  <p className="font-semibold text-red-900 mb-1">
-                                    {issue.cropName} - {issue.packageSize}g
-                                  </p>
-                                  <div className="grid grid-cols-2 gap-2 text-xs">
-                                    <div>
-                                      <span className="text-gray-600">Kapacita:</span>
-                                      <span className="font-medium ml-1">{issue.capacity}g</span>
-                                    </div>
-                                    <div>
-                                      <span className="text-gray-600">Už objednané:</span>
-                                      <span className="font-medium ml-1">{issue.ordered}g</span>
-                                    </div>
-                                    <div>
-                                      <span className="text-gray-600">Chcete pridať:</span>
-                                      <span className="font-medium ml-1">{issue.needed}g</span>
-                                    </div>
-                                    <div>
-                                      <span className="text-red-700 font-semibold">Chýba:</span>
-                                      <span className="font-bold text-red-700 ml-1">{issue.shortage}g</span>
-                                    </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* STEP 3: Doprava & Súhrn */}
+                  {wizardStep === 3 && (
+                    <div className="space-y-4">
+                      <div>
+                        <Label className="text-xs font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">Poznámky k objednávke</Label>
+                        <textarea value={orderNotes || ''} onChange={(e) => setOrderNotes(e.target.value)} placeholder="Špeciálne pokyny pre objednávku..." className="w-full px-3 py-2 border border-[#e2e8f0] rounded-lg text-sm min-h-[72px] resize-none" />
+                      </div>
+
+                      <div className="border border-[#e2e8f0] rounded-xl p-4 space-y-3 bg-[#fafafa]">
+                        <h3 className="text-xs font-semibold text-[#374151] uppercase tracking-wider">Nastavenia dopravy</h3>
+                        <div className="flex items-center gap-3">
+                          <Switch id="free-delivery-wiz" checked={freeDelivery} onCheckedChange={(v) => { setFreeDelivery(v); if (v) setManualDeliveryAmount(''); }} />
+                          <Label htmlFor="free-delivery-wiz" className="text-sm font-medium cursor-pointer">Doprava zdarma</Label>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-[#94a3b8] mb-1 block">Manuálna suma dopravy (€)</Label>
+                          <Input type="number" min="0" step="0.01" placeholder="Auto-výpočet z trasy" value={manualDeliveryAmount} onChange={(e) => setManualDeliveryAmount(e.target.value)} disabled={freeDelivery} className="h-9 text-sm border-[#e2e8f0] disabled:bg-white disabled:opacity-50" />
+                          <p className="text-[11px] text-[#94a3b8] mt-1">{freeDelivery ? 'Doprava zdarma je aktívna' : 'Nechajte prázdne pre auto-výpočet podľa trasy'}</p>
+                        </div>
+                        <div className="flex items-center justify-between pt-2 border-t border-[#e2e8f0]">
+                          <span className="text-sm font-medium text-[#374151]">Vypočítaná doprava:</span>
+                          <span className="text-lg font-bold text-[#10b981]">{calculatedDeliveryPrice.toFixed(2)} €</span>
+                        </div>
+                        {calculatedDeliveryPrice === 0 && orderItems.length > 0 && !freeDelivery && (
+                          <p className="text-sm text-[#10b981] font-medium flex items-center gap-1"><Check className="h-3.5 w-3.5" />Doprava zdarma</p>
+                        )}
+                      </div>
+
+                      {(() => {
+                        if (!deliveryDate || !orderItems || orderItems.length === 0) return null;
+                        const issues = checkCapacityForOrder(deliveryDate, orderItems);
+                        if (issues.length === 0) return null;
+                        return (
+                          <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
+                            <h4 className="font-semibold text-red-800 text-sm mb-2 flex items-center gap-1.5">
+                              <svg className="h-4 w-4 text-red-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                              Nedostatok kapacity
+                            </h4>
+                            <div className="space-y-1.5">
+                              {issues.map((issue, i) => (
+                                <div key={i} className="bg-white rounded-lg border border-red-200 px-3 py-2 text-xs">
+                                  <p className="font-semibold text-red-900">{issue.cropName} — {issue.packageSize}g</p>
+                                  <div className="grid grid-cols-2 gap-x-4 mt-1 text-[#64748b]">
+                                    <span>Kapacita: <b>{issue.capacity}g</b></span>
+                                    <span>Objednané: <b>{issue.ordered}g</b></span>
+                                    <span>Pridáte: <b>{issue.needed}g</b></span>
+                                    <span className="text-red-700 font-semibold">Chýba: <b>{issue.shortage}g</b></span>
                                   </div>
                                 </div>
                               ))}
                             </div>
-                            <p className="text-xs text-red-600 mt-3">
-                              Môžete zvoliť iný dátum alebo pridať objednávku aj tak (na vlastné riziko).
-                            </p>
+                            <p className="text-[11px] text-red-600 mt-2">Môžete zvoliť iný dátum alebo pokračovať na vlastné riziko.</p>
                           </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
+                        );
+                      })()}
+                    </div>
+                  )}
 
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                      Zrušiť
-                    </Button>
-                    <Button onClick={saveOrder} className="bg-[#10b981] hover:bg-[#059669]">
-                      {editingOrder ? 'Uložiť zmeny' : 'Vytvoriť objednávku'}
-                    </Button>
-                  </DialogFooter>
+                  {/* Navigation footer */}
+                  <div className="flex items-center justify-between pt-4 mt-2 border-t border-[#f1f5f9]">
+                    <div>
+                      {wizardStep === 1 ? (
+                        <Button variant="outline" className="h-9 px-4 text-sm border-[#e2e8f0]" onClick={() => { setIsDialogOpen(false); setWizardStep(1); }}>Zrušiť</Button>
+                      ) : (
+                        <Button variant="outline" className="h-9 px-4 text-sm border-[#e2e8f0]" onClick={() => setWizardStep(s => s - 1)}>
+                          <ChevronLeft className="h-4 w-4 mr-1" />Späť
+                        </Button>
+                      )}
+                    </div>
+                    <div>
+                      {wizardStep < 3 ? (
+                        <Button className="h-9 px-5 text-sm bg-[#10b981] hover:bg-[#059669]" disabled={wizardStep === 1 && (!customerId || !deliveryDate)} onClick={() => setWizardStep(s => s + 1)}>
+                          Ďalej<ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
+                      ) : (
+                        <Button className="h-9 px-5 text-sm bg-[#10b981] hover:bg-[#059669]" onClick={saveOrder}>
+                          <Check className="h-4 w-4 mr-1.5" />{editingOrder ? 'Uložiť zmeny' : 'Vytvoriť objednávku'}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 </>
               );
             } catch (error) {
