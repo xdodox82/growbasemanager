@@ -774,6 +774,179 @@ const [detailActiveTab, setDetailActiveTab] = useState<'detail' | 'history'>('de
 
 ---
 
+## E. FILTER BAR — AKTUÁLNY DIZAJN (nahrádza sekcie 2 a 3)
+
+> Chip-based filter bar s collapse togglem. Archive/Cancelled sú v TopBar. Žiadny expandovateľný panel.
+
+### Chip helper
+
+```typescript
+const chip = (active: boolean, activeClass: string) =>
+  `inline-flex items-center gap-1.5 px-3 py-1 rounded-md border-[1.5px] text-[11px] font-medium cursor-pointer transition-colors ${
+    active
+      ? activeClass
+      : 'border-[#e2e8f0] text-[#374151] bg-white hover:border-[#bbf7d0] hover:text-[#16a34a] hover:bg-[#f0fdf4]'
+  }`;
+```
+
+### State (v OrdersFilterBar — lokálne)
+
+```typescript
+const [collapsed, setCollapsed] = useState(false);
+const [calendarOpen, setCalendarOpen] = useState(false);  // alebo prop z parenta
+const [calendarMonth, setCalendarMonth] = useState(new Date());
+```
+
+### JSX
+
+```tsx
+{/* ─── FILTER BAR ─── */}
+<div className="bg-white rounded-xl border border-[#e2e8f0] px-4 mb-4">
+
+  {/* Collapse header */}
+  <div className="flex items-center gap-2 py-2.5 cursor-pointer" onClick={() => setCollapsed(v => !v)}>
+    <ChevronDown className={`w-3.5 h-3.5 text-[#94a3b8] transition-transform duration-200 ${collapsed ? '-rotate-90' : ''}`} />
+    <span className="text-[11px] font-semibold text-[#374151] uppercase tracking-wider">Filtre</span>
+    {/* active filter count badge — zobraziť len ak collapsed && niečo aktívne */}
+    {collapsed && activeCount > 0 && (
+      <span className="ml-1 bg-[#16a34a] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">{activeCount}</span>
+    )}
+  </div>
+
+  {!collapsed && (
+    <div className="space-y-0 border-t border-[#f8fafc]">
+
+      {/* Riadok 1: Typ zákazníka + zákazník selector */}
+      <div className="flex items-center gap-2 flex-wrap py-2">
+        <span className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider min-w-[80px] shrink-0">Zákazník</span>
+        <button onClick={() => onFilterCustomerTypeChange('all')} className={chip(filterCustomerType === 'all', 'bg-[#16a34a] border-[#16a34a] text-white')}>Všetci</button>
+        <button onClick={() => onFilterCustomerTypeChange('home')} className={chip(filterCustomerType === 'home', 'bg-[#f0fdf4] border-[#16a34a] text-[#16a34a]')}>
+          <House className="w-3 h-3" />Domáci
+        </button>
+        <button onClick={() => onFilterCustomerTypeChange('gastro')} className={chip(filterCustomerType === 'gastro', 'bg-[#eff6ff] border-[#2563eb] text-[#2563eb]')}>
+          <Utensils className="w-3 h-3" />Gastro
+        </button>
+        <button onClick={() => onFilterCustomerTypeChange('wholesale')} className={chip(filterCustomerType === 'wholesale', 'bg-[#fff7ed] border-[#d97706] text-[#d97706]')}>
+          <Store className="w-3 h-3" />VO
+        </button>
+        <div className="ml-1 w-[220px]">
+          <SearchableCustomerSelect
+            value={customerFilter}
+            onValueChange={onCustomerFilterChange}
+            customers={filteredCustomers}
+            placeholder="Hľadať zákazníka..."
+            allowAll={true}
+          />
+        </div>
+      </div>
+
+      <div className="border-t border-[#f8fafc]" />
+
+      {/* Riadok 2: Kategória chips + plodina selector */}
+      <div className="flex items-center gap-2 flex-wrap py-2">
+        <span className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider min-w-[80px] shrink-0">Kategória</span>
+        <button onClick={() => onOrderCategoryFilterChange('all')} className={chip(orderCategoryFilter === 'all', 'bg-[#16a34a] border-[#16a34a] text-white')}>Všetky</button>
+        <button onClick={() => onOrderCategoryFilterChange('microgreens')} className={chip(orderCategoryFilter === 'microgreens', 'bg-[#f0fdf4] border-[#16a34a] text-[#16a34a]')}>
+          <Leaf className="w-3 h-3" />Mikrozelenina
+        </button>
+        <button onClick={() => onOrderCategoryFilterChange('microherbs')} className={chip(orderCategoryFilter === 'microherbs', 'bg-[#f0fdf4] border-[#16a34a] text-[#16a34a]')}>
+          <Sprout className="w-3 h-3" />Mikrobylinky
+        </button>
+        <button onClick={() => onOrderCategoryFilterChange('edible_flowers')} className={chip(orderCategoryFilter === 'edible_flowers', 'bg-[#fdf4ff] border-[#a855f7] text-[#a855f7]')}>
+          <Flower className="w-3 h-3" />Jedlé kvety
+        </button>
+        <button onClick={() => onOrderCategoryFilterChange('mix')} className={chip(orderCategoryFilter === 'mix', 'bg-[#f0fdf4] border-[#16a34a] text-[#16a34a]')}>
+          <Palette className="w-3 h-3" />Mixy
+        </button>
+        <div className="ml-1">
+          <Select value={filterCrop} onValueChange={onFilterCropChange}>
+            <SelectTrigger className="h-7 text-xs w-[140px] border-[#e2e8f0]">
+              <SelectValue placeholder="Plodina" />
+            </SelectTrigger>
+            <SelectContent className="max-h-[260px] overflow-y-auto z-[100]">
+              <SelectItem value="all">Všetky plodiny</SelectItem>
+              {/* dynamic crop/blend list */}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="border-t border-[#f8fafc]" />
+
+      {/* Riadok 3: Stav chips */}
+      <div className="flex items-center gap-2 flex-wrap py-2">
+        <span className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider min-w-[80px] shrink-0">Stav</span>
+        {([
+          { v: 'all',              l: 'Všetky',     a: 'bg-[#16a34a] border-[#16a34a] text-white' },
+          { v: 'growing',          l: 'Rastie',      a: 'bg-[#dcfce7] border-[#16a34a] text-[#166534]' },
+          { v: 'packed',           l: 'Zabalená',    a: 'bg-[#dbeafe] border-[#2563eb] text-[#1e40af]' },
+          { v: 'on_the_way',       l: 'Na ceste',    a: 'bg-[#ede9fe] border-[#7c3aed] text-[#5b21b6]' },
+          { v: 'cakajuca',         l: 'Čakajúca',    a: 'bg-[#fef3c7] border-[#d97706] text-[#92400e]' },
+          { v: 'pending_approval', l: 'Čaká schv.',  a: 'bg-[#fef3c7] border-[#d97706] text-[#92400e]' },
+          { v: 'potvrdena',        l: 'Potvrdená',   a: 'bg-[#f0fdf4] border-[#16a34a] text-[#16a34a]' },
+          { v: 'dorucena',         l: 'Doručená',    a: 'bg-[#d1fae5] border-[#059669] text-[#064e3b]' },
+          { v: 'zrusena',          l: 'Zrušená',     a: 'bg-[#f8fafc] border-[#94a3b8] text-[#64748b]' },
+        ] as const).map(s => (
+          <button key={s.v} onClick={() => onFilterStatusChange(s.v)} className={chip(filterStatus === s.v, s.a)}>{s.l}</button>
+        ))}
+      </div>
+
+      <div className="border-t border-[#f8fafc]" />
+
+      {/* Riadok 4: Dátum/Obdobie chips + calendar */}
+      <div className="flex items-center gap-2 flex-wrap py-2">
+        <span className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider min-w-[80px] shrink-0">Dátum</span>
+        {([
+          { v: 'all',          l: 'Všetky' },
+          { v: 'this_week',    l: 'Tento týždeň' },
+          { v: 'next_week',    l: 'Budúci týždeň' },
+          { v: 'last_week',    l: 'Minulý týždeň' },
+          { v: 'last_2_weeks', l: 'Posl. 2 týždne' },
+          { v: 'last_month',   l: 'Tento mesiac' },
+        ] as const).map(p => (
+          <button key={p.v} onClick={() => onFilterPeriodChange(p.v)} className={chip(filterPeriod === p.v, 'bg-[#16a34a] border-[#16a34a] text-white')}>{p.l}</button>
+        ))}
+        <Popover open={calendarOpen} onOpenChange={onCalendarOpenChange}>
+          <PopoverTrigger asChild>
+            <button className={chip(selectedDates.length > 0, 'bg-[#16a34a] border-[#16a34a] text-white')}>
+              <CalendarIcon className="w-3 h-3" />
+              {selectedDates.length > 0 ? `${selectedDates.length} dní` : 'Vybrať...'}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">{renderCalendar()}</PopoverContent>
+        </Popover>
+      </div>
+
+    </div>
+  )}
+</div>
+```
+
+### TopBar — Archive + Cancelled (pridané do OrdersTopBar)
+
+```tsx
+{/* Archive + Cancelled — v OrdersTopBar napravo od iných tlačidiel */}
+<div className="flex items-center gap-3 border-l border-[#e2e8f0] pl-3 ml-1">
+  <div className="flex items-center gap-1.5">
+    <Switch id="topbar-archive" checked={showArchive} onCheckedChange={onShowArchiveChange} />
+    <Label htmlFor="topbar-archive" className="text-xs text-[#374151] cursor-pointer whitespace-nowrap">Archív</Label>
+  </div>
+  <div className="flex items-center gap-1.5">
+    <Switch id="topbar-cancelled" checked={showCancelled} onCheckedChange={onShowCancelledChange} />
+    <Label htmlFor="topbar-cancelled" className="text-xs text-[#374151] cursor-pointer whitespace-nowrap">Zrušené</Label>
+  </div>
+</div>
+```
+
+### Props zmeny
+
+| Komponent | Pridané | Odstránené |
+|---|---|---|
+| `OrdersTopBar` | `showArchive`, `onShowArchiveChange`, `showCancelled`, `onShowCancelledChange` | — |
+| `OrdersFilterBar` | — | `showArchive`, `onShowArchiveChange`, `showCancelled`, `onShowCancelledChange`, expandovateľný panel |
+
+---
+
 ## 11. COMMITY
 
 | Hash | Obsah |
