@@ -2290,7 +2290,7 @@ export default function OrdersPage() {
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) setWizardStep(1); }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto z-[60]">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto z-[60]" onInteractOutside={(e) => e.preventDefault()}>
           {(() => {
             try {
               const safeCustomers = customers || [];
@@ -2410,14 +2410,18 @@ export default function OrdersPage() {
                           {deliveryDayHint && <p className="text-[11px] text-[#64748b] mt-1">{deliveryDayHint}</p>}
                         </div>
                         <div>
-                          <Label className="text-sm font-medium">Stav</Label>
-                          <select value={status || 'pending'} onChange={(e) => setStatus(e.target.value)} className="mt-1 w-full h-10 px-3 border border-[#e2e8f0] rounded-md text-sm bg-white">
-                            <option value="pending">Čakajúca</option>
-                            <option value="confirmed">Potvrdená</option>
-                            <option value="ready">Pripravená</option>
-                            <option value="delivered">Doručená</option>
-                            <option value="cancelled">Zrušená</option>
-                          </select>
+                          {editingOrder && (
+                            <>
+                              <Label className="text-sm font-medium">Stav</Label>
+                              <select value={status || 'pending'} onChange={(e) => setStatus(e.target.value)} className="mt-1 w-full h-10 px-3 border border-[#e2e8f0] rounded-md text-sm bg-white">
+                                <option value="pending">Čakajúca</option>
+                                <option value="confirmed">Potvrdená</option>
+                                <option value="ready">Pripravená</option>
+                                <option value="delivered">Doručená</option>
+                                <option value="cancelled">Zrušená</option>
+                              </select>
+                            </>
+                          )}
                         </div>
                       </div>
 
@@ -2430,13 +2434,15 @@ export default function OrdersPage() {
                             <option value="dvojtyzdenne">Dvojtýždenne</option>
                           </select>
                         </div>
-                        <div>
-                          <Label className="text-sm font-medium">Počet týždňov</Label>
-                          <Input type="text" inputMode="numeric" placeholder="1" value={weekCount}
-                            onChange={(e) => { const v = e.target.value; if (v === '') { setWeekCount(''); return; } const clean = v.replace(/[^0-9]/g, ''); if (clean) { const n = parseInt(clean); if (n <= 52) setWeekCount(n); } }}
-                            onBlur={(e) => { const n = parseInt(e.target.value); if (!n || n < 1) setWeekCount(1); else if (n > 52) setWeekCount(52); }}
-                            className="mt-1 h-10 border-[#e2e8f0]" />
-                        </div>
+                        {orderType !== 'jednorazova' && (
+                          <div>
+                            <Label className="text-sm font-medium">Počet týždňov</Label>
+                            <Input type="text" inputMode="numeric" placeholder="1" value={weekCount}
+                              onChange={(e) => { const v = e.target.value; if (v === '') { setWeekCount(''); return; } const clean = v.replace(/[^0-9]/g, ''); if (clean) { const n = parseInt(clean); if (n <= 52) setWeekCount(n); } }}
+                              onBlur={(e) => { const n = parseInt(e.target.value); if (!n || n < 1) setWeekCount(1); else if (n > 52) setWeekCount(52); }}
+                              className="mt-1 h-10 border-[#e2e8f0]" />
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -2683,7 +2689,7 @@ export default function OrdersPage() {
                                 Obal (auto)
                               </label>
                               <div className="h-9 px-3 border border-[#e2e8f0] rounded-md bg-[#f8fafc] flex items-center text-[13px] text-[#64748b]">
-                                {currentItem?.packaging_volume_ml ? `${currentItem.packaging_volume_ml}ml ${currentItem?.packaging_type || 'rPET'}` : 'auto'}
+                                {currentItem?.packaging_volume_ml ? `${currentItem.packaging_volume_ml}ml` : 'auto'}
                               </div>
                             </div>
                             <div>
