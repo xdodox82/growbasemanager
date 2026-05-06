@@ -245,6 +245,7 @@ export default function OrdersPage() {
   const [showCancelled, setShowCancelled] = useState(false);
 
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
@@ -2236,6 +2237,8 @@ export default function OrdersPage() {
           onShowCancelledChange={setShowCancelled}
           selectedDates={selectedDates}
           onSelectedDatesChange={setSelectedDates}
+          calendarOpen={calendarOpen}
+          onCalendarOpenChange={setCalendarOpen}
           customers={customers}
           crops={crops}
           blends={blends}

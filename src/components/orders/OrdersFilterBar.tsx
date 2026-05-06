@@ -29,6 +29,8 @@ interface Props {
   onShowCancelledChange: (v: boolean) => void;
   selectedDates: Date[];
   onSelectedDatesChange: (dates: Date[]) => void;
+  calendarOpen: boolean;
+  onCalendarOpenChange: (v: boolean) => void;
   customers: Customer[];
   crops: Crop[];
   blends: Blend[];
@@ -53,11 +55,11 @@ export function OrdersFilterBar({
   showArchive, onShowArchiveChange,
   showCancelled, onShowCancelledChange,
   selectedDates, onSelectedDatesChange,
+  calendarOpen, onCalendarOpenChange,
   customers, crops, blends, orders,
   getDeliveryDaysArray,
 }: Props) {
   const [moreOpen, setMoreOpen] = useState(false);
-  const [calendarOpen, setCalendarOpen] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
 
   const isDeliveryDay = (date: Date) => getDeliveryDaysArray().includes(getDay(date));
