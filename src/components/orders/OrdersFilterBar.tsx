@@ -29,12 +29,6 @@ interface Props {
   onShowCancelledChange: (v: boolean) => void;
   selectedDates: Date[];
   onSelectedDatesChange: (dates: Date[]) => void;
-  calendarOpen: boolean;
-  onCalendarOpenChange: (v: boolean) => void;
-  calendarOpenMobile: boolean;
-  onCalendarOpenMobileChange: (v: boolean) => void;
-  calendarMonth: Date;
-  onCalendarMonthChange: (v: Date) => void;
   customers: Customer[];
   crops: Crop[];
   blends: Blend[];
@@ -59,18 +53,17 @@ export function OrdersFilterBar({
   showArchive, onShowArchiveChange,
   showCancelled, onShowCancelledChange,
   selectedDates, onSelectedDatesChange,
-  calendarOpen, onCalendarOpenChange,
-  calendarOpenMobile, onCalendarOpenMobileChange,
-  calendarMonth, onCalendarMonthChange,
   customers, crops, blends, orders,
   getDeliveryDaysArray,
 }: Props) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(new Date());
 
   const isDeliveryDay = (date: Date) => getDeliveryDaysArray().includes(getDay(date));
   const hasOrdersOnDate = (date: Date) => orders.some(order => isSameDay(new Date(order.delivery_date), date));
-  const goToPreviousMonth = () => onCalendarMonthChange(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1));
-  const goToNextMonth = () => onCalendarMonthChange(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1));
+  const goToPreviousMonth = () => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1));
+  const goToNextMonth = () => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1));
 
   const filteredCustomers = customers?.filter(c =>
     filterCustomerType === 'all' ? true : c.customer_type === filterCustomerType

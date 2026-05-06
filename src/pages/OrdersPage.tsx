@@ -245,9 +245,6 @@ export default function OrdersPage() {
   const [showCancelled, setShowCancelled] = useState(false);
 
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
-  const [calendarOpen, setCalendarOpen] = useState(false);
-  const [calendarOpenMobile, setCalendarOpenMobile] = useState(false);
-  const [calendarMonth, setCalendarMonth] = useState(new Date());
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
@@ -2218,32 +2215,6 @@ export default function OrdersPage() {
           onViewModeChange={setViewMode}
           onNewOrder={openNew}
           onBulkDateChange={() => setBulkDateChangeOpen(true)}
-          filterCustomerType={filterCustomerType}
-          onFilterCustomerTypeChange={setFilterCustomerType}
-          customerFilter={customerFilter}
-          onCustomerFilterChange={setCustomerFilter}
-          orderCategoryFilter={orderCategoryFilter}
-          onOrderCategoryFilterChange={setOrderCategoryFilter}
-          filterCrop={filterCrop}
-          onFilterCropChange={setFilterCrop}
-          filterRoute={filterRoute}
-          onFilterRouteChange={setFilterRoute}
-          showArchive={showArchive}
-          onShowArchiveChange={setShowArchive}
-          showCancelled={showCancelled}
-          onShowCancelledChange={setShowCancelled}
-          selectedDates={selectedDates}
-          onSelectedDatesChange={setSelectedDates}
-          calendarOpen={calendarOpen}
-          onCalendarOpenChange={setCalendarOpen}
-          calendarMonth={calendarMonth}
-          onCalendarMonthChange={setCalendarMonth}
-          customers={customers}
-          crops={crops}
-          blends={blends}
-          routes={routes}
-          orders={orders}
-          getDeliveryDaysArray={getDeliveryDaysFromSettings}
         />
 
         <OrdersFilterBar
@@ -2265,12 +2236,6 @@ export default function OrdersPage() {
           onShowCancelledChange={setShowCancelled}
           selectedDates={selectedDates}
           onSelectedDatesChange={setSelectedDates}
-          calendarOpen={calendarOpen}
-          onCalendarOpenChange={setCalendarOpen}
-          calendarOpenMobile={calendarOpenMobile}
-          onCalendarOpenMobileChange={setCalendarOpenMobile}
-          calendarMonth={calendarMonth}
-          onCalendarMonthChange={setCalendarMonth}
           customers={customers}
           crops={crops}
           blends={blends}
