@@ -222,11 +222,11 @@ export function OrdersFilterBar({
               { v: 'growing',          l: 'Rastie',      a: 'bg-[#dcfce7] border-[#16a34a] text-[#166534]' },
               { v: 'packed',           l: 'Zabalená',    a: 'bg-[#dbeafe] border-[#2563eb] text-[#1e40af]' },
               { v: 'on_the_way',       l: 'Na ceste',    a: 'bg-[#ede9fe] border-[#7c3aed] text-[#5b21b6]' },
-              { v: 'cakajuca',         l: 'Čakajúca',    a: 'bg-[#fef3c7] border-[#d97706] text-[#92400e]' },
+              { v: 'pending',          l: 'Čakajúca',    a: 'bg-[#fef3c7] border-[#d97706] text-[#92400e]' },
               { v: 'pending_approval', l: 'Čaká schv.',  a: 'bg-[#fef3c7] border-[#d97706] text-[#92400e]' },
-              { v: 'potvrdena',        l: 'Potvrdená',   a: 'bg-[#f0fdf4] border-[#16a34a] text-[#16a34a]' },
-              { v: 'dorucena',         l: 'Doručená',    a: 'bg-[#d1fae5] border-[#059669] text-[#064e3b]' },
-              { v: 'zrusena',          l: 'Zrušená',     a: 'bg-[#f8fafc] border-[#94a3b8] text-[#64748b]' },
+              { v: 'confirmed',        l: 'Potvrdená',   a: 'bg-[#f0fdf4] border-[#16a34a] text-[#16a34a]' },
+              { v: 'delivered',        l: 'Doručená',    a: 'bg-[#d1fae5] border-[#059669] text-[#064e3b]' },
+              { v: 'cancelled',        l: 'Zrušená',     a: 'bg-[#f8fafc] border-[#94a3b8] text-[#64748b]' },
             ] as const).map(s => (
               <button key={s.v} onClick={() => onFilterStatusChange(s.v)} className={chip(filterStatus === s.v, s.a)}>{s.l}</button>
             ))}

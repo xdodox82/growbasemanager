@@ -32,24 +32,25 @@ export function OrderDetailDialog({
   if (!order) return null;
 
   const s = order.status;
-  const isCancelled = s === 'zrusena' || s === 'cancelled';
+  const isCancelled = s === 'cancelled' || s === 'zrusena';
   const currentStepIdx = STATUS_STEPS.findIndex(step => step.keys.includes(s));
 
   const nextMap: Record<string, { key: string; label: string; className: string }> = {
-    'cakajuca':        { key: 'potvrdena',  label: 'Potvrdiť objednávku',    className: 'bg-blue-500 hover:bg-blue-600 text-white' },
-    'pending':         { key: 'potvrdena',  label: 'Potvrdiť objednávku',    className: 'bg-blue-500 hover:bg-blue-600 text-white' },
-    'pending_approval':{ key: 'potvrdena',  label: 'Schváliť a potvrdiť',    className: 'bg-purple-500 hover:bg-purple-600 text-white' },
-    'potvrdena':       { key: 'growing',    label: 'Označiť: Rastie',        className: 'bg-violet-500 hover:bg-violet-600 text-white' },
+    'pending':         { key: 'confirmed',  label: 'Potvrdiť objednávku',    className: 'bg-blue-500 hover:bg-blue-600 text-white' },
+    'pending_approval':{ key: 'confirmed',  label: 'Schváliť a potvrdiť',    className: 'bg-purple-500 hover:bg-purple-600 text-white' },
     'confirmed':       { key: 'growing',    label: 'Označiť: Rastie',        className: 'bg-violet-500 hover:bg-violet-600 text-white' },
     'growing':         { key: 'packed',     label: 'Označiť: Zabalená',      className: 'bg-amber-500 hover:bg-amber-600 text-white' },
     'packed':          { key: 'on_the_way', label: 'Odoslať: Na ceste',      className: 'bg-sky-500 hover:bg-sky-600 text-white' },
-    'pripravena':      { key: 'on_the_way', label: 'Odoslať: Na ceste',      className: 'bg-sky-500 hover:bg-sky-600 text-white' },
     'ready':           { key: 'on_the_way', label: 'Odoslať: Na ceste',      className: 'bg-sky-500 hover:bg-sky-600 text-white' },
     'packaging_ready': { key: 'on_the_way', label: 'Odoslať: Na ceste',      className: 'bg-sky-500 hover:bg-sky-600 text-white' },
-    'on_the_way':      { key: 'dorucena',   label: '✓ Označiť ako Doručenú', className: 'bg-[#10b981] hover:bg-[#059669] text-white' },
+    'on_the_way':      { key: 'delivered',  label: '✓ Označiť ako Doručenú', className: 'bg-[#10b981] hover:bg-[#059669] text-white' },
+    // legacy Slovak keys for existing DB records
+    'cakajuca':        { key: 'confirmed',  label: 'Potvrdiť objednávku',    className: 'bg-blue-500 hover:bg-blue-600 text-white' },
+    'potvrdena':       { key: 'growing',    label: 'Označiť: Rastie',        className: 'bg-violet-500 hover:bg-violet-600 text-white' },
+    'pripravena':      { key: 'on_the_way', label: 'Odoslať: Na ceste',      className: 'bg-sky-500 hover:bg-sky-600 text-white' },
   };
   const next = nextMap[s];
-  const showQuickActions = s !== 'zrusena' && s !== 'cancelled' && s !== 'dorucena' && s !== 'delivered';
+  const showQuickActions = s !== 'cancelled' && s !== 'delivered' && s !== 'zrusena' && s !== 'dorucena';
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { onOpenChange(isOpen); if (!isOpen) onTabChange('detail'); }}>
@@ -159,9 +160,9 @@ export function OrderDetailDialog({
                     ) : (
                       <div className="flex items-start">
                         {STATUS_STEPS.map((step, idx) => (
-                          <div key={idx} className="flex items-center flex-1">
-                            <div className="flex flex-col items-center flex-1">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all ${
+                          <div key={idx} className="flex items-center flex-1 min-w-0">
+                            <div className="flex flex-col items-center flex-1 min-w-0">
+                              <div className={`w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all shrink-0 ${
                                 idx < currentStepIdx
                                   ? 'bg-[#10b981] border-[#10b981]'
                                   : idx === currentStepIdx
@@ -169,17 +170,17 @@ export function OrderDetailDialog({
                                   : 'bg-white border-gray-300'
                               }`}>
                                 {idx < currentStepIdx ? (
-                                  <Check className="h-4 w-4 text-white" />
+                                  <Check className="h-3.5 w-3.5 text-white" />
                                 ) : idx === currentStepIdx ? (
-                                  <div className="w-3 h-3 rounded-full bg-white" />
+                                  <div className="w-2.5 h-2.5 rounded-full bg-white" />
                                 ) : null}
                               </div>
-                              <span className={`text-[10px] font-medium text-center mt-1.5 leading-tight max-w-[52px] ${
+                              <span className={`text-[9px] font-medium text-center mt-1 leading-tight w-full px-0.5 break-words ${
                                 idx === currentStepIdx ? 'text-[#10b981] font-bold' : idx < currentStepIdx ? 'text-gray-500' : 'text-gray-400'
                               }`}>{step.label}</span>
                             </div>
                             {idx < STATUS_STEPS.length - 1 && (
-                              <div className={`h-0.5 w-4 flex-shrink-0 mb-5 ${idx < currentStepIdx ? 'bg-[#10b981]' : 'bg-gray-200'}`} />
+                              <div className={`h-0.5 w-3 flex-shrink-0 mb-5 ${idx < currentStepIdx ? 'bg-[#10b981]' : 'bg-gray-200'}`} />
                             )}
                           </div>
                         ))}
@@ -199,7 +200,7 @@ export function OrderDetailDialog({
                     {next.label}
                   </button>
                   <button
-                    onClick={() => onQuickStatusChange(order.id, 'zrusena')}
+                    onClick={() => onQuickStatusChange(order.id, 'cancelled')}
                     className="px-3 py-2.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 text-sm font-medium transition-colors"
                   >
                     Zrušiť
@@ -391,7 +392,7 @@ export function OrderDetailDialog({
                     </div>
                   </div>
 
-                  {s !== 'zrusena' && s !== 'cancelled' && s !== 'dorucena' && s !== 'delivered' && (
+                  {s !== 'cancelled' && s !== 'delivered' && s !== 'zrusena' && s !== 'dorucena' && (
                     <div className="flex gap-3 items-start relative">
                       <div className="absolute -left-5 w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center z-10 shadow-sm">
                         <Clock className="h-3.5 w-3.5 text-white" />
@@ -407,7 +408,7 @@ export function OrderDetailDialog({
                     </div>
                   )}
 
-                  {(s === 'dorucena' || s === 'delivered') && (
+                  {(s === 'delivered' || s === 'dorucena') && (
                     <div className="flex gap-3 items-start relative">
                       <div className="absolute -left-5 w-7 h-7 rounded-full bg-[#10b981] flex items-center justify-center z-10 shadow-sm">
                         <Check className="h-3.5 w-3.5 text-white" />
@@ -419,7 +420,7 @@ export function OrderDetailDialog({
                     </div>
                   )}
 
-                  {(s === 'zrusena' || s === 'cancelled' || (order as any).cancelled_at) && (
+                  {(s === 'cancelled' || s === 'zrusena' || (order as any).cancelled_at) && (
                     <div className="flex gap-3 items-start relative">
                       <div className="absolute -left-5 w-7 h-7 rounded-full bg-red-500 flex items-center justify-center z-10 shadow-sm">
                         <X className="h-3.5 w-3.5 text-white" />
