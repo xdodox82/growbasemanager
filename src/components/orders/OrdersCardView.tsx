@@ -1,6 +1,6 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Copy, Pencil, Trash2, Calendar, Truck, Store, House, Utensils, Smartphone, RefreshCw, ShoppingCart } from 'lucide-react';
+import { Copy, Pencil, Trash2, Calendar, Truck, Store, House, Utensils, Smartphone, RefreshCw, ShoppingCart, Users } from 'lucide-react';
 import { getStatusBadgeClass, getStatusBorderColor, getStatusLabel, formatDeliveryDate } from './orderUtils';
 import type { Order, Customer, Route } from './types';
 
@@ -53,7 +53,12 @@ export function OrdersCardView({
                   </Badge>
                   {order.order_source === 'app' && (
                     <span className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[10px] font-medium bg-blue-100 text-blue-700 border border-blue-200">
-                      <Smartphone className="w-2.5 h-2.5" />APP
+                      <Smartphone className="w-2.5 h-2.5" />App
+                    </span>
+                  )}
+                  {(order as any).group_order_id && (
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[10px] font-medium bg-[#f5f3ff] text-[#6d28d9] border border-[#ddd6fe]">
+                      <Users className="w-2.5 h-2.5" />Skupina
                     </span>
                   )}
                   {order.customer_type === 'home' && (

@@ -60,12 +60,12 @@ export function SearchableCustomerSelect({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full h-10 justify-between font-normal border-slate-200"
+          className="w-full h-7 justify-between font-normal border-[#e2e8f0] text-[11px] text-[#374151] px-2"
         >
-          <span className={cn(!value && 'text-gray-500')}>
+          <span className={cn('text-[11px] truncate', !value && 'text-[#94a3b8]')}>
             {displayName}
           </span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-full p-0" align="start">

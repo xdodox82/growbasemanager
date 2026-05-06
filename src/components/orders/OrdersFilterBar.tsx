@@ -50,7 +50,7 @@ export function OrdersFilterBar({
   customers, crops, blends, orders,
   getDeliveryDaysArray,
 }: Props) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
 
   const isDeliveryDay = (date: Date) => getDeliveryDaysArray().includes(getDay(date));
