@@ -1,13 +1,13 @@
-import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { SearchableCustomerSelect } from '@/components/orders/SearchableCustomerSelect';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { SearchableCustomerSelect } from '@/components/orders/SearchableCustomerSelect';
-import { CustomerTypeFilter } from '@/components/filters/CustomerTypeFilter';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Leaf, Sprout, Flower, Palette } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, House, Utensils, Store, Leaf, Sprout, Flower, Palette, SlidersHorizontal } from 'lucide-react';
 import { format, isSameDay, isToday, getDay, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { sk } from 'date-fns/locale';
+import { useState } from 'react';
 import type { Customer, Crop, Blend, Order } from './types';
 
 interface Props {
@@ -42,6 +42,13 @@ interface Props {
   getDeliveryDaysArray: () => number[];
 }
 
+const chip = (active: boolean, activeClass: string) =>
+  `inline-flex items-center gap-1.5 px-3 py-1 rounded-md border-[1.5px] text-[11px] font-medium cursor-pointer transition-colors ${
+    active
+      ? activeClass
+      : 'border-[#e2e8f0] text-[#64748b] bg-white hover:border-[#bbf7d0] hover:text-[#16a34a] hover:bg-[#f0fdf4]'
+  }`;
+
 export function OrdersFilterBar({
   filterCustomerType, onFilterCustomerTypeChange,
   customerFilter, onCustomerFilterChange,
@@ -58,16 +65,29 @@ export function OrdersFilterBar({
   customers, crops, blends, orders,
   getDeliveryDaysArray,
 }: Props) {
+  const [moreOpen, setMoreOpen] = useState(false);
+
   const isDeliveryDay = (date: Date) => getDeliveryDaysArray().includes(getDay(date));
+  const hasOrdersOnDate = (date: Date) => orders.some(order => isSameDay(new Date(order.delivery_date), date));
+  const goToPreviousMonth = () => onCalendarMonthChange(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1));
+  const goToNextMonth = () => onCalendarMonthChange(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1));
 
-  const hasOrdersOnDate = (date: Date) =>
-    orders.some(order => isSameDay(new Date(order.delivery_date), date));
+  const filteredCustomers = customers?.filter(c =>
+    filterCustomerType === 'all' ? true : c.customer_type === filterCustomerType
+  );
+  const cropOptions = orderCategoryFilter === 'mix'
+    ? null
+    : crops?.filter(crop =>
+        !orderCategoryFilter || orderCategoryFilter === 'all' ? true : (crop as any).category === orderCategoryFilter
+      );
 
-  const goToPreviousMonth = () =>
-    onCalendarMonthChange(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1));
-
-  const goToNextMonth = () =>
-    onCalendarMonthChange(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1));
+  const activeMoreCount = [
+    customerFilter !== 'all',
+    filterCrop !== 'all',
+    showArchive,
+    showCancelled,
+    selectedDates.length > 0,
+  ].filter(Boolean).length;
 
   const renderCalendar = () => {
     const start = startOfMonth(calendarMonth);
@@ -75,97 +95,164 @@ export function OrdersFilterBar({
     const days = eachDayOfInterval({ start, end });
     const firstDayOfWeek = getDay(start);
     const paddingDays = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
-
     return (
-      <div className="w-[320px] p-4">
-        <div className="flex items-center justify-between mb-4">
-          <Button variant="ghost" size="sm" onClick={goToPreviousMonth}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <h3 className="font-semibold text-base">
-            {format(calendarMonth, 'MMMM yyyy', { locale: sk })}
-          </h3>
-          <Button variant="ghost" size="sm" onClick={goToNextMonth}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+      <div className="w-[300px] p-4">
+        <div className="flex items-center justify-between mb-3">
+          <button onClick={goToPreviousMonth} className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center hover:bg-[#f0fdf4]">
+            <ChevronLeft className="h-3.5 w-3.5 text-[#64748b]" />
+          </button>
+          <span className="text-[13px] font-600 text-[#0f172a]">{format(calendarMonth, 'MMMM yyyy', { locale: sk })}</span>
+          <button onClick={goToNextMonth} className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center hover:bg-[#f0fdf4]">
+            <ChevronRight className="h-3.5 w-3.5 text-[#64748b]" />
+          </button>
         </div>
-
-        <div className="grid grid-cols-7 gap-1 mb-2">
-          {['Po', 'Ut', 'St', 'Št', 'Pi', 'So', 'Ne'].map(day => (
-            <div key={day} className="text-center text-xs font-medium text-gray-600 w-9 h-6 flex items-center justify-center">
-              {day}
-            </div>
+        <div className="grid grid-cols-7 gap-1 mb-1">
+          {['Po', 'Ut', 'St', 'Št', 'Pi', 'So', 'Ne'].map(d => (
+            <div key={d} className="text-center text-[10px] font-semibold text-[#94a3b8] h-6 flex items-center justify-center">{d}</div>
           ))}
         </div>
-
         <div className="grid grid-cols-7 gap-1">
-          {Array.from({ length: paddingDays }).map((_, i) => (
-            <div key={`pad-${i}`} className="w-9 h-9" />
-          ))}
+          {Array.from({ length: paddingDays }).map((_, i) => <div key={`p${i}`} className="w-8 h-8" />)}
           {days.map(day => {
             const isDelivery = isDeliveryDay(day);
-            const hasOrdersDay = hasOrdersOnDate(day);
             const today = isToday(day);
             const selected = selectedDates.some(d => isSameDay(d, day));
-            let bgColor = 'bg-white hover:bg-gray-50';
-            if (isDelivery) bgColor = 'bg-green-200 hover:bg-green-300';
-            else if (hasOrdersDay) bgColor = 'bg-yellow-300 hover:bg-yellow-400';
             return (
               <button
                 key={day.toISOString()}
-                onClick={() => {
-                  onSelectedDatesChange(
-                    selectedDates.some(d => isSameDay(d, day))
-                      ? selectedDates.filter(d => !isSameDay(d, day))
-                      : [...selectedDates, day]
-                  );
-                }}
-                className={`${bgColor} ${today ? 'ring-2 ring-green-600' : ''} ${selected ? 'ring-2 ring-blue-500' : ''} rounded-full w-9 h-9 flex items-center justify-center text-sm font-medium cursor-pointer transition-all`}
-              >
-                {day.getDate()}
-              </button>
+                onClick={() => onSelectedDatesChange(
+                  selectedDates.some(d => isSameDay(d, day))
+                    ? selectedDates.filter(d => !isSameDay(d, day))
+                    : [...selectedDates, day]
+                )}
+                className={`w-8 h-8 rounded-lg text-[11px] font-medium flex items-center justify-center transition-all
+                  ${selected ? 'bg-[#16a34a] text-white' : isDelivery ? 'bg-[#f0fdf4] text-[#16a34a] font-semibold' : 'text-[#475569] hover:bg-[#f8fafc]'}
+                  ${today && !selected ? 'ring-1.5 ring-[#16a34a]' : ''}
+                `}
+              >{day.getDate()}</button>
             );
           })}
         </div>
-
-        <div className="mt-4 space-y-2 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-green-200 border border-gray-300" />
-            <span>Rozvozový deň</span>
+        <div className="flex gap-4 mt-3">
+          <div className="flex items-center gap-1.5 text-[10px] text-[#94a3b8]">
+            <div className="w-3 h-3 rounded bg-[#f0fdf4] border border-[#16a34a]" />Rozvoz
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-yellow-300 border border-gray-300" />
-            <span>Objednávky</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full ring-2 ring-blue-500" />
-            <span>Vybraný deň</span>
+          <div className="flex items-center gap-1.5 text-[10px] text-[#94a3b8]">
+            <div className="w-3 h-3 rounded bg-[#16a34a]" />Vybraný
           </div>
         </div>
       </div>
     );
   };
 
-  const filteredCustomers = customers?.filter(c =>
-    filterCustomerType === 'all' ? true : c.customer_type === filterCustomerType
+  const rowLabel = (text: string) => (
+    <span className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider min-w-[80px] shrink-0">{text}</span>
   );
 
-  const cropOptions = orderCategoryFilter === 'mix'
-    ? null
-    : crops?.filter(crop =>
-        !orderCategoryFilter || orderCategoryFilter === 'all'
-          ? true
-          : (crop as any).category === orderCategoryFilter
-      );
-
   return (
-    <>
-      {/* ─── DESKTOP filtre ─── */}
-      <div className="hidden md:block space-y-2">
-        {/* Riadok 1: selects + prepínače */}
-        <div className="flex flex-wrap gap-2 items-center">
-          <CustomerTypeFilter value={filterCustomerType} onChange={onFilterCustomerTypeChange} showLabel={false} />
-          <div className="w-[260px]">
+    <div className="bg-white rounded-xl border border-[#e2e8f0] px-4 py-3 mb-4 space-y-0">
+
+      {/* Riadok 1: Typ zákazníka */}
+      <div className="flex items-center gap-2 flex-wrap py-2">
+        {rowLabel('Zákazník')}
+        <button onClick={() => onFilterCustomerTypeChange('all')} className={chip(filterCustomerType === 'all', 'bg-[#16a34a] border-[#16a34a] text-white')}>Všetci</button>
+        <button onClick={() => onFilterCustomerTypeChange('home')} className={chip(filterCustomerType === 'home', 'bg-[#f0fdf4] border-[#16a34a] text-[#16a34a]')}>
+          <House className="w-3 h-3" />Domáci
+        </button>
+        <button onClick={() => onFilterCustomerTypeChange('gastro')} className={chip(filterCustomerType === 'gastro', 'bg-[#eff6ff] border-[#2563eb] text-[#2563eb]')}>
+          <Utensils className="w-3 h-3" />Gastro
+        </button>
+        <button onClick={() => onFilterCustomerTypeChange('wholesale')} className={chip(filterCustomerType === 'wholesale', 'bg-[#fff7ed] border-[#d97706] text-[#d97706]')}>
+          <Store className="w-3 h-3" />VO
+        </button>
+      </div>
+
+      <div className="border-t border-[#f8fafc]" />
+
+      {/* Riadok 2: Kategória */}
+      <div className="flex items-center gap-2 flex-wrap py-2">
+        {rowLabel('Kategória')}
+        <button onClick={() => onOrderCategoryFilterChange('all')} className={chip(orderCategoryFilter === 'all', 'bg-[#16a34a] border-[#16a34a] text-white')}>Všetky</button>
+        <button onClick={() => onOrderCategoryFilterChange('microgreens')} className={chip(orderCategoryFilter === 'microgreens', 'bg-[#f0fdf4] border-[#16a34a] text-[#16a34a]')}>
+          <Leaf className="w-3 h-3" />Mikrozelenia
+        </button>
+        <button onClick={() => onOrderCategoryFilterChange('microherbs')} className={chip(orderCategoryFilter === 'microherbs', 'bg-[#f0fdf4] border-[#16a34a] text-[#16a34a]')}>
+          <Sprout className="w-3 h-3" />Mikrobylinky
+        </button>
+        <button onClick={() => onOrderCategoryFilterChange('edible_flowers')} className={chip(orderCategoryFilter === 'edible_flowers', 'bg-[#fdf4ff] border-[#a855f7] text-[#a855f7]')}>
+          <Flower className="w-3 h-3" />Jedlé kvety
+        </button>
+        <button onClick={() => onOrderCategoryFilterChange('mix')} className={chip(orderCategoryFilter === 'mix', 'bg-[#f0fdf4] border-[#16a34a] text-[#16a34a]')}>
+          <Palette className="w-3 h-3" />Mixy
+        </button>
+      </div>
+
+      <div className="border-t border-[#f8fafc]" />
+
+      {/* Riadok 3: Stav */}
+      <div className="flex items-center gap-2 flex-wrap py-2">
+        {rowLabel('Stav')}
+        {([
+          { v: 'all',              l: 'Všetky',     a: 'bg-[#16a34a] border-[#16a34a] text-white' },
+          { v: 'growing',          l: 'Rastie',      a: 'bg-[#dcfce7] border-[#16a34a] text-[#166534]' },
+          { v: 'packed',           l: 'Zabalená',    a: 'bg-[#dbeafe] border-[#2563eb] text-[#1e40af]' },
+          { v: 'on_the_way',       l: 'Na ceste',    a: 'bg-[#ede9fe] border-[#7c3aed] text-[#5b21b6]' },
+          { v: 'cakajuca',         l: 'Čakajúca',    a: 'bg-[#fef3c7] border-[#d97706] text-[#92400e]' },
+          { v: 'pending_approval', l: 'Čaká schv.',  a: 'bg-[#fef3c7] border-[#d97706] text-[#92400e]' },
+          { v: 'potvrdena',        l: 'Potvrdená',   a: 'bg-[#f0fdf4] border-[#16a34a] text-[#16a34a]' },
+          { v: 'dorucena',         l: 'Doručená',    a: 'bg-[#d1fae5] border-[#059669] text-[#064e3b]' },
+          { v: 'zrusena',          l: 'Zrušená',     a: 'bg-[#f8fafc] border-[#94a3b8] text-[#64748b]' },
+        ] as const).map(s => (
+          <button key={s.v} onClick={() => onFilterStatusChange(s.v)} className={chip(filterStatus === s.v, s.a)}>{s.l}</button>
+        ))}
+      </div>
+
+      <div className="border-t border-[#f8fafc]" />
+
+      {/* Riadok 4: Dátum + Ďalšie filtre */}
+      <div className="flex items-center gap-2 flex-wrap py-2">
+        {rowLabel('Dátum')}
+        {([
+          { v: 'all',          l: 'Všetky' },
+          { v: 'this_week',    l: 'Tento týždeň' },
+          { v: 'next_week',    l: 'Budúci týždeň' },
+          { v: 'last_week',    l: 'Minulý týždeň' },
+          { v: 'last_2_weeks', l: 'Posl. 2 týždne' },
+          { v: 'last_month',   l: 'Tento mesiac' },
+        ] as const).map(p => (
+          <button key={p.v} onClick={() => onFilterPeriodChange(p.v)} className={chip(filterPeriod === p.v, 'bg-[#16a34a] border-[#16a34a] text-white')}>{p.l}</button>
+        ))}
+        <Popover open={calendarOpen} onOpenChange={onCalendarOpenChange}>
+          <PopoverTrigger asChild>
+            <button className={chip(selectedDates.length > 0, 'bg-[#16a34a] border-[#16a34a] text-white')}>
+              <CalendarIcon className="w-3 h-3" />
+              {selectedDates.length > 0 ? `${selectedDates.length} dní` : 'Vybrať...'}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">{renderCalendar()}</PopoverContent>
+        </Popover>
+
+        <button
+          onClick={() => setMoreOpen(v => !v)}
+          className={`ml-auto inline-flex items-center gap-1.5 px-3 py-1 rounded-md border-[1.5px] text-[11px] font-medium cursor-pointer transition-colors ${
+            moreOpen || activeMoreCount > 0
+              ? 'border-[#16a34a] text-[#16a34a] bg-[#f0fdf4]'
+              : 'border-[#e2e8f0] text-[#64748b] bg-white hover:border-[#bbf7d0] hover:text-[#16a34a] hover:bg-[#f0fdf4]'
+          }`}
+        >
+          <SlidersHorizontal className="w-3 h-3" />
+          Ďalšie filtre
+          {activeMoreCount > 0 && (
+            <span className="bg-[#16a34a] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">{activeMoreCount}</span>
+          )}
+        </button>
+      </div>
+
+      {/* Rozbalený panel */}
+      {moreOpen && (
+        <div className="border-t border-[#f1f5f9] pt-3 mt-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-2">Zákazník</div>
             <SearchableCustomerSelect
               value={customerFilter}
               onValueChange={onCustomerFilterChange}
@@ -174,212 +261,36 @@ export function OrdersFilterBar({
               allowAll={true}
             />
           </div>
-          <Select value={orderCategoryFilter} onValueChange={onOrderCategoryFilterChange}>
-            <SelectTrigger className="w-[170px] h-9 text-sm">
-              <SelectValue placeholder="Kategória" />
-            </SelectTrigger>
-            <SelectContent position="popper" sideOffset={5}>
-              <SelectItem value="all">Všetky kategórie</SelectItem>
-              <SelectItem value="microgreens"><Leaf className="h-4 w-4 text-green-600 mr-2 inline" />Mikrozelenina</SelectItem>
-              <SelectItem value="microherbs"><Sprout className="h-4 w-4 text-green-600 mr-2 inline" />Mikrobylinky</SelectItem>
-              <SelectItem value="edible_flowers"><Flower className="h-4 w-4 text-green-600 mr-2 inline" />Jedlé kvety</SelectItem>
-              <SelectItem value="mix"><Palette className="h-4 w-4 text-green-600 mr-2 inline" />Mixy</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={filterCrop} onValueChange={onFilterCropChange}>
-            <SelectTrigger className="w-[155px] h-9 text-sm">
-              <SelectValue placeholder="Plodina" />
-            </SelectTrigger>
-            <SelectContent className="max-h-[300px] overflow-y-auto z-[100]">
-              <SelectItem value="all">Všetky plodiny</SelectItem>
-              {orderCategoryFilter === 'mix'
-                ? blends?.map(blend => <SelectItem key={blend.id} value={blend.name}>{blend.name}</SelectItem>)
-                : cropOptions?.map(crop => <SelectItem key={crop?.id} value={crop?.name || ''}>{crop?.name}</SelectItem>)
-              }
-            </SelectContent>
-          </Select>
-          <Popover open={calendarOpen} onOpenChange={onCalendarOpenChange}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="h-9 text-sm font-normal gap-2">
-                <CalendarIcon className="h-3.5 w-3.5" />
-                {selectedDates.length === 0
-                  ? 'Dátum'
-                  : selectedDates.length === 1
-                  ? format(selectedDates[0], 'dd.MM.yyyy', { locale: sk })
-                  : `${selectedDates.length} dní`}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              {renderCalendar()}
-            </PopoverContent>
-          </Popover>
-          <div className="flex items-center gap-3 ml-auto">
-            <div className="flex items-center gap-1.5">
-              <Switch id="archive-toggle" checked={showArchive} onCheckedChange={onShowArchiveChange} />
-              <Label htmlFor="archive-toggle" className="text-sm cursor-pointer whitespace-nowrap">Archív</Label>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Switch id="cancelled-toggle" checked={showCancelled} onCheckedChange={onShowCancelledChange} />
-              <Label htmlFor="cancelled-toggle" className="text-sm cursor-pointer whitespace-nowrap">Zrušené</Label>
+          <div>
+            <div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-2">Konkrétna plodina</div>
+            <Select value={filterCrop} onValueChange={onFilterCropChange}>
+              <SelectTrigger className="h-9 text-sm">
+                <SelectValue placeholder="Všetky plodiny" />
+              </SelectTrigger>
+              <SelectContent className="max-h-[260px] overflow-y-auto z-[100]">
+                <SelectItem value="all">Všetky plodiny</SelectItem>
+                {orderCategoryFilter === 'mix'
+                  ? blends?.map(b => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)
+                  : cropOptions?.map(c => <SelectItem key={c?.id} value={c?.name || ''}>{c?.name}</SelectItem>)
+                }
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-2">Zobraziť</div>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <Switch id="archive-t" checked={showArchive} onCheckedChange={onShowArchiveChange} />
+                <Label htmlFor="archive-t" className="text-sm cursor-pointer">Archív (doručené)</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch id="cancelled-t" checked={showCancelled} onCheckedChange={onShowCancelledChange} />
+                <Label htmlFor="cancelled-t" className="text-sm cursor-pointer">Zrušené</Label>
+              </div>
             </div>
           </div>
         </div>
-
-        {/* Riadok 2: period chipy */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-xs text-gray-400 font-medium">Obdobie:</span>
-          {([
-            { value: 'all',          label: 'Všetky' },
-            { value: 'this_week',    label: 'Tento týždeň' },
-            { value: 'next_week',    label: 'Budúci týždeň' },
-            { value: 'last_week',    label: 'Minulý týždeň' },
-            { value: 'last_2_weeks', label: 'Pred 2T' },
-            { value: 'last_month',   label: 'Minulý mesiac' },
-          ] as const).map(p => (
-            <button
-              key={p.value}
-              onClick={() => onFilterPeriodChange(p.value)}
-              className={`px-2.5 py-0.5 rounded-full text-xs font-medium border transition-all ${
-                filterPeriod === p.value
-                  ? 'bg-gray-800 text-white border-gray-800'
-                  : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400 hover:bg-gray-50'
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Riadok 3: status chipy */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-xs text-gray-400 font-medium">Stav:</span>
-          {([
-            { value: 'all',              label: 'Všetky',     on: 'bg-gray-700 text-white border-gray-700',        off: 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50' },
-            { value: 'cakajuca',         label: 'Čakajúca',   on: 'bg-yellow-500 text-white border-yellow-500',     off: 'bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100' },
-            { value: 'pending_approval', label: 'Schválenie', on: 'bg-purple-500 text-white border-purple-500',     off: 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100' },
-            { value: 'potvrdena',        label: 'Potvrdená',  on: 'bg-green-500 text-white border-green-500',       off: 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' },
-            { value: 'growing',          label: 'Rastie',     on: 'bg-[#10b981] text-white border-[#10b981]',       off: 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' },
-            { value: 'packed',           label: 'Zabalená',   on: 'bg-amber-500 text-white border-amber-500',       off: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' },
-            { value: 'on_the_way',       label: 'Na ceste',   on: 'bg-sky-500 text-white border-sky-500',           off: 'bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100' },
-            { value: 'pripravena',       label: 'Pripravená', on: 'bg-orange-500 text-white border-orange-500',     off: 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100' },
-            { value: 'dorucena',         label: 'Doručená',   on: 'bg-blue-500 text-white border-blue-500',         off: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' },
-          ] as const).map(s => (
-            <button
-              key={s.value}
-              onClick={() => onFilterStatusChange(s.value)}
-              className={`px-2.5 py-0.5 rounded-full text-xs font-medium border transition-all ${
-                filterStatus === s.value ? s.on : s.off
-              }`}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ─── MOBILE filtre ─── */}
-      <div className="md:hidden space-y-2">
-        <CustomerTypeFilter value={filterCustomerType} onChange={onFilterCustomerTypeChange} showLabel={false} />
-        <div className="w-full">
-          <SearchableCustomerSelect
-            value={customerFilter}
-            onValueChange={onCustomerFilterChange}
-            customers={filteredCustomers}
-            placeholder="Hľadať zákazníka..."
-            allowAll={true}
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <Select value={orderCategoryFilter} onValueChange={onOrderCategoryFilterChange}>
-            <SelectTrigger><SelectValue placeholder="Kategória" /></SelectTrigger>
-            <SelectContent position="popper" sideOffset={5}>
-              <SelectItem value="all">Všetky</SelectItem>
-              <SelectItem value="microgreens">Mikrozelenina</SelectItem>
-              <SelectItem value="microherbs">Mikrobylinky</SelectItem>
-              <SelectItem value="edible_flowers">Jedlé kvety</SelectItem>
-              <SelectItem value="mix">Mixy</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={filterCrop} onValueChange={onFilterCropChange}>
-            <SelectTrigger><SelectValue placeholder="Plodina" /></SelectTrigger>
-            <SelectContent className="max-h-[300px] overflow-y-auto z-[100]">
-              <SelectItem value="all">Všetky plodiny</SelectItem>
-              {orderCategoryFilter === 'mix'
-                ? blends?.map(blend => <SelectItem key={blend.id} value={blend.name}>{blend.name}</SelectItem>)
-                : cropOptions?.map(crop => <SelectItem key={crop?.id} value={crop?.name || ''}>{crop?.name}</SelectItem>)
-              }
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <Popover open={calendarOpenMobile} onOpenChange={onCalendarOpenMobileChange}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="justify-start text-left font-normal h-10 w-full">
-                <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
-                <span className="truncate">
-                  {selectedDates.length === 0
-                    ? 'Dátum'
-                    : selectedDates.length === 1
-                    ? format(selectedDates[0], 'dd.MM.yyyy', { locale: sk })
-                    : `${selectedDates.length} dní`}
-                </span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              {renderCalendar()}
-            </PopoverContent>
-          </Popover>
-          <Select value={filterPeriod} onValueChange={onFilterPeriodChange}>
-            <SelectTrigger><SelectValue placeholder="Obdobie" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Všetky týždne</SelectItem>
-              <SelectItem value="this_week">Tento týždeň</SelectItem>
-              <SelectItem value="next_week">Budúci týždeň</SelectItem>
-              <SelectItem value="last_week">Minulý týždeň</SelectItem>
-              <SelectItem value="last_2_weeks">Pred 2 týždňami</SelectItem>
-              <SelectItem value="last_month">Minulý mesiac</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Status chipy – horizontálne scrollovateľné */}
-        <div className="overflow-x-auto pb-1 -mx-1 px-1">
-          <div className="flex items-center gap-1.5 min-w-max">
-            {([
-              { value: 'all',              label: 'Všetky',     on: 'bg-gray-700 text-white border-gray-700',        off: 'bg-white text-gray-600 border-gray-300' },
-              { value: 'cakajuca',         label: 'Čakajúca',   on: 'bg-yellow-500 text-white border-yellow-500',     off: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
-              { value: 'pending_approval', label: 'Schválenie', on: 'bg-purple-500 text-white border-purple-500',     off: 'bg-purple-50 text-purple-700 border-purple-200' },
-              { value: 'potvrdena',        label: 'Potvrdená',  on: 'bg-green-500 text-white border-green-500',       off: 'bg-green-50 text-green-700 border-green-200' },
-              { value: 'growing',          label: 'Rastie',     on: 'bg-[#10b981] text-white border-[#10b981]',       off: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-              { value: 'packed',           label: 'Zabalená',   on: 'bg-amber-500 text-white border-amber-500',       off: 'bg-amber-50 text-amber-700 border-amber-200' },
-              { value: 'on_the_way',       label: 'Na ceste',   on: 'bg-sky-500 text-white border-sky-500',           off: 'bg-sky-50 text-sky-700 border-sky-200' },
-              { value: 'pripravena',       label: 'Pripravená', on: 'bg-orange-500 text-white border-orange-500',     off: 'bg-orange-50 text-orange-700 border-orange-200' },
-              { value: 'dorucena',         label: 'Doručená',   on: 'bg-blue-500 text-white border-blue-500',         off: 'bg-blue-50 text-blue-700 border-blue-200' },
-            ] as const).map(s => (
-              <button
-                key={s.value}
-                onClick={() => onFilterStatusChange(s.value)}
-                className={`px-2.5 py-1 rounded-full text-xs font-medium border whitespace-nowrap transition-all ${
-                  filterStatus === s.value ? s.on : s.off
-                }`}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <Switch id="archive-toggle-mobile" checked={showArchive} onCheckedChange={onShowArchiveChange} />
-            <Label htmlFor="archive-toggle-mobile" className="text-sm cursor-pointer whitespace-nowrap">Archív</Label>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Switch id="cancelled-toggle-mobile" checked={showCancelled} onCheckedChange={onShowCancelledChange} />
-            <Label htmlFor="cancelled-toggle-mobile" className="text-sm cursor-pointer whitespace-nowrap">Zrušené</Label>
-          </div>
-        </div>
-      </div>
-    </>
+      )}
+    </div>
   );
 }
