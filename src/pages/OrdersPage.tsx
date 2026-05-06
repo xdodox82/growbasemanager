@@ -1,4 +1,4 @@
-// IMPORTANT: Use 'House' not 'Home' - Home is Chrome browser icon, House is home icon
+﻿// IMPORTANT: Use 'House' not 'Home' - Home is Chrome browser icon, House is home icon
 import { useState, useEffect, useMemo } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -27,6 +27,13 @@ import { useToast } from '@/hooks/use-toast';
 import { format, parseISO, getDay, addWeeks, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday } from 'date-fns';
 import { sk } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { OrdersTopBar } from '@/components/orders/OrdersTopBar';
+import { OrdersFilterBar } from '@/components/orders/OrdersFilterBar';
+import { OrdersStatsBar } from '@/components/orders/OrdersStatsBar';
+import { OrdersTableView } from '@/components/orders/OrdersTableView';
+import { OrdersCardView } from '@/components/orders/OrdersCardView';
+import { OrderDetailDialog } from '@/components/orders/OrderDetailDialog';
+import { getStatusLabel } from '@/components/orders/orderUtils';
 
 interface OrderItem {
   id?: string;
@@ -294,119 +301,6 @@ export default function OrdersPage() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const { getDeliveryDaysArray: getDeliveryDaysFromSettings } = useDeliveryDays();
   const [isPriceConfigured, setIsPriceConfigured] = useState(true);
-
-  const goToPreviousMonth = () => {
-    setCalendarMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
-  };
-
-  const goToNextMonth = () => {
-    setCalendarMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
-  };
-
-  const isDeliveryDay = (date: Date) => {
-    const deliveryDays = getDeliveryDaysFromSettings();
-    return deliveryDays.includes(getDay(date));
-  };
-
-  const hasOrdersOnDate = (date: Date) => {
-    return orders.some(order =>
-      isSameDay(new Date(order.delivery_date), date)
-    );
-  };
-
-  const renderCalendar = () => {
-    const start = startOfMonth(calendarMonth);
-    const end = endOfMonth(calendarMonth);
-    const days = eachDayOfInterval({ start, end });
-
-    const firstDayOfWeek = getDay(start);
-    const paddingDays = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
-
-    return (
-      <div className="w-[320px] p-4">
-        <div className="flex items-center justify-between mb-4">
-          <Button variant="ghost" size="sm" onClick={goToPreviousMonth}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <h3 className="font-semibold text-base">
-            {format(calendarMonth, 'MMMM yyyy', { locale: sk })}
-          </h3>
-          <Button variant="ghost" size="sm" onClick={goToNextMonth}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-7 gap-1 mb-2">
-          {['Po', 'Ut', 'St', 'Št', 'Pi', 'So', 'Ne'].map(day => (
-            <div key={day} className="text-center text-xs font-medium text-gray-600 w-9 h-6 flex items-center justify-center">
-              {day}
-            </div>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-7 gap-1">
-          {Array.from({ length: paddingDays }).map((_, i) => (
-            <div key={`pad-${i}`} className="w-9 h-9" />
-          ))}
-
-          {days.map(day => {
-            const isDelivery = isDeliveryDay(day);
-            const hasOrdersDay = hasOrdersOnDate(day);
-            const today = isToday(day);
-            const selected = selectedDates.some(d => isSameDay(d, day));
-
-            let bgColor = 'bg-white hover:bg-gray-50';
-
-            if (isDelivery) {
-              bgColor = 'bg-green-200 hover:bg-green-300';
-            } else if (hasOrdersDay) {
-              bgColor = 'bg-yellow-300 hover:bg-yellow-400';
-            }
-
-            return (
-              <button
-                key={day.toISOString()}
-                onClick={() => {
-                  setSelectedDates(prev => {
-                    const exists = prev.some(d => isSameDay(d, day));
-                    if (exists) {
-                      return prev.filter(d => !isSameDay(d, day));
-                    } else {
-                      return [...prev, day];
-                    }
-                  });
-                }}
-                className={`
-                  ${bgColor}
-                  ${today ? 'ring-2 ring-green-600' : ''}
-                  ${selected ? 'ring-2 ring-blue-500' : ''}
-                  rounded-full w-9 h-9 flex items-center justify-center
-                  text-sm font-medium cursor-pointer transition-all
-                `}
-              >
-                {day.getDate()}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="mt-4 space-y-2 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-green-200 border border-gray-300" />
-            <span>Rozvozový deň</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-yellow-300 border border-gray-300" />
-            <span>Objednávky</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full ring-2 ring-blue-500" />
-            <span>Vybraný deň</span>
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   useEffect(() => {
     loadData();
@@ -2271,88 +2165,6 @@ export default function OrdersPage() {
     }
   };
 
-  const getStatusBadgeClass = (status: string) => {
-    switch (status) {
-      case 'growing':
-        return 'bg-green-100 text-green-800 border-green-300';
-      case 'packed':
-        return 'bg-amber-100 text-amber-800 border-amber-300';
-      case 'on_the_way':
-        return 'bg-sky-100 text-sky-800 border-sky-300';
-      case 'pending_approval':
-        return 'bg-purple-100 text-purple-800 border-purple-300';
-      case 'cakajuca':
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      case 'potvrdena':
-      case 'confirmed':
-        return 'bg-green-100 text-green-800 border-green-300';
-      case 'pripravena':
-      case 'ready':
-      case 'packaging_ready':
-        return 'bg-orange-100 text-orange-800 border-orange-300';
-      case 'dorucena':
-      case 'delivered':
-        return 'bg-blue-100 text-blue-800 border-blue-300';
-      case 'zrusena':
-      case 'cancelled':
-        return 'bg-red-100 text-red-800 border-red-300';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-300';
-    }
-  };
-
-  const getStatusBorderColor = (status: string): string => {
-    switch (status) {
-      case 'growing':          return '#10b981';
-      case 'packed':           return '#f59e0b';
-      case 'on_the_way':       return '#0ea5e9';
-      case 'pending_approval': return '#a855f7';
-      case 'cakajuca':
-      case 'pending':          return '#eab308';
-      case 'potvrdena':
-      case 'confirmed':        return '#22c55e';
-      case 'pripravena':
-      case 'ready':
-      case 'packaging_ready':  return '#f97316';
-      case 'dorucena':
-      case 'delivered':        return '#3b82f6';
-      case 'zrusena':
-      case 'cancelled':        return '#ef4444';
-      default:                 return '#e5e7eb';
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    const labels: Record<string, string> = {
-      'cakajuca': 'Čakajúca',
-      'pending': 'Čakajúca',
-      'pending_approval': 'Čaká na schválenie',
-      'potvrdena': 'Potvrdená',
-      'confirmed': 'Potvrdená',
-      'growing': 'Rastie',
-      'packaging_ready': 'Obaly pripravené',
-      'packed': 'Zabalená',
-      'pripravena': 'Pripravená',
-      'ready': 'Pripravená na rozvoz',
-      'on_the_way': 'Na ceste',
-      'dorucena': 'Doručená',
-      'delivered': 'Doručená',
-      'zrusena': 'Zrušená',
-      'cancelled': 'Zrušená',
-    };
-    return labels[status] || 'Nová';
-  };
-
-  const STATUS_STEPS = [
-    { keys: ['cakajuca', 'pending', 'pending_approval'], label: 'Čakajúca' },
-    { keys: ['potvrdena', 'confirmed'], label: 'Potvrdená' },
-    { keys: ['growing'], label: 'Rastie' },
-    { keys: ['packed', 'pripravena', 'ready', 'packaging_ready'], label: 'Zabalená' },
-    { keys: ['on_the_way'], label: 'Na ceste' },
-    { keys: ['dorucena', 'delivered'], label: 'Doručená' },
-  ];
-
   const handleQuickStatusChange = async (orderId: string, newStatus: string) => {
     const { error } = await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
     if (error) {
@@ -2381,17 +2193,6 @@ export default function OrdersPage() {
     return () => window.removeEventListener('keydown', handleKey);
   }, [detailModalOpen, selectedOrderDetail]);
 
-  const formatDeliveryDate = (dateString: string) => {
-    try {
-      if (!dateString) return '-';
-      const date = parseISO(dateString);
-      return format(date, 'dd.MM.yyyy');
-    } catch (error) {
-      console.error('Error formatting date:', error);
-      return dateString || '-';
-    }
-  };
-
   if (loading) {
     return (
       <MainLayout>
@@ -2408,570 +2209,74 @@ export default function OrdersPage() {
   return (
     <MainLayout>
       <div className="p-6 space-y-4">
-        {/* ─── Topbar ─── */}
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 leading-tight">Objednávky</h1>
-            <p className="text-xs text-gray-500">Spravujte objednávky od zákazníkov</p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button onClick={openNew} className="bg-[#10b981] hover:bg-[#059669] text-white h-9 text-sm">
-              <Plus className="h-4 w-4 mr-1.5" />
-              Nová objednávka
-            </Button>
-            <div className="hidden md:flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5">
-              <Button variant={viewMode === 'grid' ? 'secondary' : 'ghost'} size="icon" className="h-8 w-8" onClick={() => setViewMode('grid')}>
-                <Grid3x3 className="h-4 w-4" />
-              </Button>
-              <Button variant={viewMode === 'list' ? 'secondary' : 'ghost'} size="icon" className="h-8 w-8" onClick={() => setViewMode('list')}>
-                <List className="h-4 w-4" />
-              </Button>
-            </div>
-            <Button onClick={() => setBulkDateChangeOpen(true)} variant="outline" className="h-9 text-xs px-3 gap-1.5">
-              <CalendarIcon className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Zmena termínu</span>
-            </Button>
-            <Button variant="outline" className="h-9 text-xs px-3 gap-1.5">
-              <FileSpreadsheet className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Excel</span>
-            </Button>
-            <Button variant="outline" className="h-9 text-xs px-3 gap-1.5">
-              <FileText className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">PDF</span>
-            </Button>
-          </div>
-        </div>
+        <OrdersTopBar
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          onNewOrder={openNew}
+          onBulkDateChange={() => setBulkDateChangeOpen(true)}
+        />
 
-        {/* ─── DESKTOP filtre ─── */}
-        <div className="hidden md:block space-y-2">
-          {/* Riadok 1: selects + prepínače */}
-          <div className="flex flex-wrap gap-2 items-center">
-            <CustomerTypeFilter value={filterCustomerType} onChange={setFilterCustomerType} showLabel={false} />
-            <div className="w-[260px]">
-              <SearchableCustomerSelect
-                value={customerFilter}
-                onValueChange={(value) => setCustomerFilter(value)}
-                customers={customers?.filter(c => {
-                  if (filterCustomerType === 'all') return true;
-                  return c.customer_type === filterCustomerType;
-                })}
-                placeholder="Hľadať zákazníka..."
-                allowAll={true}
-              />
-            </div>
-            <Select value={orderCategoryFilter} onValueChange={(value) => setOrderCategoryFilter(value)}>
-              <SelectTrigger className="w-[170px] h-9 text-sm">
-                <SelectValue placeholder="Kategória" />
-              </SelectTrigger>
-              <SelectContent position="popper" sideOffset={5}>
-                <SelectItem value="all">Všetky kategórie</SelectItem>
-                <SelectItem value="microgreens"><Leaf className="h-4 w-4 text-green-600 mr-2 inline" />Mikrozelenina</SelectItem>
-                <SelectItem value="microherbs"><Sprout className="h-4 w-4 text-green-600 mr-2 inline" />Mikrobylinky</SelectItem>
-                <SelectItem value="edible_flowers"><Flower className="h-4 w-4 text-green-600 mr-2 inline" />Jedlé kvety</SelectItem>
-                <SelectItem value="mix"><Palette className="h-4 w-4 text-green-600 mr-2 inline" />Mixy</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filterCrop} onValueChange={(value) => setFilterCrop(value)}>
-              <SelectTrigger className="w-[155px] h-9 text-sm">
-                <SelectValue placeholder="Plodina" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[300px] overflow-y-auto z-[100]">
-                <SelectItem value="all">Všetky plodiny</SelectItem>
-                {orderCategoryFilter === 'mix'
-                  ? blends?.map(blend => (<SelectItem key={blend.id} value={blend.name}>{blend.name}</SelectItem>))
-                  : crops?.filter(crop => {
-                      if (!orderCategoryFilter || orderCategoryFilter === 'all') return true;
-                      return (crop as any).category === orderCategoryFilter;
-                    }).map(crop => (<SelectItem key={crop?.id} value={crop?.name || ''}>{crop?.name}</SelectItem>))
-                }
-              </SelectContent>
-            </Select>
-            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="h-9 text-sm font-normal gap-2">
-                  <CalendarIcon className="h-3.5 w-3.5" />
-                  {selectedDates.length === 0 ? 'Dátum' : selectedDates.length === 1 ? format(selectedDates[0], 'dd.MM.yyyy', { locale: sk }) : `${selectedDates.length} dní`}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                {renderCalendar()}
-              </PopoverContent>
-            </Popover>
-            <div className="flex items-center gap-3 ml-auto">
-              <div className="flex items-center gap-1.5">
-                <Switch id="archive-toggle" checked={showArchive} onCheckedChange={setShowArchive} />
-                <Label htmlFor="archive-toggle" className="text-sm cursor-pointer whitespace-nowrap">Archív</Label>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Switch id="cancelled-toggle" checked={showCancelled} onCheckedChange={setShowCancelled} />
-                <Label htmlFor="cancelled-toggle" className="text-sm cursor-pointer whitespace-nowrap">Zrušené</Label>
-              </div>
-            </div>
-          </div>
-          {/* Riadok 2: period chipy */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-xs text-gray-400 font-medium">Obdobie:</span>
-            {([
-              { value: 'all',          label: 'Všetky' },
-              { value: 'this_week',    label: 'Tento týždeň' },
-              { value: 'next_week',    label: 'Budúci týždeň' },
-              { value: 'last_week',    label: 'Minulý týždeň' },
-              { value: 'last_2_weeks', label: 'Pred 2T' },
-              { value: 'last_month',   label: 'Minulý mesiac' },
-            ] as const).map(p => (
-              <button
-                key={p.value}
-                onClick={() => setFilterPeriod(p.value)}
-                className={`px-2.5 py-0.5 rounded-full text-xs font-medium border transition-all ${
-                  filterPeriod === p.value
-                    ? 'bg-gray-800 text-white border-gray-800'
-                    : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400 hover:bg-gray-50'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-          {/* Riadok 3: status chipy */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-xs text-gray-400 font-medium">Stav:</span>
-            {([
-              { value: 'all',              label: 'Všetky',     on: 'bg-gray-700 text-white border-gray-700',        off: 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50' },
-              { value: 'cakajuca',         label: 'Čakajúca',   on: 'bg-yellow-500 text-white border-yellow-500',     off: 'bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100' },
-              { value: 'pending_approval', label: 'Schválenie', on: 'bg-purple-500 text-white border-purple-500',     off: 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100' },
-              { value: 'potvrdena',        label: 'Potvrdená',  on: 'bg-green-500 text-white border-green-500',       off: 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' },
-              { value: 'growing',          label: 'Rastie',     on: 'bg-[#10b981] text-white border-[#10b981]',       off: 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' },
-              { value: 'packed',           label: 'Zabalená',   on: 'bg-amber-500 text-white border-amber-500',       off: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' },
-              { value: 'on_the_way',       label: 'Na ceste',   on: 'bg-sky-500 text-white border-sky-500',           off: 'bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100' },
-              { value: 'pripravena',       label: 'Pripravená', on: 'bg-orange-500 text-white border-orange-500',     off: 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100' },
-              { value: 'dorucena',         label: 'Doručená',   on: 'bg-blue-500 text-white border-blue-500',         off: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' },
-            ] as const).map(s => (
-              <button
-                key={s.value}
-                onClick={() => setFilterStatus(s.value)}
-                className={`px-2.5 py-0.5 rounded-full text-xs font-medium border transition-all ${
-                  filterStatus === s.value ? s.on : s.off
-                }`}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        <OrdersFilterBar
+          filterCustomerType={filterCustomerType}
+          onFilterCustomerTypeChange={setFilterCustomerType}
+          customerFilter={customerFilter}
+          onCustomerFilterChange={setCustomerFilter}
+          orderCategoryFilter={orderCategoryFilter}
+          onOrderCategoryFilterChange={setOrderCategoryFilter}
+          filterCrop={filterCrop}
+          onFilterCropChange={setFilterCrop}
+          filterPeriod={filterPeriod}
+          onFilterPeriodChange={setFilterPeriod}
+          filterStatus={filterStatus}
+          onFilterStatusChange={setFilterStatus}
+          showArchive={showArchive}
+          onShowArchiveChange={setShowArchive}
+          showCancelled={showCancelled}
+          onShowCancelledChange={setShowCancelled}
+          selectedDates={selectedDates}
+          onSelectedDatesChange={setSelectedDates}
+          calendarOpen={calendarOpen}
+          onCalendarOpenChange={setCalendarOpen}
+          calendarOpenMobile={calendarOpenMobile}
+          onCalendarOpenMobileChange={setCalendarOpenMobile}
+          calendarMonth={calendarMonth}
+          onCalendarMonthChange={setCalendarMonth}
+          customers={customers}
+          crops={crops}
+          blends={blends}
+          orders={orders}
+          getDeliveryDaysArray={getDeliveryDaysFromSettings}
+        />
 
-        {/* ─── MOBILE filtre ─── */}
-        <div className="md:hidden space-y-2">
-          <CustomerTypeFilter value={filterCustomerType} onChange={setFilterCustomerType} showLabel={false} />
-          <div className="w-full">
-            <SearchableCustomerSelect
-              value={customerFilter}
-              onValueChange={(value) => setCustomerFilter(value)}
-              customers={customers?.filter(c => {
-                if (filterCustomerType === 'all') return true;
-                return c.customer_type === filterCustomerType;
-              })}
-              placeholder="Hľadať zákazníka..."
-              allowAll={true}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Select value={orderCategoryFilter} onValueChange={(value) => setOrderCategoryFilter(value)}>
-              <SelectTrigger><SelectValue placeholder="Kategória" /></SelectTrigger>
-              <SelectContent position="popper" sideOffset={5}>
-                <SelectItem value="all">Všetky</SelectItem>
-                <SelectItem value="microgreens">Mikrozelenina</SelectItem>
-                <SelectItem value="microherbs">Mikrobylinky</SelectItem>
-                <SelectItem value="edible_flowers">Jedlé kvety</SelectItem>
-                <SelectItem value="mix">Mixy</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filterCrop} onValueChange={(value) => setFilterCrop(value)}>
-              <SelectTrigger><SelectValue placeholder="Plodina" /></SelectTrigger>
-              <SelectContent className="max-h-[300px] overflow-y-auto z-[100]">
-                <SelectItem value="all">Všetky plodiny</SelectItem>
-                {orderCategoryFilter === 'mix'
-                  ? blends?.map(blend => (<SelectItem key={blend.id} value={blend.name}>{blend.name}</SelectItem>))
-                  : crops?.filter(crop => {
-                      if (!orderCategoryFilter || orderCategoryFilter === 'all') return true;
-                      return (crop as any).category === orderCategoryFilter;
-                    }).map(crop => (<SelectItem key={crop?.id} value={crop?.name || ''}>{crop?.name}</SelectItem>))
-                }
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Popover open={calendarOpenMobile} onOpenChange={setCalendarOpenMobile}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="justify-start text-left font-normal h-10 w-full">
-                  <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
-                  <span className="truncate">
-                    {selectedDates.length === 0 ? 'Dátum' : selectedDates.length === 1 ? format(selectedDates[0], 'dd.MM.yyyy', { locale: sk }) : `${selectedDates.length} dní`}
-                  </span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                {renderCalendar(() => setCalendarOpenMobile(false))}
-              </PopoverContent>
-            </Popover>
-            <Select value={filterPeriod} onValueChange={setFilterPeriod}>
-              <SelectTrigger><SelectValue placeholder="Obdobie" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Všetky týždne</SelectItem>
-                <SelectItem value="this_week">Tento týždeň</SelectItem>
-                <SelectItem value="next_week">Budúci týždeň</SelectItem>
-                <SelectItem value="last_week">Minulý týždeň</SelectItem>
-                <SelectItem value="last_2_weeks">Pred 2 týždňami</SelectItem>
-                <SelectItem value="last_month">Minulý mesiac</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          {/* Status chipy – horizontálne scrollovateľné */}
-          <div className="overflow-x-auto pb-1 -mx-1 px-1">
-            <div className="flex items-center gap-1.5 min-w-max">
-              {([
-                { value: 'all',              label: 'Všetky',     on: 'bg-gray-700 text-white border-gray-700',        off: 'bg-white text-gray-600 border-gray-300' },
-                { value: 'cakajuca',         label: 'Čakajúca',   on: 'bg-yellow-500 text-white border-yellow-500',     off: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
-                { value: 'pending_approval', label: 'Schválenie', on: 'bg-purple-500 text-white border-purple-500',     off: 'bg-purple-50 text-purple-700 border-purple-200' },
-                { value: 'potvrdena',        label: 'Potvrdená',  on: 'bg-green-500 text-white border-green-500',       off: 'bg-green-50 text-green-700 border-green-200' },
-                { value: 'growing',          label: 'Rastie',     on: 'bg-[#10b981] text-white border-[#10b981]',       off: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-                { value: 'packed',           label: 'Zabalená',   on: 'bg-amber-500 text-white border-amber-500',       off: 'bg-amber-50 text-amber-700 border-amber-200' },
-                { value: 'on_the_way',       label: 'Na ceste',   on: 'bg-sky-500 text-white border-sky-500',           off: 'bg-sky-50 text-sky-700 border-sky-200' },
-                { value: 'pripravena',       label: 'Pripravená', on: 'bg-orange-500 text-white border-orange-500',     off: 'bg-orange-50 text-orange-700 border-orange-200' },
-                { value: 'dorucena',         label: 'Doručená',   on: 'bg-blue-500 text-white border-blue-500',         off: 'bg-blue-50 text-blue-700 border-blue-200' },
-              ] as const).map(s => (
-                <button
-                  key={s.value}
-                  onClick={() => setFilterStatus(s.value)}
-                  className={`px-2.5 py-1 rounded-full text-xs font-medium border whitespace-nowrap transition-all ${
-                    filterStatus === s.value ? s.on : s.off
-                  }`}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <Switch id="archive-toggle-mobile" checked={showArchive} onCheckedChange={setShowArchive} />
-              <Label htmlFor="archive-toggle-mobile" className="text-sm cursor-pointer whitespace-nowrap">Archív</Label>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Switch id="cancelled-toggle-mobile" checked={showCancelled} onCheckedChange={setShowCancelled} />
-              <Label htmlFor="cancelled-toggle-mobile" className="text-sm cursor-pointer whitespace-nowrap">Zrušené</Label>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-          <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-3 border border-[#10b981]/20 hover:border-[#10b981]/40 transition-all">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[#10b981] flex items-center justify-center">
-                  <House className="h-4 w-4 text-white" />
-                </div>
-                <span className="text-xs font-semibold text-gray-700 uppercase">Domáci</span>
-              </div>
-              <div className="text-right">
-                <div className="text-xl font-bold text-[#10b981]">{domaciRevenue.toFixed(2)} €</div>
-                <p className="text-[10px] text-gray-500">
-                  {(filteredOrders || []).filter(o => {
-                    const customer = customers?.find(c => c.id === o?.customer_id);
-                    return customer?.customer_type === 'home';
-                  }).length} obj.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-blue-50 to-sky-50 rounded-lg p-3 border border-blue-500/20 hover:border-blue-500/40 transition-all">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center">
-                  <Utensils className="h-4 w-4 text-white" />
-                </div>
-                <span className="text-xs font-semibold text-gray-700 uppercase">Gastro</span>
-              </div>
-              <div className="text-right">
-                <div className="text-xl font-bold text-blue-600">{gastroRevenue.toFixed(2)} €</div>
-                <p className="text-[10px] text-gray-500">
-                  {(filteredOrders || []).filter(o => {
-                    const customer = customers?.find(c => c.id === o?.customer_id);
-                    return customer?.customer_type === 'gastro';
-                  }).length} obj.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg p-3 border border-orange-500/20 hover:border-orange-500/40 transition-all">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center">
-                  <Store className="h-4 w-4 text-white" />
-                </div>
-                <span className="text-xs font-semibold text-gray-700 uppercase">Veľkoobchod</span>
-              </div>
-              <div className="text-right">
-                <div className="text-xl font-bold text-orange-600">{wholesaleRevenue.toFixed(2)} €</div>
-                <p className="text-[10px] text-gray-500">
-                  {(filteredOrders || []).filter(o => {
-                    const customer = customers?.find(c => c.id === o?.customer_id);
-                    return customer?.customer_type === 'wholesale';
-                  }).length} obj.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <OrdersStatsBar
+          filteredOrders={filteredOrders}
+          customers={customers}
+          domaciRevenue={domaciRevenue}
+          gastroRevenue={gastroRevenue}
+          wholesaleRevenue={wholesaleRevenue}
+        />
 
         {effectiveViewMode === 'list' ? (
-          <div className="hidden md:block bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Zákazník</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Dátum dodania</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Trasa</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Celková cena</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Akcie</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {filteredOrders.map((order) => (
-                    <tr
-                      key={order.id}
-                      className="hover:bg-gray-50 cursor-pointer transition-colors"
-                      style={{ borderLeft: `4px solid ${getStatusBorderColor(order.status)}` }}
-                      onClick={() => {
-                        setSelectedOrderDetail(order);
-                        setDetailModalOpen(true);
-                      }}
-                    >
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-[#10b981] flex items-center justify-center text-white">
-                            <ShoppingCart className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <div className="font-semibold text-sm text-gray-900">{order.customer_name || 'Bez názvu'}</div>
-                              {(order as any).order_source === 'app' && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
-                                  <Smartphone className="w-3 h-3" />
-                                  APP
-                                </span>
-                              )}
-                              {order.customer_type === 'home' && <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200"><House className="w-3 h-3" />Domáci</span>}
-                              {order.customer_type === 'gastro' && <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200"><Utensils className="w-3 h-3" />Gastro</span>}
-                              {order.customer_type === 'wholesale' && <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-50 text-orange-700 border border-orange-200"><Store className="w-3 h-3" />VO</span>}
-                            </div>
-                            {order.order_items && order.order_items.length > 0 && (
-                              <div className="text-xs text-gray-500">
-                                {(order.order_items || []).reduce((sum, item) => sum + (item?.quantity || 0), 0)} položiek
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {formatDeliveryDate(order.delivery_date)}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-700">
-                        {order.route || '-'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center flex-wrap gap-2">
-                          <Badge className={`border ${getStatusBadgeClass(order.status)} text-xs font-semibold px-2 py-0.5`}>
-                            {getStatusLabel(order.status)}
-                          </Badge>
-                          {(order.parent_order_id || (order.is_recurring && (order.recurring_weeks || 0) > 1) || order.notes?.includes('freq:weekly') || order.notes?.includes('freq:biweekly')) && (
-                            <div className="flex items-center" title="Opakujúca sa objednávka">
-                              <RefreshCw className="h-4 w-4 text-blue-600" />
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <span className="text-base font-bold text-[#10b981]">
-                          {(getOrderTotal(order) || 0).toFixed(2)} €
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex gap-1 justify-end">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 hover:bg-gray-100"
-                            onClick={() => duplicateOrder(order)}
-                          >
-                            <Copy className="h-4 w-4 text-gray-500" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 hover:bg-gray-100"
-                            onClick={() => openEdit(order)}
-                          >
-                            <Pencil className="h-4 w-4 text-gray-500" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 hover:bg-red-50"
-                            onClick={() => openDeleteDialog(order.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <OrdersTableView
+            filteredOrders={filteredOrders}
+            getOrderTotal={getOrderTotal}
+            onSelectOrder={(order) => { setSelectedOrderDetail(order); setDetailModalOpen(true); }}
+            onDuplicate={duplicateOrder}
+            onEdit={openEdit}
+            onDelete={openDeleteDialog}
+          />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredOrders.map((order) => (
-              <Card key={order.id} className="p-5 hover:shadow-xl transition-all bg-white rounded-xl border border-gray-200 cursor-pointer" style={{ borderLeft: `4px solid ${getStatusBorderColor(order.status)}` }} onClick={() => {
-                setSelectedOrderDetail(order);
-                setDetailModalOpen(true);
-              }}>
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <div className="w-12 h-12 rounded-full bg-[#10b981] flex items-center justify-center text-white shadow-md">
-                        <ShoppingCart className="h-5 w-5" />
-                      </div>
-                      {order.order_items && order.order_items.length > 0 && (
-                        <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-white border-2 border-[#10b981] flex items-center justify-center shadow">
-                          <span className="text-xs font-bold text-[#10b981]">
-                            {(order.order_items || []).reduce((sum, item) => sum + (item?.quantity || 0), 0)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-base text-gray-900">{order.customer_name || 'Bez názvu'}</h3>
-                      <div className="flex items-center flex-wrap gap-2 mt-1.5">
-                        <Badge className={`border ${getStatusBadgeClass(order.status)} text-xs font-semibold px-2.5 py-0.5`}>
-                          {getStatusLabel(order.status)}
-                        </Badge>
-                        {(order as any).order_source === 'app' && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
-                            <Smartphone className="w-3 h-3" />
-                            APP
-                          </span>
-                        )}
-                        {order.customer_type === 'home' && <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200"><House className="w-3 h-3" />Domáci</span>}
-                        {order.customer_type === 'gastro' && <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200"><Utensils className="w-3 h-3" />Gastro</span>}
-                        {order.customer_type === 'wholesale' && <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-50 text-orange-700 border border-orange-200"><Store className="w-3 h-3" />VO</span>}
-                        {(order.parent_order_id || (order.is_recurring && (order.recurring_weeks || 0) > 1) || order.notes?.includes('freq:weekly') || order.notes?.includes('freq:biweekly')) && (
-                          <div className="flex items-center" title="Opakujúca sa objednávka">
-                            <RefreshCw className="h-4 w-4 text-blue-600" />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 hover:bg-gray-100"
-                      onClick={() => duplicateOrder(order)}
-                    >
-                      <Copy className="h-4 w-4 text-gray-500" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 hover:bg-gray-100"
-                      onClick={() => openEdit(order)}
-                    >
-                      <Pencil className="h-4 w-4 text-gray-500" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 hover:bg-red-50"
-                      onClick={() => openDeleteDialog(order.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-2.5 text-sm text-gray-600 mb-4">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-gray-400" />
-                    <span className="text-sm">
-                      Dodanie: {formatDeliveryDate(order.delivery_date)}
-                    </span>
-                  </div>
-                  {order.route && (
-                    order.route === 'Osobný odber' ? (
-                      <div className="flex items-center gap-2 text-green-600">
-                        <Store className="h-4 w-4" />
-                        <span className="text-sm font-medium">Osobný odber</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <Truck className="h-4 w-4" />
-                        <span className="text-sm">Trasa: {order.route}</span>
-                      </div>
-                    )
-                  )}
-                </div>
-
-                <div className="border-t border-gray-200 pt-3 space-y-2">
-                  {(() => {
-                    if (customers.length === 0 || routes.length === 0) {
-                      return null;
-                    }
-
-                    const deliveryFee = getDeliveryFee(order);
-                    const orderSubtotal = (order.order_items || []).reduce((sum, item) => {
-                      if (!item) return sum;
-                      const qty = parseFloat(item?.quantity?.toString() || '0');
-                      const pricePerUnit = parseFloat((item?.price_per_unit?.toString() || '0').replace(',', '.'));
-                      return sum + (qty * pricePerUnit);
-                    }, 0);
-                    const isFreeDelivery = deliveryFee === 0 && orderSubtotal > 0;
-
-                    // If charge_delivery is false or deliveryFee is 0, show free shipping
-                    if (!order.charge_delivery || deliveryFee === 0) {
-                      return (
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="text-gray-600">Doprava:</span>
-                          <span className="font-semibold text-[#10b981]">Zdarma</span>
-                        </div>
-                      );
-                    }
-
-                    // Show delivery fee if it's greater than 0
-                    if (deliveryFee > 0) {
-                      return (
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="text-gray-600">Doprava:</span>
-                          <span className="font-semibold text-gray-900">{deliveryFee.toFixed(2)} €</span>
-                        </div>
-                      );
-                    }
-                  })()}
-                  <div className="flex justify-between items-center">
-                    <span className="text-base text-gray-700 font-semibold">Celkom:</span>
-                    <span className="text-2xl font-bold text-[#10b981]">
-                      {(getOrderTotal(order) || 0).toFixed(2)} €
-                    </span>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
+          <OrdersCardView
+            filteredOrders={filteredOrders}
+            customers={customers}
+            routes={routes}
+            getOrderTotal={getOrderTotal}
+            getDeliveryFee={getDeliveryFee}
+            onSelectOrder={(order) => { setSelectedOrderDetail(order); setDetailModalOpen(true); }}
+            onDuplicate={duplicateOrder}
+            onEdit={openEdit}
+            onDelete={openDeleteDialog}
+          />
         )}
 
         {filteredOrders.length === 0 && (
@@ -3798,461 +3103,23 @@ export default function OrdersPage() {
         onSuccess={loadData}
       />
 
-      <Dialog open={detailModalOpen} onOpenChange={(open) => { setDetailModalOpen(open); if (!open) setDetailActiveTab('detail'); }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">Detail objednávky</DialogTitle>
-          </DialogHeader>
-          {selectedOrderDetail && (
-            <div className="space-y-4">
 
-              {/* Tab navigation */}
-              <div className="flex border-b border-gray-200 -mt-1">
-                <button
-                  onClick={() => setDetailActiveTab('detail')}
-                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                    detailActiveTab === 'detail'
-                      ? 'border-[#10b981] text-[#10b981]'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Detail
-                </button>
-                <button
-                  onClick={() => setDetailActiveTab('history')}
-                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
-                    detailActiveTab === 'history'
-                      ? 'border-[#10b981] text-[#10b981]'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  <Clock className="h-3.5 w-3.5" />
-                  História
-                </button>
-              </div>
+      <OrderDetailDialog
+        open={detailModalOpen}
+        onOpenChange={setDetailModalOpen}
+        order={selectedOrderDetail}
+        activeTab={detailActiveTab}
+        onTabChange={setDetailActiveTab}
+        isMobile={isMobile}
+        customers={customers}
+        routes={routes}
+        getDeliveryFee={getDeliveryFee}
+        getOrderTotal={getOrderTotal}
+        onQuickStatusChange={handleQuickStatusChange}
+        onEdit={openEdit}
+        onExtend={openExtendDialog}
+      />
 
-              {/* ===== DETAIL TAB ===== */}
-              {detailActiveTab === 'detail' && (
-                <>
-                  {/* Customer + date info */}
-                  <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <div className="text-sm text-gray-600">Zákazník</div>
-                      <div className="flex items-center gap-2">
-                        <div className="font-semibold text-gray-900">{selectedOrderDetail.customer_name || 'Bez názvu'}</div>
-                        {(selectedOrderDetail as any).order_source === 'app' && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
-                            <Smartphone className="w-3 h-3" />
-                            APP
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-gray-600">Dátum dodania</div>
-                      <div className="font-semibold text-gray-900">{formatDeliveryDate(selectedOrderDetail.delivery_date)}</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-gray-600">Trasa</div>
-                      {selectedOrderDetail.route === 'Osobný odber' ? (
-                        <div className="flex items-center gap-2 text-green-600">
-                          <Store className="h-4 w-4" />
-                          <span className="font-semibold">Osobný odber</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <Truck className="h-4 w-4" />
-                          <span className="font-semibold text-gray-900">
-                            {selectedOrderDetail.route || (selectedOrderDetail as any).customers?.delivery_routes?.name || '-'}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-end">
-                      {(selectedOrderDetail.parent_order_id || (selectedOrderDetail.is_recurring && (selectedOrderDetail.recurring_weeks || 0) > 1)) && (
-                        <div className="flex items-center gap-1.5 text-blue-600">
-                          <RefreshCw className="h-4 w-4" />
-                          <span className="text-sm font-medium">Opakovaná</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Status Stepper */}
-                  {(() => {
-                    const s = selectedOrderDetail.status;
-                    const isCancelled = s === 'zrusena' || s === 'cancelled';
-                    const currentStepIdx = STATUS_STEPS.findIndex(step => step.keys.includes(s));
-                    return (
-                      <div className="p-4 bg-gray-50 rounded-lg">
-                        {isCancelled ? (
-                          <div className="flex items-center gap-2 text-red-600 justify-center py-1">
-                            <X className="h-5 w-5" />
-                            <span className="font-semibold">Zrušená objednávka</span>
-                          </div>
-                        ) : (
-                          <div>
-                            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Postup objednávky</div>
-                            {isMobile ? (
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="text-xs text-gray-400 w-14 text-right leading-tight">
-                                  {currentStepIdx > 0 ? STATUS_STEPS[currentStepIdx - 1].label : ''}
-                                </span>
-                                <div className="flex flex-col items-center flex-1">
-                                  <div className="w-10 h-10 rounded-full bg-[#10b981] border-2 border-[#10b981] shadow-md shadow-green-200 flex items-center justify-center">
-                                    <div className="w-3.5 h-3.5 rounded-full bg-white" />
-                                  </div>
-                                  <span className="text-xs font-bold text-[#10b981] mt-1.5 text-center">{STATUS_STEPS[currentStepIdx]?.label}</span>
-                                  <span className="text-[10px] text-gray-400">{currentStepIdx + 1} / {STATUS_STEPS.length}</span>
-                                </div>
-                                <span className="text-xs text-gray-400 w-14 leading-tight">
-                                  {currentStepIdx < STATUS_STEPS.length - 1 ? STATUS_STEPS[currentStepIdx + 1].label : ''}
-                                </span>
-                              </div>
-                            ) : (
-                              <div className="flex items-start">
-                                {STATUS_STEPS.map((step, idx) => (
-                                  <div key={idx} className="flex items-center flex-1">
-                                    <div className="flex flex-col items-center flex-1">
-                                      <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all ${
-                                        idx < currentStepIdx
-                                          ? 'bg-[#10b981] border-[#10b981]'
-                                          : idx === currentStepIdx
-                                          ? 'bg-[#10b981] border-[#10b981] shadow-md shadow-green-200'
-                                          : 'bg-white border-gray-300'
-                                      }`}>
-                                        {idx < currentStepIdx ? (
-                                          <Check className="h-4 w-4 text-white" />
-                                        ) : idx === currentStepIdx ? (
-                                          <div className="w-3 h-3 rounded-full bg-white" />
-                                        ) : null}
-                                      </div>
-                                      <span className={`text-[10px] font-medium text-center mt-1.5 leading-tight max-w-[52px] ${
-                                        idx === currentStepIdx ? 'text-[#10b981] font-bold' : idx < currentStepIdx ? 'text-gray-500' : 'text-gray-400'
-                                      }`}>{step.label}</span>
-                                    </div>
-                                    {idx < STATUS_STEPS.length - 1 && (
-                                      <div className={`h-0.5 w-4 flex-shrink-0 mb-5 ${idx < currentStepIdx ? 'bg-[#10b981]' : 'bg-gray-200'}`} />
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-
-                  {/* Quick Action Buttons */}
-                  {(() => {
-                    const s = selectedOrderDetail.status;
-                    if (s === 'zrusena' || s === 'cancelled' || s === 'dorucena' || s === 'delivered') return null;
-                    const nextMap: Record<string, { key: string; label: string; className: string }> = {
-                      'cakajuca':       { key: 'potvrdena',  label: 'Potvrdiť objednávku',    className: 'bg-blue-500 hover:bg-blue-600 text-white' },
-                      'pending':        { key: 'potvrdena',  label: 'Potvrdiť objednávku',    className: 'bg-blue-500 hover:bg-blue-600 text-white' },
-                      'pending_approval': { key: 'potvrdena', label: 'Schváliť a potvrdiť',  className: 'bg-purple-500 hover:bg-purple-600 text-white' },
-                      'potvrdena':      { key: 'growing',    label: 'Označiť: Rastie',        className: 'bg-violet-500 hover:bg-violet-600 text-white' },
-                      'confirmed':      { key: 'growing',    label: 'Označiť: Rastie',        className: 'bg-violet-500 hover:bg-violet-600 text-white' },
-                      'growing':        { key: 'packed',     label: 'Označiť: Zabalená',      className: 'bg-amber-500 hover:bg-amber-600 text-white' },
-                      'packed':         { key: 'on_the_way', label: 'Odoslať: Na ceste',      className: 'bg-sky-500 hover:bg-sky-600 text-white' },
-                      'pripravena':     { key: 'on_the_way', label: 'Odoslať: Na ceste',      className: 'bg-sky-500 hover:bg-sky-600 text-white' },
-                      'ready':          { key: 'on_the_way', label: 'Odoslať: Na ceste',      className: 'bg-sky-500 hover:bg-sky-600 text-white' },
-                      'packaging_ready':{ key: 'on_the_way', label: 'Odoslať: Na ceste',      className: 'bg-sky-500 hover:bg-sky-600 text-white' },
-                      'on_the_way':     { key: 'dorucena',   label: '✓ Označiť ako Doručenú', className: 'bg-[#10b981] hover:bg-[#059669] text-white' },
-                    };
-                    const next = nextMap[s];
-                    if (!next) return null;
-                    return (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleQuickStatusChange(selectedOrderDetail.id, next.key)}
-                          className={`flex-1 py-2.5 px-4 rounded-lg font-semibold text-sm transition-colors ${next.className}`}
-                        >
-                          {next.label}
-                        </button>
-                        <button
-                          onClick={() => handleQuickStatusChange(selectedOrderDetail.id, 'zrusena')}
-                          className="px-3 py-2.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 text-sm font-medium transition-colors"
-                        >
-                          Zrušiť
-                        </button>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Recurring order info */}
-                  {selectedOrderDetail?.is_recurring && selectedOrderDetail?.recurring_end_date && (
-                    <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                      <div className="flex items-center gap-2 mb-2">
-                        <RefreshCw className="h-5 w-5 text-blue-600" />
-                        <span className="font-semibold text-blue-900">Opakovaná objednávka</span>
-                      </div>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex items-start gap-2">
-                          <span className="text-gray-600 min-w-[80px]">📅 Obdobie:</span>
-                          <span className="font-medium text-gray-900">
-                            {selectedOrderDetail.recurring_start_date && format(new Date(selectedOrderDetail.recurring_start_date), 'dd.MM.yyyy')}
-                            {' → '}
-                            {format(new Date(selectedOrderDetail.recurring_end_date), 'dd.MM.yyyy')}
-                          </span>
-                        </div>
-                        {selectedOrderDetail.recurring_current_week && selectedOrderDetail.recurring_total_weeks && (
-                          <div className="flex items-start gap-2">
-                            <span className="text-gray-600 min-w-[80px]">🔢 Týždeň:</span>
-                            <span className="font-medium text-gray-900">
-                              {selectedOrderDetail.recurring_current_week} / {selectedOrderDetail.recurring_total_weeks}
-                            </span>
-                          </div>
-                        )}
-                        <div className="pt-3 mt-2 border-t border-blue-200">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); openExtendDialog(selectedOrderDetail); }}
-                            className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-                          >
-                            ➕ Predĺžiť objednávku
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* PWA recurring info */}
-                  {!selectedOrderDetail?.is_recurring && selectedOrderDetail?.notes?.includes('freq:') && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <RefreshCw className="w-4 h-4 text-blue-600" />
-                        <span className="font-medium text-blue-800">Opakovaná objednávka</span>
-                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">PWA</span>
-                      </div>
-                      <p className="text-sm text-blue-700">
-                        {selectedOrderDetail.notes?.includes('freq:weekly') ? 'Frekvencia: každý týždeň' : 'Frekvencia: každé 2 týždne'}
-                      </p>
-                    </div>
-                  )}
-
-                  {formatOrderNotes(selectedOrderDetail.notes) && (
-                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                      <div className="text-sm font-semibold text-blue-900 mb-1">Poznámky:</div>
-                      <div className="text-sm text-blue-800">{formatOrderNotes(selectedOrderDetail.notes)}</div>
-                    </div>
-                  )}
-
-                  <div className="border-t pt-4">
-                    <h3 className="font-semibold text-base mb-3">Položky objednávky:</h3>
-                    <div className="space-y-2">
-                      {sortOrderItemsByValue(selectedOrderDetail.order_items || []).map((item, idx) => {
-                        if (!item) return null;
-                        const itemPrice = (item?.quantity || 0) * (parseFloat(item?.price_per_unit?.toString().replace(',', '.')) || 0);
-                        const formLabel = getDeliveryFormLabel(item?.delivery_form);
-                        const weightDisplay = item?.packaging_size ? (item.packaging_size.includes('g') || item.packaging_size.includes('kg') ? item.packaging_size : `${item.packaging_size}g`) : '-';
-                        return (
-                          <div key={idx} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg border border-gray-200">
-                            <div className="flex-1">
-                              <div className="font-semibold text-gray-900">
-                                {item?.quantity || 0}× {item?.crop_name || '-'}{item?.packaging_size ? ` ${weightDisplay}` : ''}
-                              </div>
-                              <div className="text-sm text-gray-600">
-                                {formLabel}
-                                {item?.packaging_type && ` • ${item.packaging_type}`}
-                                {item?.packaging_volume_ml && ` • ${item.packaging_volume_ml}ml`}
-                              </div>
-                              {item?.notes && (
-                                <div className="text-xs text-gray-500 mt-1 italic">{item.notes}</div>
-                              )}
-                            </div>
-                            <div className="font-bold text-[#10b981] text-lg ml-4">
-                              {itemPrice.toFixed(2)} €
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-4 space-y-2">
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-gray-600">Medzisúčet:</span>
-                      <span className="font-semibold text-gray-900">
-                        {(() => {
-                          if (selectedOrderDetail.order_items && Array.isArray(selectedOrderDetail.order_items)) {
-                            const subtotal = selectedOrderDetail.order_items.reduce((sum, item) => {
-                              if (!item) return sum;
-                              const qty = parseFloat(item.quantity?.toString() || '0');
-                              const pricePerUnit = parseFloat(item.price_per_unit?.toString().replace(',', '.') || '0');
-                              return sum + (qty * pricePerUnit);
-                            }, 0);
-                            return subtotal.toFixed(2);
-                          }
-                          return (selectedOrderDetail?.total_price || 0).toFixed(2);
-                        })()}€
-                      </span>
-                    </div>
-                    {(() => {
-                      if (customers.length === 0 || routes.length === 0) return null;
-                      const deliveryFee = getDeliveryFee(selectedOrderDetail);
-                      if (!selectedOrderDetail.charge_delivery || deliveryFee === 0) {
-                        return (
-                          <div className="flex justify-between items-center text-sm">
-                            <span className="text-[#10b981] flex items-center gap-1 font-medium">
-                              <Truck className="h-3 w-3" />
-                              Doprava: Zdarma
-                            </span>
-                          </div>
-                        );
-                      }
-                      if (deliveryFee > 0) {
-                        return (
-                          <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-600 flex items-center gap-1">
-                              <Truck className="h-3 w-3" />
-                              Doprava:
-                            </span>
-                            <span className="font-semibold text-gray-900">{deliveryFee.toFixed(2)} €</span>
-                          </div>
-                        );
-                      }
-                    })()}
-                    <div className="flex justify-between items-center pt-2 border-t border-gray-300">
-                      <span className="text-lg text-gray-700 font-semibold">Celkom:</span>
-                      <span className="text-3xl font-bold text-[#10b981]">
-                        {(getOrderTotal(selectedOrderDetail) || 0).toFixed(2)} €
-                      </span>
-                    </div>
-                  </div>
-
-                  {(selectedOrderDetail.created_at || (selectedOrderDetail as any).cancelled_at) && (
-                    <div className="mt-2 pt-2 border-t border-gray-200 space-y-1">
-                      {selectedOrderDetail.created_at && (
-                        <p className="text-xs text-gray-400">
-                          📅 Vytvorená: {new Date(selectedOrderDetail.created_at).toLocaleString('sk-SK', {
-                            day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                          })}
-                        </p>
-                      )}
-                      {(selectedOrderDetail as any).cancelled_at && (
-                        <p className="text-xs text-gray-400">
-                          ❌ Zrušená: {new Date((selectedOrderDetail as any).cancelled_at).toLocaleString('sk-SK', {
-                            day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                          })}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* ===== HISTORY TAB ===== */}
-              {detailActiveTab === 'history' && (
-                <div className="py-2">
-                  <div className="relative pl-8">
-                    <div className="absolute left-3.5 top-3 bottom-3 w-0.5 bg-gray-200" />
-                    <div className="space-y-5">
-
-                      {/* Created */}
-                      <div className="flex gap-3 items-start relative">
-                        <div className="absolute -left-5 w-7 h-7 rounded-full bg-[#10b981] flex items-center justify-center z-10 shadow-sm">
-                          <Plus className="h-3.5 w-3.5 text-white" />
-                        </div>
-                        <div>
-                          <div className="font-semibold text-sm text-gray-900">Objednávka vytvorená</div>
-                          {selectedOrderDetail.created_at && (
-                            <div className="text-xs text-gray-500 mt-0.5">
-                              {new Date(selectedOrderDetail.created_at).toLocaleString('sk-SK', {
-                                day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                              })}
-                            </div>
-                          )}
-                          {(selectedOrderDetail as any).order_source === 'app' && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200 mt-1">
-                              <Smartphone className="w-3 h-3" />
-                              Cez APP
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Current status (non-terminal) */}
-                      {selectedOrderDetail.status !== 'zrusena' && selectedOrderDetail.status !== 'cancelled' &&
-                       selectedOrderDetail.status !== 'dorucena' && selectedOrderDetail.status !== 'delivered' && (
-                        <div className="flex gap-3 items-start relative">
-                          <div className="absolute -left-5 w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center z-10 shadow-sm">
-                            <Clock className="h-3.5 w-3.5 text-white" />
-                          </div>
-                          <div>
-                            <div className="font-semibold text-sm text-gray-900">
-                              Aktuálny stav: <span className="text-blue-600">{getStatusLabel(selectedOrderDetail.status)}</span>
-                            </div>
-                            <div className="text-xs text-gray-500 mt-0.5">
-                              Plánované dodanie: {formatDeliveryDate(selectedOrderDetail.delivery_date)}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Delivered */}
-                      {(selectedOrderDetail.status === 'dorucena' || selectedOrderDetail.status === 'delivered') && (
-                        <div className="flex gap-3 items-start relative">
-                          <div className="absolute -left-5 w-7 h-7 rounded-full bg-[#10b981] flex items-center justify-center z-10 shadow-sm">
-                            <Check className="h-3.5 w-3.5 text-white" />
-                          </div>
-                          <div>
-                            <div className="font-semibold text-sm text-[#10b981]">Objednávka doručená</div>
-                            <div className="text-xs text-gray-500 mt-0.5">
-                              {formatDeliveryDate(selectedOrderDetail.delivery_date)}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Cancelled */}
-                      {(selectedOrderDetail.status === 'zrusena' || selectedOrderDetail.status === 'cancelled' || (selectedOrderDetail as any).cancelled_at) && (
-                        <div className="flex gap-3 items-start relative">
-                          <div className="absolute -left-5 w-7 h-7 rounded-full bg-red-500 flex items-center justify-center z-10 shadow-sm">
-                            <X className="h-3.5 w-3.5 text-white" />
-                          </div>
-                          <div>
-                            <div className="font-semibold text-sm text-red-600">Objednávka zrušená</div>
-                            {(selectedOrderDetail as any).cancelled_at && (
-                              <div className="text-xs text-gray-500 mt-0.5">
-                                {new Date((selectedOrderDetail as any).cancelled_at).toLocaleString('sk-SK', {
-                                  day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-400 text-center mt-6">
-                    Podrobná história zmien stavu nie je momentálne sledovaná.
-                  </p>
-                </div>
-              )}
-
-              {/* Footer buttons */}
-              <div className="flex justify-end gap-2 pt-4 border-t">
-                <Button variant="outline" onClick={() => setDetailModalOpen(false)}>
-                  Zatvoriť
-                </Button>
-                <Button
-                  variant="default"
-                  className="bg-[#10b981] hover:bg-[#059669]"
-                  onClick={() => {
-                    setDetailModalOpen(false);
-                    openEdit(selectedOrderDetail);
-                  }}
-                >
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Upraviť
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </MainLayout>
   );
 }
