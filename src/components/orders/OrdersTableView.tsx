@@ -44,7 +44,7 @@ export function OrdersTableView({ filteredOrders, getOrderTotal, onSelectOrder, 
                     <div>
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="font-semibold text-sm text-[#0f172a]">{order.customer_name || 'Bez názvu'}</span>
-                        {(order as any).order_source === 'app' && (
+                        {order.order_source === 'app' && (
                           <span className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[10px] font-medium bg-blue-100 text-blue-700 border border-blue-200">
                             <Smartphone className="w-2.5 h-2.5" />APP
                           </span>

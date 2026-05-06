@@ -33,6 +33,7 @@ export interface Order {
   charge_delivery?: boolean;
   delivery_price?: number;
   notes?: string;
+  order_source?: string;
   is_recurring?: boolean;
   recurrence_pattern?: string;
   recurring_weeks?: number;
