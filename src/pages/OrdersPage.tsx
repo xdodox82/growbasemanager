@@ -2216,6 +2216,10 @@ export default function OrdersPage() {
           onViewModeChange={setViewMode}
           onNewOrder={openNew}
           onBulkDateChange={() => setBulkDateChangeOpen(true)}
+          showArchive={showArchive}
+          onShowArchiveChange={setShowArchive}
+          showCancelled={showCancelled}
+          onShowCancelledChange={setShowCancelled}
         />
 
         <OrdersFilterBar
@@ -2231,10 +2235,6 @@ export default function OrdersPage() {
           onFilterPeriodChange={setFilterPeriod}
           filterStatus={filterStatus}
           onFilterStatusChange={setFilterStatus}
-          showArchive={showArchive}
-          onShowArchiveChange={setShowArchive}
-          showCancelled={showCancelled}
-          onShowCancelledChange={setShowCancelled}
           selectedDates={selectedDates}
           onSelectedDatesChange={setSelectedDates}
           calendarOpen={calendarOpen}

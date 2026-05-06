@@ -1,13 +1,23 @@
 import { Plus, Grid3x3, List, FileSpreadsheet, FileText, Calendar as CalendarIcon } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 interface Props {
   viewMode: 'grid' | 'list';
   onViewModeChange: (mode: 'grid' | 'list') => void;
   onNewOrder: () => void;
   onBulkDateChange: () => void;
+  showArchive: boolean;
+  onShowArchiveChange: (v: boolean) => void;
+  showCancelled: boolean;
+  onShowCancelledChange: (v: boolean) => void;
 }
 
-export function OrdersTopBar({ viewMode, onViewModeChange, onNewOrder, onBulkDateChange }: Props) {
+export function OrdersTopBar({
+  viewMode, onViewModeChange, onNewOrder, onBulkDateChange,
+  showArchive, onShowArchiveChange,
+  showCancelled, onShowCancelledChange,
+}: Props) {
   return (
     <div className="bg-white rounded-xl border border-[#e2e8f0] px-4 py-3 flex items-center gap-2 mb-4">
       <span className="text-xl font-bold text-[#0f172a] mr-auto">Objednávky</span>
@@ -53,6 +63,20 @@ export function OrdersTopBar({ viewMode, onViewModeChange, onNewOrder, onBulkDat
         >
           <List className="w-4 h-4" />
         </button>
+      </div>
+
+      <div className="w-px h-5 bg-[#e2e8f0]" />
+
+      {/* Archive + Cancelled toggles */}
+      <div className="hidden md:flex items-center gap-3 border-l border-[#e2e8f0] pl-3">
+        <div className="flex items-center gap-1.5">
+          <Switch id="topbar-archive" checked={showArchive} onCheckedChange={onShowArchiveChange} />
+          <Label htmlFor="topbar-archive" className="text-xs text-[#374151] cursor-pointer whitespace-nowrap">Archív</Label>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Switch id="topbar-cancelled" checked={showCancelled} onCheckedChange={onShowCancelledChange} />
+          <Label htmlFor="topbar-cancelled" className="text-xs text-[#374151] cursor-pointer whitespace-nowrap">Zrušené</Label>
+        </div>
       </div>
 
       <div className="w-px h-5 bg-[#e2e8f0]" />
