@@ -300,11 +300,9 @@ export function OrderDetailDialog({
         {/* ===== HISTORY TAB ===== */}
         {activeTab === 'history' && (
           <div className="py-2">
-            <div className="relative pl-8">
-              <div className="absolute left-3.5 top-3 bottom-3 w-0.5 bg-[#e2e8f0]" />
-              <div className="space-y-5">
-                <div className="flex gap-3 items-start relative">
-                  <div className="absolute -left-5 w-7 h-7 rounded-full bg-[#16a34a] flex items-center justify-center z-10 shadow-sm">
+            <div className="space-y-5">
+                <div className="flex gap-3 items-start">
+                  <div className="w-7 h-7 rounded-full bg-[#16a34a] flex items-center justify-center shrink-0 shadow-sm mt-0.5">
                     <Plus className="h-3.5 w-3.5 text-white" />
                   </div>
                   <div>
@@ -325,8 +323,8 @@ export function OrderDetailDialog({
                 </div>
 
                 {!['cancelled', 'delivered', 'zrusena', 'dorucena'].includes(s) && (
-                  <div className="flex gap-3 items-start relative">
-                    <div className="absolute -left-5 w-7 h-7 rounded-full bg-[#2563eb] flex items-center justify-center z-10 shadow-sm">
+                  <div className="flex gap-3 items-start">
+                    <div className="w-7 h-7 rounded-full bg-[#2563eb] flex items-center justify-center shrink-0 shadow-sm mt-0.5">
                       <Clock className="h-3.5 w-3.5 text-white" />
                     </div>
                     <div>
@@ -341,8 +339,8 @@ export function OrderDetailDialog({
                 )}
 
                 {['delivered', 'dorucena'].includes(s) && (
-                  <div className="flex gap-3 items-start relative">
-                    <div className="absolute -left-5 w-7 h-7 rounded-full bg-[#16a34a] flex items-center justify-center z-10 shadow-sm">
+                  <div className="flex gap-3 items-start">
+                    <div className="w-7 h-7 rounded-full bg-[#16a34a] flex items-center justify-center shrink-0 shadow-sm mt-0.5">
                       <Check className="h-3.5 w-3.5 text-white" />
                     </div>
                     <div>
@@ -353,8 +351,8 @@ export function OrderDetailDialog({
                 )}
 
                 {(['cancelled', 'zrusena'].includes(s) || (order as any).cancelled_at) && (
-                  <div className="flex gap-3 items-start relative">
-                    <div className="absolute -left-5 w-7 h-7 rounded-full bg-[#dc2626] flex items-center justify-center z-10 shadow-sm">
+                  <div className="flex gap-3 items-start">
+                    <div className="w-7 h-7 rounded-full bg-[#dc2626] flex items-center justify-center shrink-0 shadow-sm mt-0.5">
                       <X className="h-3.5 w-3.5 text-white" />
                     </div>
                     <div>
@@ -369,7 +367,6 @@ export function OrderDetailDialog({
                     </div>
                   </div>
                 )}
-              </div>
             </div>
             <p className="text-[11px] text-[#94a3b8] text-center mt-6">
               Podrobná história zmien stavu nie je momentálne sledovaná.
