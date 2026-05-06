@@ -113,7 +113,7 @@ export function OrdersFilterBar({
                     : [...selectedDates, day]
                 )}
                 className={`w-8 h-8 rounded-lg text-[11px] font-medium flex items-center justify-center transition-all
-                  ${selected ? 'bg-[#16a34a] text-white' : isDelivery ? 'bg-[#f0fdf4] text-[#16a34a] font-semibold' : 'text-[#475569] hover:bg-[#f8fafc]'}
+                  ${selected ? 'bg-[#16a34a] text-white' : isDelivery ? 'bg-[#bbf7d0] text-[#166534] font-bold' : 'text-[#475569] hover:bg-[#f8fafc]'}
                   ${today && !selected ? 'ring-2 ring-[#16a34a]' : ''}
                 `}
               >{day.getDate()}</button>
@@ -167,7 +167,7 @@ export function OrdersFilterBar({
             <button onClick={() => onFilterCustomerTypeChange('wholesale')} className={chip(filterCustomerType === 'wholesale', 'bg-[#fff7ed] border-[#d97706] text-[#d97706]')}>
               <Store className="w-3 h-3" />VO
             </button>
-            <div className="ml-1 w-[220px]">
+            <div className="ml-1 w-[200px] [&_button]:h-7 [&_button]:text-[11px] [&_button]:font-medium [&_button]:text-[#374151] [&_button]:border-[#e2e8f0] [&_button]:rounded-md">
               <SearchableCustomerSelect
                 value={customerFilter}
                 onValueChange={onCustomerFilterChange}
@@ -198,7 +198,7 @@ export function OrdersFilterBar({
             </button>
             <div className="ml-1">
               <Select value={filterCrop} onValueChange={onFilterCropChange}>
-                <SelectTrigger className="h-7 text-xs w-[140px] border-[#e2e8f0]">
+                <SelectTrigger className="h-7 text-[11px] font-medium text-[#374151] w-[150px] border-[#e2e8f0]">
                   <SelectValue placeholder="Plodina" />
                 </SelectTrigger>
                 <SelectContent className="max-h-[260px] overflow-y-auto z-[100]">
