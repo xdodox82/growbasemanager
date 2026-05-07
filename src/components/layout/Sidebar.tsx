@@ -176,7 +176,7 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
             className="flex w-full items-center gap-1 px-3 mb-1 hover:text-sidebar-foreground transition-colors"
           >
             <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform duration-200', isPrehladOpen && 'rotate-90')} />
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Prehľad</span>
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Prehľad</span>
           </button>
           <div className={cn('overflow-hidden transition-all duration-200', isPrehladOpen ? 'max-h-60' : 'max-h-0')}>
             <div className="space-y-0.5 pb-1">
@@ -191,7 +191,7 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
                     key={item.href}
                     to={item.href}
                     className={cn(
-                      'flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all duration-200',
+                      'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] font-medium transition-all duration-200',
                       isActive
                         ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
                         : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
@@ -213,7 +213,7 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
             className="flex w-full items-center gap-1 px-3 mb-1 hover:text-sidebar-foreground transition-colors"
           >
             <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform duration-200', isProdukciaOpen && 'rotate-90')} />
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Produkcia</span>
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Produkcia</span>
           </button>
           <div className={cn('overflow-hidden transition-all duration-200', isProdukciaOpen ? 'max-h-60' : 'max-h-0')}>
             <div className="space-y-0.5 pb-1">
@@ -230,7 +230,7 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
                     key={item.href}
                     to={item.href}
                     className={cn(
-                      'flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all duration-200',
+                      'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] font-medium transition-all duration-200',
                       isActive
                         ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
                         : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
@@ -252,7 +252,7 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
             className="flex w-full items-center gap-1 px-3 mb-1 hover:text-sidebar-foreground transition-colors"
           >
             <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform duration-200', isSpravaOpen && 'rotate-90')} />
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Správa</span>
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Správa</span>
           </button>
           <div className={cn('overflow-hidden transition-all duration-200', isSpravaOpen ? 'max-h-[600px]' : 'max-h-0')}>
             <div className="space-y-0.5 pb-1">
@@ -270,7 +270,7 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
                     key={item.href}
                     to={item.href}
                     className={cn(
-                      'flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all duration-200',
+                      'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] font-medium transition-all duration-200',
                       isActive
                         ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
                         : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
@@ -288,7 +288,7 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
                   <button
                     onClick={() => setIsInventoryOpen(!isInventoryOpen)}
                     className={cn(
-                      'flex w-full items-center gap-2.5 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all duration-200',
+                      'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] font-medium transition-all duration-200',
                       isInventoryActive
                         ? 'bg-primary/20 text-primary'
                         : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
@@ -307,7 +307,7 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
                             key={item.href}
                             to={item.href}
                             className={cn(
-                              'flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all duration-200',
+                              'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] font-medium transition-all duration-200',
                               isActive
                                 ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
                                 : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
@@ -329,7 +329,7 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
                   <button
                     onClick={() => setIsCostsOpen(!isCostsOpen)}
                     className={cn(
-                      'flex w-full items-center gap-2.5 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all duration-200',
+                      'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] font-medium transition-all duration-200',
                       isCostsActive
                         ? 'bg-primary/20 text-primary'
                         : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
@@ -348,7 +348,7 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
                             key={item.href}
                             to={item.href}
                             className={cn(
-                              'flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all duration-200',
+                              'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] font-medium transition-all duration-200',
                               isActive
                                 ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
                                 : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
@@ -369,7 +369,7 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
                 <Link
                   to="/reports"
                   className={cn(
-                    'flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all duration-200',
+                    'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] font-medium transition-all duration-200',
                     location.pathname === '/reports'
                       ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
                       : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'

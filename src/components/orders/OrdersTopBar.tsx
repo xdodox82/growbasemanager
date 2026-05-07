@@ -25,21 +25,21 @@ export function OrdersTopBar({
       <button
         onClick={onBulkDateChange}
         title="Zmena termínu"
-        className="w-8 h-8 flex items-center justify-center rounded-lg border border-[#e2e8f0] text-[#64748b] hover:bg-[#f0fdf4] hover:text-[#16a34a] transition-colors"
+        className="w-9 h-9 flex items-center justify-center rounded-lg border border-[#e2e8f0] text-[#64748b] hover:bg-[#f0fdf4] hover:text-[#16a34a] transition-colors"
       >
-        <CalendarIcon className="w-4 h-4" />
+        <CalendarIcon className="w-5 h-5" />
       </button>
 
-      <button className="flex items-center gap-1.5 px-2.5 h-8 rounded-lg border border-[#e2e8f0] text-xs font-medium text-[#64748b] hover:bg-[#f8fafc] transition-colors">
-        <FileSpreadsheet className="w-3.5 h-3.5" />
+      <button className="flex items-center gap-1.5 px-3 h-9 rounded-lg border border-[#e2e8f0] text-sm font-medium text-[#64748b] hover:bg-[#f8fafc] transition-colors">
+        <FileSpreadsheet className="w-4.5 h-4.5" />
         Export
       </button>
 
       <button
         title="PDF"
-        className="w-8 h-8 flex items-center justify-center rounded-lg border border-[#e2e8f0] text-[#64748b] hover:bg-[#f8fafc] transition-colors"
+        className="w-9 h-9 flex items-center justify-center rounded-lg border border-[#e2e8f0] text-[#64748b] hover:bg-[#f8fafc] transition-colors"
       >
-        <FileText className="w-4 h-4" />
+        <FileText className="w-5 h-5" />
       </button>
 
       <div className="w-px h-5 bg-[#e2e8f0]" />
@@ -48,20 +48,20 @@ export function OrdersTopBar({
         <button
           onClick={() => onViewModeChange('grid')}
           title="Mriežka"
-          className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${
+          className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors ${
             viewMode === 'grid' ? 'bg-[#f0fdf4] text-[#16a34a]' : 'text-[#94a3b8] hover:bg-[#f8fafc] hover:text-[#64748b]'
           }`}
         >
-          <Grid3x3 className="w-4 h-4" />
+          <Grid3x3 className="w-5 h-5" />
         </button>
         <button
           onClick={() => onViewModeChange('list')}
           title="Zoznam"
-          className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${
+          className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors ${
             viewMode === 'list' ? 'bg-[#f0fdf4] text-[#16a34a]' : 'text-[#94a3b8] hover:bg-[#f8fafc] hover:text-[#64748b]'
           }`}
         >
-          <List className="w-4 h-4" />
+          <List className="w-5 h-5" />
         </button>
       </div>
 
@@ -83,9 +83,9 @@ export function OrdersTopBar({
 
       <button
         onClick={onNewOrder}
-        className="flex items-center gap-1.5 bg-[#16a34a] hover:bg-[#15803d] text-white rounded-lg px-3 py-2 text-sm font-semibold transition-colors"
+        className="flex items-center gap-1.5 bg-[#16a34a] hover:bg-[#15803d] text-white rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors"
       >
-        <Plus className="w-4 h-4" />
+        <Plus className="w-5 h-5" />
         Nová objednávka
       </button>
     </div>

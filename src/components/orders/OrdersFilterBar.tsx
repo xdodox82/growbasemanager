@@ -32,7 +32,7 @@ interface Props {
 }
 
 const chip = (active: boolean, activeClass: string) =>
-  `inline-flex items-center gap-1.5 px-3 py-1 rounded-md border-[1.5px] text-[11px] font-medium cursor-pointer transition-colors ${
+  `inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md border-[1.5px] text-[12px] font-medium cursor-pointer transition-colors ${
     active
       ? activeClass
       : 'border-[#e2e8f0] text-[#374151] bg-white hover:border-[#bbf7d0] hover:text-[#16a34a] hover:bg-[#f0fdf4]'
@@ -133,7 +133,7 @@ export function OrdersFilterBar({
   };
 
   const rowLabel = (text: string) => (
-    <span className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider min-w-[80px] shrink-0">{text}</span>
+    <span className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider min-w-[85px] shrink-0">{text}</span>
   );
 
   return (
@@ -145,7 +145,7 @@ export function OrdersFilterBar({
         onClick={() => setCollapsed(v => !v)}
       >
         <ChevronDown className={`w-3.5 h-3.5 text-[#94a3b8] transition-transform duration-200 ${collapsed ? '-rotate-90' : ''}`} />
-        <span className="text-[11px] font-semibold text-[#374151] uppercase tracking-wider">Filtre</span>
+        <span className="text-[12px] font-semibold text-[#374151] uppercase tracking-wider">Filtre</span>
         {collapsed && activeCount > 0 && (
           <span className="ml-1 bg-[#16a34a] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">{activeCount}</span>
         )}
@@ -198,7 +198,7 @@ export function OrdersFilterBar({
             </button>
             <div className="ml-1">
               <Select value={filterCrop} onValueChange={onFilterCropChange}>
-                <SelectTrigger className="h-7 text-[11px] font-medium text-[#374151] w-[150px] border-[#e2e8f0]">
+                <SelectTrigger className="h-8 text-[12px] font-medium text-[#374151] w-[160px] border-[#e2e8f0]">
                   <SelectValue placeholder="Plodina" />
                 </SelectTrigger>
                 <SelectContent className="max-h-[260px] overflow-y-auto z-[100]">
