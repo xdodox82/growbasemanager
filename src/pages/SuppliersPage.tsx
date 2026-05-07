@@ -1,26 +1,17 @@
 import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { PageHeader, EmptyState } from '@/components/ui/page-components';
 import { useSuppliers, DbSupplier } from '@/hooks/useSupabaseData';
 import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ViewToggle, ViewMode } from '@/components/ui/view-toggle';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -32,7 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Building2, Plus, Pencil, Trash2, Mail, Phone, MapPin, Navigation, Loader as Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Building2, Plus, Pencil, Trash2, Mail, Phone, MapPin, Navigation, Loader2, ChevronDown, Grid3x3, List, Search, Package, Leaf, FlaskConical, MoreHorizontal } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -43,866 +34,402 @@ const SUPPLIER_TYPES: Record<string, string> = {
   other: 'Ostatné',
 };
 
+const typeInfo = (t: string | null | undefined) => {
+  if (t === 'seeds')     return { label: 'Semená',   bg: 'bg-[#f0fdf4]', border: 'border-[#16a34a]', text: 'text-[#16a34a]', Icon: Leaf };
+  if (t === 'packaging') return { label: 'Obaly',    bg: 'bg-[#eff6ff]', border: 'border-[#2563eb]', text: 'text-[#2563eb]', Icon: Package };
+  if (t === 'substrate') return { label: 'Substrát', bg: 'bg-[#fdf4ff]', border: 'border-[#a855f7]', text: 'text-[#7c3aed]', Icon: FlaskConical };
+  if (t === 'other')     return { label: 'Ostatné',  bg: 'bg-[#f8fafc]', border: 'border-[#94a3b8]', text: 'text-[#64748b]', Icon: MoreHorizontal };
+  return null;
+};
+
 const SuppliersPage = () => {
   const { data: suppliers, loading, add, update, remove } = useSuppliers();
   const { isAdmin } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filtersCollapsed, setFiltersCollapsed] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<DbSupplier | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
   const [saving, setSaving] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
-
-  // Force grid view on mobile
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailSupplier, setDetailSupplier] = useState<DbSupplier | null>(null);
   const effectiveViewMode = isMobile ? 'grid' : viewMode;
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [detailModalOpen, setDetailModalOpen] = useState(false);
-  const [selectedSupplierDetail, setSelectedSupplierDetail] = useState<DbSupplier | null>(null);
-  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
-  const [navApp, setNavApp] = useState<'waze' | 'maps'>('waze');
 
-  const [formData, setFormData] = useState({
-    name: '',
-    company_name: '',
+  const emptyForm = {
+    name: '', company_name: '',
     supplier_type: '' as '' | 'seeds' | 'packaging' | 'substrate' | 'other',
-    ico: '',
-    ic_dph: '',
-    dic: '',
-    email: '',
-    phone: '',
-    address: '',
-    bank_account: '',
-    notes: '',
-    contact_name: '',
-  });
-
-  const filteredSuppliers = suppliers.filter(s => {
-    const matchesSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.company_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.email?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesType = typeFilter === 'all' || s.supplier_type === typeFilter;
-    return matchesSearch && matchesType;
-  });
-
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      company_name: '',
-      supplier_type: '',
-      ico: '',
-      ic_dph: '',
-      dic: '',
-      email: '',
-      phone: '',
-      address: '',
-      bank_account: '',
-      notes: '',
-      contact_name: '',
-    });
-    setEditingSupplier(null);
+    ico: '', ic_dph: '', dic: '', email: '', phone: '',
+    address: '', bank_account: '', notes: '', contact_name: '',
   };
+  const [formData, setFormData] = useState(emptyForm);
+  const resetForm = () => { setFormData(emptyForm); setEditingSupplier(null); };
 
-  const openEditDialog = (supplier: DbSupplier) => {
-    setEditingSupplier(supplier);
+  const openEdit = (s: DbSupplier) => {
+    setEditingSupplier(s);
     setFormData({
-      name: supplier.name,
-      company_name: supplier.company_name || '',
-      supplier_type: (supplier.supplier_type as 'seeds' | 'packaging' | 'substrate' | 'other') || '',
-      ico: supplier.ico || '',
-      ic_dph: supplier.ic_dph || '',
-      dic: supplier.dic || '',
-      email: supplier.email || '',
-      phone: supplier.phone || '',
-      address: supplier.address || '',
-      bank_account: supplier.bank_account || '',
-      notes: supplier.notes || '',
-      contact_name: supplier.contact_name || '',
+      name: s.name, company_name: s.company_name || '',
+      supplier_type: (s.supplier_type as any) || '',
+      ico: s.ico || '', ic_dph: s.ic_dph || '', dic: s.dic || '',
+      email: s.email || '', phone: s.phone || '',
+      address: s.address || '', bank_account: s.bank_account || '',
+      notes: s.notes || '', contact_name: s.contact_name || '',
     });
     setIsDialogOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.name.trim()) {
-      toast({
-        title: 'Chyba',
-        description: 'Zadajte meno/názov dodávateľa',
-        variant: 'destructive',
-      });
-      return;
-    }
-
+    if (!formData.name.trim()) { toast({ title: 'Chyba', description: 'Zadajte názov dodávateľa', variant: 'destructive' }); return; }
     setSaving(true);
-
-    const submitData = {
-      name: formData.name,
-      company_name: formData.company_name || null,
+    const data = {
+      name: formData.name, company_name: formData.company_name || null,
       supplier_type: formData.supplier_type || null,
-      ico: formData.ico || null,
-      ic_dph: formData.ic_dph || null,
-      dic: formData.dic || null,
-      email: formData.email || null,
-      phone: formData.phone || null,
-      address: formData.address || null,
-      bank_account: formData.bank_account || null,
-      notes: formData.notes || null,
-      contact_name: formData.contact_name || null,
+      ico: formData.ico || null, ic_dph: formData.ic_dph || null, dic: formData.dic || null,
+      email: formData.email || null, phone: formData.phone || null,
+      address: formData.address || null, bank_account: formData.bank_account || null,
+      notes: formData.notes || null, contact_name: formData.contact_name || null,
     };
-
     if (editingSupplier) {
-      const { error } = await update(editingSupplier.id, submitData);
-      if (!error) {
-        toast({
-          title: 'Dodávateľ aktualizovaný',
-          description: `${formData.name} bol úspešne upravený.`,
-        });
-        setIsDialogOpen(false);
-        resetForm();
-      }
+      const { error } = await update(editingSupplier.id, data);
+      if (!error) { toast({ title: 'Dodávateľ aktualizovaný' }); setIsDialogOpen(false); resetForm(); }
     } else {
-      const { error } = await add(submitData);
-      if (!error) {
-        toast({
-          title: 'Dodávateľ pridaný',
-          description: `${formData.name} bol pridaný do databázy.`,
-        });
-        setIsDialogOpen(false);
-        resetForm();
-      }
+      const { error } = await add(data);
+      if (!error) { toast({ title: 'Dodávateľ pridaný' }); setIsDialogOpen(false); resetForm(); }
     }
-
     setSaving(false);
   };
 
   const handleDelete = async () => {
-    if (deleteId) {
-      const supplier = suppliers.find(s => s.id === deleteId);
-      const { error } = await remove(deleteId);
-      if (!error) {
-        toast({
-          title: 'Dodávateľ odstránený',
-          description: `${supplier?.company_name} bol odstránený z databázy.`,
-        });
-      }
-      setDeleteId(null);
-    }
+    if (!deleteId) return;
+    const s = suppliers.find(x => x.id === deleteId);
+    const { error } = await remove(deleteId);
+    if (!error) toast({ title: 'Dodávateľ odstránený', description: s?.name + ' bol odstránený.' });
+    setDeleteId(null);
   };
 
-  const handleCall = (phone: string) => {
-    window.location.href = `tel:${phone.replace(/\s/g, '')}`;
-  };
+  const filteredSuppliers = suppliers.filter(s => {
+    const q = !searchQuery || s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.company_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.email?.toLowerCase().includes(searchQuery.toLowerCase());
+    const t = typeFilter === 'all' || s.supplier_type === typeFilter;
+    return q && t;
+  });
 
-  const handleEmail = (email: string) => {
-    window.location.href = `mailto:${email}`;
-  };
+  const activeFilters = [typeFilter !== 'all', !!searchQuery].filter(Boolean).length;
 
-  const handleNavigate = (address: string) => {
-    const encodedAddress = encodeURIComponent(address);
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (isMobile) {
-      window.open(`https://waze.com/ul?q=${encodedAddress}&navigate=yes`, '_blank');
-    } else {
-      window.open(`https://www.google.com/maps/search/?api=1&query=${encodedAddress}`, '_blank');
-    }
-  };
+  const inp = (label: string, id: string, value: string, onChange: (v: string) => void, opts: { placeholder?: string; type?: string } = {}) => (
+    <div>
+      <label className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">{label}</label>
+      <Input id={id} type={opts.type || 'text'} value={value} onChange={e => onChange(e.target.value)}
+        placeholder={opts.placeholder || ''} className="h-9 border-[#e2e8f0] text-[13px] bg-white" />
+    </div>
+  );
 
-  const toggleCardExpansion = (supplierId: string) => {
-    setExpandedCards(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(supplierId)) {
-        newSet.delete(supplierId);
-      } else {
-        newSet.add(supplierId);
-      }
-      return newSet;
-    });
-  };
-
-  const handleNavToggle = () => {
-    setNavApp(prev => prev === 'waze' ? 'maps' : 'waze');
-  };
-
-  const openNavigation = (address: string) => {
-    const encoded = encodeURIComponent(address);
-    const url = navApp === 'waze'
-      ? `https://waze.com/ul?q=${encoded}`
-      : `https://www.google.com/maps/search/?api=1&query=${encoded}`;
-    window.open(url, '_blank');
-  };
-
-  if (loading) {
-    return (
-      <MainLayout>
-        <PageHeader title="Dodávatelia" description="Spravujte vašich dodávateľov" />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <Card key={i} className="p-5">
-              <Skeleton className="h-12 w-12 rounded-xl" />
-              <Skeleton className="h-4 w-32 mt-3" />
-              <Skeleton className="h-3 w-24 mt-2" />
-            </Card>
-          ))}
+  if (loading) return (
+    <MainLayout>
+      <div className="p-6 space-y-4">
+        <div className="h-14 bg-white rounded-xl border border-[#e2e8f0] animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-36 rounded-xl" />)}
         </div>
-      </MainLayout>
-    );
-  }
+      </div>
+    </MainLayout>
+  );
+
+  const typeButtons = [
+    ['seeds','Semená',Leaf,'#16a34a','#f0fdf4'],
+    ['packaging','Obaly',Package,'#2563eb','#eff6ff'],
+    ['substrate','Substrát',FlaskConical,'#7c3aed','#fdf4ff'],
+    ['other','Ostatné',MoreHorizontal,'#64748b','#f8fafc'],
+  ] as const;
 
   return (
     <MainLayout>
-      <PageHeader 
-        title="Dodávatelia" 
-        description="Spravujte vašich dodávateľov"
-      >
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open) resetForm();
-        }}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Pridať dodávateľa
-            </Button>
-          </DialogTrigger>
-        <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} className="hidden md:flex" />
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Všetky typy" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Všetky typy</SelectItem>
-            <SelectItem value="seeds">Semená</SelectItem>
-            <SelectItem value="packaging">Obaly</SelectItem>
-            <SelectItem value="substrate">Substrát</SelectItem>
-            <SelectItem value="other">Ostatné</SelectItem>
-          </SelectContent>
-        </Select>
-        <Input
-          placeholder="Hľadať dodávateľa..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-64"
-        />
-          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-            <form onSubmit={handleSubmit}>
-              <DialogHeader>
-                <DialogTitle>
-                  {editingSupplier ? 'Upraviť dodávateľa' : 'Nový dodávateľ'}
-                </DialogTitle>
-                <DialogDescription>
-                  Zadajte údaje o dodávateľovi.
-                </DialogDescription>
-              </DialogHeader>
-              
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="companyName">Obchodný názov</Label>
-                    <Input
-                      id="companyName"
-                      value={formData.company_name}
-                      onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                      placeholder="napr. Semená s.r.o."
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="name">Meno / Kontaktná osoba *</Label>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="napr. Ján Novák"
-                    />
-                  </div>
-                </div>
+      <div className="p-6 space-y-4">
 
-                <div className="grid gap-2">
-                  <Label>Druh dodávateľa</Label>
-                  <Select 
-                    value={formData.supplier_type || 'none'} 
-                    onValueChange={(value) => setFormData({ ...formData, supplier_type: value === 'none' ? '' : value as 'seeds' | 'packaging' | 'substrate' | 'other' })}
-                  >
-                    <SelectTrigger><SelectValue placeholder="Vyberte druh" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nevybraný</SelectItem>
-                      <SelectItem value="seeds">Semená</SelectItem>
-                      <SelectItem value="packaging">Obaly</SelectItem>
-                      <SelectItem value="substrate">Substrát</SelectItem>
-                      <SelectItem value="other">Ostatné</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+        <div className="bg-white rounded-xl border border-[#e2e8f0] px-4 py-3 flex items-center gap-2">
+          <span className="text-xl font-bold text-[#0f172a] mr-auto">Dodávatelia</span>
+          <div className="hidden md:flex items-center gap-0.5">
+            <button onClick={() => setViewMode('grid')} className={"w-9 h-9 flex items-center justify-center rounded-lg transition-colors " + (viewMode === 'grid' ? 'bg-[#f0fdf4] text-[#16a34a]' : 'text-[#94a3b8] hover:bg-[#f8fafc]')}><Grid3x3 className="w-5 h-5" /></button>
+            <button onClick={() => setViewMode('list')} className={"w-9 h-9 flex items-center justify-center rounded-lg transition-colors " + (viewMode === 'list' ? 'bg-[#f0fdf4] text-[#16a34a]' : 'text-[#94a3b8] hover:bg-[#f8fafc]')}><List className="w-5 h-5" /></button>
+          </div>
+          <div className="w-px h-5 bg-[#e2e8f0]" />
+          <button onClick={() => { resetForm(); setIsDialogOpen(true); }} className="flex items-center gap-1.5 bg-[#16a34a] hover:bg-[#15803d] text-white rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors">
+            <Plus className="w-5 h-5" />Pridať dodávateľa
+          </button>
+        </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="ico">IČO</Label>
-                    <Input
-                      id="ico"
-                      value={formData.ico}
-                      onChange={(e) => setFormData({ ...formData, ico: e.target.value })}
-                      placeholder="12345678"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="dic">DIČ</Label>
-                    <Input
-                      id="dic"
-                      value={formData.dic}
-                      onChange={(e) => setFormData({ ...formData, dic: e.target.value })}
-                      placeholder="2012345678"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="icDph">IČ DPH</Label>
-                    <Input
-                      id="icDph"
-                      value={formData.ic_dph}
-                      onChange={(e) => setFormData({ ...formData, ic_dph: e.target.value })}
-                      placeholder="SK2012345678"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      placeholder="info@example.sk"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="phone">Telefón</Label>
-                    <Input
-                      id="phone"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder="+421 900 123 456"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="address">Adresa</Label>
-                  <Textarea
-                    id="address"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    placeholder="Ulica, Mesto, PSČ"
-                    rows={2}
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="bankAccount">Bankový účet</Label>
-                  <Input
-                    id="bankAccount"
-                    value={formData.bank_account}
-                    onChange={(e) => setFormData({ ...formData, bank_account: e.target.value })}
-                    placeholder="SK12 3456 7890 1234 5678 9012"
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="notes">Poznámky</Label>
-                  <Textarea
-                    id="notes"
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    placeholder="Dodacie podmienky, kontaktné hodiny..."
-                    rows={3}
-                  />
+        <div className="bg-white rounded-xl border border-[#e2e8f0] px-4">
+          <div className="flex items-center gap-2 py-2.5 cursor-pointer select-none" onClick={() => setFiltersCollapsed(v => !v)}>
+            <ChevronDown className={"w-3.5 h-3.5 text-[#94a3b8] transition-transform duration-200 " + (filtersCollapsed ? '-rotate-90' : '')} />
+            <span className="text-[12px] font-semibold text-[#374151] uppercase tracking-wider">Filtre</span>
+            {filtersCollapsed && activeFilters > 0 && <span className="ml-1 bg-[#16a34a] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">{activeFilters}</span>}
+            {!filtersCollapsed && <span className="ml-auto text-[11px] text-[#94a3b8]">{filteredSuppliers.length} dodávateľov</span>}
+          </div>
+          {!filtersCollapsed && (
+            <div className="border-t border-[#f1f5f9]">
+              <div className="flex items-center gap-2 flex-wrap py-2.5">
+                <span className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider min-w-[85px] shrink-0">Typ</span>
+                {(['all', 'seeds', 'packaging', 'substrate', 'other'] as const).map(t => {
+                  const active = typeFilter === t;
+                  const ti = typeInfo(t);
+                  return (
+                    <button key={t} onClick={() => setTypeFilter(t)}
+                      className={"inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md border-[1.5px] text-[12px] font-medium cursor-pointer transition-colors " + (active ? (ti ? ti.bg + ' ' + ti.border + ' ' + ti.text : 'bg-[#16a34a] border-[#16a34a] text-white') : 'border-[#e2e8f0] text-[#374151] bg-white hover:border-[#bbf7d0] hover:text-[#16a34a] hover:bg-[#f0fdf4]')}>
+                      {ti && <ti.Icon className="w-3.5 h-3.5" />}
+                      {t === 'all' ? 'Všetci' : ti?.label}
+                    </button>
+                  );
+                })}
+                <div className="relative ml-1">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94a3b8]" />
+                  <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Hľadať dodávateľa..."
+                    className="h-8 pl-8 pr-3 border-[1.5px] border-[#e2e8f0] rounded-md text-[12px] bg-white outline-none focus:border-[#16a34a] w-[200px] transition-colors" />
                 </div>
               </div>
-
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Zrušiť
-                </Button>
-                <Button type="submit">
-                  {editingSupplier ? 'Uložiť zmeny' : 'Pridať dodávateľa'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </PageHeader>
-
-      {suppliers.length === 0 ? (
-        <EmptyState
-          icon={<Building2 className="h-8 w-8" />}
-          title="Žiadni dodávatelia"
-          description="Začnite pridaním vášho prvého dodávateľa."
-          action={
-            <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Pridať dodávateľa
-            </Button>
-          }
-        />
-      ) : filteredSuppliers.length === 0 ? (
-        <EmptyState
-          icon={<Building2 className="h-8 w-8" />}
-          title="Žiadne výsledky"
-          description="Skúste zmeniť vyhľadávacie kritériá."
-        />
-      ) : effectiveViewMode === 'grid' ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredSuppliers.map((supplier) => {
-            const isExpanded = expandedCards.has(supplier.id);
-
-            return (
-              <Card
-                key={supplier.id}
-                className="p-5 transition-all hover:shadow-lg cursor-pointer"
-                onClick={() => {
-                  if (window.innerWidth >= 768) {
-                    setSelectedSupplierDetail(supplier);
-                    setDetailModalOpen(true);
-                  } else {
-                    toggleCardExpansion(supplier.id);
-                  }
-                }}
-              >
-                {/* COLLAPSED VIEW - vždy viditeľné */}
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-warning/10 text-warning flex-shrink-0">
-                      <Building2 className="h-6 w-6" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-lg truncate">{supplier.company_name || supplier.name}</h3>
-                      {supplier.company_name && supplier.name && (
-                        <p className="text-sm text-muted-foreground truncate">{supplier.name}</p>
-                      )}
-                      {supplier.supplier_type && (
-                        <Badge variant="outline" className="mt-1">{SUPPLIER_TYPES[supplier.supplier_type]}</Badge>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Desktop: Edit/Delete ikony */}
-                  <div className="hidden md:flex gap-1" onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" onClick={() => openEditDialog(supplier)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    {isAdmin && (
-                      <Button variant="ghost" size="icon" onClick={() => setDeleteId(supplier.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    )}
-                  </div>
-
-                  {/* Mobile: Expand/Collapse ikona */}
-                  <div className="md:hidden flex-shrink-0">
-                    {isExpanded ? (
-                      <ChevronUp className="h-5 w-5 text-gray-600" />
-                    ) : (
-                      <ChevronDown className="h-5 w-5 text-gray-600" />
-                    )}
-                  </div>
-                </div>
-
-                {/* Telefón - vždy viditeľný */}
-                {supplier.phone && (
-                  <div className="flex items-center justify-between text-sm mb-2">
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                      <span>{supplier.phone}</span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-primary hover:text-primary/80 flex-shrink-0"
-                      onClick={(e) => { e.stopPropagation(); handleCall(supplier.phone!); }}
-                    >
-                      <Phone className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-
-                {/* Email - vždy viditeľný */}
-                {supplier.email && (
-                  <div className="flex items-center justify-between text-sm mb-2">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <Mail className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                      <span className="truncate">{supplier.email}</span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-primary hover:text-primary/80 flex-shrink-0"
-                      onClick={(e) => { e.stopPropagation(); handleEmail(supplier.email!); }}
-                    >
-                      <Mail className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-
-                {/* EXPANDED VIEW - Mobile only */}
-                {isExpanded && (
-                  <div className="mt-4 pt-4 border-t space-y-3 animate-in slide-in-from-top duration-200 md:hidden">
-
-                    {/* Adresa + Navigácia */}
-                    {supplier.address && (
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">Adresa</div>
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-start gap-2 flex-1 min-w-0">
-                            <MapPin className="h-4 w-4 flex-shrink-0 text-muted-foreground mt-0.5" />
-                            <span className="text-sm">{supplier.address}</span>
-                          </div>
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            <span className="text-xs text-muted-foreground mr-1">
-                              {navApp === 'waze' ? 'Waze' : 'Maps'}
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-primary hover:text-primary/80"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openNavigation(supplier.address!);
-                              }}
-                              onTouchStart={(e) => {
-                                e.stopPropagation();
-                                const startX = e.touches[0].clientX;
-                                const handleTouchMove = (moveEvent: TouchEvent) => {
-                                  const deltaX = moveEvent.touches[0].clientX - startX;
-                                  if (Math.abs(deltaX) > 30) {
-                                    handleNavToggle();
-                                    document.removeEventListener('touchmove', handleTouchMove);
-                                  }
-                                };
-                                document.addEventListener('touchmove', handleTouchMove);
-                                document.addEventListener('touchend', () => {
-                                  document.removeEventListener('touchmove', handleTouchMove);
-                                }, { once: true });
-                              }}
-                            >
-                              <Navigation className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* IČO/DIČ/IČ DPH */}
-                    {(supplier.ico || supplier.dic || supplier.ic_dph) && (
-                      <div className="grid grid-cols-2 gap-3 text-sm">
-                        {supplier.ico && (
-                          <div>
-                            <div className="text-xs text-gray-500">IČO</div>
-                            <div className="font-medium">{supplier.ico}</div>
-                          </div>
-                        )}
-                        {supplier.dic && (
-                          <div>
-                            <div className="text-xs text-gray-500">DIČ</div>
-                            <div className="font-medium">{supplier.dic}</div>
-                          </div>
-                        )}
-                        {supplier.ic_dph && (
-                          <div className="col-span-2">
-                            <div className="text-xs text-gray-500">IČ DPH</div>
-                            <div className="font-medium">{supplier.ic_dph}</div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Bankový účet */}
-                    {supplier.bank_account && (
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">Bankový účet</div>
-                        <div className="text-sm font-mono bg-gray-50 p-2 rounded">{supplier.bank_account}</div>
-                      </div>
-                    )}
-
-                    {/* Poznámky */}
-                    {supplier.notes && (
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">Poznámky</div>
-                        <div className="text-sm bg-gray-50 p-2 rounded">{supplier.notes}</div>
-                      </div>
-                    )}
-
-                    {/* Action buttons */}
-                    <div className="flex gap-2 pt-2 border-t">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedSupplierDetail(supplier);
-                          setDetailModalOpen(true);
-                        }}
-                        className="flex-1 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"
-                      >
-                        Detail
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEditDialog(supplier);
-                        }}
-                        className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
-                      >
-                        <Pencil className="h-5 w-5" />
-                      </button>
-                      {isAdmin && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteId(supplier.id);
-                          }}
-                          className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </Card>
-            );
-          })}
+            </div>
+          )}
         </div>
-      ) : (
-        <Card className="hidden md:block">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Firma</TableHead>
-                  <TableHead className="hidden sm:table-cell">Kontaktná osoba</TableHead>
-                  <TableHead className="hidden md:table-cell">Email</TableHead>
-                  <TableHead className="hidden lg:table-cell">Telefón</TableHead>
-                  <TableHead className="hidden xl:table-cell">Adresa</TableHead>
-                  <TableHead className="w-24">Akcie</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredSuppliers.map((supplier) => (
-                  <TableRow
-                    key={supplier.id}
-                    className="cursor-pointer hover:bg-gray-50"
-                    onClick={() => openEditDialog(supplier)}
-                  >
-                    <TableCell className="font-medium">{supplier.company_name || supplier.name}</TableCell>
-                    <TableCell className="hidden sm:table-cell">{supplier.company_name && supplier.name ? supplier.name : '-'}</TableCell>
-                    <TableCell className="hidden md:table-cell" onClick={(e) => e.stopPropagation()}>
-                      {supplier.email ? (
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm truncate max-w-[150px]">{supplier.email}</span>
-                          <a
-                            href={`mailto:${supplier.email}`}
-                            className="text-emerald-600 hover:text-emerald-700"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Mail className="h-4 w-4" />
-                          </a>
-                        </div>
-                      ) : '-'}
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell" onClick={(e) => e.stopPropagation()}>
-                      {supplier.phone ? (
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">{supplier.phone}</span>
-                          <a
-                            href={`tel:${supplier.phone}`}
-                            className="text-emerald-600 hover:text-emerald-700"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Phone className="h-4 w-4" />
-                          </a>
-                        </div>
-                      ) : '-'}
-                    </TableCell>
-                    <TableCell className="hidden xl:table-cell" onClick={(e) => e.stopPropagation()}>
-                      {supplier.address ? (
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm truncate max-w-[200px]">{supplier.address}</span>
-                          <a
-                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(supplier.address)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-emerald-600 hover:text-emerald-700"
-                            onClick={(e) => e.stopPropagation()}
-                            title="Otvoriť v Google Maps"
-                          >
-                            <MapPin className="h-4 w-4" />
-                          </a>
-                          <a
-                            href={`https://waze.com/ul?q=${encodeURIComponent(supplier.address)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-700"
-                            onClick={(e) => e.stopPropagation()}
-                            title="Otvoriť vo Waze"
-                          >
-                            <Navigation className="h-4 w-4" />
-                          </a>
-                        </div>
-                      ) : '-'}
-                    </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(supplier)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteId(supplier.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+
+        {suppliers.length === 0 ? (
+          <div className="bg-white rounded-xl border border-[#e2e8f0] p-12 text-center">
+            <Building2 className="h-10 w-10 text-[#cbd5e1] mx-auto mb-3" />
+            <div className="text-[15px] font-semibold text-[#0f172a] mb-1">Žiadni dodávatelia</div>
+            <div className="text-[13px] text-[#94a3b8] mb-4">Začnite pridaním vášho prvého dodávateľa.</div>
+            <button onClick={() => setIsDialogOpen(true)} className="inline-flex items-center gap-2 bg-[#16a34a] text-white rounded-lg px-4 py-2 text-sm font-semibold"><Plus className="w-4 h-4" />Pridať dodávateľa</button>
           </div>
-        </Card>
-      )}
+        ) : filteredSuppliers.length === 0 ? (
+          <div className="bg-white rounded-xl border border-[#e2e8f0] p-12 text-center">
+            <Search className="h-10 w-10 text-[#cbd5e1] mx-auto mb-3" />
+            <div className="text-[15px] font-semibold text-[#0f172a] mb-1">Žiadne výsledky</div>
+            <div className="text-[13px] text-[#94a3b8]">Skúste zmeniť filtre.</div>
+          </div>
+        ) : effectiveViewMode === 'grid' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {filteredSuppliers.map(s => {
+              const ti = typeInfo(s.supplier_type);
+              return (
+                <div key={s.id} className="bg-white rounded-xl border-[1.5px] border-[#e2e8f0] hover:shadow-md hover:border-[#cbd5e1] transition-all cursor-pointer overflow-hidden"
+                  onClick={() => { setDetailSupplier(s); setDetailOpen(true); }}>
+                  <div className="px-4 pt-4 pb-3 flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={"w-10 h-10 rounded-full flex items-center justify-center shrink-0 " + (ti ? ti.bg : 'bg-[#f8fafc]')}>
+                        {ti ? <ti.Icon className={"h-5 w-5 " + ti.text} /> : <Building2 className="h-5 w-5 text-[#94a3b8]" />}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-semibold text-[14px] text-[#0f172a] truncate">{s.company_name || s.name}</div>
+                        {s.contact_name && <div className="text-[11px] text-[#94a3b8] truncate">{s.contact_name}</div>}
+                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                          {ti && <span className={"inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10px] font-semibold " + ti.bg + ' ' + ti.border + ' ' + ti.text}><ti.Icon className="w-2.5 h-2.5" />{ti.label}</span>}
+                          {s.ico && <span className="text-[10px] text-[#94a3b8]">IČO: {s.ico}</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
+                      <button className="w-7 h-7 rounded-md flex items-center justify-center text-[#94a3b8] hover:bg-[#f0fdf4] hover:text-[#16a34a] transition-colors" onClick={() => openEdit(s)}><Pencil className="h-3.5 w-3.5" /></button>
+                      {isAdmin && <button className="w-7 h-7 rounded-md flex items-center justify-center text-[#94a3b8] hover:bg-[#fef2f2] hover:text-[#dc2626] transition-colors" onClick={() => setDeleteId(s.id)}><Trash2 className="h-3.5 w-3.5" /></button>}
+                    </div>
+                  </div>
+                  <div className="px-4 pb-3 space-y-1.5">
+                    {s.phone && (
+                      <div className="flex items-center justify-between text-[12px] text-[#374151]">
+                        <div className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5 text-[#94a3b8] shrink-0" />{s.phone}</div>
+                        <a href={"tel:" + s.phone} onClick={e => e.stopPropagation()} className="w-6 h-6 rounded-md flex items-center justify-center text-[#16a34a] hover:bg-[#f0fdf4] transition-colors"><Phone className="h-3 w-3" /></a>
+                      </div>
+                    )}
+                    {s.email && (
+                      <div className="flex items-center justify-between text-[12px] text-[#374151]">
+                        <div className="flex items-center gap-1.5 min-w-0"><Mail className="h-3.5 w-3.5 text-[#94a3b8] shrink-0" /><span className="truncate">{s.email}</span></div>
+                        <a href={"mailto:" + s.email} onClick={e => e.stopPropagation()} className="w-6 h-6 rounded-md flex items-center justify-center text-[#16a34a] hover:bg-[#f0fdf4] transition-colors shrink-0"><Mail className="h-3 w-3" /></a>
+                      </div>
+                    )}
+                    {s.address && <div className="flex items-center gap-1.5 text-[12px] text-[#374151]"><MapPin className="h-3.5 w-3.5 text-[#94a3b8] shrink-0" /><span className="truncate">{s.address}</span></div>}
+                  </div>
+                  {s.notes && <div className="border-t border-[#f1f5f9] px-4 py-2.5"><p className="text-[11px] text-[#94a3b8] truncate">{s.notes}</p></div>}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl border border-[#e2e8f0] overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-[#fafafa] border-b border-[#e2e8f0]">
+                <tr>
+                  <th className="px-4 py-3 text-left text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider">Dodávateľ</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider">Kontakt</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider">Adresa</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider">IČO</th>
+                  <th className="px-4 py-3 text-right text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider">Akcie</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#f1f5f9]">
+                {filteredSuppliers.map(s => {
+                  const ti = typeInfo(s.supplier_type);
+                  return (
+                    <tr key={s.id} className="hover:bg-[#fafafa] cursor-pointer transition-colors" onClick={() => { setDetailSupplier(s); setDetailOpen(true); }}>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className={"w-8 h-8 rounded-full flex items-center justify-center shrink-0 " + (ti ? ti.bg : 'bg-[#f8fafc]')}>
+                            {ti ? <ti.Icon className={"h-4 w-4 " + ti.text} /> : <Building2 className="h-4 w-4 text-[#94a3b8]" />}
+                          </div>
+                          <div>
+                            <div className="font-semibold text-[13px] text-[#0f172a]">{s.company_name || s.name}</div>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              {ti && <span className={"inline-flex items-center gap-0.5 px-1.5 py-0 rounded text-[10px] font-medium " + ti.bg + ' border ' + ti.border + ' ' + ti.text}><ti.Icon className="w-2.5 h-2.5" />{ti.label}</span>}
+                              {s.contact_name && <span className="text-[10px] text-[#94a3b8]">{s.contact_name}</span>}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                        <div className="space-y-1">
+                          {s.phone && <a href={"tel:" + s.phone} className="flex items-center gap-1.5 text-[12px] text-[#374151] hover:text-[#16a34a] transition-colors"><Phone className="h-3 w-3 shrink-0" />{s.phone}</a>}
+                          {s.email && <a href={"mailto:" + s.email} className="flex items-center gap-1.5 text-[12px] text-[#374151] hover:text-[#16a34a] transition-colors"><Mail className="h-3 w-3 shrink-0" /><span className="truncate max-w-[160px]">{s.email}</span></a>}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-[12px] text-[#374151]">{s.address || <span className="text-[#cbd5e1]">—</span>}</td>
+                      <td className="px-4 py-3 text-[12px] text-[#374151]">{s.ico || <span className="text-[#cbd5e1]">—</span>}</td>
+                      <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
+                        <div className="flex gap-0.5 justify-end">
+                          <button className="w-7 h-7 rounded-md flex items-center justify-center text-[#94a3b8] hover:bg-[#f0fdf4] hover:text-[#16a34a] transition-colors" onClick={() => openEdit(s)}><Pencil className="h-3.5 w-3.5" /></button>
+                          {isAdmin && <button className="w-7 h-7 rounded-md flex items-center justify-center text-[#94a3b8] hover:bg-[#fef2f2] hover:text-[#dc2626] transition-colors" onClick={() => setDeleteId(s.id)}><Trash2 className="h-3.5 w-3.5" /></button>}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={open => { setIsDialogOpen(open); if (!open) resetForm(); }}>
+        <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto" onInteractOutside={e => e.preventDefault()}>
+          <form onSubmit={handleSubmit}>
+            <DialogHeader className="pb-4">
+              <DialogTitle className="text-[16px] font-bold text-[#0f172a]">{editingSupplier ? 'Upraviť dodávateľa' : 'Nový dodávateľ'}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <label className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-2 block">Typ dodávateľa</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {typeButtons.map(([t,l,Icon,color,bg]) => (
+                    <button key={t} type="button" onClick={() => setFormData({...formData, supplier_type: t})}
+                      className={"h-14 rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition-all " + (formData.supplier_type === t ? 'border-current' : 'border-[#e2e8f0] hover:border-[#cbd5e1]')}
+                      style={formData.supplier_type === t ? {borderColor: color, backgroundColor: bg} : {}}>
+                      <Icon className="h-4 w-4" style={{color: formData.supplier_type === t ? color : '#94a3b8'}} />
+                      <span className="text-[11px] font-semibold" style={{color: formData.supplier_type === t ? color : '#64748b'}}>{l}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {inp('Obchodný názov', 'company_name', formData.company_name, v => setFormData({...formData, company_name: v}), {placeholder: 'napr. Agro s.r.o.'})}
+                {inp('Kontaktná osoba', 'contact_name', formData.contact_name, v => setFormData({...formData, contact_name: v}), {placeholder: 'Ján Novák'})}
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">Názov *</label>
+                <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="Krátky názov" className="h-9 border-[#e2e8f0] text-[13px] bg-white" />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {inp('IČO', 'ico', formData.ico, v => setFormData({...formData, ico: v}), {placeholder: '12345678'})}
+                {inp('DIČ', 'dic', formData.dic, v => setFormData({...formData, dic: v}), {placeholder: '2012345678'})}
+                {inp('IČ DPH', 'ic_dph', formData.ic_dph, v => setFormData({...formData, ic_dph: v}), {placeholder: 'SK20123...'})}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {inp('Email', 'email', formData.email, v => setFormData({...formData, email: v}), {placeholder: 'info@firma.sk', type: 'email'})}
+                {inp('Telefón', 'phone', formData.phone, v => setFormData({...formData, phone: v}), {placeholder: '+421 900 123 456'})}
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">Adresa</label>
+                <Textarea value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} placeholder="Ulica, Mesto, PSČ" rows={2} className="border-[#e2e8f0] text-[13px] resize-none" />
+              </div>
+              {inp('Bankový účet', 'bank_account', formData.bank_account, v => setFormData({...formData, bank_account: v}), {placeholder: 'SK12 3456 7890...'})}
+              <div>
+                <label className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">Poznámky</label>
+                <Textarea value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} placeholder="Interné poznámky..." rows={2} className="border-[#e2e8f0] text-[13px] resize-none" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-5 border-t border-[#f1f5f9] mt-5">
+              <button type="button" onClick={() => { setIsDialogOpen(false); resetForm(); }} className="px-4 py-2 rounded-lg border border-[#e2e8f0] text-[13px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">Zrušiť</button>
+              <button type="submit" disabled={saving} className="flex items-center gap-2 px-5 py-2 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-[13px] font-semibold transition-colors disabled:opacity-60">
+                {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+                {editingSupplier ? 'Uložiť zmeny' : 'Pridať dodávateľa'}
+              </button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          {detailSupplier && (() => {
+            const s = detailSupplier;
+            const ti = typeInfo(s.supplier_type);
+            return (
+              <>
+                <DialogHeader className="pb-2">
+                  <div className="flex items-center gap-3">
+                    <div className={"w-12 h-12 rounded-xl flex items-center justify-center " + (ti ? ti.bg : 'bg-[#f8fafc]')}>
+                      {ti ? <ti.Icon className={"h-6 w-6 " + ti.text} /> : <Building2 className="h-6 w-6 text-[#94a3b8]" />}
+                    </div>
+                    <div>
+                      <DialogTitle className="text-[16px] font-bold text-[#0f172a]">{s.company_name || s.name}</DialogTitle>
+                      {s.contact_name && <div className="text-[12px] text-[#94a3b8]">{s.contact_name}</div>}
+                      {ti && <span className={"inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10px] font-semibold mt-1 " + ti.bg + ' ' + ti.border + ' ' + ti.text}><ti.Icon className="w-2.5 h-2.5" />{ti.label}</span>}
+                    </div>
+                  </div>
+                </DialogHeader>
+                <div className="space-y-4 pt-2">
+                  <div className="grid grid-cols-2 gap-px bg-[#f1f5f9] border border-[#f1f5f9] rounded-xl overflow-hidden">
+                    {s.phone && <div className="bg-white px-4 py-3"><div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1">Telefón</div><a href={"tel:" + s.phone} className="text-[13px] font-semibold text-[#16a34a] flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" />{s.phone}</a></div>}
+                    {s.email && <div className="bg-white px-4 py-3"><div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1">Email</div><a href={"mailto:" + s.email} className="text-[13px] font-semibold text-[#16a34a] flex items-center gap-1.5 truncate"><Mail className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{s.email}</span></a></div>}
+                    {s.ico && <div className="bg-white px-4 py-3"><div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1">IČO</div><div className="text-[13px] font-semibold text-[#0f172a]">{s.ico}</div></div>}
+                    {s.dic && <div className="bg-white px-4 py-3"><div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1">DIČ</div><div className="text-[13px] font-semibold text-[#0f172a]">{s.dic}</div></div>}
+                    {s.ic_dph && <div className="bg-white px-4 py-3 col-span-2"><div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1">IČ DPH</div><div className="text-[13px] font-semibold text-[#0f172a]">{s.ic_dph}</div></div>}
+                    {s.bank_account && <div className="bg-white px-4 py-3 col-span-2"><div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1">Bankový účet</div><div className="text-[13px] font-semibold text-[#0f172a]">{s.bank_account}</div></div>}
+                  </div>
+                  {s.address && (
+                    <div className="flex items-start justify-between gap-3 px-4 py-3 bg-white border border-[#e2e8f0] rounded-xl">
+                      <div className="flex items-start gap-2"><MapPin className="h-4 w-4 text-[#94a3b8] mt-0.5 shrink-0" /><span className="text-[13px] text-[#475569]">{s.address}</span></div>
+                      <a href={"https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(s.address)} target="_blank" rel="noopener noreferrer" className="shrink-0 flex items-center gap-1 text-[12px] text-[#16a34a] font-medium hover:underline"><Navigation className="h-3.5 w-3.5" />Navigovať</a>
+                    </div>
+                  )}
+                  {s.notes && (
+                    <div className="px-4 py-3 bg-[#eff6ff] border border-[#bfdbfe] rounded-xl">
+                      <div className="text-[10px] font-semibold text-[#1e40af] uppercase tracking-wider mb-1">Poznámky</div>
+                      <div className="text-[13px] text-[#1d4ed8] whitespace-pre-wrap">{s.notes}</div>
+                    </div>
+                  )}
+                </div>
+                <div className="flex justify-end gap-2 pt-4 border-t border-[#f1f5f9] mt-4">
+                  <button onClick={() => setDetailOpen(false)} className="px-4 py-2 rounded-lg border border-[#e2e8f0] text-[13px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">Zavrieť</button>
+                  <button onClick={() => { setDetailOpen(false); openEdit(s); }} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-[13px] font-semibold transition-colors"><Pencil className="h-4 w-4" />Upraviť</button>
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Odstrániť dodávateľa?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Táto akcia je nevratná. Dodávateľ bude permanentne odstránený z databázy.
-            </AlertDialogDescription>
+            <AlertDialogDescription>Táto akcia je nevratná.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Zrušiť</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Odstrániť
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Odstrániť</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Detail Modal */}
-      <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">Detail dodávateľa</DialogTitle>
-          </DialogHeader>
-          {selectedSupplierDetail && (
-            <div className="space-y-6">
-              <div className="flex items-center gap-4">
-                <div className="h-16 w-16 rounded-xl flex items-center justify-center bg-warning/10 text-warning">
-                  <Building2 className="h-8 w-8" />
-                </div>
-                <div>
-                  <h3 className="text-2xl font-bold">{selectedSupplierDetail.company_name || selectedSupplierDetail.name}</h3>
-                  {selectedSupplierDetail.company_name && selectedSupplierDetail.name && (
-                    <p className="text-sm text-muted-foreground">{selectedSupplierDetail.name}</p>
-                  )}
-                  {selectedSupplierDetail.supplier_type && (
-                    <Badge variant="outline" className="mt-1">
-                      {SUPPLIER_TYPES[selectedSupplierDetail.supplier_type]}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                {selectedSupplierDetail.contact_name && (
-                  <div className="space-y-1">
-                    <div className="text-sm text-muted-foreground">Kontaktná osoba</div>
-                    <div className="font-medium">{selectedSupplierDetail.contact_name}</div>
-                  </div>
-                )}
-                {selectedSupplierDetail.ico && (
-                  <div className="space-y-1">
-                    <div className="text-sm text-muted-foreground">IČO</div>
-                    <div className="font-medium">{selectedSupplierDetail.ico}</div>
-                  </div>
-                )}
-                {selectedSupplierDetail.dic && (
-                  <div className="space-y-1">
-                    <div className="text-sm text-muted-foreground">DIČ</div>
-                    <div className="font-medium">{selectedSupplierDetail.dic}</div>
-                  </div>
-                )}
-                {selectedSupplierDetail.ic_dph && (
-                  <div className="space-y-1">
-                    <div className="text-sm text-muted-foreground">IČ DPH</div>
-                    <div className="font-medium">{selectedSupplierDetail.ic_dph}</div>
-                  </div>
-                )}
-                {selectedSupplierDetail.email && (
-                  <div className="space-y-1">
-                    <div className="text-sm text-muted-foreground">Email</div>
-                    <div className="font-medium flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <a href={`mailto:${selectedSupplierDetail.email}`} className="hover:text-primary">
-                        {selectedSupplierDetail.email}
-                      </a>
-                    </div>
-                  </div>
-                )}
-                {selectedSupplierDetail.phone && (
-                  <div className="space-y-1">
-                    <div className="text-sm text-muted-foreground">Telefón</div>
-                    <div className="font-medium flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <a href={`tel:${selectedSupplierDetail.phone}`} className="hover:text-primary">
-                        {selectedSupplierDetail.phone}
-                      </a>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {selectedSupplierDetail.address && (
-                <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    Adresa
-                  </div>
-                  <div className="text-sm whitespace-pre-wrap">{selectedSupplierDetail.address}</div>
-                </div>
-              )}
-
-              {selectedSupplierDetail.bank_account && (
-                <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Bankové spojenie</div>
-                  <div className="text-sm font-mono">{selectedSupplierDetail.bank_account}</div>
-                </div>
-              )}
-
-              {selectedSupplierDetail.notes && (
-                <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Poznámky</div>
-                  <div className="text-sm whitespace-pre-wrap bg-gray-50 p-3 rounded-md">{selectedSupplierDetail.notes}</div>
-                </div>
-              )}
-
-              <div className="flex gap-2 justify-end pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setDetailModalOpen(false)}
-                >
-                  Zavrieť
-                </Button>
-                <Button
-                  onClick={() => {
-                    setDetailModalOpen(false);
-                    openEditDialog(selectedSupplierDetail);
-                  }}
-                >
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Upraviť
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </MainLayout>
   );
 };
