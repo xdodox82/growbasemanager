@@ -60,17 +60,17 @@ export function SearchableCustomerSelect({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full h-7 justify-between font-normal border-[#e2e8f0] text-[11px] text-[#374151] px-2"
+          className="w-full h-8 justify-between font-medium border-[1.5px] border-[#e2e8f0] text-[12px] text-[#374151] px-3 rounded-md hover:border-[#bbf7d0] hover:text-[#16a34a] hover:bg-[#f0fdf4] transition-colors bg-white"
         >
-          <span className={cn('text-[11px] truncate', !value && 'text-[#94a3b8]')}>
+          <span className={cn('text-[12px] truncate', !value && 'text-[#94a3b8]')}>
             {displayName}
           </span>
-          <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+          <ChevronsUpDown className="ml-1.5 h-3.5 w-3.5 shrink-0 opacity-40" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start">
+      <PopoverContent className="w-[220px] p-0" align="start">
         <Command className="overflow-visible">
-          <CommandInput placeholder="Hľadať zákazníka..." />
+          <CommandInput placeholder="Hľadať zákazníka..." className="text-[12px]" />
           <CommandEmpty>Žiadny zákazník nebol nájdený.</CommandEmpty>
           <div
             className="max-h-60 overflow-y-scroll"
@@ -114,11 +114,9 @@ export function SearchableCustomerSelect({
                     )}
                   />
                   <div className="flex flex-col">
-                    <span className="font-medium">
-                      {customer.company_name || customer.name}
-                    </span>
+                    <span className="font-medium text-[12px] text-[#0f172a]">{customer.company_name || customer.name}</span>
                     {customer.customer_type && (
-                      <span className="text-xs text-gray-500">
+                      <span className="text-[10px] text-[#94a3b8]">
                         {customer.customer_type === 'home' ? 'Domáci' :
                          customer.customer_type === 'gastro' ? 'Gastro' : 'Veľkoobchod'}
                       </span>
