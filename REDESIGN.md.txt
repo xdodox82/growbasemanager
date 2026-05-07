@@ -1,0 +1,21 @@
+Redesign OrdersPage.tsx visual layer only. Keep ALL existing functionality intact. Changes:
+
+TOPBAR: compact height, title left, right side has icon-only buttons (Calendar for bulk date change, FileText for PDF), text button for Export with FileSpreadsheet icon, divider, view toggle (List/LayoutGrid icons), divider, green "+ Nová objednávka" button with Plus icon.
+
+WEEK STATS BAR: white card below topbar, shows period + 4 stats: Domaci green, Gastro blue #2563eb, VO amber #d97706, Celkom dark. Linked to active date filter.
+
+FILTER BAR: white card with 4 rows separated by thin lines:
+Row 1 label "Typ zákazníka": chips Všetci / Domáci with House icon / Gastro with Utensils icon / VO with Store icon
+Row 2 label "Kategória": chips Všetky / Mikrozelenia / Mikrobylinky / Jedlé kvety / Mixy  
+Row 3 label "Stav": chips Všetky / Rastie / Zabalená / Na ceste / Doručená / red chip Zrušená
+Row 4 label "Dátum": chips Tento týždeň / Budúci týždeň / Minulý týždeň / Tento mesiac + expandable "Ďalšie filtre" button showing customer name, crop, order type, route, archive toggles, calendar
+
+CHIP STYLE: border-radius 6px, border 1.5px solid #e2e8f0, active chip bg #16a34a text white, hover bg #f0fdf4 border #bbf7d0
+
+STATUS PILLS: growing=green #dcfce7/#166534, packed=blue #dbeafe/#1e40af, on_the_way=purple #ede9fe/#5b21b6, pending/cakajuca/pending_approval=amber #fef3c7/#92400e, delivered/dorucena=dark green #d1fae5/#064e3b, cancelled/zrusena=gray, APP badge=light blue with Smartphone icon, recurring badge=light green with RefreshCw icon
+
+TABLE: bg white, th bg #fafafa text #94a3b8 uppercase 10px, td padding 11px 12px, row hover #fafafa, columns: checkbox / Zákazník+subtype / Dodanie / Trasa / Položky count / Obal / Stav pill / Typ badges / Doprava / Celkom bold right / action icons Copy+Pencil+Trash2
+
+CARDS: grid auto-fill minmax 260px gap 10px, white card border #e2e8f0 radius 10px, hover lift + border darken, show: name bold + pills row + meta row (date/route/type) + items box gray bg "2 × 60g · 750ml rPET" format + footer delivery+price
+
+Use Tailwind classes. Keep all useState, useEffect, handlers, existing logic unchanged.

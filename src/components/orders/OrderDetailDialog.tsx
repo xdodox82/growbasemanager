@@ -64,7 +64,7 @@ export function OrderDetailDialog({
           <DialogTitle className="text-[16px] font-700 text-[#0f172a]">Detail objednávky</DialogTitle>
           {/* Badges */}
           <div className="flex items-center gap-2 mt-2 flex-wrap">
-            {(order as any).order_source === 'app' && (
+            {((order as any).order_source === 'app' || (order as any).source === 'app') && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#e0f2fe] text-[#0369a1] border border-[#bae6fd]">
                 <Smartphone className="w-3 h-3" />Z mobilnej app
               </span>
@@ -243,8 +243,8 @@ export function OrderDetailDialog({
                         <div className="text-[13px] font-semibold text-[#0f172a]">{item.crop_name || '—'}</div>
                         <div className="text-[11px] text-[#64748b] mt-0.5">
                           {item.quantity} × {weightDisplay}
-                          {item.packaging_volume_ml ? ` · ${item.packaging_volume_ml}ml` : ''}
-                          {item.packaging_type ? ` ${item.packaging_type}` : ''}
+                          {((item as any).package_ml || item.packaging_volume_ml) ? ` · ${(item as any).package_ml || item.packaging_volume_ml}ml` : ''}
+                          {((item as any).package_type || item.packaging_type) ? ` ${(item as any).package_type || item.packaging_type}` : ''}
                           {item.has_label ? ' · Etiketa' : ''}
                         </div>
                       </div>
@@ -314,7 +314,7 @@ export function OrderDetailDialog({
                         })}
                       </div>
                     )}
-                    {(order as any).order_source === 'app' && (
+                    {((order as any).order_source === 'app' || (order as any).source === 'app') && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#e0f2fe] text-[#0369a1] border border-[#bae6fd] mt-1">
                         <Smartphone className="w-3 h-3" />Cez mobilnú app
                       </span>

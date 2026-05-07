@@ -25,7 +25,9 @@
       "Bash(python *)",
       "Bash(node *)",
       "Bash(Get-ChildItem *)",
-      "Bash(Select-Object FullName)"
+      "Bash(Select-Object FullName)",
+      "Bash(git restore *)",
+      "Bash(python3 -c ' *)"
     ]
   }
 }
