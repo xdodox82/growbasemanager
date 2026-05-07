@@ -203,7 +203,7 @@ const CustomersPage = () => {
 
   return (
     <MainLayout>
-      <div className="p-6 space-y-0">
+      <div className="p-6 space-y-4">
 
         {/* ── TOPBAR ── */}
         <div className="bg-white rounded-xl border border-[#e2e8f0] px-4 py-3 flex items-center gap-2 mb-4">
@@ -368,7 +368,7 @@ const CustomersPage = () => {
                   {/* Info */}
                   <div className="px-4 pb-3 space-y-1.5">
                     {customer.phone && (
-                      <div className="flex items-center justify-between text-[12px] text-[#64748b]">
+                      <div className="flex items-center justify-between text-[12px] text-[#374151]">
                         <div className="flex items-center gap-1.5">
                           <Phone className="h-3.5 w-3.5 text-[#94a3b8] shrink-0" />
                           <span>{customer.phone}</span>
@@ -380,7 +380,7 @@ const CustomersPage = () => {
                       </div>
                     )}
                     {customer.email && (
-                      <div className="flex items-center justify-between text-[12px] text-[#64748b]">
+                      <div className="flex items-center justify-between text-[12px] text-[#374151]">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <Mail className="h-3.5 w-3.5 text-[#94a3b8] shrink-0" />
                           <span className="truncate">{customer.email}</span>
@@ -392,7 +392,7 @@ const CustomersPage = () => {
                       </div>
                     )}
                     {routeName && (
-                      <div className="flex items-center gap-1.5 text-[12px] text-[#64748b]">
+                      <div className="flex items-center gap-1.5 text-[12px] text-[#374151]">
                         <Route className="h-3.5 w-3.5 text-[#94a3b8] shrink-0" />
                         <span>{routeName}</span>
                       </div>
@@ -401,7 +401,7 @@ const CustomersPage = () => {
 
                   {/* Footer */}
                   <div className="border-t border-[#f1f5f9] px-4 py-2.5 flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-[12px] text-[#94a3b8]">
+                    <div className="flex items-center gap-1.5 text-[12px] text-[#64748b]">
                       <ShoppingCart className="h-3.5 w-3.5" />
                       <span>{stats} obj.</span>
                     </div>
@@ -461,19 +461,19 @@ const CustomersPage = () => {
                       <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                         <div className="space-y-1">
                           {customer.phone && (
-                            <a href={`tel:${customer.phone}`} className="flex items-center gap-1.5 text-[12px] text-[#64748b] hover:text-[#16a34a] transition-colors">
+                            <a href={`tel:${customer.phone}`} className="flex items-center gap-1.5 text-[12px] text-[#374151] hover:text-[#16a34a] transition-colors">
                               <Phone className="h-3 w-3 shrink-0" />{customer.phone}
                             </a>
                           )}
                           {customer.email && (
-                            <a href={`mailto:${customer.email}`} className="flex items-center gap-1.5 text-[12px] text-[#64748b] hover:text-[#16a34a] transition-colors">
+                            <a href={`mailto:${customer.email}`} className="flex items-center gap-1.5 text-[12px] text-[#374151] hover:text-[#16a34a] transition-colors">
                               <Mail className="h-3 w-3 shrink-0" /><span className="truncate max-w-[160px]">{customer.email}</span>
                             </a>
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-[12px] text-[#64748b]">{getRouteName(customer.delivery_route_id) || <span className="text-[#cbd5e1]">—</span>}</td>
-                      <td className="px-4 py-3 text-[12px] text-[#64748b]">{paymentLabel((customer as any).payment_method || 'cash')}</td>
+                      <td className="px-4 py-3 text-[12px] text-[#374151]">{getRouteName(customer.delivery_route_id) || <span className="text-[#cbd5e1]">—</span>}</td>
+                      <td className="px-4 py-3 text-[12px] text-[#374151]">{paymentLabel((customer as any).payment_method || 'cash')}</td>
                       <td className="px-4 py-3 text-center">
                         <span className="text-[13px] font-semibold text-[#0f172a]">{customerStats[customer.id] || 0}</span>
                       </td>
