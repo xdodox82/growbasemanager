@@ -243,8 +243,14 @@ export function OrderDetailDialog({
                         <div className="text-[13px] font-semibold text-[#0f172a]">{item.crop_name || '—'}</div>
                         <div className="text-[11px] text-[#64748b] mt-0.5">
                           {item.quantity} × {weightDisplay}
-                          {((item as any).package_ml || item.packaging_volume_ml) ? ` · ${(item as any).package_ml || item.packaging_volume_ml}ml` : ''}
-                          {((item as any).package_type || item.packaging_type) ? ` ${(item as any).package_type || item.packaging_type}` : ''}
+                          {(() => {
+                            const ml = (item as any).package_ml || item.packaging_volume_ml;
+                            const type = (item as any).package_type || item.packaging_type;
+                            if (ml && type) return ` · ${ml}ml ${type}`;
+                            if (ml) return ` · ${ml}ml`;
+                            if (type) return ` · ${type}`;
+                            return '';
+                          })()}
                           {item.has_label ? ' · Etiketa' : ''}
                         </div>
                       </div>
