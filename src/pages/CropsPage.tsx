@@ -1,1236 +1,806 @@
-import { useState, useCallback } from 'react';
+// IMPORTANT: Use 'House' not 'Home' - Home is Chrome browser icon, House is home icon
+import { useState, useMemo, useCallback } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { PageHeader, EmptyState } from '@/components/ui/page-components';
-import { useCrops, DbCrop } from '@/hooks/useSupabaseData';
+import { useCustomers, useDeliveryRoutes, useOrders, DbCustomer } from '@/hooks/useSupabaseData';
 import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Table, TableBody, TableHeader } from '@/components/ui/table';
-import { MobileTableRow, MobileTableCell, MobileTableHead, ExpandedDetail } from '@/components/ui/mobile-table';
-import { ViewToggle, ViewMode } from '@/components/ui/view-toggle';
-import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Leaf, Plus, Pencil, Trash2, Clock, Droplets, Loader as Loader2, Sun, Moon, Scissors, Sprout, Weight, Flower, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import {
+  Users, Plus, Pencil, Trash2, Mail, Phone, MapPin, Navigation,
+  Loader2, ShoppingCart, House, Utensils, Store, ChevronDown,
+  Grid3x3, List, Search, Route, Package,
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
-const CROP_COLORS = [
-  '#22c55e', '#84cc16', '#eab308', '#f97316', '#ef4444', 
-  '#ec4899', '#a855f7', '#6366f1', '#3b82f6', '#06b6d4'
-];
+const FILTER_STORAGE_KEY = 'customers_default_filters';
 
-const CROP_CATEGORIES = {
-  microgreens: 'Mikrozelenina',
-  microherbs: 'Mikrobylinky',
-  edible_flowers: 'Jedlé kvety',
-} as const;
+// ─── helpers ─────────────────────────────────────────────────────────────────
+const typeChip = (type: string | null | undefined) => {
+  if (type === 'home')      return { label: 'Domáci',  bg: 'bg-[#f0fdf4]', border: 'border-[#16a34a]', text: 'text-[#16a34a]', Icon: House };
+  if (type === 'gastro')    return { label: 'Gastro',  bg: 'bg-[#eff6ff]', border: 'border-[#2563eb]', text: 'text-[#2563eb]', Icon: Utensils };
+  if (type === 'wholesale') return { label: 'VO',      bg: 'bg-[#fff7ed]', border: 'border-[#d97706]', text: 'text-[#d97706]', Icon: Store };
+  return null;
+};
 
-const GERMINATION_TYPES = {
-  warm: 'V teple',
-  cold: 'V chlade',
-} as const;
+const paymentLabel = (m: string) =>
+  m === 'invoice' ? 'Faktúra' : m === 'card' ? 'Karta' : 'Hotovosť';
 
-const CropsPage = () => {
-  const { data: crops, loading, add, update, remove, refetch } = useCrops();
+const displayName = (c: DbCustomer) =>
+  (c.customer_type === 'gastro' || c.customer_type === 'wholesale') && (c as any).company_name
+    ? (c as any).company_name
+    : c.name;
+
+// ─── component ───────────────────────────────────────────────────────────────
+const CustomersPage = () => {
+  const { data: customers, loading, add, update, remove, refetch } = useCustomers();
+  const { data: deliveryRoutes } = useDeliveryRoutes();
+  const { data: orders } = useOrders();
   const { isAdmin } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+
+  // UI state
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
+    try { return JSON.parse(localStorage.getItem(FILTER_STORAGE_KEY) || '{}').viewMode || 'grid'; } catch { return 'grid'; }
+  });
+  const [typeFilter, setTypeFilter] = useState<string>(() => {
+    try { return JSON.parse(localStorage.getItem(FILTER_STORAGE_KEY) || '{}').typeFilter || 'all'; } catch { return 'all'; }
+  });
+  const [routeFilter, setRouteFilter] = useState<string>(() => {
+    try { return JSON.parse(localStorage.getItem(FILTER_STORAGE_KEY) || '{}').routeFilter || 'all'; } catch { return 'all'; }
+  });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filtersCollapsed, setFiltersCollapsed] = useState(true);
+
+  // Dialog state
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingCrop, setEditingCrop] = useState<DbCrop | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [editingCustomer, setEditingCustomer] = useState<DbCustomer | null>(null);
   const [saving, setSaving] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailCustomer, setDetailCustomer] = useState<DbCustomer | null>(null);
+  const [customerCredits, setCustomerCredits] = useState<Record<string, { credit: number; wallet_enabled: boolean }>>({});
 
-  // Force grid view on mobile
   const effectiveViewMode = isMobile ? 'grid' : viewMode;
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [detailModalOpen, setDetailModalOpen] = useState(false);
-  const [selectedCropDetail, setSelectedCropDetail] = useState<DbCrop | null>(null);
-  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
-  const handleRefresh = useCallback(async () => {
-    await refetch();
-  }, [refetch]);
-
-  const filteredCrops = crops.filter(crop => {
-    if (categoryFilter === 'all') return true;
-    return crop.category === categoryFilter;
-  });
-  
-  const [formData, setFormData] = useState({
-    name: '',
-    variety: '',
-    category: 'microgreens' as string,
-    sku_prefix: '',
-    days_to_harvest: 8,
-    days_to_germination: 3,
-    germination_type: 'warm' as string,
-    needs_weight: true,
-    days_in_darkness: 2,
-    days_on_light: 5,
-    seed_density: 30,
-    seed_soaking: false,
-    soaking: false,
-    soaking_duration_hours: 0,
-    expected_yield: 200,
-    can_be_cut: true,
-    can_be_live: false,
-    color: CROP_COLORS[0],
-    notes: '',
-    safety_buffer_percent: 5,
-    default_substrate_type: 'mixed' as string,
-    default_substrate_note: '',
-    tray_configs: {
-      XL: { seed_density: 100, expected_yield: 80 },
-      L: { seed_density: 80, expected_yield: 65 },
-      M: { seed_density: 60, expected_yield: 48 },
-      S: { seed_density: 40, expected_yield: 32 }
-    }
-  });
-
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      variety: '',
-      category: 'microgreens',
-      days_to_harvest: 8,
-      days_to_germination: 3,
-      germination_type: 'warm',
-      needs_weight: true,
-      days_in_darkness: 2,
-      days_on_light: 5,
-      seed_density: 30,
-      seed_soaking: false,
-      soaking: false,
-      soaking_duration_hours: 0,
-      expected_yield: 200,
-      can_be_cut: true,
-      can_be_live: false,
-      color: CROP_COLORS[0],
-      notes: '',
-      safety_buffer_percent: 5,
-      default_substrate_type: 'mixed',
-      default_substrate_note: '',
-      tray_configs: {
-        XL: { seed_density: 100, expected_yield: 80 },
-        L: { seed_density: 80, expected_yield: 65 },
-        M: { seed_density: 60, expected_yield: 48 },
-        S: { seed_density: 40, expected_yield: 32 }
-      }
-    });
-    setEditingCrop(null);
+  // Form state
+  const emptyForm = {
+    name: '', email: '', phone: '', address: '', delivery_notes: '',
+    delivery_route_id: null as string | null, customer_type: null as string | null,
+    payment_method: 'cash' as 'cash' | 'card' | 'invoice',
+    free_delivery: false, uses_returnable_containers: false,
+    default_packaging_type: 'rPET',
+    company_name: '', contact_name: '', ico: '', dic: '', ic_dph: '', bank_account: '',
   };
+  const [formData, setFormData] = useState(emptyForm);
 
-  const openEditDialog = (crop: DbCrop) => {
-    setEditingCrop(crop);
-    const trayConfigs = (crop as any).tray_configs || {
-      XL: { seed_density: crop.seed_density || 100, expected_yield: crop.expected_yield || 80 },
-      L: { seed_density: (crop.seed_density || 100) * 0.8, expected_yield: (crop.expected_yield || 80) * 0.8 },
-      M: { seed_density: (crop.seed_density || 100) * 0.6, expected_yield: (crop.expected_yield || 80) * 0.6 },
-      S: { seed_density: (crop.seed_density || 100) * 0.4, expected_yield: (crop.expected_yield || 80) * 0.4 }
-    };
-    const soaking = (crop as any).soaking || crop.seed_soaking || false;
+  const resetForm = () => { setFormData(emptyForm); setEditingCustomer(null); };
+
+  const openEdit = (customer: DbCustomer) => {
+    setEditingCustomer(customer);
     setFormData({
-      name: crop.name,
-      variety: crop.variety || '',
-      category: crop.category || 'microgreens',
-      sku_prefix: (crop as any).sku_prefix || '',
-      days_to_harvest: crop.days_to_harvest,
-      days_to_germination: crop.days_to_germination || 2,
-      germination_type: crop.germination_type || 'warm',
-      needs_weight: crop.needs_weight || false,
-      days_in_darkness: crop.days_in_darkness || 2,
-      days_on_light: crop.days_on_light || 5,
-      seed_density: crop.seed_density || 30,
-      seed_soaking: crop.seed_soaking || false,
-      soaking: soaking,
-      soaking_duration_hours: (crop as any).soaking_duration_hours || '',
-      expected_yield: crop.expected_yield || 200,
-      can_be_cut: crop.can_be_cut !== false,
-      can_be_live: crop.can_be_live || false,
-      color: crop.color || CROP_COLORS[0],
-      notes: crop.notes || '',
-      safety_buffer_percent: (crop as any).safety_buffer_percent || 5,
-      default_substrate_type: (crop as any).default_substrate_type || 'mixed',
-      default_substrate_note: (crop as any).default_substrate_note || '',
-      tray_configs: trayConfigs
+      name: customer.name, email: customer.email || '', phone: customer.phone || '',
+      address: customer.address || '', delivery_notes: customer.delivery_notes || '',
+      delivery_route_id: customer.delivery_route_id || null,
+      customer_type: (customer as any).customer_type || null,
+      payment_method: (customer as any).payment_method || 'cash',
+      free_delivery: (customer as any).free_delivery || false,
+      uses_returnable_containers: (customer as any).uses_returnable_containers || false,
+      default_packaging_type: (customer as any).default_packaging_type || 'rPET',
+      company_name: (customer as any).company_name || '',
+      contact_name: (customer as any).contact_name || '',
+      ico: (customer as any).ico || '', dic: (customer as any).dic || '',
+      ic_dph: (customer as any).ic_dph || '', bank_account: (customer as any).bank_account || '',
     });
     setIsDialogOpen(true);
   };
 
+  const openDetail = useCallback(async (customer: DbCustomer) => {
+    setDetailCustomer(customer);
+    setDetailOpen(true);
+    const { data } = await supabase.from('customers').select('credit, wallet_enabled').eq('id', customer.id).maybeSingle();
+    if (data) setCustomerCredits(prev => ({ ...prev, [customer.id]: { credit: data.credit || 0, wallet_enabled: data.wallet_enabled || false } }));
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!formData.name.trim()) {
-      toast({
-        title: 'Chyba',
-        description: 'Zadajte názov plodiny',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (formData.soaking && (!formData.soaking_duration_hours || formData.soaking_duration_hours <= 0)) {
-      toast({
-        title: 'Chyba',
-        description: 'Ak vyžaduje namáčanie, zadajte dobu namáčania (hodiny)',
-        variant: 'destructive',
-      });
-      return;
-    }
-
+    if (!formData.name.trim()) { toast({ title: 'Chyba', description: 'Zadajte meno zákazníka', variant: 'destructive' }); return; }
     setSaving(true);
-
-    const dataToSave = {
-      ...formData,
-      seed_soaking: formData.soaking,
-      soaking_duration_hours: formData.soaking ? formData.soaking_duration_hours : 0
+    const data = {
+      name: formData.name, email: formData.email || null, phone: formData.phone || null,
+      address: formData.address || null, delivery_notes: formData.delivery_notes || null,
+      delivery_route_id: formData.delivery_route_id || null,
+      delivery_day_ids: editingCustomer?.delivery_day_ids || [],
+      customer_type: formData.customer_type || null,
+      payment_method: formData.payment_method,
+      free_delivery: formData.free_delivery,
+      uses_returnable_containers: formData.uses_returnable_containers,
+      default_packaging_type: formData.default_packaging_type || 'rPET',
+      company_name: formData.company_name || null, contact_name: formData.contact_name || null,
+      ico: formData.ico || null, dic: formData.dic || null,
+      ic_dph: formData.ic_dph || null, bank_account: formData.bank_account || null,
     };
-
-    if (editingCrop) {
-      const { error } = await update(editingCrop.id, dataToSave);
-      if (!error) {
-        toast({
-          title: 'Plodina aktualizovaná',
-          description: `${formData.name} bola úspešne upravená.`,
-        });
-        setIsDialogOpen(false);
-        resetForm();
-      }
+    if (editingCustomer) {
+      const { error } = await update(editingCustomer.id, data);
+      if (!error) { toast({ title: 'Zákazník aktualizovaný' }); setIsDialogOpen(false); resetForm(); }
     } else {
-      const { error } = await add(dataToSave);
-      if (!error) {
-        toast({
-          title: 'Plodina pridaná',
-          description: `${formData.name} bola pridaná do katalógu.`,
-        });
-        setIsDialogOpen(false);
-        resetForm();
-      }
+      const { error } = await add(data);
+      if (!error) { toast({ title: 'Zákazník pridaný' }); setIsDialogOpen(false); resetForm(); }
     }
-
     setSaving(false);
   };
 
   const handleDelete = async () => {
-    if (deleteId) {
-      const crop = crops.find(c => c.id === deleteId);
-      const { error } = await remove(deleteId);
-      if (!error) {
-        toast({
-          title: 'Plodina odstránená',
-          description: `${crop?.name} bola odstránená z katalógu.`,
-        });
-      }
-      setDeleteId(null);
-    }
+    if (!deleteId) return;
+    const customer = customers.find(c => c.id === deleteId);
+    const { error } = await remove(deleteId);
+    if (!error) toast({ title: 'Zákazník odstránený', description: `${customer?.name} bol odstránený.` });
+    setDeleteId(null);
   };
 
-  if (loading) {
-    return (
-      <MainLayout>
-        <PageHeader title="Plodiny" description="Spravujte katalóg plodín" />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="p-4">
-              <Skeleton className="h-10 w-10 rounded-lg" />
-              <Skeleton className="h-4 w-24 mt-3" />
-              <Skeleton className="h-3 w-16 mt-2" />
-            </Card>
-          ))}
+  // Stats
+  const customerStats = useMemo(() => {
+    const s: Record<string, number> = {};
+    orders.forEach(o => { if (o.customer_id) s[o.customer_id] = (s[o.customer_id] || 0) + 1; });
+    return s;
+  }, [orders]);
+
+  const getRouteName = (id: string | null) => deliveryRoutes.find(r => r.id === id)?.name || null;
+
+  // Filtered list
+  const filteredCustomers = useMemo(() => {
+    return customers
+      .filter(c => {
+        const t = typeFilter === 'all' || c.customer_type === typeFilter;
+        const r = routeFilter === 'all' || c.delivery_route_id === routeFilter;
+        const q = !searchQuery || displayName(c).toLowerCase().includes(searchQuery.toLowerCase()) || c.email?.toLowerCase().includes(searchQuery.toLowerCase()) || c.phone?.includes(searchQuery);
+        return t && r && q;
+      })
+      .sort((a, b) => {
+        const ln = (c: DbCustomer) => { const parts = displayName(c).trim().split(' '); return parts[parts.length - 1].toLowerCase(); };
+        return ln(a).localeCompare(ln(b), 'sk');
+      });
+  }, [customers, typeFilter, routeFilter, searchQuery]);
+
+  // Active filter count
+  const activeFilters = [typeFilter !== 'all', routeFilter !== 'all', !!searchQuery].filter(Boolean).length;
+
+  // Input helper
+  const inp = (label: string, id: string, value: string, onChange: (v: string) => void, opts: { placeholder?: string; type?: string; required?: boolean } = {}) => (
+    <div>
+      <label className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">{label}{opts.required && ' *'}</label>
+      <Input id={id} type={opts.type || 'text'} value={value} onChange={e => onChange(e.target.value)}
+        placeholder={opts.placeholder || ''} className="h-9 border-[#e2e8f0] text-[13px] bg-white" />
+    </div>
+  );
+
+  // ─── Render ───────────────────────────────────────────────────────────────
+  if (loading) return (
+    <MainLayout>
+      <div className="p-6 space-y-4">
+        <div className="h-10 bg-white rounded-xl border border-[#e2e8f0] animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-40 rounded-xl" />)}
         </div>
-      </MainLayout>
-    );
-  }
+      </div>
+    </MainLayout>
+  );
 
   return (
     <MainLayout>
-      <PageHeader 
-        title="Plodiny" 
-        description="Spravujte katalóg vašich mikrozelenín"
-      >
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open) resetForm();
-        }}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Pridať plodinu
-            </Button>
-          </DialogTrigger>
-        <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} className="hidden md:flex" />
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Všetky kategórie" />
-          </SelectTrigger>
-          <SelectContent position="popper" sideOffset={5} className="max-h-[300px]">
-            <SelectItem value="all">Všetky kategórie</SelectItem>
-            <SelectItem value="microgreens">
-              <Leaf className="h-4 w-4 text-green-600 mr-2 inline" />Mikrozelenina
-            </SelectItem>
-            <SelectItem value="microherbs">
-              <Sprout className="h-4 w-4 text-green-600 mr-2 inline" />Mikrobylinky
-            </SelectItem>
-            <SelectItem value="edible_flowers">
-              <Flower className="h-4 w-4 text-green-600 mr-2 inline" />Jedlé kvety
-            </SelectItem>
-          </SelectContent>
-        </Select>
-          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-            <form onSubmit={handleSubmit}>
-              <DialogHeader>
-                <DialogTitle>
-                  {editingCrop ? 'Upraviť plodinu' : 'Nová plodina'}
-                </DialogTitle>
-                <DialogDescription>
-                  Zadajte parametre pestovania pre túto plodinu.
-                </DialogDescription>
-              </DialogHeader>
-              
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="name">Názov *</Label>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="napr. Brokolica"
-                    />
+      <div className="p-6 space-y-0">
+
+        {/* ── TOPBAR ── */}
+        <div className="bg-white rounded-xl border border-[#e2e8f0] px-4 py-3 flex items-center gap-2 mb-4">
+          <span className="text-xl font-bold text-[#0f172a] mr-auto">Zákazníci</span>
+
+          {/* View toggle */}
+          <div className="hidden md:flex items-center gap-0.5">
+            <button onClick={() => setViewMode('grid')} title="Karty"
+              className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-[#f0fdf4] text-[#16a34a]' : 'text-[#94a3b8] hover:bg-[#f8fafc]'}`}>
+              <Grid3x3 className="w-5 h-5" />
+            </button>
+            <button onClick={() => setViewMode('list')} title="Zoznam"
+              className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors ${viewMode === 'list' ? 'bg-[#f0fdf4] text-[#16a34a]' : 'text-[#94a3b8] hover:bg-[#f8fafc]'}`}>
+              <List className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="w-px h-5 bg-[#e2e8f0]" />
+
+          <button onClick={() => { setEditingCustomer(null); resetForm(); setIsDialogOpen(true); }}
+            className="flex items-center gap-1.5 bg-[#16a34a] hover:bg-[#15803d] text-white rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors">
+            <Plus className="w-5 h-5" />
+            Pridať zákazníka
+          </button>
+        </div>
+
+        {/* ── FILTER BAR ── */}
+        <div className="bg-white rounded-xl border border-[#e2e8f0] px-4 mb-4">
+          {/* Header */}
+          <div className="flex items-center gap-2 py-2.5 cursor-pointer select-none" onClick={() => setFiltersCollapsed(v => !v)}>
+            <ChevronDown className={`w-3.5 h-3.5 text-[#94a3b8] transition-transform duration-200 ${filtersCollapsed ? '-rotate-90' : ''}`} />
+            <span className="text-[12px] font-semibold text-[#374151] uppercase tracking-wider">Filtre</span>
+            {filtersCollapsed && activeFilters > 0 && (
+              <span className="ml-1 bg-[#16a34a] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">{activeFilters}</span>
+            )}
+            {!filtersCollapsed && (
+              <span className="ml-auto text-[11px] text-[#94a3b8]">{filteredCustomers.length} zákazníkov</span>
+            )}
+          </div>
+
+          {!filtersCollapsed && (
+            <div className="border-t border-[#f1f5f9]">
+              {/* Riadok 1: Typ zákazníka + hľadanie */}
+              <div className="flex items-center gap-2 flex-wrap py-2.5">
+                <span className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider min-w-[85px] shrink-0">Zákazník</span>
+                {['all', 'home', 'gastro', 'wholesale'].map(t => {
+                  const active = typeFilter === t;
+                  const chip = typeChip(t);
+                  return (
+                    <button key={t} onClick={() => setTypeFilter(t)}
+                      className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md border-[1.5px] text-[12px] font-medium cursor-pointer transition-colors ${
+                        active ? (chip ? `${chip.bg} ${chip.border} ${chip.text}` : 'bg-[#16a34a] border-[#16a34a] text-white') : 'border-[#e2e8f0] text-[#374151] bg-white hover:border-[#bbf7d0] hover:text-[#16a34a] hover:bg-[#f0fdf4]'
+                      }`}>
+                      {chip && <chip.Icon className="w-3.5 h-3.5" />}
+                      {t === 'all' ? 'Všetci' : chip?.label}
+                    </button>
+                  );
+                })}
+                {/* Search */}
+                <div className="relative ml-1">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94a3b8]" />
+                  <input
+                    type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                    placeholder="Hľadať zákazníka..."
+                    className="h-8 pl-8 pr-3 border-[1.5px] border-[#e2e8f0] rounded-md text-[12px] bg-white outline-none focus:border-[#16a34a] w-[200px] transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="border-t border-[#f8fafc]" />
+
+              {/* Riadok 2: Trasa */}
+              <div className="flex items-center gap-2 flex-wrap py-2.5">
+                <span className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider min-w-[85px] shrink-0">Trasa</span>
+                <button onClick={() => setRouteFilter('all')}
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md border-[1.5px] text-[12px] font-medium cursor-pointer transition-colors ${routeFilter === 'all' ? 'bg-[#16a34a] border-[#16a34a] text-white' : 'border-[#e2e8f0] text-[#374151] bg-white hover:border-[#bbf7d0] hover:text-[#16a34a] hover:bg-[#f0fdf4]'}`}>
+                  Všetky
+                </button>
+                {deliveryRoutes.map(r => (
+                  <button key={r.id} onClick={() => setRouteFilter(r.id)}
+                    className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md border-[1.5px] text-[12px] font-medium cursor-pointer transition-colors ${routeFilter === r.id ? 'bg-[#16a34a] border-[#16a34a] text-white' : 'border-[#e2e8f0] text-[#374151] bg-white hover:border-[#bbf7d0] hover:text-[#16a34a] hover:bg-[#f0fdf4]'}`}>
+                    <Route className="w-3 h-3" />{r.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── CONTENT ── */}
+        {customers.length === 0 ? (
+          <div className="bg-white rounded-xl border border-[#e2e8f0] p-12 text-center">
+            <Users className="h-10 w-10 text-[#cbd5e1] mx-auto mb-3" />
+            <div className="text-[15px] font-semibold text-[#0f172a] mb-1">Žiadni zákazníci</div>
+            <div className="text-[13px] text-[#94a3b8] mb-4">Začnite pridaním vášho prvého zákazníka.</div>
+            <button onClick={() => setIsDialogOpen(true)}
+              className="inline-flex items-center gap-2 bg-[#16a34a] text-white rounded-lg px-4 py-2 text-sm font-semibold">
+              <Plus className="w-4 h-4" />Pridať zákazníka
+            </button>
+          </div>
+        ) : filteredCustomers.length === 0 ? (
+          <div className="bg-white rounded-xl border border-[#e2e8f0] p-12 text-center">
+            <Search className="h-10 w-10 text-[#cbd5e1] mx-auto mb-3" />
+            <div className="text-[15px] font-semibold text-[#0f172a] mb-1">Žiadne výsledky</div>
+            <div className="text-[13px] text-[#94a3b8]">Skúste zmeniť filtre alebo vyhľadávanie.</div>
+          </div>
+        ) : effectiveViewMode === 'grid' ? (
+
+          /* ── GRID VIEW ── */
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {filteredCustomers.map(customer => {
+              const tc = typeChip(customer.customer_type);
+              const dn = displayName(customer);
+              const stats = customerStats[customer.id] || 0;
+              const routeName = getRouteName(customer.delivery_route_id);
+              return (
+                <div key={customer.id}
+                  className="bg-white rounded-xl border-[1.5px] border-[#e2e8f0] hover:shadow-md hover:border-[#cbd5e1] transition-all cursor-pointer overflow-hidden"
+                  onClick={() => openDetail(customer)}
+                >
+                  {/* Header */}
+                  <div className="px-4 pt-4 pb-3 flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
+                      {/* Avatar */}
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                        customer.customer_type === 'home' ? 'bg-[#f0fdf4]' :
+                        customer.customer_type === 'gastro' ? 'bg-[#eff6ff]' :
+                        customer.customer_type === 'wholesale' ? 'bg-[#fff7ed]' : 'bg-[#f8fafc]'
+                      }`}>
+                        {tc ? <tc.Icon className={`h-5 w-5 ${tc.text}`} /> : <Users className="h-5 w-5 text-[#94a3b8]" />}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-semibold text-[14px] text-[#0f172a] truncate">{dn || 'Bez mena'}</div>
+                        {(customer.customer_type === 'gastro' || customer.customer_type === 'wholesale') && (customer as any).company_name && customer.name !== (customer as any).company_name && (
+                          <div className="text-[11px] text-[#94a3b8] truncate">{customer.name}</div>
+                        )}
+                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                          {tc && (
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10px] font-semibold ${tc.bg} ${tc.border} ${tc.text}`}>
+                              <tc.Icon className="w-2.5 h-2.5" />{tc.label}
+                            </span>
+                          )}
+                          {(customer as any).ico && (
+                            <span className="text-[10px] text-[#94a3b8]">IČO: {(customer as any).ico}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    {/* Actions */}
+                    <div className="flex gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
+                      <button className="w-7 h-7 rounded-md flex items-center justify-center text-[#94a3b8] hover:bg-[#f0fdf4] hover:text-[#16a34a] transition-colors" onClick={() => openEdit(customer)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      {isAdmin && (
+                        <button className="w-7 h-7 rounded-md flex items-center justify-center text-[#94a3b8] hover:bg-[#fef2f2] hover:text-[#dc2626] transition-colors" onClick={() => setDeleteId(customer.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="variety">Odroda</Label>
-                    <Input
-                      id="variety"
-                      value={formData.variety}
-                      onChange={(e) => setFormData({ ...formData, variety: e.target.value })}
-                      placeholder="napr. Calabrese"
-                    />
+
+                  {/* Info */}
+                  <div className="px-4 pb-3 space-y-1.5">
+                    {customer.phone && (
+                      <div className="flex items-center justify-between text-[12px] text-[#64748b]">
+                        <div className="flex items-center gap-1.5">
+                          <Phone className="h-3.5 w-3.5 text-[#94a3b8] shrink-0" />
+                          <span>{customer.phone}</span>
+                        </div>
+                        <a href={`tel:${customer.phone}`} onClick={e => e.stopPropagation()}
+                          className="w-6 h-6 rounded-md flex items-center justify-center text-[#16a34a] hover:bg-[#f0fdf4] transition-colors">
+                          <Phone className="h-3 w-3" />
+                        </a>
+                      </div>
+                    )}
+                    {customer.email && (
+                      <div className="flex items-center justify-between text-[12px] text-[#64748b]">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <Mail className="h-3.5 w-3.5 text-[#94a3b8] shrink-0" />
+                          <span className="truncate">{customer.email}</span>
+                        </div>
+                        <a href={`mailto:${customer.email}`} onClick={e => e.stopPropagation()}
+                          className="w-6 h-6 rounded-md flex items-center justify-center text-[#16a34a] hover:bg-[#f0fdf4] transition-colors shrink-0">
+                          <Mail className="h-3 w-3" />
+                        </a>
+                      </div>
+                    )}
+                    {routeName && (
+                      <div className="flex items-center gap-1.5 text-[12px] text-[#64748b]">
+                        <Route className="h-3.5 w-3.5 text-[#94a3b8] shrink-0" />
+                        <span>{routeName}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Footer */}
+                  <div className="border-t border-[#f1f5f9] px-4 py-2.5 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-[12px] text-[#94a3b8]">
+                      <ShoppingCart className="h-3.5 w-3.5" />
+                      <span>{stats} obj.</span>
+                    </div>
+                    <div className="flex gap-3 text-[11px] text-[#94a3b8]">
+                      {(customer as any).free_delivery && <span className="text-[#16a34a] font-medium">Doprava zdarma</span>}
+                      {(customer as any).uses_returnable_containers && <span className="flex items-center gap-0.5"><Package className="h-3 w-3" />Vratné obaly</span>}
+                    </div>
                   </div>
                 </div>
+              );
+            })}
+          </div>
 
-                <div className="grid gap-2">
-                  <Label>Kategória</Label>
-                  <Select
-                    value={formData.category}
-                    onValueChange={(value) => setFormData({ ...formData, category: value })}
-                  >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent position="popper" sideOffset={5} className="max-h-[300px]">
-                      <SelectItem value="microgreens">
-                        <Leaf className="h-4 w-4 text-green-600 mr-2 inline" />Mikrozelenina
-                      </SelectItem>
-                      <SelectItem value="microherbs">
-                        <Sprout className="h-4 w-4 text-green-600 mr-2 inline" />Mikrobylinky
-                      </SelectItem>
-                      <SelectItem value="edible_flowers">
-                        <Flower className="h-4 w-4 text-green-600 mr-2 inline" />Jedlé kvety
-                      </SelectItem>
+        ) : (
+
+          /* ── LIST VIEW ── */
+          <div className="bg-white rounded-xl border border-[#e2e8f0] overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-[#fafafa] border-b border-[#e2e8f0]">
+                <tr>
+                  <th className="px-4 py-3 text-left text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider">Zákazník</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider">Kontakt</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider">Trasa</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider">Platba</th>
+                  <th className="px-4 py-3 text-center text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider">Obj.</th>
+                  <th className="px-4 py-3 text-right text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider">Akcie</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#f1f5f9]">
+                {filteredCustomers.map(customer => {
+                  const tc = typeChip(customer.customer_type);
+                  const dn = displayName(customer);
+                  return (
+                    <tr key={customer.id} className="hover:bg-[#fafafa] cursor-pointer transition-colors" onClick={() => openDetail(customer)}>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                            customer.customer_type === 'home' ? 'bg-[#f0fdf4]' :
+                            customer.customer_type === 'gastro' ? 'bg-[#eff6ff]' :
+                            customer.customer_type === 'wholesale' ? 'bg-[#fff7ed]' : 'bg-[#f8fafc]'
+                          }`}>
+                            {tc ? <tc.Icon className={`h-4 w-4 ${tc.text}`} /> : <Users className="h-4 w-4 text-[#94a3b8]" />}
+                          </div>
+                          <div>
+                            <div className="font-semibold text-[13px] text-[#0f172a]">{dn}</div>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              {tc && (
+                                <span className={`inline-flex items-center gap-0.5 px-1.5 py-0 rounded text-[10px] font-medium ${tc.bg} border ${tc.border} ${tc.text}`}>
+                                  <tc.Icon className="w-2.5 h-2.5" />{tc.label}
+                                </span>
+                              )}
+                              {(customer as any).ico && <span className="text-[10px] text-[#94a3b8]">IČO: {(customer as any).ico}</span>}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                        <div className="space-y-1">
+                          {customer.phone && (
+                            <a href={`tel:${customer.phone}`} className="flex items-center gap-1.5 text-[12px] text-[#64748b] hover:text-[#16a34a] transition-colors">
+                              <Phone className="h-3 w-3 shrink-0" />{customer.phone}
+                            </a>
+                          )}
+                          {customer.email && (
+                            <a href={`mailto:${customer.email}`} className="flex items-center gap-1.5 text-[12px] text-[#64748b] hover:text-[#16a34a] transition-colors">
+                              <Mail className="h-3 w-3 shrink-0" /><span className="truncate max-w-[160px]">{customer.email}</span>
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-[12px] text-[#64748b]">{getRouteName(customer.delivery_route_id) || <span className="text-[#cbd5e1]">—</span>}</td>
+                      <td className="px-4 py-3 text-[12px] text-[#64748b]">{paymentLabel((customer as any).payment_method || 'cash')}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="text-[13px] font-semibold text-[#0f172a]">{customerStats[customer.id] || 0}</span>
+                      </td>
+                      <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
+                        <div className="flex gap-0.5 justify-end">
+                          <button className="w-7 h-7 rounded-md flex items-center justify-center text-[#94a3b8] hover:bg-[#f0fdf4] hover:text-[#16a34a] transition-colors" onClick={() => openEdit(customer)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          {isAdmin && (
+                            <button className="w-7 h-7 rounded-md flex items-center justify-center text-[#94a3b8] hover:bg-[#fef2f2] hover:text-[#dc2626] transition-colors" onClick={() => setDeleteId(customer.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+      </div>
+
+      {/* ── ADD/EDIT DIALOG ── */}
+      <Dialog open={isDialogOpen} onOpenChange={open => { setIsDialogOpen(open); if (!open) resetForm(); }} >
+        <DialogContent className="sm:max-w-[580px] max-h-[90vh] overflow-y-auto" onInteractOutside={e => e.preventDefault()}>
+          <form onSubmit={handleSubmit}>
+            <DialogHeader className="pb-4">
+              <DialogTitle className="text-[16px] font-bold text-[#0f172a]">
+                {editingCustomer ? 'Upraviť zákazníka' : 'Nový zákazník'}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {/* Typ zákazníka */}
+              <div>
+                <label className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-2 block">Typ zákazníka *</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {([['home', 'Domáci', House, '#16a34a', '#f0fdf4'], ['gastro', 'Gastro', Utensils, '#2563eb', '#eff6ff'], ['wholesale', 'VO', Store, '#d97706', '#fff7ed']] as const).map(([t, l, Icon, color, bg]) => (
+                    <button key={t} type="button" onClick={() => setFormData({ ...formData, customer_type: t })}
+                      className={`h-14 rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition-all ${formData.customer_type === t ? 'border-current' : 'border-[#e2e8f0] hover:border-[#cbd5e1]'}`}
+                      style={formData.customer_type === t ? { borderColor: color, backgroundColor: bg } : {}}>
+                      <Icon className="h-5 w-5" style={{ color: formData.customer_type === t ? color : '#94a3b8' }} />
+                      <span className="text-[12px] font-semibold" style={{ color: formData.customer_type === t ? color : '#64748b' }}>{l}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Gastro/VO extra fields */}
+              {(formData.customer_type === 'gastro' || formData.customer_type === 'wholesale') && (
+                <div className="grid grid-cols-2 gap-3">
+                  {inp('Obchodný názov', 'company_name', formData.company_name, v => setFormData({ ...formData, company_name: v }), { placeholder: 'napr. Reštaurácia s.r.o.' })}
+                  {inp('Kontaktná osoba *', 'name', formData.name, v => setFormData({ ...formData, name: v }), { placeholder: 'Ján Novák', required: true })}
+                </div>
+              )}
+
+              {/* Home name */}
+              {(formData.customer_type === 'home' || !formData.customer_type) && (
+                inp('Meno *', 'name', formData.name, v => setFormData({ ...formData, name: v }), { placeholder: 'napr. Ján Novák', required: true })
+              )}
+
+              {/* IČO/DIČ pre gastro/VO */}
+              {(formData.customer_type === 'gastro' || formData.customer_type === 'wholesale') && (
+                <div className="grid grid-cols-3 gap-3">
+                  {inp('IČO', 'ico', formData.ico, v => setFormData({ ...formData, ico: v }), { placeholder: '12345678' })}
+                  {inp('DIČ', 'dic', formData.dic, v => setFormData({ ...formData, dic: v }), { placeholder: '2012345678' })}
+                  {inp('IČ DPH', 'ic_dph', formData.ic_dph, v => setFormData({ ...formData, ic_dph: v }), { placeholder: 'SK20123...' })}
+                </div>
+              )}
+
+              {/* Kontakt */}
+              <div className="grid grid-cols-2 gap-3">
+                {inp('Email', 'email', formData.email, v => setFormData({ ...formData, email: v }), { placeholder: 'info@example.sk', type: 'email' })}
+                {inp('Telefón', 'phone', formData.phone, v => setFormData({ ...formData, phone: v }), { placeholder: '+421 900 123 456' })}
+              </div>
+
+              {/* Adresa */}
+              <div>
+                <label className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">Adresa</label>
+                <Textarea value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })}
+                  placeholder="Ulica, Mesto, PSČ" rows={2} className="border-[#e2e8f0] text-[13px] resize-none" />
+              </div>
+
+              {/* Bankový účet pre gastro/VO */}
+              {(formData.customer_type === 'gastro' || formData.customer_type === 'wholesale') && (
+                inp('Bankový účet', 'bank_account', formData.bank_account, v => setFormData({ ...formData, bank_account: v }), { placeholder: 'SK12 3456 7890...' })
+              )}
+
+              {/* Nastavenia */}
+              <div className="bg-[#f8fafc] rounded-xl border border-[#e2e8f0] p-4 space-y-3">
+                <div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1">Nastavenia doručenia</div>
+
+                {/* Trasa */}
+                <div>
+                  <label className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">Rozvozová trasa</label>
+                  <Select value={formData.delivery_route_id || 'none'} onValueChange={v => setFormData({ ...formData, delivery_route_id: v === 'none' ? null : v })}>
+                    <SelectTrigger className="h-9 border-[#e2e8f0] bg-white text-[13px]"><SelectValue placeholder="Vyberte trasu" /></SelectTrigger>
+                    <SelectContent className="bg-white z-[9999]">
+                      <SelectItem value="none">Žiadna trasa</SelectItem>
+                      {deliveryRoutes.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="grid gap-2">
-                  <Label htmlFor="sku_prefix">SKU prefix (katalógové číslo)</Label>
-                  <Input
-                    id="sku_prefix"
-                    value={formData.sku_prefix || ''}
-                    onChange={(e) => setFormData({ ...formData, sku_prefix: e.target.value.toUpperCase() })}
-                    placeholder="napr. BRC, HAF, MIZC"
-                    maxLength={10}
-                    className="uppercase font-mono"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    3-4 znaky pre jednoznačnú identifikáciu. Použije sa v e-shope.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-4 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="germination">Dni klíčenia</Label>
-                    <Input
-                      id="germination"
-                      type="number"
-                      min="0"
-                      value={formData.days_to_germination || ''}
-                      onChange={(e) => {
-                        const value = e.target.value === '' ? 0 : parseInt(e.target.value);
-                        setFormData(prev => ({ 
-                          ...prev, 
-                          days_to_germination: value,
-                          days_to_harvest: value + prev.days_in_darkness + prev.days_on_light
-                        }));
-                      }}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="darkness">Dni v tme</Label>
-                    <Input
-                      id="darkness"
-                      type="number"
-                      min="0"
-                      value={formData.days_in_darkness || ''}
-                      onChange={(e) => {
-                        const value = e.target.value === '' ? 0 : parseInt(e.target.value);
-                        setFormData(prev => ({ 
-                          ...prev, 
-                          days_in_darkness: value,
-                          days_to_harvest: prev.days_to_germination + value + prev.days_on_light
-                        }));
-                      }}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="light">Dni na svetle</Label>
-                    <Input
-                      id="light"
-                      type="number"
-                      min="0"
-                      value={formData.days_on_light || ''}
-                      onChange={(e) => {
-                        const value = e.target.value === '' ? 0 : parseInt(e.target.value);
-                        setFormData(prev => ({ 
-                          ...prev, 
-                          days_on_light: value,
-                          days_to_harvest: prev.days_to_germination + prev.days_in_darkness + value
-                        }));
-                      }}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="harvest">Celkom do zberu</Label>
-                    <Input
-                      id="harvest"
-                      type="number"
-                      min="0"
-                      value={formData.days_to_harvest || ''}
-                      readOnly
-                      className="bg-muted cursor-not-allowed"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label>Typ klíčenia</Label>
-                    <Select 
-                      value={formData.germination_type} 
-                      onValueChange={(value) => setFormData({ ...formData, germination_type: value })}
-                    >
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="warm">V teple</SelectItem>
-                        <SelectItem value="cold">V chlade</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Zaťaženie</Label>
-                    <Select 
-                      value={formData.needs_weight ? 'yes' : 'no'} 
-                      onValueChange={(value) => setFormData({ ...formData, needs_weight: value === 'yes' })}
-                    >
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="yes">Áno</SelectItem>
-                        <SelectItem value="no">Nie</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium text-sm">Konfigurácia veľkostí tácok</h4>
-                  </div>
-                  <div className="grid gap-3">
-                    {(['XL', 'L', 'M', 'S'] as const).map((size) => (
-                      <div key={size} className="grid grid-cols-[60px_1fr_1fr] gap-3 items-center">
-                        <Label className="font-semibold">{size}</Label>
-                        <div className="grid gap-1">
-                          <Label className="text-xs text-muted-foreground">Hustota (g)</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.1"
-                            value={formData.tray_configs[size].seed_density || ''}
-                            onChange={(e) => setFormData({
-                              ...formData,
-                              tray_configs: {
-                                ...formData.tray_configs,
-                                [size]: {
-                                  ...formData.tray_configs[size],
-                                  seed_density: e.target.value === '' ? 0 : parseFloat(e.target.value)
-                                }
-                              }
-                            })}
-                            className="h-8"
-                          />
-                        </div>
-                        <div className="grid gap-1">
-                          <Label className="text-xs text-muted-foreground">Výnos (g)</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            value={formData.tray_configs[size].expected_yield || ''}
-                            onChange={(e) => setFormData({
-                              ...formData,
-                              tray_configs: {
-                                ...formData.tray_configs,
-                                [size]: {
-                                  ...formData.tray_configs[size],
-                                  expected_yield: e.target.value === '' ? 0 : parseFloat(e.target.value)
-                                }
-                              }
-                            })}
-                            className="h-8"
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="pt-2 border-t">
-                    <div className="grid gap-2">
-                      <Label htmlFor="safetyBuffer">Predvolená rezerva (%)</Label>
-                      <Input
-                        id="safetyBuffer"
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        value={formData.safety_buffer_percent || ''}
-                        onChange={(e) => setFormData({ ...formData, safety_buffer_percent: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
-                        className="h-8"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid gap-4">
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="grid gap-2">
-                      <Label>Namáčanie</Label>
-                      <Select
-                        value={formData.soaking ? 'yes' : 'no'}
-                        onValueChange={(value) => {
-                          const soakingValue = value === 'yes';
-                          setFormData({
-                            ...formData,
-                            soaking: soakingValue,
-                            seed_soaking: soakingValue,
-                            soaking_duration_hours: soakingValue ? (formData.soaking_duration_hours || '') : 0
-                          });
-                        }}
-                      >
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="no">Nie</SelectItem>
-                          <SelectItem value="yes">Áno</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>Rezaná forma</Label>
-                      <Select
-                        value={formData.can_be_cut ? 'yes' : 'no'}
-                        onValueChange={(value) => setFormData({ ...formData, can_be_cut: value === 'yes' })}
-                      >
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="yes">Áno</SelectItem>
-                          <SelectItem value="no">Nie</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>Živá forma</Label>
-                      <Select
-                        value={formData.can_be_live ? 'yes' : 'no'}
-                        onValueChange={(value) => setFormData({ ...formData, can_be_live: value === 'yes' })}
-                      >
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="yes">Áno</SelectItem>
-                          <SelectItem value="no">Nie</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {formData.soaking && (
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="soaking-duration">Doba namáčania (hodiny) *</Label>
-                        <Input
-                          id="soaking-duration"
-                          type="text"
-                          inputMode="decimal"
-                          value={formData.soaking_duration_hours?.toString().replace('.', ',') || ''}
-                          onChange={(e) => {
-                            const value = e.target.value.replace(',', '.');
-                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                              setFormData({
-                                ...formData,
-                                soaking_duration_hours: value === '' ? '' : value
-                              });
-                            }
-                          }}
-                          onBlur={(e) => {
-                            const value = e.target.value.replace(',', '.');
-                            const numValue = parseFloat(value);
-                            if (!isNaN(numValue)) {
-                              setFormData({
-                                ...formData,
-                                soaking_duration_hours: numValue
-                              });
-                            }
-                          }}
-                          placeholder="napr. 12 alebo 0,5"
-                          required
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid gap-2">
-                  <Label>Farba</Label>
-                  <div className="flex gap-2 flex-wrap">
-                    {CROP_COLORS.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        className={`h-8 w-8 rounded-full transition-all ${
-                          formData.color === color ? 'ring-2 ring-offset-2 ring-offset-background ring-primary scale-110' : ''
-                        }`}
-                        style={{ backgroundColor: color }}
-                        onClick={() => setFormData({ ...formData, color })}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="substrate-type">Predvolený substrát</Label>
-                    <Select
-                      value={formData.default_substrate_type}
-                      onValueChange={(value) => setFormData({ ...formData, default_substrate_type: value })}
-                    >
-                      <SelectTrigger id="substrate-type">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="peat">Rašelina</SelectItem>
-                        <SelectItem value="coco">Kokos</SelectItem>
-                        <SelectItem value="mixed">Miešaný (Rašelina/Kokos)</SelectItem>
-                        <SelectItem value="other">Iný</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {formData.default_substrate_type === 'other' && (
-                    <div className="grid gap-2">
-                      <Label htmlFor="substrate-note">Poznámka k substrátu</Label>
-                      <Input
-                        id="substrate-note"
-                        value={formData.default_substrate_note}
-                        onChange={(e) => setFormData({ ...formData, default_substrate_note: e.target.value })}
-                        placeholder="Napríklad: 70% rašelina, 30% perlít"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="notes">Poznámky</Label>
-                  <Textarea
-                    id="notes"
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    placeholder="Ďalšie informácie o plodine..."
-                    rows={2}
-                  />
-                </div>
-              </div>
-
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Zrušiť
-                </Button>
-                <Button type="submit" disabled={saving}>
-                  {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {editingCrop ? 'Uložiť zmeny' : 'Pridať plodinu'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </PageHeader>
-
-      {crops.length === 0 ? (
-        <EmptyState
-          icon={<Leaf className="h-8 w-8" />}
-          title="Žiadne plodiny"
-          description="Začnite pridaním vašej prvej plodiny."
-          action={
-            <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Pridať plodinu
-            </Button>
-          }
-        />
-      ) : filteredCrops.length === 0 ? (
-        <EmptyState
-          icon={<Leaf className="h-8 w-8" />}
-          title="Žiadne výsledky"
-          description="Skúste zmeniť filter kategórie."
-        />
-      ) : effectiveViewMode === 'grid' && !isMobile ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredCrops.map((crop) => (
-            <Card
-              key={crop.id}
-              className="p-4 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer"
-              onClick={() => {
-                setSelectedCropDetail(crop);
-                setDetailModalOpen(true);
-              }}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="h-10 w-10 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: `${crop.color}20`, color: crop.color || '#22c55e' }}
-                  >
-                    <Leaf className="h-5 w-5" />
-                  </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Platba */}
                   <div>
-                    <h3 className="font-semibold">{crop.name}</h3>
-                    {crop.variety && (
-                      <p className="text-xs text-muted-foreground">{crop.variety}</p>
-                    )}
-                    {crop.category && (
-                      <Badge variant="secondary" className="mt-1 text-xs">
-                        {CROP_CATEGORIES[crop.category as keyof typeof CROP_CATEGORIES] || crop.category}
-                      </Badge>
-                    )}
+                    <label className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">Spôsob platby</label>
+                    <Select value={formData.payment_method} onValueChange={(v: 'cash'|'card'|'invoice') => setFormData({ ...formData, payment_method: v })}>
+                      <SelectTrigger className="h-9 border-[#e2e8f0] bg-white text-[13px]"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-white z-[9999]">
+                        <SelectItem value="cash">Hotovosť</SelectItem>
+                        <SelectItem value="card">Karta</SelectItem>
+                        <SelectItem value="invoice">Faktúra</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Obal */}
+                  <div>
+                    <label className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">Predvolený obal</label>
+                    <Select value={formData.default_packaging_type} onValueChange={v => setFormData({ ...formData, default_packaging_type: v })}>
+                      <SelectTrigger className="h-9 border-[#e2e8f0] bg-white text-[13px]"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-white z-[9999]">
+                        <SelectItem value="rPET">rPET</SelectItem>
+                        <SelectItem value="PET">PET</SelectItem>
+                        <SelectItem value="EKO">EKO</SelectItem>
+                        <SelectItem value="Vratný obal">Vratný obal</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => openEditDialog(crop)}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  {isAdmin && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => setDeleteId(crop.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+
+                {/* Switche */}
+                <div className="flex gap-6">
+                  <div className="flex items-center gap-2">
+                    <Switch id="free_delivery" checked={formData.free_delivery} onCheckedChange={v => setFormData({ ...formData, free_delivery: v })} />
+                    <Label htmlFor="free_delivery" className="text-[13px] cursor-pointer">Doprava zdarma</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch id="returnable" checked={formData.uses_returnable_containers} onCheckedChange={v => setFormData({ ...formData, uses_returnable_containers: v })} />
+                    <Label htmlFor="returnable" className="text-[13px] cursor-pointer">Vratné obaly</Label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Poznámky */}
+              <div>
+                <label className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">Poznámky k dodaniu</label>
+                <Textarea value={formData.delivery_notes} onChange={e => setFormData({ ...formData, delivery_notes: e.target.value })}
+                  placeholder="Špeciálne požiadavky, dodacie inštrukcie..." rows={2} className="border-[#e2e8f0] text-[13px] resize-none" />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end gap-2 pt-5 border-t border-[#f1f5f9] mt-5">
+              <button type="button" onClick={() => { setIsDialogOpen(false); resetForm(); }}
+                className="px-4 py-2 rounded-lg border border-[#e2e8f0] text-[13px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
+                Zrušiť
+              </button>
+              <button type="submit" disabled={saving}
+                className="flex items-center gap-2 px-5 py-2 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-[13px] font-semibold transition-colors disabled:opacity-60">
+                {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+                {editingCustomer ? 'Uložiť zmeny' : 'Pridať zákazníka'}
+              </button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── DETAIL DIALOG ── */}
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          {detailCustomer && (() => {
+            const c = detailCustomer;
+            const tc = typeChip(c.customer_type);
+            const dn = displayName(c);
+            const wallet = customerCredits[c.id];
+            return (
+              <>
+                <DialogHeader className="pb-2">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${tc ? tc.bg : 'bg-[#f8fafc]'}`}>
+                      {tc ? <tc.Icon className={`h-6 w-6 ${tc.text}`} /> : <Users className="h-6 w-6 text-[#94a3b8]" />}
+                    </div>
+                    <div>
+                      <DialogTitle className="text-[16px] font-bold text-[#0f172a]">{dn}</DialogTitle>
+                      {(c.customer_type === 'gastro' || c.customer_type === 'wholesale') && (c as any).company_name && c.name !== (c as any).company_name && (
+                        <div className="text-[12px] text-[#94a3b8]">{c.name}</div>
+                      )}
+                      {tc && (
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10px] font-semibold mt-1 ${tc.bg} ${tc.border} ${tc.text}`}>
+                          <tc.Icon className="w-2.5 h-2.5" />{tc.label}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </DialogHeader>
+
+                <div className="space-y-4 pt-2">
+                  {/* Meta grid */}
+                  <div className="grid grid-cols-2 gap-px bg-[#f1f5f9] border border-[#f1f5f9] rounded-xl overflow-hidden">
+                    {c.phone && (
+                      <div className="bg-white px-4 py-3">
+                        <div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1">Telefón</div>
+                        <a href={`tel:${c.phone}`} className="text-[13px] font-semibold text-[#16a34a] flex items-center gap-1.5">
+                          <Phone className="h-3.5 w-3.5" />{c.phone}
+                        </a>
+                      </div>
+                    )}
+                    {c.email && (
+                      <div className="bg-white px-4 py-3">
+                        <div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1">Email</div>
+                        <a href={`mailto:${c.email}`} className="text-[13px] font-semibold text-[#16a34a] flex items-center gap-1.5 truncate">
+                          <Mail className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{c.email}</span>
+                        </a>
+                      </div>
+                    )}
+                    {getRouteName(c.delivery_route_id) && (
+                      <div className="bg-white px-4 py-3">
+                        <div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1">Trasa</div>
+                        <div className="text-[13px] font-semibold text-[#0f172a] flex items-center gap-1.5">
+                          <Route className="h-3.5 w-3.5 text-[#94a3b8]" />{getRouteName(c.delivery_route_id)}
+                        </div>
+                      </div>
+                    )}
+                    <div className="bg-white px-4 py-3">
+                      <div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1">Platba</div>
+                      <div className="text-[13px] font-semibold text-[#0f172a]">{paymentLabel((c as any).payment_method || 'cash')}</div>
+                    </div>
+                    <div className="bg-white px-4 py-3">
+                      <div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1">Objednávky</div>
+                      <div className="text-[13px] font-semibold text-[#0f172a] flex items-center gap-1.5">
+                        <ShoppingCart className="h-3.5 w-3.5 text-[#94a3b8]" />{customerStats[c.id] || 0} obj.
+                      </div>
+                    </div>
+                    {(c as any).ico && (
+                      <div className="bg-white px-4 py-3">
+                        <div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1">IČO</div>
+                        <div className="text-[13px] font-semibold text-[#0f172a]">{(c as any).ico}</div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Adresa */}
+                  {c.address && (
+                    <div className="flex items-start justify-between gap-3 px-4 py-3 bg-white border border-[#e2e8f0] rounded-xl">
+                      <div className="flex items-start gap-2">
+                        <MapPin className="h-4 w-4 text-[#94a3b8] mt-0.5 shrink-0" />
+                        <span className="text-[13px] text-[#475569]">{c.address}</span>
+                      </div>
+                      <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.address)}`} target="_blank" rel="noopener noreferrer"
+                        className="shrink-0 flex items-center gap-1 text-[12px] text-[#16a34a] font-medium hover:underline">
+                        <Navigation className="h-3.5 w-3.5" />Navigovať
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Pugilar wallet */}
+                  {wallet?.wallet_enabled && (
+                    <div className="px-4 py-3 rounded-xl" style={{ background: 'linear-gradient(135deg, #3B6D11, #639922)' }}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-white/80 text-[12px]">Pugilar kredit</span>
+                        <span className="text-white text-[18px] font-bold">{(wallet.credit || 0).toFixed(2).replace('.', ',')} €</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Poznámky */}
+                  {c.delivery_notes && (
+                    <div className="px-4 py-3 bg-[#eff6ff] border border-[#bfdbfe] rounded-xl">
+                      <div className="text-[10px] font-semibold text-[#1e40af] uppercase tracking-wider mb-1">Poznámky k dodaniu</div>
+                      <div className="text-[13px] text-[#1d4ed8] whitespace-pre-wrap">{c.delivery_notes}</div>
+                    </div>
+                  )}
+
+                  {/* Flags */}
+                  {((c as any).free_delivery || (c as any).uses_returnable_containers) && (
+                    <div className="flex gap-2 flex-wrap">
+                      {(c as any).free_delivery && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#f0fdf4] border border-[#bbf7d0] text-[#166534] text-[12px] font-medium">
+                          Doprava zdarma
+                        </span>
+                      )}
+                      {(c as any).uses_returnable_containers && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#f0fdf4] border border-[#bbf7d0] text-[#166534] text-[12px] font-medium">
+                          <Package className="h-3.5 w-3.5" />Vratné obaly
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
-              </div>
 
-              <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Clock className="h-4 w-4" />
-                  <span>{crop.days_to_harvest} dní</span>
+                <div className="flex justify-end gap-2 pt-4 border-t border-[#f1f5f9] mt-4">
+                  <button onClick={() => setDetailOpen(false)}
+                    className="px-4 py-2 rounded-lg border border-[#e2e8f0] text-[13px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
+                    Zavrieť
+                  </button>
+                  <button onClick={() => { setDetailOpen(false); openEdit(c); }}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-[13px] font-semibold transition-colors">
+                    <Pencil className="h-4 w-4" />Upraviť
+                  </button>
                 </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Droplets className="h-4 w-4" />
-                  <span>{(crop as any).tray_configs?.XL?.seed_density || crop.seed_density} g/tác</span>
-                </div>
-                {((crop as any).tray_configs?.XL?.expected_yield || crop.expected_yield) && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Scissors className="h-4 w-4" />
-                    <span>{(crop as any).tray_configs?.XL?.expected_yield || crop.expected_yield} g výnos</span>
-                  </div>
-                )}
-                {crop.germination_type && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    {crop.germination_type === 'warm' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-                    <span>{GERMINATION_TYPES[crop.germination_type as keyof typeof GERMINATION_TYPES]}</span>
-                  </div>
-                )}
-                {crop.needs_weight && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Weight className="h-4 w-4" />
-                    <span>Zaťaženie</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-3 flex flex-wrap gap-1">
-                {crop.seed_soaking && (
-                  <Badge variant="outline" className="text-xs">Namáčanie</Badge>
-                )}
-                {crop.can_be_cut && (
-                  <Badge variant="outline" className="text-xs">Rezaná</Badge>
-                )}
-                {crop.can_be_live && (
-                  <Badge variant="outline" className="text-xs">Živá</Badge>
-                )}
-              </div>
-            </Card>
-          ))}
-        </div>
-      ) : effectiveViewMode === 'grid' && isMobile ? (
-        <div className="grid gap-4">
-          {filteredCrops.map((crop) => {
-            const isExpanded = expandedCards.has(crop.id);
-
-            const toggleExpand = () => {
-              const newExpanded = new Set(expandedCards);
-              if (isExpanded) {
-                newExpanded.delete(crop.id);
-              } else {
-                newExpanded.add(crop.id);
-              }
-              setExpandedCards(newExpanded);
-            };
-
-            return (
-              <Card
-                key={crop.id}
-                className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-                onClick={toggleExpand}
-              >
-                {/* HEADER - ALWAYS VISIBLE */}
-                <div className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3 flex-1">
-                      <div
-                        className="h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                        style={{ backgroundColor: `${crop.color}20`, color: crop.color || '#22c55e' }}
-                      >
-                        <Leaf className="h-5 w-5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold truncate">{crop.name}</h3>
-                        {crop.variety && (
-                          <p className="text-xs text-muted-foreground truncate">{crop.variety}</p>
-                        )}
-                        <Badge variant="secondary" className="mt-1 text-xs">
-                          {CROP_CATEGORIES[crop.category as keyof typeof CROP_CATEGORIES] || crop.category}
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      {isExpanded ? (
-                        <ChevronUp className="h-5 w-5 text-muted-foreground" />
-                      ) : (
-                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                      )}
-                    </div>
-                  </div>
-
-                  {/* QUICK INFO - ALWAYS VISIBLE */}
-                  <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Clock className="h-4 w-4" />
-                      <span>{crop.days_to_harvest} dní</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Droplets className="h-4 w-4" />
-                      <span>{(crop as any).tray_configs?.XL?.seed_density || crop.seed_density} g/tác</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* EXPANDED CONTENT - VŠETKY POLIA */}
-                {isExpanded && (
-                  <div className="px-4 pb-4 pt-2 border-t bg-gray-50/50 space-y-3">
-                    {/* ČASOVÉ ÚDAJE */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <div className="text-xs text-muted-foreground mb-1">Dni klíčenia</div>
-                        <div className="text-sm font-medium flex items-center gap-1">
-                          <Sprout className="h-3 w-3" />
-                          {crop.days_to_germination} dní
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-muted-foreground mb-1">Typ klíčenia</div>
-                        <div className="text-sm font-medium flex items-center gap-1">
-                          {crop.germination_type === 'warm' ? <Sun className="h-3 w-3" /> : <Moon className="h-3 w-3" />}
-                          {GERMINATION_TYPES[crop.germination_type as keyof typeof GERMINATION_TYPES] || crop.germination_type}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-muted-foreground mb-1">Dni v tme</div>
-                        <div className="text-sm font-medium">{crop.days_in_darkness} dní</div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-muted-foreground mb-1">Dni na svetle</div>
-                        <div className="text-sm font-medium">{crop.days_on_light} dní</div>
-                      </div>
-                    </div>
-
-                    {/* PRODUKČNÉ ÚDAJE */}
-                    <div className="pt-2 border-t">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <div className="text-xs text-muted-foreground mb-1">Výnos</div>
-                          <div className="text-sm font-medium flex items-center gap-1">
-                            <Scissors className="h-3 w-3" />
-                            {(crop as any).tray_configs?.XL?.expected_yield || crop.expected_yield || '-'} g
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-xs text-muted-foreground mb-1">Zaťaženie</div>
-                          <div className="text-sm font-medium flex items-center gap-1">
-                            <Weight className="h-3 w-3" />
-                            {crop.needs_weight ? 'Áno' : 'Nie'}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* VLASTNOSTI */}
-                    <div className="pt-2 border-t">
-                      <div className="text-xs text-muted-foreground mb-2">Vlastnosti</div>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span>Namáčanie osiva</span>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">
-                              {((crop as any).soaking || crop.seed_soaking) ? 'Áno' : 'Nie'}
-                            </span>
-                            {(crop as any).soaking_duration_hours > 0 && (
-                              <Badge variant="secondary" className="text-xs">
-                                {(crop as any).soaking_duration_hours}h
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span>Rezaná forma</span>
-                          <span className="font-medium">{crop.can_be_cut ? 'Áno' : 'Nie'}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span>Živá forma</span>
-                          <span className="font-medium">{crop.can_be_live ? 'Áno' : 'Nie'}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* POZNÁMKY */}
-                    {crop.notes && (
-                      <div className="pt-2 border-t">
-                        <div className="text-xs text-muted-foreground mb-1">Poznámky</div>
-                        <div className="text-sm whitespace-pre-wrap">{crop.notes}</div>
-                      </div>
-                    )}
-
-                    {/* AKCIE */}
-                    <div className="pt-3 border-t flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedCropDetail(crop);
-                          setDetailModalOpen(true);
-                        }}
-                      >
-                        Detail
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEditDialog(crop);
-                        }}
-                      >
-                        <Pencil className="h-3 w-3 mr-1" />
-                        Upraviť
-                      </Button>
-                      {isAdmin && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-destructive hover:bg-destructive hover:text-white"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteId(crop.id);
-                          }}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </Card>
+              </>
             );
-          })}
-        </div>
-      ) : (
-        <PullToRefresh onRefresh={handleRefresh}>
-          <Card className="hidden md:block">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <MobileTableRow>
-                    <MobileTableHead>Názov</MobileTableHead>
-                    <MobileTableHead>Kategória</MobileTableHead>
-                    <MobileTableHead hideOnMobile>Dni do zberu</MobileTableHead>
-                    <MobileTableHead hideOnMobile>Hustota</MobileTableHead>
-                    <MobileTableHead hideOnMobile>Výnos</MobileTableHead>
-                    <MobileTableHead hideOnMobile>Zaťaženie</MobileTableHead>
-                    <MobileTableHead className="w-24">Akcie</MobileTableHead>
-                    {isMobile && <MobileTableHead className="w-10"></MobileTableHead>}
-                  </MobileTableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredCrops.map((crop) => (
-                    <MobileTableRow
-                      key={crop.id}
-                      className="cursor-pointer hover:bg-gray-50"
-                      onClick={() => openEditDialog(crop)}
-                      expandedContent={
-                        <>
-                          <ExpandedDetail label="Dni do zberu" value={`${crop.days_to_harvest} dní`} />
-                          <ExpandedDetail label="Hustota" value={`${(crop as any).tray_configs?.XL?.seed_density || crop.seed_density} g/tác`} />
-                          <ExpandedDetail label="Výnos" value={(crop as any).tray_configs?.XL?.expected_yield || crop.expected_yield ? `${(crop as any).tray_configs?.XL?.expected_yield || crop.expected_yield} g` : '-'} />
-                          <ExpandedDetail label="Zaťaženie" value={crop.needs_weight ? 'Áno' : 'Nie'} />
-                          <ExpandedDetail label="Namáčanie" value={crop.seed_soaking ? 'Áno' : 'Nie'} />
-                          <ExpandedDetail label="Rezaná forma" value={crop.can_be_cut ? 'Áno' : 'Nie'} />
-                          <ExpandedDetail label="Živá forma" value={crop.can_be_live ? 'Áno' : 'Nie'} />
-                        </>
-                      }
-                    >
-                      <MobileTableCell>
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="h-6 w-6 rounded flex items-center justify-center"
-                            style={{ backgroundColor: `${crop.color}20`, color: crop.color || '#22c55e' }}
-                          >
-                            <Leaf className="h-3 w-3" />
-                          </div>
-                          <div>
-                            <p className="font-medium">{crop.name}</p>
-                            {crop.variety && <p className="text-xs text-muted-foreground">{crop.variety}</p>}
-                          </div>
-                        </div>
-                      </MobileTableCell>
-                      <MobileTableCell>
-                        <Badge variant="secondary" className="text-xs">
-                          {CROP_CATEGORIES[crop.category as keyof typeof CROP_CATEGORIES] || crop.category}
-                        </Badge>
-                      </MobileTableCell>
-                      <MobileTableCell hideOnMobile>{crop.days_to_harvest} dní</MobileTableCell>
-                      <MobileTableCell hideOnMobile>{(crop as any).tray_configs?.XL?.seed_density || crop.seed_density} g/tác</MobileTableCell>
-                      <MobileTableCell hideOnMobile>{(crop as any).tray_configs?.XL?.expected_yield || crop.expected_yield || '-'} g</MobileTableCell>
-                      <MobileTableCell hideOnMobile>
-                        {crop.needs_weight ? (
-                          <div className="flex items-center gap-1 text-primary">
-                            <Weight className="h-4 w-4" />
-                            <span>Áno</span>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">Nie</span>
-                        )}
-                      </MobileTableCell>
-                      <MobileTableCell onClick={(e) => e.stopPropagation()}>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(crop)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          {isAdmin && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteId(crop.id)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          )}
-                        </div>
-                      </MobileTableCell>
-                    </MobileTableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </Card>
-        </PullToRefresh>
-      )}
+          })()}
+        </DialogContent>
+      </Dialog>
 
+      {/* ── DELETE CONFIRM ── */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Odstrániť plodinu?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Táto akcia je nevratná. Plodina bude permanentne odstránená z katalógu.
-            </AlertDialogDescription>
+            <AlertDialogTitle>Odstrániť zákazníka?</AlertDialogTitle>
+            <AlertDialogDescription>Táto akcia je nevratná. Zákazník bude permanentne odstránený z databázy.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Zrušiť</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Odstrániť
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Odstrániť</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Detail Modal */}
-      <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">Detail plodiny</DialogTitle>
-          </DialogHeader>
-          {selectedCropDetail && (
-            <div className="space-y-6">
-              <div className="flex items-center gap-4">
-                <div
-                  className="h-16 w-16 rounded-lg flex items-center justify-center"
-                  style={{ backgroundColor: `${selectedCropDetail.color}20`, color: selectedCropDetail.color || '#22c55e' }}
-                >
-                  <Leaf className="h-8 w-8" />
-                </div>
-                <div>
-                  <h3 className="text-2xl font-bold">{selectedCropDetail.name}</h3>
-                  {selectedCropDetail.variety && (
-                    <p className="text-sm text-muted-foreground">{selectedCropDetail.variety}</p>
-                  )}
-                  {selectedCropDetail.category && (
-                    <Badge variant="secondary" className="mt-1">
-                      {CROP_CATEGORIES[selectedCropDetail.category as keyof typeof CROP_CATEGORIES] || selectedCropDetail.category}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Dni do zberu</div>
-                  <div className="font-medium">{selectedCropDetail.days_to_harvest} dní</div>
-                </div>
-                <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Dni klíčenia</div>
-                  <div className="font-medium">{selectedCropDetail.days_to_germination} dní</div>
-                </div>
-                <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Typ klíčenia</div>
-                  <div className="font-medium">
-                    {GERMINATION_TYPES[selectedCropDetail.germination_type as keyof typeof GERMINATION_TYPES] || selectedCropDetail.germination_type}
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Hustota osiva</div>
-                  <div className="font-medium">{(selectedCropDetail as any).tray_configs?.XL?.seed_density || selectedCropDetail.seed_density} g/tác</div>
-                </div>
-                <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Očakávaný výnos</div>
-                  <div className="font-medium">{(selectedCropDetail as any).tray_configs?.XL?.expected_yield || selectedCropDetail.expected_yield || '-'} g</div>
-                </div>
-                <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Dni v tme</div>
-                  <div className="font-medium">{selectedCropDetail.days_in_darkness} dní</div>
-                </div>
-                <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Dni na svetle</div>
-                  <div className="font-medium">{selectedCropDetail.days_on_light} dní</div>
-                </div>
-                <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Namáčanie osiva</div>
-                  <div className="font-medium">
-                    {((selectedCropDetail as any).soaking || selectedCropDetail.seed_soaking) ? (
-                      <div className="flex items-center gap-2">
-                        <span>Áno</span>
-                        {(selectedCropDetail as any).soaking_duration_hours > 0 && (
-                          <Badge variant="secondary" className="text-xs">
-                            {(selectedCropDetail as any).soaking_duration_hours}h
-                          </Badge>
-                        )}
-                      </div>
-                    ) : (
-                      'Nie'
-                    )}
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Zaťaženie</div>
-                  <div className="font-medium">{selectedCropDetail.needs_weight ? 'Áno' : 'Nie'}</div>
-                </div>
-                <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Rezaná forma</div>
-                  <div className="font-medium">{selectedCropDetail.can_be_cut ? 'Áno' : 'Nie'}</div>
-                </div>
-                <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Živá forma</div>
-                  <div className="font-medium">{selectedCropDetail.can_be_live ? 'Áno' : 'Nie'}</div>
-                </div>
-              </div>
-
-              {selectedCropDetail.notes && (
-                <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Poznámky</div>
-                  <div className="text-sm whitespace-pre-wrap">{selectedCropDetail.notes}</div>
-                </div>
-              )}
-
-              <div className="flex gap-2 justify-end pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setDetailModalOpen(false)}
-                >
-                  Zavrieť
-                </Button>
-                <Button
-                  onClick={() => {
-                    setDetailModalOpen(false);
-                    openEditDialog(selectedCropDetail);
-                  }}
-                >
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Upraviť
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </MainLayout>
   );
 };
 
-export default CropsPage;
+export default CustomersPage;
