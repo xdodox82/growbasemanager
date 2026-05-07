@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { PageHeader, EmptyState } from '@/components/ui/page-components';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CalendarIcon, Package, Check, RotateCcw, Home, Utensils, Store, Tag, ChevronLeft, ChevronRight, Leaf, Sprout, Flower, Grid3x3, GripVertical, Scissors, UtensilsCrossed, Blend } from 'lucide-react';
+import {
+  CalendarIcon, Package, Check, RotateCcw, House, Utensils, Store, Tag,
+  ChevronLeft, ChevronRight, Leaf, Sprout, Flower2, Grid3x3, GripVertical,
+  Blend, Filter, X, ChevronDown, ChevronUp,
+} from 'lucide-react';
 import { DndContext, closestCenter, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -48,23 +49,14 @@ interface GroupedItem {
   }>;
 }
 
-const getCustomerTypeIcon = (type: string) => {
-  switch (type) {
-    case 'home': return <Home className="h-4 w-4" />;
-    case 'gastro': return <Utensils className="h-4 w-4" />;
-    case 'wholesale': return <Store className="h-4 w-4" />;
-    default: return null;
-  }
-};
+const CUSTOMER_TYPE_CONFIG = {
+  home:      { label: 'Domáci',  Icon: House,    bg: 'bg-[#f0fdf4]', border: 'border-[#16a34a]', text: 'text-[#16a34a]', iconColor: 'text-[#16a34a]' },
+  gastro:    { label: 'Gastro',  Icon: Utensils, bg: 'bg-[#eff6ff]', border: 'border-[#2563eb]', text: 'text-[#2563eb]', iconColor: 'text-[#2563eb]' },
+  wholesale: { label: 'VO',      Icon: Store,    bg: 'bg-[#fff7ed]', border: 'border-[#d97706]', text: 'text-[#d97706]', iconColor: 'text-[#d97706]' },
+} as const;
 
-const getCustomerTypeLabel = (type: string) => {
-  switch (type) {
-    case 'home': return 'Domáci';
-    case 'gastro': return 'Gastro';
-    case 'wholesale': return 'VO';
-    default: return type;
-  }
-};
+const getTypeConfig = (type: string) =>
+  CUSTOMER_TYPE_CONFIG[type as keyof typeof CUSTOMER_TYPE_CONFIG] ?? CUSTOMER_TYPE_CONFIG.home;
 
 export default function PrepPackagingPage() {
   const { toast } = useToast();
@@ -72,6 +64,7 @@ export default function PrepPackagingPage() {
   const [selectedDates, setSelectedDates] = useState<Date[]>([new Date()]);
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [sizeFilter, setSizeFilter] = useState<string>('all');
   const [labelFilter, setLabelFilter] = useState<string>('all');
@@ -98,33 +91,21 @@ export default function PrepPackagingPage() {
     const fetchDeliverySettings = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-
       const { data } = await supabase
         .from('delivery_days_settings')
         .select('*')
         .eq('user_id', user.id)
         .single();
-
       if (data) setDeliverySettings(data);
     };
-
     fetchDeliverySettings();
   }, []);
 
   useEffect(() => {
     const fetchCustomers = async () => {
-      const { data, error } = await supabase
-        .from('customers')
-        .select('*')
-        .order('name');
-
-      if (error) {
-        console.error('❌ Error fetching customers:', error);
-      } else {
-        setCustomers(data || []);
-      }
+      const { data, error } = await supabase.from('customers').select('*').order('name');
+      if (!error) setCustomers(data || []);
     };
-
     fetchCustomers();
   }, []);
 
@@ -132,248 +113,143 @@ export default function PrepPackagingPage() {
     const fetchOrdersForCalendar = async () => {
       const start = startOfMonth(calendarMonth);
       const end = endOfMonth(calendarMonth);
-
       const { data } = await supabase
         .from('orders')
         .select('delivery_date')
         .gte('delivery_date', format(start, 'yyyy-MM-dd'))
         .lte('delivery_date', format(end, 'yyyy-MM-dd'));
-
       if (data) setOrdersForCalendar(data);
     };
-
-    if (deliverySettings) {
-      fetchOrdersForCalendar();
-    }
+    if (deliverySettings) fetchOrdersForCalendar();
   }, [calendarMonth, deliverySettings]);
 
   useEffect(() => {
     const fetchOrders = async () => {
-      if (selectedDates.length === 0) {
-        setAllOrders([]);
-        return;
-      }
-
-      const allOrdersData = [];
-
+      if (selectedDates.length === 0) { setAllOrders([]); return; }
+      const allOrdersData: any[] = [];
       for (const date of selectedDates) {
         const dateStr = format(date, 'yyyy-MM-dd');
-
         const { data, error } = await supabase
           .from('orders')
-          .select(`
-            *,
-            customer:customers(*),
-            items:order_items(
-              *,
-              crop:products(name, category),
-              blend:blends(name)
-            )
-          `)
+          .select(`*, customer:customers(*), items:order_items(*, crop:products(name, category), blend:blends(name))`)
           .eq('delivery_date', dateStr)
           .order('customer_name');
-
-        if (error) {
-          console.error('❌ Error fetching orders for', dateStr, ':', error);
-        } else if (data) {
-          allOrdersData.push(...data);
-        }
+        if (!error && data) allOrdersData.push(...data);
       }
-
-      // Deduplikuj orders podľa ID
-      const uniqueOrders = Array.from(
-        new Map(allOrdersData.map(o => [o.id, o])).values()
-      );
-
+      const uniqueOrders = Array.from(new Map(allOrdersData.map(o => [o.id, o])).values());
       setAllOrders(uniqueOrders);
     };
-
     fetchOrders();
   }, [selectedDates]);
 
   useEffect(() => {
-
     let filtered = [...allOrders];
-
-    if (customerTypeFilter !== 'all') {
-      filtered = filtered.filter(order => order.customer_type === customerTypeFilter);
-    }
-
-    if (customerFilter && customerFilter !== 'all') {
-      filtered = filtered.filter(order => {
-        const matches = order.customer_id === customerFilter;
-        return matches;
-      });
-    }
-
+    if (customerTypeFilter !== 'all') filtered = filtered.filter(o => o.customer_type === customerTypeFilter);
+    if (customerFilter && customerFilter !== 'all') filtered = filtered.filter(o => o.customer_id === customerFilter);
     if (categoryFilter !== 'all') {
       if (categoryFilter === 'blends') {
-        filtered = filtered.filter(order =>
-          order.items?.some((item: any) => item.blend_id !== null)
-        );
+        filtered = filtered.filter(o => o.items?.some((i: any) => i.blend_id !== null));
       } else {
-        filtered = filtered.filter(order =>
-          order.items?.some((item: any) => item.crop?.category === categoryFilter)
-        );
+        filtered = filtered.filter(o => o.items?.some((i: any) => i.crop?.category === categoryFilter));
       }
     }
-
     if (sizeFilter !== 'all') {
-
-      // Preveď filter hodnotu na číslo (napr. "750ml" → 750)
       const filterValue = parseInt(sizeFilter.replace('ml', ''));
-
-      filtered = filtered.filter(order =>
-        order.items?.some((item: any) => item.package_ml === filterValue)
-      );
+      filtered = filtered.filter(o => o.items?.some((i: any) => i.package_ml === filterValue));
     }
-
     if (labelFilter !== 'all') {
-
       const needsLabel = labelFilter === 'yes';
-      filtered = filtered.filter(order =>
-        order.items?.some((item: any) =>
-          item.has_label_req === needsLabel || item.needs_label === needsLabel
-        )
+      filtered = filtered.filter(o =>
+        o.items?.some((i: any) => i.has_label_req === needsLabel || i.needs_label === needsLabel)
       );
     }
-
     if (packagingTypeFilter !== 'all') {
-      filtered = filtered.filter(order =>
-        order.items?.some((item: any) =>
-          item.package_type === packagingTypeFilter
-        )
-      );
+      filtered = filtered.filter(o => o.items?.some((i: any) => i.package_type === packagingTypeFilter));
     }
-
     setFilteredOrders(filtered);
   }, [allOrders, customerTypeFilter, customerFilter, categoryFilter, sizeFilter, labelFilter, packagingTypeFilter]);
 
   useEffect(() => {
     if (filteredOrders.length > 0) {
       const prepared = new Set<string>();
-
       filteredOrders.forEach(order => {
         if (order.status === 'packaging_ready') {
-          order.items?.forEach((item: any) => {
-            const itemId = `${order.id}-${item.id}`;
-            prepared.add(itemId);
-          });
+          order.items?.forEach((item: any) => prepared.add(`${order.id}-${item.id}`));
         }
       });
-
       setPreparedItems(prepared);
     }
   }, [filteredOrders]);
 
   const isDeliveryDay = (date: Date): boolean => {
     if (!deliverySettings) return false;
-    const dayOfWeek = getDay(date);
-
-    switch (dayOfWeek) {
-      case 0: return deliverySettings.sunday || false;
-      case 1: return deliverySettings.monday || false;
-      case 2: return deliverySettings.tuesday || false;
-      case 3: return deliverySettings.wednesday || false;
-      case 4: return deliverySettings.thursday || false;
-      case 5: return deliverySettings.friday || false;
-      case 6: return deliverySettings.saturday || false;
-      default: return false;
-    }
+    const d = getDay(date);
+    const map = [deliverySettings.sunday, deliverySettings.monday, deliverySettings.tuesday,
+      deliverySettings.wednesday, deliverySettings.thursday, deliverySettings.friday, deliverySettings.saturday];
+    return map[d] || false;
   };
 
-  const hasOrdersOnDate = (date: Date): boolean => {
-    return ordersForCalendar.some(order =>
-      isSameDay(new Date(order.delivery_date), date)
-    );
-  };
+  const hasOrdersOnDate = (date: Date) =>
+    ordersForCalendar.some(o => isSameDay(new Date(o.delivery_date), date));
 
-  const goToPreviousMonth = () => {
-    setCalendarMonth(prev => {
-      const newDate = new Date(prev);
-      newDate.setMonth(newDate.getMonth() - 1);
-      return newDate;
-    });
-  };
-
-  const goToNextMonth = () => {
-    setCalendarMonth(prev => {
-      const newDate = new Date(prev);
-      newDate.setMonth(newDate.getMonth() + 1);
-      return newDate;
-    });
-  };
+  const goToPreviousMonth = () => setCalendarMonth(p => { const d = new Date(p); d.setMonth(d.getMonth() - 1); return d; });
+  const goToNextMonth    = () => setCalendarMonth(p => { const d = new Date(p); d.setMonth(d.getMonth() + 1); return d; });
 
   const CalendarGrid = () => {
     const start = startOfMonth(calendarMonth);
     const end = endOfMonth(calendarMonth);
     const days = eachDayOfInterval({ start, end });
-
     const firstDayOfWeek = getDay(start);
     const paddingDays = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
 
     return (
-      <div className="w-[320px] p-4">
+      <div className="w-[308px] p-4">
         <div className="flex items-center justify-between mb-4">
-          <Button variant="ghost" size="sm" onClick={goToPreviousMonth}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <h3 className="font-semibold text-base">
-            {format(calendarMonth, 'MMMM yyyy', { locale: sk })}
-          </h3>
-          <Button variant="ghost" size="sm" onClick={goToNextMonth}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+          <button onClick={goToPreviousMonth} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#f1f5f9] transition-colors">
+            <ChevronLeft className="h-4 w-4 text-[#475569]" />
+          </button>
+          <span className="text-sm font-semibold text-[#0f172a] capitalize">
+            {format(calendarMonth, 'LLLL yyyy', { locale: sk })}
+          </span>
+          <button onClick={goToNextMonth} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#f1f5f9] transition-colors">
+            <ChevronRight className="h-4 w-4 text-[#475569]" />
+          </button>
         </div>
 
-        <div className="grid grid-cols-7 gap-1 mb-2">
+        <div className="grid grid-cols-7 mb-1">
           {['Po', 'Ut', 'St', 'Št', 'Pi', 'So', 'Ne'].map(day => (
-            <div key={day} className="text-center text-xs font-medium text-gray-600 w-9 h-6 flex items-center justify-center">
+            <div key={day} className="h-8 flex items-center justify-center text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wide">
               {day}
             </div>
           ))}
         </div>
 
-        <div className="grid grid-cols-7 gap-1">
-          {Array.from({ length: paddingDays }).map((_, i) => (
-            <div key={`pad-${i}`} className="w-9 h-9" />
-          ))}
-
+        <div className="grid grid-cols-7 gap-0.5">
+          {Array.from({ length: paddingDays }).map((_, i) => <div key={`pad-${i}`} className="w-10 h-10" />)}
           {days.map(day => {
             const isDelivery = isDeliveryDay(day);
             const hasOrders = hasOrdersOnDate(day);
             const today = isToday(day);
             const selected = selectedDates.some(d => isSameDay(d, day));
 
-            let bgColor = 'bg-white hover:bg-gray-50';
-
-            if (isDelivery) {
-              bgColor = 'bg-green-200 hover:bg-green-300';
-            } else if (hasOrders) {
-              bgColor = 'bg-yellow-300 hover:bg-yellow-400';
-            }
-
             return (
               <button
                 key={day.toISOString()}
-                onClick={() => {
-                  // Toggle mode: pridaj/odoberaj deň (funguje na mobile aj PC)
-                  setSelectedDates(prev => {
-                    const exists = prev.some(d => isSameDay(d, day));
-                    if (exists) {
-                      return prev.filter(d => !isSameDay(d, day));
-                    } else {
-                      return [...prev, day];
-                    }
-                  });
-                }}
-                className={`
-                  ${bgColor}
-                  ${today ? 'ring-2 ring-green-600' : ''}
-                  ${selected ? 'ring-2 ring-blue-500' : ''}
-                  rounded-full w-9 h-9 flex items-center justify-center
-                  text-sm font-medium cursor-pointer transition-all
-                `}
+                onClick={() => setSelectedDates(prev => {
+                  const exists = prev.some(d => isSameDay(d, day));
+                  return exists ? prev.filter(d => !isSameDay(d, day)) : [...prev, day];
+                })}
+                className={[
+                  'w-10 h-10 flex items-center justify-center rounded-lg text-sm font-medium transition-all relative',
+                  selected
+                    ? 'bg-[#16a34a] text-white shadow-sm'
+                    : isDelivery
+                    ? 'bg-[#dcfce7] text-[#166534] hover:bg-[#bbf7d0]'
+                    : hasOrders
+                    ? 'bg-[#fef9c3] text-[#713f12] hover:bg-[#fef08a]'
+                    : 'text-[#0f172a] hover:bg-[#f1f5f9]',
+                  today && !selected ? 'ring-2 ring-[#16a34a] ring-offset-1' : '',
+                ].filter(Boolean).join(' ')}
               >
                 {day.getDate()}
               </button>
@@ -381,34 +257,29 @@ export default function PrepPackagingPage() {
           })}
         </div>
 
-        <div className="mt-4 space-y-2 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-green-200 border border-gray-300" />
-            <span className="text-gray-600">Rozvozový deň</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-yellow-300 border border-gray-300" />
-            <span className="text-gray-600">Objednávky mimo rozvozu</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full ring-2 ring-blue-500" />
-            <span>Vybraný deň</span>
-          </div>
-          <div className="mt-3 pt-3 border-t border-gray-200 text-gray-600">
-            <span className="font-medium">Tip:</span> Ctrl/Cmd + klik pre výber viacerých dní
-          </div>
+        <div className="mt-4 pt-3 border-t border-[#e2e8f0] space-y-2">
+          {[
+            { color: 'bg-[#dcfce7] border-[#bbf7d0]', label: 'Rozvozový deň' },
+            { color: 'bg-[#fef9c3] border-[#fef08a]', label: 'Objednávky mimo rozvozu' },
+            { color: 'bg-[#16a34a]', label: 'Vybraný deň' },
+          ].map(({ color, label }) => (
+            <div key={label} className="flex items-center gap-2.5">
+              <div className={`w-4 h-4 rounded-md ${color} border shrink-0`} />
+              <span className="text-xs text-[#475569]">{label}</span>
+            </div>
+          ))}
+          <p className="text-[11px] text-[#94a3b8] pt-1">Klikni na deň pre výber / zrušenie výberu</p>
         </div>
       </div>
     );
   };
 
+  // ── Grouped items logic (unchanged) ─────────────────────────────────────
   const groupedItems = (() => {
     const groups: Record<string, GroupedItem> = {};
 
     filteredOrders.forEach(order => {
-      if (!order.items || order.items.length === 0) {
-        return;
-      }
+      if (!order.items || order.items.length === 0) return;
 
       order.items.forEach((item: any) => {
         const customerName = order.customer_type === 'home'
@@ -417,16 +288,12 @@ export default function PrepPackagingPage() {
 
         const packageSize = item.packaging_size;
         const packageMl = item.package_ml;
-        if (!packageSize) {
-          return;
-        }
+        if (!packageSize) return;
 
         const cropName = item.crop?.name || item.blend?.name || 'Neznáme';
         const isBlend = !!item.blend?.name;
         const packageType = item.packaging_type || 'rPET';
         const hasLabel = item.has_label_req === true;
-
-        // NEW KEY: bez has_label
         const key = `${cropName}-${packageSize}`;
 
         if (!groups[key]) {
@@ -443,7 +310,6 @@ export default function PrepPackagingPage() {
 
         const itemId = `${order.id}-${item.id}`;
         const pieces = Math.ceil(item.quantity || 1);
-
         groups[key].total_pieces += pieces;
 
         const customerItem = {
@@ -452,7 +318,7 @@ export default function PrepPackagingPage() {
           order_item_id: item.id,
           name: customerName || 'Neznámy',
           type: order.customer_type || 'home',
-          pieces: pieces,
+          pieces,
           prepared: preparedItems.has(itemId),
           packaging_size: packageSize,
           package_ml: packageMl || packageSize,
@@ -460,926 +326,641 @@ export default function PrepPackagingPage() {
           has_label_req: hasLabel,
         };
 
-        if (hasLabel) {
-          groups[key].itemsWithLabel.push(customerItem);
-        } else {
-          groups[key].itemsWithoutLabel.push(customerItem);
-        }
+        if (hasLabel) groups[key].itemsWithLabel.push(customerItem);
+        else groups[key].itemsWithoutLabel.push(customerItem);
       });
     });
 
-    // Funkcia na zoradenie položiek
-    const sortItems = (items: any[]) => {
-      return items.sort((a, b) => {
-        // 1. Gastro → VO → Domáci
-        const typeOrder: Record<string, number> = { gastro: 1, wholesale: 2, home: 3 };
-        const typeA = typeOrder[a.type] || 999;
-        const typeB = typeOrder[b.type] || 999;
-        if (typeA !== typeB) return typeA - typeB;
+    const sortItems = (items: any[]) => items.sort((a, b) => {
+      const typeOrder: Record<string, number> = { gastro: 1, wholesale: 2, home: 3 };
+      const tA = typeOrder[a.type] || 999, tB = typeOrder[b.type] || 999;
+      if (tA !== tB) return tA - tB;
+      const mlA = parseInt(a.package_ml) || 0, mlB = parseInt(b.package_ml) || 0;
+      if (mlA !== mlB) return mlA - mlB;
+      return a.name.localeCompare(b.name);
+    });
 
-        // 2. Podľa ml (vzostupne)
-        const mlA = parseInt(a.package_ml) || 0;
-        const mlB = parseInt(b.package_ml) || 0;
-        if (mlA !== mlB) return mlA - mlB;
-
-        // 3. Podľa mena zákazníka
-        return a.name.localeCompare(b.name);
-      });
-    };
-
-    // Zoraď položky v každej group
     Object.values(groups).forEach(group => {
       group.itemsWithLabel = sortItems(group.itemsWithLabel);
       group.itemsWithoutLabel = sortItems(group.itemsWithoutLabel);
     });
 
-    const result = Object.values(groups).sort((a, b) => {
-      return a.crop_name.localeCompare(b.crop_name);
-    });
-
-    return result;
+    return Object.values(groups).sort((a, b) => a.crop_name.localeCompare(b.crop_name));
   })();
 
   const unpreparedGroups = groupedItems
     .map(group => {
-      const unpreparedWithLabel = group.itemsWithLabel.filter(c => !c.prepared);
-      const unpreparedWithoutLabel = group.itemsWithoutLabel.filter(c => !c.prepared);
-      const allUnprepared = [...unpreparedWithLabel, ...unpreparedWithoutLabel];
-      return {
-        ...group,
-        itemsWithLabel: unpreparedWithLabel,
-        itemsWithoutLabel: unpreparedWithoutLabel,
-        total_pieces: allUnprepared.reduce((sum, c) => sum + c.pieces, 0),
-      };
+      const wL = group.itemsWithLabel.filter(c => !c.prepared);
+      const woL = group.itemsWithoutLabel.filter(c => !c.prepared);
+      return { ...group, itemsWithLabel: wL, itemsWithoutLabel: woL, total_pieces: [...wL, ...woL].reduce((s, c) => s + c.pieces, 0) };
     })
     .filter(g => g.itemsWithLabel.length > 0 || g.itemsWithoutLabel.length > 0);
 
   const preparedGroups = groupedItems
     .map(group => {
-      const preparedWithLabel = group.itemsWithLabel.filter(c => c.prepared);
-      const preparedWithoutLabel = group.itemsWithoutLabel.filter(c => c.prepared);
-      const allPrepared = [...preparedWithLabel, ...preparedWithoutLabel];
-      return {
-        ...group,
-        itemsWithLabel: preparedWithLabel,
-        itemsWithoutLabel: preparedWithoutLabel,
-        total_pieces: allPrepared.reduce((sum, c) => sum + c.pieces, 0),
-      };
+      const wL = group.itemsWithLabel.filter(c => c.prepared);
+      const woL = group.itemsWithoutLabel.filter(c => c.prepared);
+      return { ...group, itemsWithLabel: wL, itemsWithoutLabel: woL, total_pieces: [...wL, ...woL].reduce((s, c) => s + c.pieces, 0) };
     })
     .filter(g => g.itemsWithLabel.length > 0 || g.itemsWithoutLabel.length > 0);
 
-  const saveCropOrder = (order: Record<string, number>) => {
+  const saveCropOrder = (order: Record<string, number>) =>
     localStorage.setItem('prep_packaging_order', JSON.stringify(order));
-  };
 
-  const sortGroupsByCropOrder = (groups: typeof unpreparedGroups) => {
-    return [...groups].sort((a, b) => {
-      const nameA = a.crop_name || '';
-      const nameB = b.crop_name || '';
-      const orderA = cropOrder[nameA] ?? 999;
-      const orderB = cropOrder[nameB] ?? 999;
-
-      if (orderA !== 999 && orderB !== 999) return orderA - orderB;
-      if (orderA !== 999) return -1;
-      if (orderB !== 999) return 1;
-      return nameA.localeCompare(nameB, 'sk');
+  const sortGroupsByCropOrder = (groups: typeof unpreparedGroups) =>
+    [...groups].sort((a, b) => {
+      const oA = cropOrder[a.crop_name ?? ''] ?? 999;
+      const oB = cropOrder[b.crop_name ?? ''] ?? 999;
+      if (oA !== 999 && oB !== 999) return oA - oB;
+      if (oA !== 999) return -1;
+      if (oB !== 999) return 1;
+      return (a.crop_name ?? '').localeCompare(b.crop_name ?? '', 'sk');
     });
-  };
 
   const sortedUnpreparedGroups = sortGroupsByCropOrder(unpreparedGroups);
-  const sortedPreparedGroups = sortGroupsByCropOrder(preparedGroups);
+  const sortedPreparedGroups   = sortGroupsByCropOrder(preparedGroups);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-
-    const currentGroups = sortedUnpreparedGroups.length > 0 ? sortedUnpreparedGroups : sortedPreparedGroups;
-
-    const oldIndex = currentGroups.findIndex(item => item.crop_name === active.id);
-    const newIndex = currentGroups.findIndex(item => item.crop_name === over.id);
-
-    if (oldIndex === -1 || newIndex === -1) return;
-
-    const reorderedItems = [...currentGroups];
-    const [movedItem] = reorderedItems.splice(oldIndex, 1);
-    reorderedItems.splice(newIndex, 0, movedItem);
-
+    const current = sortedUnpreparedGroups.length > 0 ? sortedUnpreparedGroups : sortedPreparedGroups;
+    const oldIdx = current.findIndex(i => i.crop_name === active.id);
+    const newIdx = current.findIndex(i => i.crop_name === over.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+    const reordered = [...current];
+    const [moved] = reordered.splice(oldIdx, 1);
+    reordered.splice(newIdx, 0, moved);
     const newOrder: Record<string, number> = {};
-    reorderedItems.forEach((item, index) => {
-      newOrder[item.crop_name || ''] = index;
-    });
-
+    reordered.forEach((item, idx) => { newOrder[item.crop_name || ''] = idx; });
     setCropOrder(newOrder);
     saveCropOrder(newOrder);
   };
 
   const updateOrderStatus = async (orderId: string, isPreparing: boolean) => {
-    try {
-      const newStatus = isPreparing ? 'packaging_ready' : null;
-
-      const { error } = await supabase
-        .from('orders')
-        .update({ status: newStatus })
-        .eq('id', orderId);
-
-      if (error) {
-        console.error('❌ Error updating order status:', error);
-        return;
-      }
-
-      if (isPreparing) {
-        toast({
-          title: '✓ Obaly pripravené',
-          description: 'Kontrola obalov dokončená',
-        });
-      }
-    } catch (error) {
-      console.error('❌ Error in updateOrderStatus:', error);
-    }
+    const { error } = await supabase
+      .from('orders')
+      .update({ status: isPreparing ? 'packaging_ready' : null })
+      .eq('id', orderId);
+    if (error) { console.error('❌ Error updating order status:', error); return; }
+    if (isPreparing) toast({ title: 'Obaly pripravené', description: 'Kontrola obalov dokončená' });
   };
 
-  const markAsPrepared = async (itemId: string, orderId: string) => {
+  const markAsPrepared   = async (itemId: string, orderId: string) => {
     setPreparedItems(prev => new Set(prev).add(itemId));
     await updateOrderStatus(orderId, true);
   };
-
   const markAsUnprepared = async (itemId: string, orderId: string) => {
-    setPreparedItems(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(itemId);
-      return newSet;
-    });
+    setPreparedItems(prev => { const s = new Set(prev); s.delete(itemId); return s; });
     await updateOrderStatus(orderId, false);
   };
 
-  const totalUnprepared = unpreparedGroups.reduce((sum, g) => sum + g.itemsWithLabel.length + g.itemsWithoutLabel.length, 0);
-  const totalPrepared = preparedGroups.reduce((sum, g) => sum + g.itemsWithLabel.length + g.itemsWithoutLabel.length, 0);
+  const totalItems     = unpreparedGroups.reduce((s, g) => s + g.itemsWithLabel.length + g.itemsWithoutLabel.length, 0)
+                       + preparedGroups.reduce((s, g)   => s + g.itemsWithLabel.length + g.itemsWithoutLabel.length, 0);
+  const totalPrepared  = preparedGroups.reduce((s, g)   => s + g.itemsWithLabel.length + g.itemsWithoutLabel.length, 0);
+  const progressPct    = totalItems > 0 ? Math.round((totalPrepared / totalItems) * 100) : 0;
 
-  const SortableCard = ({ item, children, isPrepared = false }: { item: any, children: React.ReactNode, isPrepared?: boolean }) => {
+  const activeFilterCount = [
+    categoryFilter !== 'all',
+    sizeFilter !== 'all',
+    labelFilter !== 'all',
+    packagingTypeFilter !== 'all',
+    customerTypeFilter !== 'all',
+    customerFilter !== 'all',
+  ].filter(Boolean).length;
+
+  // ── SortableCard component ───────────────────────────────────────────────
+  const SortableCard = ({ item, children, isPrepared = false }: { item: any; children: React.ReactNode; isPrepared?: boolean }) => {
     const cropName = item.crop_name || '';
-    const isBlend = item.is_blend;
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-      useSortable({ id: cropName });
-
-    const style = {
-      transform: CSS.Transform.toString(transform),
-      transition,
-      opacity: isDragging ? 0.5 : 1,
-    };
-
-    const cardClasses = isPrepared
-      ? "bg-green-50 rounded-lg border border-green-200 shadow-sm p-3 mb-2"
-      : "bg-white rounded-lg border border-gray-200 shadow-sm p-3 mb-2";
-
-    const headerClasses = isPrepared
-      ? "text-lg font-semibold text-green-900 mb-1.5 pb-1 border-b border-green-100 flex items-center gap-2"
-      : "text-lg font-semibold text-gray-900 mb-1.5 pb-1 border-b border-gray-100 flex items-center gap-2";
+    const isBlend  = item.is_blend;
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cropName });
 
     return (
-      <div ref={setNodeRef} style={style} className={cardClasses}>
-        <div className={headerClasses}>
-          <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 p-1">
-            <GripVertical className="w-5 h-5" />
+      <div
+        ref={setNodeRef}
+        style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
+        className={[
+          'rounded-xl border shadow-sm overflow-hidden',
+          isPrepared ? 'bg-[#f0fdf4] border-[#bbf7d0]' : 'bg-white border-[#e2e8f0]',
+        ].join(' ')}
+      >
+        {/* Card header */}
+        <div className={[
+          'flex items-center gap-2.5 px-3 py-2.5 border-b',
+          isPrepared ? 'border-[#bbf7d0] bg-[#dcfce7]/50' : 'border-[#f1f5f9] bg-[#f8fafc]',
+        ].join(' ')}>
+          <button
+            {...attributes} {...listeners}
+            className="cursor-grab active:cursor-grabbing text-[#cbd5e1] hover:text-[#94a3b8] transition-colors p-0.5 shrink-0"
+          >
+            <GripVertical className="w-4 h-4" />
           </button>
-          {isPrepared && <Check className="h-5 w-5" />}
-          {isBlend ? (
-            <Blend className="h-4 w-4 text-purple-600 flex-shrink-0" />
-          ) : (
-            <Leaf className="h-4 w-4 text-green-600 flex-shrink-0" />
-          )}
-          <h3 className="flex-1">
+
+          {isPrepared
+            ? <Check className="h-4 w-4 text-[#16a34a] shrink-0" />
+            : isBlend
+            ? <Blend className="h-4 w-4 text-[#7c3aed] shrink-0" />
+            : <Leaf className="h-4 w-4 text-[#16a34a] shrink-0" />
+          }
+
+          <span className={[
+            'font-semibold text-sm flex-1',
+            isPrepared ? 'text-[#166534]' : 'text-[#0f172a]',
+          ].join(' ')}>
             {cropName}
-          </h3>
+          </span>
+
+          <span className={[
+            'text-xs font-medium px-2 py-0.5 rounded-full',
+            isPrepared ? 'bg-[#bbf7d0] text-[#166534]' : 'bg-[#f1f5f9] text-[#64748b]',
+          ].join(' ')}>
+            {item.total_pieces} ks
+          </span>
         </div>
-        {children}
+
+        {/* Card body */}
+        <div className="divide-y divide-[#f1f5f9]">
+          {children}
+        </div>
       </div>
     );
   };
 
+  // ── Item row component ───────────────────────────────────────────────────
+  const ItemRow = ({
+    item,
+    isPrepared,
+    onAction,
+    actionLabel,
+    ActionIcon,
+    actionVariant = 'default',
+  }: {
+    item: any;
+    isPrepared: boolean;
+    onAction: () => void;
+    actionLabel: string;
+    ActionIcon: React.ElementType;
+    actionVariant?: 'default' | 'prepared';
+  }) => {
+    const cfg = getTypeConfig(item.type);
+    const Icon = cfg.Icon;
+
+    return (
+      <div className={[
+        'flex items-center gap-3 px-3 py-2.5 transition-colors',
+        isPrepared ? 'bg-[#f0fdf4]' : 'hover:bg-[#f8fafc]',
+      ].join(' ')}>
+
+        {/* Customer type icon */}
+        <div className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 ${cfg.bg} ${cfg.border}`}>
+          <Icon className={`h-3.5 w-3.5 ${cfg.iconColor}`} />
+        </div>
+
+        {/* Name + type */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-medium text-sm text-[#0f172a] truncate">{item.name}</span>
+            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${cfg.bg} ${cfg.border} ${cfg.text}`}>
+              {cfg.label}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+            <span className="text-xs text-[#475569] font-medium">
+              {item.pieces} × {item.packaging_size}g
+            </span>
+            <span className="text-[10px] text-[#94a3b8]">({item.package_ml}ml)</span>
+            <span className="inline-flex items-center px-1.5 py-0.5 bg-[#16a34a] text-white text-[10px] font-semibold rounded">
+              {item.package_type}
+            </span>
+            {item.has_label_req && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-400 text-amber-900 text-[10px] font-bold rounded border border-amber-500">
+                <Tag className="h-2.5 w-2.5" />
+                ETIKETA
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Action button */}
+        <button
+          onClick={onAction}
+          className={[
+            'shrink-0 flex items-center gap-1.5 px-3 h-9 rounded-lg text-sm font-semibold transition-colors',
+            actionVariant === 'prepared'
+              ? 'bg-[#dcfce7] text-[#166534] hover:bg-[#bbf7d0] border border-[#bbf7d0]'
+              : 'bg-[#f1f5f9] text-[#475569] hover:bg-[#e2e8f0] border border-[#e2e8f0]',
+          ].join(' ')}
+        >
+          <ActionIcon className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">{actionLabel}</span>
+        </button>
+      </div>
+    );
+  };
+
+  // ── Groups renderer ──────────────────────────────────────────────────────
+  const renderGroups = (groups: typeof sortedUnpreparedGroups, isPrepared: boolean) => (
+    groups.map((group, idx) => (
+      <SortableCard key={group.crop_name || idx} item={group} isPrepared={isPrepared}>
+        {/* Items with label */}
+        {group.itemsWithLabel?.map(item => (
+          isPrepared ? (
+            <ItemRow
+              key={item.id}
+              item={item}
+              isPrepared={true}
+              onAction={() => markAsUnprepared(item.id, item.order_id)}
+              actionLabel="Vrátiť"
+              ActionIcon={RotateCcw}
+            />
+          ) : (
+            <ItemRow
+              key={item.id}
+              item={item}
+              isPrepared={preparedItems.has(item.id)}
+              onAction={() => markAsPrepared(item.id, item.order_id)}
+              actionLabel="Hotovo"
+              ActionIcon={Check}
+              actionVariant={preparedItems.has(item.id) ? 'prepared' : 'default'}
+            />
+          )
+        ))}
+
+        {/* Divider */}
+        {group.itemsWithLabel?.length > 0 && group.itemsWithoutLabel?.length > 0 && (
+          <div className="border-t border-dashed border-[#e2e8f0] mx-3" />
+        )}
+
+        {/* Items without label */}
+        {group.itemsWithoutLabel?.map(item => (
+          isPrepared ? (
+            <ItemRow
+              key={item.id}
+              item={item}
+              isPrepared={true}
+              onAction={() => markAsUnprepared(item.id, item.order_id)}
+              actionLabel="Vrátiť"
+              ActionIcon={RotateCcw}
+            />
+          ) : (
+            <ItemRow
+              key={item.id}
+              item={item}
+              isPrepared={preparedItems.has(item.id)}
+              onAction={() => markAsPrepared(item.id, item.order_id)}
+              actionLabel="Hotovo"
+              ActionIcon={Check}
+              actionVariant={preparedItems.has(item.id) ? 'prepared' : 'default'}
+            />
+          )
+        ))}
+      </SortableCard>
+    ))
+  );
+
+  const hasContent = unpreparedGroups.length > 0 || preparedGroups.length > 0;
+
   return (
     <MainLayout>
-      <div className="space-y-6">
-        <PageHeader
-          title="Príprava obalov"
-          description="Pripravte krabičky a etikety podľa zvoleného dátumu a typu zákazníka"
-          icon={<Package className="h-6 w-6" />}
-        />
+      <div className="max-w-4xl mx-auto space-y-4 pb-8">
 
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-lg font-semibold mb-4">Filtre</h2>
-
-          <div className="space-y-4">
-            <div className="flex gap-4 items-start">
-              <div className="flex-1">
-                <div className="flex gap-2 flex-wrap">
-                  <Button
-                    variant={customerTypeFilter === 'all' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setCustomerTypeFilter('all')}
-                  >
-                    <Check className="h-4 w-4 mr-2" />
-                    Všetci
-                  </Button>
-                  <Button
-                    variant={customerTypeFilter === 'home' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setCustomerTypeFilter('home')}
-                  >
-                    <Home className="h-4 w-4 mr-2" />
-                    Domáci
-                  </Button>
-                  <Button
-                    variant={customerTypeFilter === 'gastro' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setCustomerTypeFilter('gastro')}
-                  >
-                    <Utensils className="h-4 w-4 mr-2" />
-                    Gastro
-                  </Button>
-                  <Button
-                    variant={customerTypeFilter === 'wholesale' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setCustomerTypeFilter('wholesale')}
-                  >
-                    <Package className="h-4 w-4 mr-2" />
-                    VO
-                  </Button>
-                </div>
+        {/* ── Top bar ─────────────────────────────────────────────────── */}
+        <div className="flex items-start justify-between gap-4 pt-1">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-[#dcfce7] border border-[#bbf7d0] flex items-center justify-center">
+                <Package className="h-5 w-5 text-[#16a34a]" />
               </div>
+              <div>
+                <h1 className="text-xl font-bold text-[#0f172a] leading-none">Príprava obalov</h1>
+                <p className="text-xs text-[#94a3b8] mt-0.5">Krabičky a etikety podľa dátumu</p>
+              </div>
+            </div>
+          </div>
 
-              <div className="flex-1 max-w-xs">
-                <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
-                  Zákazník
-                </label>
+          {/* Date picker button */}
+          <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+            <PopoverTrigger asChild>
+              <button className="flex items-center gap-2 h-9 px-3 rounded-xl border border-[#e2e8f0] bg-white text-sm font-medium text-[#0f172a] hover:border-[#bbf7d0] hover:bg-[#f0fdf4] transition-colors shadow-sm shrink-0">
+                <CalendarIcon className="h-4 w-4 text-[#16a34a]" />
+                <span>
+                  {selectedDates.length === 1
+                    ? format(selectedDates[0], 'd. MMM', { locale: sk })
+                    : `${selectedDates.length} dni`}
+                </span>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 shadow-xl border-[#e2e8f0]" align="end">
+              <CalendarGrid />
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        {/* ── Progress bar (only when content exists) ──────────────── */}
+        {hasContent && (
+          <div className="bg-white rounded-xl border border-[#e2e8f0] p-3 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-[#475569] uppercase tracking-wide">Pripravenosť</span>
+              <span className="text-xs font-bold text-[#0f172a]">{totalPrepared} / {totalItems} položiek</span>
+            </div>
+            <div className="h-2 bg-[#f1f5f9] rounded-full overflow-hidden">
+              <div
+                className="h-full bg-[#16a34a] rounded-full transition-all duration-500"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+            {progressPct === 100 && (
+              <div className="flex items-center gap-1.5 mt-2">
+                <Check className="h-3.5 w-3.5 text-[#16a34a]" />
+                <span className="text-xs font-semibold text-[#166534]">Všetky obaly pripravené!</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Filter bar ───────────────────────────────────────────────── */}
+        <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm overflow-hidden">
+          {/* Filter header row */}
+          <div className="flex items-center gap-3 px-4 py-2.5 border-b border-[#f1f5f9]">
+            <Filter className="h-4 w-4 text-[#94a3b8]" />
+            <span className="text-sm font-semibold text-[#0f172a] flex-1">Filtre</span>
+
+            {activeFilterCount > 0 && (
+              <span className="px-2 py-0.5 bg-[#dcfce7] text-[#166534] text-[11px] font-bold rounded-full border border-[#bbf7d0]">
+                {activeFilterCount}
+              </span>
+            )}
+
+            <button
+              onClick={() => setFiltersOpen(p => !p)}
+              className="flex items-center gap-1 text-xs text-[#64748b] hover:text-[#16a34a] transition-colors"
+            >
+              {filtersOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+          </div>
+
+          {/* Always-visible: date label + customer type chips */}
+          <div className="px-4 py-3 flex flex-wrap items-center gap-2">
+            {/* Date display */}
+            <div className="flex items-center gap-1.5 text-sm text-[#475569]">
+              <CalendarIcon className="h-3.5 w-3.5 text-[#94a3b8]" />
+              <span className="font-medium text-[#0f172a]">
+                {selectedDates.length === 1
+                  ? format(selectedDates[0], 'EEEE, d. MMMM yyyy', { locale: sk })
+                  : selectedDates.sort((a, b) => a.getTime() - b.getTime()).map(d => format(d, 'd.M.', { locale: sk })).join(', ')}
+              </span>
+            </div>
+
+            <div className="w-px h-4 bg-[#e2e8f0] hidden sm:block" />
+
+            {/* Customer type chips */}
+            {(['all', 'home', 'gastro', 'wholesale'] as const).map(type => {
+              const active = customerTypeFilter === type;
+              if (type === 'all') {
+                return (
+                  <button
+                    key="all"
+                    onClick={() => setCustomerTypeFilter('all')}
+                    className={`flex items-center gap-1.5 px-3 h-7 rounded-full text-xs font-semibold border transition-colors ${
+                      active ? 'bg-[#0f172a] text-white border-[#0f172a]' : 'bg-white text-[#475569] border-[#e2e8f0] hover:border-[#cbd5e1]'
+                    }`}
+                  >
+                    Všetci
+                  </button>
+                );
+              }
+              const cfg = getTypeConfig(type);
+              const Icon = cfg.Icon;
+              return (
+                <button
+                  key={type}
+                  onClick={() => setCustomerTypeFilter(type)}
+                  className={`flex items-center gap-1.5 px-3 h-7 rounded-full text-xs font-semibold border transition-colors ${
+                    active
+                      ? `${cfg.bg} ${cfg.border} ${cfg.text}`
+                      : 'bg-white text-[#475569] border-[#e2e8f0] hover:border-[#cbd5e1]'
+                  }`}
+                >
+                  <Icon className={`h-3 w-3 ${active ? cfg.iconColor : ''}`} />
+                  {cfg.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Collapsible advanced filters */}
+          {filtersOpen && (
+            <div className="px-4 pb-4 border-t border-[#f1f5f9] pt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+              {/* Customer select */}
+              <div className="col-span-2 sm:col-span-3 md:col-span-2">
+                <label className="block text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wide mb-1.5">Zákazník</label>
                 <SearchableCustomerSelect
                   value={customerFilter}
-                  onValueChange={(value) => {
-                    setCustomerFilter(value);
-                  }}
-                  customers={(() => {
-
-                    const filtered = customers?.filter(c => {
-                      if (customerTypeFilter === 'all') return true;
-                      const matches = c.customer_type === customerTypeFilter;
-                      return matches;
-                    });
-
-                    return filtered;
-                  })()}
+                  onValueChange={setCustomerFilter}
+                  customers={customers.filter(c => customerTypeFilter === 'all' || c.customer_type === customerTypeFilter)}
                   placeholder="Všetci zákazníci"
                   allowAll={true}
                 />
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-              <div className="flex flex-col">
-                <label className="text-sm font-medium text-gray-700 text-center mb-2">
-                  Dátum
-                </label>
-                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full h-10 justify-start text-left font-normal">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {selectedDates.length === 1
-                        ? format(selectedDates[0], 'EEEE d.M.yyyy', { locale: sk })
-                        : selectedDates
-                            .sort((a, b) => a.getTime() - b.getTime())
-                            .map(d => format(d, 'd.M.', { locale: sk }))
-                            .join(', ')
-                      }
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarGrid />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div className="flex flex-col">
-                <label className="text-sm font-medium text-gray-700 text-center mb-2">
-                  Kategória
-                </label>
+              {/* Category */}
+              <div>
+                <label className="block text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wide mb-1.5">Kategória</label>
                 <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger className="w-full h-10 text-center">
-                    <SelectValue placeholder="Kategória" />
+                  <SelectTrigger className="h-8 text-xs border-[#e2e8f0]">
+                    <SelectValue />
                   </SelectTrigger>
-                  <SelectContent position="popper" sideOffset={5} className="!z-[100]">
-                    <SelectItem value="all">
-                      <div className="flex items-center gap-2">
-                        <Check className="h-4 w-4" />
-                        Všetky kategórie
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="microgreens">
-                      <div className="flex items-center gap-2">
-                        <Leaf className="h-4 w-4 text-green-600" />
-                        Mikrozelenina
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="microherbs">
-                      <div className="flex items-center gap-2">
-                        <Sprout className="h-4 w-4 text-green-600" />
-                        Mikrobylinky
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="edible_flowers">
-                      <div className="flex items-center gap-2">
-                        <Flower className="h-4 w-4 text-pink-500" />
-                        Jedlé kvety
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="blends">
-                      <div className="flex items-center gap-2">
-                        <Grid3x3 className="h-4 w-4 text-blue-600" />
-                        Mixy
-                      </div>
-                    </SelectItem>
+                  <SelectContent className="!z-[100]">
+                    <SelectItem value="all"><span className="flex items-center gap-1.5 text-xs">Všetky</span></SelectItem>
+                    <SelectItem value="microgreens"><span className="flex items-center gap-1.5 text-xs"><Leaf className="h-3 w-3 text-green-600" />Mikrozelenina</span></SelectItem>
+                    <SelectItem value="microherbs"><span className="flex items-center gap-1.5 text-xs"><Sprout className="h-3 w-3 text-green-600" />Mikrobylinky</span></SelectItem>
+                    <SelectItem value="edible_flowers"><span className="flex items-center gap-1.5 text-xs"><Flower2 className="h-3 w-3 text-pink-500" />Jedlé kvety</span></SelectItem>
+                    <SelectItem value="blends"><span className="flex items-center gap-1.5 text-xs"><Grid3x3 className="h-3 w-3 text-blue-600" />Mixy</span></SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="flex flex-col">
-                <label className="text-sm font-medium text-gray-700 text-center mb-2">
-                  Veľkosť
-                </label>
+              {/* Size */}
+              <div>
+                <label className="block text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wide mb-1.5">Veľkosť</label>
                 <Select value={sizeFilter} onValueChange={setSizeFilter}>
-                  <SelectTrigger className="w-full h-10 text-center">
-                    <SelectValue placeholder="Všetky" />
+                  <SelectTrigger className="h-8 text-xs border-[#e2e8f0]">
+                    <SelectValue />
                   </SelectTrigger>
-                  <SelectContent position="popper" sideOffset={5} className="!z-[100]">
-                    <SelectItem value="all">Všetky</SelectItem>
-                    <SelectItem value="250ml">250ml</SelectItem>
-                    <SelectItem value="500ml">500ml</SelectItem>
-                    <SelectItem value="750ml">750ml</SelectItem>
-                    <SelectItem value="1000ml">1000ml</SelectItem>
-                    <SelectItem value="1200ml">1200ml</SelectItem>
-                    <SelectItem value="1500ml">1500ml</SelectItem>
+                  <SelectContent className="!z-[100]">
+                    {['all', '250ml', '500ml', '750ml', '1000ml', '1200ml', '1500ml'].map(v => (
+                      <SelectItem key={v} value={v}><span className="text-xs">{v === 'all' ? 'Všetky' : v}</span></SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="flex flex-col">
-                <label className="text-sm font-medium text-gray-700 text-center mb-2">
-                  Etiketa
-                </label>
+              {/* Label */}
+              <div>
+                <label className="block text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wide mb-1.5">Etiketa</label>
                 <Select value={labelFilter} onValueChange={setLabelFilter}>
-                  <SelectTrigger className="w-full h-10 text-center">
-                    <SelectValue placeholder="Všetko" />
+                  <SelectTrigger className="h-8 text-xs border-[#e2e8f0]">
+                    <SelectValue />
                   </SelectTrigger>
-                  <SelectContent position="popper" sideOffset={5} className="!z-[100]">
-                    <SelectItem value="all">Všetko</SelectItem>
-                    <SelectItem value="yes">Áno</SelectItem>
-                    <SelectItem value="no">Nie</SelectItem>
+                  <SelectContent className="!z-[100]">
+                    <SelectItem value="all"><span className="text-xs">Všetko</span></SelectItem>
+                    <SelectItem value="yes"><span className="text-xs">Áno</span></SelectItem>
+                    <SelectItem value="no"><span className="text-xs">Nie</span></SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="flex flex-col">
-                <label className="text-sm font-medium text-gray-700 text-center mb-2">
-                  Druh obalu
-                </label>
+              {/* Packaging type */}
+              <div>
+                <label className="block text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wide mb-1.5">Druh obalu</label>
                 <Select value={packagingTypeFilter} onValueChange={setPackagingTypeFilter}>
-                  <SelectTrigger className="w-full h-10 text-center">
-                    <SelectValue placeholder="Typ" />
+                  <SelectTrigger className="h-8 text-xs border-[#e2e8f0]">
+                    <SelectValue />
                   </SelectTrigger>
-                  <SelectContent position="popper" sideOffset={5} className="!z-[100]">
-                    <SelectItem value="all">Všetky</SelectItem>
-                    <SelectItem value="rPET">rPET</SelectItem>
-                    <SelectItem value="PET">PET</SelectItem>
-                    <SelectItem value="EKO">EKO</SelectItem>
-                    <SelectItem value="Vrátny obal">Vrátny obal</SelectItem>
+                  <SelectContent className="!z-[100]">
+                    {['all', 'rPET', 'PET', 'EKO', 'Vrátny obal'].map(v => (
+                      <SelectItem key={v} value={v}><span className="text-xs">{v === 'all' ? 'Všetky' : v}</span></SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Reset button */}
+              {activeFilterCount > 0 && (
+                <div className="col-span-2 sm:col-span-3 md:col-span-5 flex justify-end">
+                  <button
+                    onClick={() => {
+                      setCategoryFilter('all'); setSizeFilter('all'); setLabelFilter('all');
+                      setPackagingTypeFilter('rPET'); setCustomerTypeFilter('all'); setCustomerFilter('all');
+                    }}
+                    className="flex items-center gap-1.5 text-xs text-[#64748b] hover:text-[#dc2626] transition-colors"
+                  >
+                    <X className="h-3 w-3" />
+                    Zrušiť filtre
+                  </button>
+                </div>
+              )}
             </div>
-          </div>
+          )}
         </div>
 
-        {unpreparedGroups.length === 0 && preparedGroups.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg shadow">
-            <Package className="h-16 w-16 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Žiadne objednávky pre vybraný deň
-            </h3>
-            <p className="text-gray-600 mb-2">
-              {selectedDates.length === 1 ? (
-                <>
-                  Vybraný dátum: <span className="font-semibold">{format(selectedDates[0], 'dd.MM.yyyy (EEEE)', { locale: sk })}</span>
-                </>
-              ) : (
-                <>
-                  Vybrané dátumy: <span className="font-semibold">
-                    {selectedDates
-                      .sort((a, b) => a.getTime() - b.getTime())
-                      .map(d => format(d, 'd.M.yyyy', { locale: sk }))
-                      .join(', ')}
-                  </span>
-                </>
-              )}
+        {/* ── Content ──────────────────────────────────────────────────── */}
+        {!hasContent ? (
+          /* Empty state */
+          <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm py-16 flex flex-col items-center text-center px-6">
+            <div className="w-14 h-14 rounded-2xl bg-[#f1f5f9] flex items-center justify-center mb-4">
+              <Package className="h-7 w-7 text-[#94a3b8]" />
+            </div>
+            <h3 className="text-base font-semibold text-[#0f172a] mb-1">Žiadne objednávky</h3>
+            <p className="text-sm text-[#64748b] max-w-sm">
+              Pre {selectedDates.length === 1
+                ? format(selectedDates[0], 'dd. MM. yyyy', { locale: sk })
+                : 'vybrané dátumy'} a zvolenú kombináciu filtrov nie sú naplánované žiadne objednávky.
             </p>
-            <p className="text-sm text-gray-500 mt-4">
-              Pre tento dátum a zvolenú kombináciu filtrov nie sú naplánované žiadne objednávky.
-            </p>
-            <p className="text-xs text-gray-400 mt-2">
-              Počet načítaných objednávok: {allOrders.length} | Po filtrovaní: {filteredOrders.length}
+            <p className="text-xs text-[#94a3b8] mt-3">
+              Načítaných: {allOrders.length} | Po filtrovaní: {filteredOrders.length}
             </p>
           </div>
         ) : (
-          <>
-            {unpreparedGroups.length > 0 && (
-              <div className="mb-8">
-                <h2 className="text-xl font-bold mb-4">
-                  PRIPRAVIŤ ({totalUnprepared} {totalUnprepared === 1 ? 'položka' : totalUnprepared < 5 ? 'položky' : 'položiek'})
-                </h2>
+          <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext
+              items={[...sortedUnpreparedGroups, ...sortedPreparedGroups].map(g => g.crop_name || '')}
+              strategy={verticalListSortingStrategy}
+            >
 
-                <div className="space-y-4">
-                  <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                    <SortableContext items={sortedUnpreparedGroups.map(g => g.crop_name || '')} strategy={verticalListSortingStrategy}>
-                      {/* PLODINY */}
-                      {sortedUnpreparedGroups.filter(g => !g.is_blend).length > 0 && (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-lg">
-                            <Leaf className="h-5 w-5 text-green-700" />
-                            <h3 className="font-bold text-green-900 text-lg">PLODINY</h3>
-                            <span className="ml-auto text-sm text-green-700 font-medium">
-                              {sortedUnpreparedGroups.filter(g => !g.is_blend).length}
-                            </span>
-                          </div>
-
-                          {sortedUnpreparedGroups.filter(g => !g.is_blend).map((group, idx) => (
-                            <SortableCard key={group.crop_name || idx} item={group}>
-                              <div className="space-y-0 -my-0.5">
-                        {/* POLOŽKY S ETIKETOU */}
-                        {group.itemsWithLabel?.map((item) => {
-                          const isPrepared = preparedItems.has(item.id);
-                          return (
-                            <div
-                              key={item.id}
-                              className={`flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-2 px-3 leading-tight rounded ${
-                                isPrepared
-                                  ? 'bg-green-100 border-l-4 border-green-500'
-                                  : 'hover:bg-gray-50'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2">
-                                {getCustomerTypeIcon(item.type)}
-                                <span className="font-medium text-gray-900 text-base">
-                                  {item.name}
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                  ({getCustomerTypeLabel(item.type)})
-                                </span>
-                              </div>
-
-                              <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                                <div className="text-base font-medium text-gray-900">
-                                  {item.pieces} × {item.packaging_size}g
-                                  <span className="text-xs md:text-sm text-gray-600">
-                                    {' '}({item.package_ml}ml)
-                                  </span>
-                                </div>
-
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
-                                    {item.package_type}
-                                  </span>
-                                  <span className="inline-flex items-center px-2 py-1 rounded text-sm font-bold bg-[#FFFF00] text-gray-900 border-2 border-black">
-                                    ETIKETA
-                                  </span>
-                                </div>
-
-                                <button
-                                  onClick={() => markAsPrepared(item.id, item.order_id)}
-                                  className={`px-4 py-2 text-base font-semibold rounded transition-colors shrink-0 ml-auto md:ml-0 ${
-                                    isPrepared
-                                      ? 'bg-green-200 hover:bg-green-300'
-                                      : 'bg-gray-200 hover:bg-gray-300'
-                                  }`}
-                                >
-                                  ✓ Hotovo
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-
-                        {/* ODDEĽOVACIA ČIARA (ak sú obe sekcie) */}
-                        {group.itemsWithLabel?.length > 0 && group.itemsWithoutLabel?.length > 0 && (
-                          <div className="border-t border-gray-100 my-1"></div>
-                        )}
-
-                        {/* POLOŽKY BEZ ETIKETY */}
-                        {group.itemsWithoutLabel?.map((item) => {
-                          const isPrepared = preparedItems.has(item.id);
-                          return (
-                            <div
-                              key={item.id}
-                              className={`flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-2 px-3 leading-tight rounded ${
-                                isPrepared
-                                  ? 'bg-green-100 border-l-4 border-green-500'
-                                  : 'hover:bg-gray-50'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2">
-                                {getCustomerTypeIcon(item.type)}
-                                <span className="font-medium text-gray-900 text-base">
-                                  {item.name}
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                  ({getCustomerTypeLabel(item.type)})
-                                </span>
-                              </div>
-
-                              <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                                <div className="text-base font-medium text-gray-900">
-                                  {item.pieces} × {item.packaging_size}g
-                                  <span className="text-xs md:text-sm text-gray-600">
-                                    {' '}({item.package_ml}ml)
-                                  </span>
-                                </div>
-
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
-                                    {item.package_type}
-                                  </span>
-                                </div>
-
-                                <button
-                                  onClick={() => markAsPrepared(item.id, item.order_id)}
-                                  className={`px-4 py-2 text-base font-semibold rounded transition-colors shrink-0 ml-auto md:ml-0 ${
-                                    isPrepared
-                                      ? 'bg-green-200 hover:bg-green-300'
-                                      : 'bg-gray-200 hover:bg-gray-300'
-                                  }`}
-                                >
-                                  ✓ Hotovo
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                          </div>
-                        </SortableCard>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* MIXY */}
-                      {sortedUnpreparedGroups.filter(g => g.is_blend).length > 0 && (
-                        <div className="space-y-2 mt-6">
-                          <div className="flex items-center gap-2 px-3 py-2 bg-purple-50 rounded-lg">
-                            <Blend className="h-5 w-5 text-purple-700" />
-                            <h3 className="font-bold text-purple-900 text-lg">MIXY</h3>
-                            <span className="ml-auto text-sm text-purple-700 font-medium">
-                              {sortedUnpreparedGroups.filter(g => g.is_blend).length}
-                            </span>
-                          </div>
-
-                          {sortedUnpreparedGroups.filter(g => g.is_blend).map((group, idx) => (
-                            <SortableCard key={group.crop_name || idx} item={group}>
-                              <div className="space-y-0 -my-0.5">
-                        {/* POLOŽKY S ETIKETOU */}
-                        {group.itemsWithLabel?.map((item) => {
-                          const isPrepared = preparedItems.has(item.id);
-                          return (
-                            <div
-                              key={item.id}
-                              className={`flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-2 px-3 leading-tight rounded ${
-                                isPrepared
-                                  ? 'bg-green-100 border-l-4 border-green-500'
-                                  : 'hover:bg-gray-50'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2">
-                                {getCustomerTypeIcon(item.type)}
-                                <span className="font-medium text-gray-900 text-base">
-                                  {item.name}
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                  ({getCustomerTypeLabel(item.type)})
-                                </span>
-                              </div>
-
-                              <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                                <div className="text-base font-medium text-gray-900">
-                                  {item.pieces} × {item.packaging_size}g
-                                  <span className="text-xs md:text-sm text-gray-600">
-                                    {' '}({item.package_ml}ml)
-                                  </span>
-                                </div>
-
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
-                                    {item.package_type}
-                                  </span>
-                                  <span className="inline-flex items-center px-2 py-1 rounded text-sm font-bold bg-[#FFFF00] text-gray-900 border-2 border-black">
-                                    ETIKETA
-                                  </span>
-                                </div>
-
-                                <button
-                                  onClick={() => markAsPrepared(item.id, item.order_id)}
-                                  className={`px-4 py-2 text-base font-semibold rounded transition-colors shrink-0 ml-auto md:ml-0 ${
-                                    isPrepared
-                                      ? 'bg-green-200 hover:bg-green-300'
-                                      : 'bg-gray-200 hover:bg-gray-300'
-                                  }`}
-                                >
-                                  ✓ Hotovo
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-
-                        {/* ODDEĽOVACIA ČIARA (ak sú obe sekcie) */}
-                        {group.itemsWithLabel?.length > 0 && group.itemsWithoutLabel?.length > 0 && (
-                          <div className="border-t border-gray-100 my-1"></div>
-                        )}
-
-                        {/* POLOŽKY BEZ ETIKETY */}
-                        {group.itemsWithoutLabel?.map((item) => {
-                          const isPrepared = preparedItems.has(item.id);
-                          return (
-                            <div
-                              key={item.id}
-                              className={`flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-2 px-3 leading-tight rounded ${
-                                isPrepared
-                                  ? 'bg-green-100 border-l-4 border-green-500'
-                                  : 'hover:bg-gray-50'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2">
-                                {getCustomerTypeIcon(item.type)}
-                                <span className="font-medium text-gray-900 text-base">
-                                  {item.name}
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                  ({getCustomerTypeLabel(item.type)})
-                                </span>
-                              </div>
-
-                              <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                                <div className="text-base font-medium text-gray-900">
-                                  {item.pieces} × {item.packaging_size}g
-                                  <span className="text-xs md:text-sm text-gray-600">
-                                    {' '}({item.package_ml}ml)
-                                  </span>
-                                </div>
-
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
-                                    {item.package_type}
-                                  </span>
-                                </div>
-
-                                <button
-                                  onClick={() => markAsPrepared(item.id, item.order_id)}
-                                  className={`px-4 py-2 text-base font-semibold rounded transition-colors shrink-0 ml-auto md:ml-0 ${
-                                    isPrepared
-                                      ? 'bg-green-200 hover:bg-green-300'
-                                      : 'bg-gray-200 hover:bg-gray-300'
-                                  }`}
-                                >
-                                  ✓ Hotovo
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                          </div>
-                        </SortableCard>
-                          ))}
-                        </div>
-                      )}
-                    </SortableContext>
-                  </DndContext>
-                </div>
-              </div>
-            )}
-
-            {preparedGroups.length > 0 && (
-              <>
-                <div className="border-t-4 border-gray-300 my-8"></div>
-
-                <div>
-                  <h2 className="text-xl font-bold mb-4 text-green-600 flex items-center gap-2">
-                    <Check className="h-5 w-5" />
-                    PRIPRAVENÉ ({totalPrepared} {totalPrepared === 1 ? 'položka' : totalPrepared < 5 ? 'položky' : 'položiek'})
-                  </h2>
-
-                  <div className="space-y-4">
-                    <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                      <SortableContext items={sortedPreparedGroups.map(g => g.crop_name || '')} strategy={verticalListSortingStrategy}>
-                        {/* PLODINY */}
-                        {sortedPreparedGroups.filter(g => !g.is_blend).length > 0 && (
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-lg">
-                              <Leaf className="h-5 w-5 text-green-700" />
-                              <h3 className="font-bold text-green-900 text-lg">PLODINY</h3>
-                              <span className="ml-auto text-sm text-green-700 font-medium">
-                                {sortedPreparedGroups.filter(g => !g.is_blend).length}
-                              </span>
-                            </div>
-
-                            {sortedPreparedGroups.filter(g => !g.is_blend).map((group, idx) => (
-                              <SortableCard key={group.crop_name || idx} item={group} isPrepared={true}>
-                                <div className="space-y-0 -my-0.5">
-                          {/* POLOŽKY S ETIKETOU */}
-                          {group.itemsWithLabel?.map((item) => (
-                            <div key={item.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-2 px-3 leading-tight bg-white rounded">
-                              <div className="flex items-center gap-2">
-                                {getCustomerTypeIcon(item.type)}
-                                <span className="font-medium text-gray-900 text-base">
-                                  {item.name}
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                  ({getCustomerTypeLabel(item.type)})
-                                </span>
-                              </div>
-
-                              <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                                <div className="text-base font-medium text-gray-900">
-                                  {item.pieces} × {item.packaging_size}g
-                                  <span className="text-xs md:text-sm text-gray-600">
-                                    {' '}({item.package_ml}ml)
-                                  </span>
-                                </div>
-
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
-                                    {item.package_type}
-                                  </span>
-                                  <span className="inline-flex items-center px-2 py-1 rounded text-sm font-bold bg-[#FFFF00] text-gray-900 border-2 border-black">
-                                    ETIKETA
-                                  </span>
-                                </div>
-
-                                <button
-                                  onClick={() => markAsUnprepared(item.id, item.order_id)}
-                                  className="px-4 py-2 text-base font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-auto md:ml-0"
-                                >
-                                  ↩ Vrátiť
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-
-                          {/* ODDEĽOVACIA ČIARA (ak sú obe sekcie) */}
-                          {group.itemsWithLabel?.length > 0 && group.itemsWithoutLabel?.length > 0 && (
-                            <div className="border-t border-green-100 my-1"></div>
-                          )}
-
-                          {/* POLOŽKY BEZ ETIKETY */}
-                          {group.itemsWithoutLabel?.map((item) => (
-                            <div key={item.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-2 px-3 leading-tight bg-white rounded">
-                              <div className="flex items-center gap-2">
-                                {getCustomerTypeIcon(item.type)}
-                                <span className="font-medium text-gray-900 text-base">
-                                  {item.name}
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                  ({getCustomerTypeLabel(item.type)})
-                                </span>
-                              </div>
-
-                              <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                                <div className="text-base font-medium text-gray-900">
-                                  {item.pieces} × {item.packaging_size}g
-                                  <span className="text-xs md:text-sm text-gray-600">
-                                    {' '}({item.package_ml}ml)
-                                  </span>
-                                </div>
-
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
-                                    {item.package_type}
-                                  </span>
-                                </div>
-
-                                <button
-                                  onClick={() => markAsUnprepared(item.id, item.order_id)}
-                                  className="px-4 py-2 text-base font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-auto md:ml-0"
-                                >
-                                  ↩ Vrátiť
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                            </div>
-                          </SortableCard>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* MIXY */}
-                        {sortedPreparedGroups.filter(g => g.is_blend).length > 0 && (
-                          <div className="space-y-2 mt-6">
-                            <div className="flex items-center gap-2 px-3 py-2 bg-purple-50 rounded-lg">
-                              <Blend className="h-5 w-5 text-purple-700" />
-                              <h3 className="font-bold text-purple-900 text-lg">MIXY</h3>
-                              <span className="ml-auto text-sm text-purple-700 font-medium">
-                                {sortedPreparedGroups.filter(g => g.is_blend).length}
-                              </span>
-                            </div>
-
-                            {sortedPreparedGroups.filter(g => g.is_blend).map((group, idx) => (
-                              <SortableCard key={group.crop_name || idx} item={group} isPrepared={true}>
-                                <div className="space-y-0 -my-0.5">
-                          {/* POLOŽKY S ETIKETOU */}
-                          {group.itemsWithLabel?.map((item) => (
-                            <div key={item.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-2 px-3 leading-tight bg-white rounded">
-                              <div className="flex items-center gap-2">
-                                {getCustomerTypeIcon(item.type)}
-                                <span className="font-medium text-gray-900 text-base">
-                                  {item.name}
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                  ({getCustomerTypeLabel(item.type)})
-                                </span>
-                              </div>
-
-                              <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                                <div className="text-base font-medium text-gray-900">
-                                  {item.pieces} × {item.packaging_size}g
-                                  <span className="text-xs md:text-sm text-gray-600">
-                                    {' '}({item.package_ml}ml)
-                                  </span>
-                                </div>
-
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
-                                    {item.package_type}
-                                  </span>
-                                  <span className="inline-flex items-center px-2 py-1 rounded text-sm font-bold bg-[#FFFF00] text-gray-900 border-2 border-black">
-                                    ETIKETA
-                                  </span>
-                                </div>
-
-                                <button
-                                  onClick={() => markAsUnprepared(item.id, item.order_id)}
-                                  className="px-4 py-2 text-base font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-auto md:ml-0"
-                                >
-                                  ↩ Vrátiť
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-
-                          {/* ODDEĽOVACIA ČIARA (ak sú obe sekcie) */}
-                          {group.itemsWithLabel?.length > 0 && group.itemsWithoutLabel?.length > 0 && (
-                            <div className="border-t border-gray-100 my-1"></div>
-                          )}
-
-                          {/* POLOŽKY BEZ ETIKETY */}
-                          {group.itemsWithoutLabel?.map((item) => (
-                            <div key={item.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-2 px-3 leading-tight bg-white rounded">
-                              <div className="flex items-center gap-2">
-                                {getCustomerTypeIcon(item.type)}
-                                <span className="font-medium text-gray-900 text-base">
-                                  {item.name}
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                  ({getCustomerTypeLabel(item.type)})
-                                </span>
-                              </div>
-
-                              <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                                <div className="text-base font-medium text-gray-900">
-                                  {item.pieces} × {item.packaging_size}g
-                                  <span className="text-xs md:text-sm text-gray-600">
-                                    {' '}({item.package_ml}ml)
-                                  </span>
-                                </div>
-
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <span className="inline-flex items-center px-1.5 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
-                                    {item.package_type}
-                                  </span>
-                                </div>
-
-                                <button
-                                  onClick={() => markAsUnprepared(item.id, item.order_id)}
-                                  className="px-4 py-2 text-base font-semibold bg-gray-200 hover:bg-gray-300 rounded transition-colors shrink-0 ml-auto md:ml-0"
-                                >
-                                  ↩ Vrátiť
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                            </div>
-                          </SortableCard>
-                            ))}
-                          </div>
-                        )}
-                      </SortableContext>
-                    </DndContext>
+              {/* ── PRIPRAVIŤ ─────────────────────────────────────────── */}
+              {sortedUnpreparedGroups.length > 0 && (
+                <div className="space-y-3">
+                  {/* Section header */}
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-xs font-bold text-[#475569] uppercase tracking-widest">Na prípravu</span>
+                    <div className="flex-1 h-px bg-[#e2e8f0]" />
+                    <span className="text-xs font-semibold text-[#0f172a] bg-[#f1f5f9] px-2 py-0.5 rounded-full">
+                      {sortedUnpreparedGroups.reduce((s, g) => s + g.itemsWithLabel.length + g.itemsWithoutLabel.length, 0)} položiek
+                    </span>
                   </div>
+
+                  {/* PLODINY */}
+                  {sortedUnpreparedGroups.filter(g => !g.is_blend).length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 px-0.5">
+                        <Leaf className="h-3.5 w-3.5 text-[#16a34a]" />
+                        <span className="text-xs font-semibold text-[#166534] uppercase tracking-wide">Plodiny</span>
+                        <span className="text-[10px] text-[#94a3b8]">
+                          ({sortedUnpreparedGroups.filter(g => !g.is_blend).length})
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {renderGroups(sortedUnpreparedGroups.filter(g => !g.is_blend), false)}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* MIXY */}
+                  {sortedUnpreparedGroups.filter(g => g.is_blend).length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 px-0.5">
+                        <Blend className="h-3.5 w-3.5 text-[#7c3aed]" />
+                        <span className="text-xs font-semibold text-[#5b21b6] uppercase tracking-wide">Mixy</span>
+                        <span className="text-[10px] text-[#94a3b8]">
+                          ({sortedUnpreparedGroups.filter(g => g.is_blend).length})
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {renderGroups(sortedUnpreparedGroups.filter(g => g.is_blend), false)}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </>
-            )}
-          </>
+              )}
+
+              {/* ── HOTOVÉ ───────────────────────────────────────────── */}
+              {sortedPreparedGroups.length > 0 && (
+                <div className="space-y-3">
+                  {/* Section header */}
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-xs font-bold text-[#16a34a] uppercase tracking-widest">Pripravené</span>
+                    <div className="flex-1 h-px bg-[#bbf7d0]" />
+                    <span className="text-xs font-semibold text-[#166534] bg-[#dcfce7] px-2 py-0.5 rounded-full border border-[#bbf7d0]">
+                      {sortedPreparedGroups.reduce((s, g) => s + g.itemsWithLabel.length + g.itemsWithoutLabel.length, 0)} položiek
+                    </span>
+                  </div>
+
+                  {/* PLODINY */}
+                  {sortedPreparedGroups.filter(g => !g.is_blend).length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 px-0.5">
+                        <Leaf className="h-3.5 w-3.5 text-[#16a34a]" />
+                        <span className="text-xs font-semibold text-[#166534] uppercase tracking-wide">Plodiny</span>
+                        <span className="text-[10px] text-[#94a3b8]">
+                          ({sortedPreparedGroups.filter(g => !g.is_blend).length})
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {renderGroups(sortedPreparedGroups.filter(g => !g.is_blend), true)}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* MIXY */}
+                  {sortedPreparedGroups.filter(g => g.is_blend).length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 px-0.5">
+                        <Blend className="h-3.5 w-3.5 text-[#7c3aed]" />
+                        <span className="text-xs font-semibold text-[#5b21b6] uppercase tracking-wide">Mixy</span>
+                        <span className="text-[10px] text-[#94a3b8]">
+                          ({sortedPreparedGroups.filter(g => g.is_blend).length})
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {renderGroups(sortedPreparedGroups.filter(g => g.is_blend), true)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+            </SortableContext>
+          </DndContext>
         )}
       </div>
     </MainLayout>
