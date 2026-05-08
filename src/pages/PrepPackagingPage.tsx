@@ -305,10 +305,14 @@ export default function PrepPackagingPage() {
         if (!crops[cropName]) crops[cropName] = { crop_name: cropName, is_blend: isBlend, total_pieces: 0, size_subgroups: [] };
 
         const crop = crops[cropName];
-        let sub = crop.size_subgroups.find(s => s.size_key === sizeKey && s.package_ml === (packageMl ?? null));
+        // Group by sizeKey only — merge null and non-null package_ml into same group
+        let sub = crop.size_subgroups.find(s => s.size_key === sizeKey);
         if (!sub) {
           sub = { size_key: sizeKey, package_ml: packageMl, package_type: packageType, total_pieces: 0, items: [] };
           crop.size_subgroups.push(sub);
+        } else if (!sub.package_ml && packageMl) {
+          // Upgrade null to actual ml value if we find one
+          sub.package_ml = packageMl;
         }
 
         sub.items.push({
@@ -536,15 +540,12 @@ export default function PrepPackagingPage() {
           <div key={`${sub.size_key}-${sub.package_ml}-${idx}`} className={idx > 0 ? 'border-t border-[#e2e8f0]' : ''}>
             {/* Only show size header when crop has multiple sizes */}
             {group.size_subgroups.length > 1 && (
-              <div className="flex items-center px-4 py-2.5 bg-[#f0fdf4] border-b border-[#d1fae5]">
-                <span className="text-[13px] font-semibold text-[#14532d]">{sub.size_key}</span>
-                <span className="text-[12px] text-[#86efac] mx-1.5">·</span>
-                <span className="text-[12px] font-semibold text-[#166634]">
-                  {sub.package_type}{sub.package_ml ? ` ${sub.package_ml}` : ''}
+              <div className="flex items-center gap-2 px-4 py-1.5 bg-[#fdf6ee] border-b border-[#f0dfc8]">
+                <span className="text-[11px] font-bold text-[#92633a] uppercase tracking-wide">
+                  {sub.size_key}{sub.package_ml ? ` · ${sub.package_type} ${sub.package_ml}` : ` · ${sub.package_type}`}
                 </span>
-                <span className="ml-auto text-[11px] font-medium text-[#16a34a] bg-[#dcfce7] px-2 py-0.5 rounded-full border border-[#bbf7d0]">
-                  {sub.total_pieces} ks
-                </span>
+                <div className="flex-1 h-px bg-[#f0dfc8]" />
+                <span className="text-[10px] font-medium text-[#a07850]">{sub.total_pieces} ks</span>
               </div>
             )}
             {sub.items.map(item => (
@@ -575,9 +576,9 @@ export default function PrepPackagingPage() {
         {crops.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center gap-1.5 mb-2 ml-0.5">
-              <Leaf className="h-3.5 w-3.5 text-[#16a34a]" />
-              <span className="text-xs font-semibold text-[#166534] uppercase tracking-wide">Plodiny</span>
-              <span className="text-[10px] text-[#94a3b8]">({crops.length})</span>
+              <Leaf className="h-3.5 w-3.5 text-[#92633a]" />
+              <span className="text-xs font-bold text-[#92633a] uppercase tracking-wide">Plodiny</span>
+              <span className="text-[10px] text-[#a07850]">({crops.length})</span>
             </div>
             {crops.map(g => <SortableCard key={g.crop_name} group={g} isPrepared={isPrepared} />)}
           </div>
@@ -711,7 +712,7 @@ export default function PrepPackagingPage() {
 
   return (
     <MainLayout>
-      <div className="w-full lg:max-w-4xl lg:mx-auto space-y-3 pb-8 px-4 md:px-6 lg:px-0">
+      <div className="w-full space-y-3 pb-8 px-4 md:px-6">
 
         {/* Top bar */}
         <div className="flex items-start justify-between gap-4 pt-1">
@@ -871,16 +872,16 @@ export default function PrepPackagingPage() {
 
         {/* Summary */}
         {hasContent && summaryCounts.length > 0 && (
-          <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-3">
-            <div className="text-[11px] font-bold text-[#475569] uppercase tracking-wide mb-2">Súhrn obalov na dnes</div>
+          <div className="bg-[#fdf6ee] rounded-xl border border-[#f0dfc8] shadow-sm p-3">
+            <div className="text-[11px] font-bold text-[#92633a] uppercase tracking-wide mb-2">Súhrn obalov na dnes</div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {summaryCounts.map(([key, val]) => (
-                <div key={key} className="bg-[#f8fafc] border border-[#e2e8f0] rounded-lg px-3 py-2.5">
-                  <div className="text-[12px] font-semibold text-[#475569] mb-1">{key}</div>
-                  <div className="text-[22px] font-bold text-[#0f172a] leading-none">{val.total}</div>
+                <div key={key} className="bg-[#fdf6ee] border border-[#f0dfc8] rounded-lg px-3 py-2.5">
+                  <div className="text-[12px] font-semibold text-[#92633a] mb-1">{key}</div>
+                  <div className="text-[22px] font-bold text-[#5c3d1e] leading-none">{val.total}</div>
                   {val.withLabel > 0
                     ? <div className="text-[11px] font-medium text-[#16a34a] mt-1.5 flex items-center gap-1"><Tag className="h-3 w-3" /> {val.withLabel} s etiketou</div>
-                    : <div className="text-[11px] font-medium text-[#64748b] mt-1.5">bez etikety</div>
+                    : <div className="text-[11px] font-medium text-[#a07850] mt-1.5">bez etikety</div>
                   }
                 </div>
               ))}
