@@ -435,13 +435,13 @@ export default function PrepPackagingPage() {
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium text-[14px] text-[#0f172a] truncate">{item.name}</span>
+            <span className="font-medium text-sm text-[#0f172a] truncate">{item.name}</span>
             <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md border ${cfg.bg} ${cfg.border} ${cfg.text}`}>
               {cfg.label}
             </span>
           </div>
           <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-            <span className="text-[14px] font-semibold text-[#0f172a]">
+            <span className="text-[13px] font-semibold text-[#0f172a]">
               {item.pieces} × {item.packaging_size}g
             </span>
             {item.package_ml && (
@@ -503,7 +503,7 @@ export default function PrepPackagingPage() {
             : <Leaf className="h-4 w-4 text-[#16a34a] shrink-0" />
           }
 
-          <span className="font-semibold flex-1 text-[16px] tracking-tight text-[#14532d]">
+          <span className="font-semibold flex-1 text-[15px] tracking-tight text-[#14532d]">
             {group.crop_name}
           </span>
 
@@ -528,9 +528,9 @@ export default function PrepPackagingPage() {
         {group.size_subgroups.map((sub, idx) => (
           <div key={`${sub.size_key}-${sub.package_ml}-${idx}`} className={idx > 0 ? 'border-t border-[#e2e8f0]' : ''}>
             <div className="flex items-center px-4 py-2.5 bg-[#f0fdf4] border-b border-[#d1fae5]">
-              <span className="text-[14px] font-semibold text-[#14532d]">{sub.size_key}</span>
-              <span className="text-[13px] text-[#86efac] mx-1.5">·</span>
-              <span className="text-[13px] font-semibold text-[#166634]">
+              <span className="text-[13px] font-semibold text-[#14532d]">{sub.size_key}</span>
+              <span className="text-[12px] text-[#86efac] mx-1.5">·</span>
+              <span className="text-[12px] font-semibold text-[#166634]">
                 {sub.package_type}{sub.package_ml ? ` ${sub.package_ml}` : ''}
               </span>
               <span className="ml-auto text-[11px] font-medium text-[#16a34a] bg-[#dcfce7] px-2 py-0.5 rounded-full border border-[#bbf7d0]">
@@ -701,7 +701,7 @@ export default function PrepPackagingPage() {
 
   return (
     <MainLayout>
-      <div className="max-w-5xl mx-auto space-y-3 pb-8 px-2 md:px-4">
+      <div className="w-full space-y-3 pb-8 px-4 md:px-6">
 
         {/* Top bar */}
         <div className="flex items-start justify-between gap-4 pt-1">
