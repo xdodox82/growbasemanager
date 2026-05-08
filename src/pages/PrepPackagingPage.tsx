@@ -875,16 +875,25 @@ export default function PrepPackagingPage() {
           <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-3">
             <div className="text-[11px] font-bold text-[#475569] uppercase tracking-wide mb-2">Súhrn obalov na dnes</div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {summaryCounts.map(([key, val]) => (
-                <div key={key} className="bg-[#f8fafc] border border-[#e2e8f0] rounded-lg px-3 py-2">
-                  <div className="text-[11px] font-medium text-[#64748b] mb-0.5">{key}</div>
-                  <div className="text-[20px] font-bold text-[#0f172a] leading-none">{val.total}</div>
-                  {val.withLabel > 0
-                    ? <div className="text-[10px] font-medium text-[#16a34a] mt-1 flex items-center gap-1"><Tag className="h-2.5 w-2.5" /> {val.withLabel} s etiketou</div>
-                    : <div className="text-[10px] font-medium text-[#94a3b8] mt-1">bez etikety</div>
-                  }
-                </div>
-              ))}
+              {summaryCounts.map(([key, val], i) => {
+                const colors = [
+                  { bg: 'bg-[#eff6ff]', border: 'border-[#bfdbfe]', keyC: 'text-[#1d4ed8]', numC: 'text-[#1e3a8a]', subC: 'text-[#3b82f6]' },
+                  { bg: 'bg-[#f0fdf4]', border: 'border-[#bbf7d0]', keyC: 'text-[#16a34a]', numC: 'text-[#14532d]', subC: 'text-[#16a34a]' },
+                  { bg: 'bg-[#fff7ed]', border: 'border-[#fed7aa]', keyC: 'text-[#c2410c]', numC: 'text-[#7c2d12]', subC: 'text-[#ea580c]' },
+                  { bg: 'bg-[#fdf4ff]', border: 'border-[#e9d5ff]', keyC: 'text-[#7c3aed]', numC: 'text-[#4c1d95]', subC: 'text-[#7c3aed]' },
+                ];
+                const c = colors[i % colors.length];
+                return (
+                  <div key={key} className={`${c.bg} border ${c.border} rounded-xl px-4 py-3 flex flex-col items-center text-center`}>
+                    <div className={`text-[12px] font-semibold ${c.keyC} mb-1`}>{key}</div>
+                    <div className={`text-[28px] font-bold ${c.numC} leading-none`}>{val.total}</div>
+                    {val.withLabel > 0
+                      ? <div className={`text-[11px] font-medium text-[#16a34a] mt-1.5 flex items-center gap-1`}><Tag className="h-2.5 w-2.5" /> {val.withLabel} s etiketou</div>
+                      : <div className={`text-[11px] font-medium ${c.subC} mt-1.5 opacity-70`}>bez etikety</div>
+                    }
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
