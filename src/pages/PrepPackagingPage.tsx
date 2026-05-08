@@ -365,23 +365,12 @@ export default function PrepPackagingPage() {
     const map: Record<string, { total: number; withLabel: number }> = {};
     groupedItems.forEach(g =>
       g.size_subgroups.forEach(s => {
-        const key = s.package_ml ? `${s.package_type} ${s.package_ml}` : s.package_type;
+        const key = s.package_ml ? `${s.package_type} ${s.package_ml}` : `${s.package_type} (neznáma)`;
         if (!map[key]) map[key] = { total: 0, withLabel: 0 };
         s.items.forEach(i => { map[key].total += i.pieces; if (i.has_label_req) map[key].withLabel += i.pieces; });
       })
     );
-    // Merge "rPET" (null ml) into "rPET 750ml" etc. when same package_type exists
-    Object.keys(map).forEach(key => {
-      if (!key.includes(' ')) {
-        const matchingKey = Object.keys(map).find(k => k.startsWith(key + ' '));
-        if (matchingKey) {
-          map[matchingKey].total += map[key].total;
-          map[matchingKey].withLabel += map[key].withLabel;
-          delete map[key];
-        }
-      }
-    });
-    return Object.entries(map).sort((a, b) => b[1].total - a[1].total).slice(0, 4);
+    return Object.entries(map).sort((a, b) => b[1].total - a[1].total);
   })();
 
   // Progress
@@ -524,7 +513,7 @@ export default function PrepPackagingPage() {
 
           {/* When only one size: show pkg info inline next to name */}
           {group.size_subgroups.length === 1 && (
-            <span className="text-[12px] font-semibold text-[#166634] bg-[#f0fdf4] border border-[#d1fae5] px-2.5 py-1 rounded-md">
+            <span className="hidden sm:inline text-[11px] font-semibold text-[#166634] bg-[#f0fdf4] border border-[#d1fae5] px-2 py-0.5 rounded-md whitespace-nowrap">
               {group.size_subgroups[0].size_key}{group.size_subgroups[0].package_ml ? ` · ${group.size_subgroups[0].package_type} ${group.size_subgroups[0].package_ml}` : ` · ${group.size_subgroups[0].package_type}`}
             </span>
           )}
@@ -555,8 +544,8 @@ export default function PrepPackagingPage() {
                 <span className="text-[13px] font-bold text-[#334155]">
                   {sub.size_key}{sub.package_ml ? ` · ${sub.package_type} ${sub.package_ml}` : ` · ${sub.package_type}`}
                 </span>
-                <div className="flex-1 h-px bg-[#e2e8f0]" />
-                <span className="text-[12px] font-bold text-[#334155] bg-white border border-[#e2e8f0] px-2 py-0.5 rounded-full">{sub.total_pieces} ks</span>
+                <div className="flex-1 h-px bg-[#cbd5e1]" />
+                <span className="text-[13px] font-bold text-[#334155]">{sub.total_pieces} ks</span>
               </div>
             )}
             {sub.items.map(item => (
@@ -885,7 +874,7 @@ export default function PrepPackagingPage() {
         {hasContent && summaryCounts.length > 0 && (
           <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-3">
             <div className="text-[11px] font-bold text-[#475569] uppercase tracking-wide mb-2">Súhrn obalov na dnes</div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
               {summaryCounts.map(([key, val], i) => {
                 const colors = [
                   { bg: 'bg-[#eff6ff]', border: 'border-[#bfdbfe]', keyC: 'text-[#1d4ed8]', numC: 'text-[#1e3a8a]', subC: 'text-[#3b82f6]' },
