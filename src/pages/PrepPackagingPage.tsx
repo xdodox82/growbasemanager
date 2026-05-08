@@ -370,6 +370,17 @@ export default function PrepPackagingPage() {
         s.items.forEach(i => { map[key].total += i.pieces; if (i.has_label_req) map[key].withLabel += i.pieces; });
       })
     );
+    // Merge "rPET" (null ml) into "rPET 750ml" etc. when same package_type exists
+    Object.keys(map).forEach(key => {
+      if (!key.includes(' ')) {
+        const matchingKey = Object.keys(map).find(k => k.startsWith(key + ' '));
+        if (matchingKey) {
+          map[matchingKey].total += map[key].total;
+          map[matchingKey].withLabel += map[key].withLabel;
+          delete map[key];
+        }
+      }
+    });
     return Object.entries(map).sort((a, b) => b[1].total - a[1].total).slice(0, 4);
   })();
 
@@ -540,12 +551,12 @@ export default function PrepPackagingPage() {
           <div key={`${sub.size_key}-${sub.package_ml}-${idx}`} className={idx > 0 ? 'border-t border-[#e2e8f0]' : ''}>
             {/* Only show size header when crop has multiple sizes */}
             {group.size_subgroups.length > 1 && (
-              <div className="flex items-center gap-2 px-4 py-1 border-b border-[#e2e8f0]">
-                <span className="text-[11px] font-semibold text-[#64748b]">
+              <div className="flex items-center gap-3 px-4 py-2 bg-[#f8fafc] border-y border-[#e2e8f0]">
+                <span className="text-[13px] font-bold text-[#334155]">
                   {sub.size_key}{sub.package_ml ? ` · ${sub.package_type} ${sub.package_ml}` : ` · ${sub.package_type}`}
                 </span>
                 <div className="flex-1 h-px bg-[#e2e8f0]" />
-                <span className="text-[10px] text-[#94a3b8]">{sub.total_pieces} ks</span>
+                <span className="text-[12px] font-bold text-[#334155] bg-white border border-[#e2e8f0] px-2 py-0.5 rounded-full">{sub.total_pieces} ks</span>
               </div>
             )}
             {sub.items.map(item => (
