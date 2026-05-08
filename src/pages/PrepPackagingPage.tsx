@@ -507,6 +507,13 @@ export default function PrepPackagingPage() {
             {group.crop_name}
           </span>
 
+          {/* When only one size: show pkg info inline next to name */}
+          {group.size_subgroups.length === 1 && (
+            <span className="text-[11px] font-medium text-[#166634] bg-[#f0fdf4] border border-[#d1fae5] px-2 py-0.5 rounded-md">
+              {group.size_subgroups[0].size_key}{group.size_subgroups[0].package_ml ? ` · ${group.size_subgroups[0].package_type} ${group.size_subgroups[0].package_ml}` : ` · ${group.size_subgroups[0].package_type}`}
+            </span>
+          )}
+
           <span className="text-xs font-medium px-2 py-0.5 rounded-full border bg-[#dcfce7] text-[#166534] border-[#bbf7d0]">
             {group.total_pieces} ks
           </span>
@@ -527,16 +534,19 @@ export default function PrepPackagingPage() {
         {/* Size subgroups */}
         {group.size_subgroups.map((sub, idx) => (
           <div key={`${sub.size_key}-${sub.package_ml}-${idx}`} className={idx > 0 ? 'border-t border-[#e2e8f0]' : ''}>
-            <div className="flex items-center px-4 py-2.5 bg-[#f0fdf4] border-b border-[#d1fae5]">
-              <span className="text-[13px] font-semibold text-[#14532d]">{sub.size_key}</span>
-              <span className="text-[12px] text-[#86efac] mx-1.5">·</span>
-              <span className="text-[12px] font-semibold text-[#166634]">
-                {sub.package_type}{sub.package_ml ? ` ${sub.package_ml}` : ''}
-              </span>
-              <span className="ml-auto text-[11px] font-medium text-[#16a34a] bg-[#dcfce7] px-2 py-0.5 rounded-full border border-[#bbf7d0]">
-                {sub.total_pieces} ks
-              </span>
-            </div>
+            {/* Only show size header when crop has multiple sizes */}
+            {group.size_subgroups.length > 1 && (
+              <div className="flex items-center px-4 py-2.5 bg-[#f0fdf4] border-b border-[#d1fae5]">
+                <span className="text-[13px] font-semibold text-[#14532d]">{sub.size_key}</span>
+                <span className="text-[12px] text-[#86efac] mx-1.5">·</span>
+                <span className="text-[12px] font-semibold text-[#166634]">
+                  {sub.package_type}{sub.package_ml ? ` ${sub.package_ml}` : ''}
+                </span>
+                <span className="ml-auto text-[11px] font-medium text-[#16a34a] bg-[#dcfce7] px-2 py-0.5 rounded-full border border-[#bbf7d0]">
+                  {sub.total_pieces} ks
+                </span>
+              </div>
+            )}
             {sub.items.map(item => (
               <ItemRow key={item.id} item={item} isPrepared={preparedItems.has(item.id)} />
             ))}
@@ -754,14 +764,21 @@ export default function PrepPackagingPage() {
         <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm overflow-hidden">
           <div className="flex items-center gap-3 px-4 py-2.5 border-b border-[#f1f5f9] cursor-pointer"
             onClick={() => setFiltersOpen(p => !p)}>
-            <Filter className="h-4 w-4 text-[#94a3b8]" />
+            <Filter className="h-4 w-4 text-[#64748b]" />
             <span className="text-sm font-semibold text-[#0f172a] flex-1">Filtre</span>
             {activeFilterCount > 0 && (
               <span className="px-2 py-0.5 bg-[#dcfce7] text-[#166534] text-[11px] font-bold rounded-full border border-[#bbf7d0]">
                 {activeFilterCount}
               </span>
             )}
-            {filtersOpen ? <ChevronUp className="h-4 w-4 text-[#64748b]" /> : <ChevronDown className="h-4 w-4 text-[#64748b]" />}
+            <button className={[
+              'flex items-center gap-1.5 px-3 h-7 rounded-full text-xs font-semibold border transition-colors',
+              filtersOpen
+                ? 'bg-[#0f172a] text-white border-[#0f172a]'
+                : 'bg-[#f1f5f9] text-[#475569] border-[#e2e8f0] hover:bg-[#e2e8f0]',
+            ].join(' ')}>
+              {filtersOpen ? <><ChevronUp className="h-3.5 w-3.5" /> Skryť</> : <><ChevronDown className="h-3.5 w-3.5" /> Rozšírené</>}
+            </button>
           </div>
 
           <div className="px-4 py-3 flex flex-col gap-3">
@@ -776,7 +793,7 @@ export default function PrepPackagingPage() {
             </div>
             {/* Customer type */}
             <div className="flex flex-wrap gap-2 items-center">
-              <span className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wide w-14 shrink-0">Zákazník</span>
+              <span className="text-[11px] font-bold text-[#475569] uppercase tracking-wide w-14 shrink-0">Zákazník</span>
               <div className="w-px h-4 bg-[#e2e8f0]" />
               <Chip active={custTypeFilter === 'all'} onClick={() => setCustTypeFilter('all')} variant="neutral">Všetci</Chip>
               <Chip active={custTypeFilter === 'home'} onClick={() => setCustTypeFilter('home')} variant="green"><House className="h-3 w-3" /> Domáci</Chip>
@@ -785,7 +802,7 @@ export default function PrepPackagingPage() {
             </div>
             {/* Label */}
             <div className="flex flex-wrap gap-2 items-center">
-              <span className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wide w-14 shrink-0">Etiketa</span>
+              <span className="text-[11px] font-bold text-[#475569] uppercase tracking-wide w-14 shrink-0">Etiketa</span>
               <div className="w-px h-4 bg-[#e2e8f0]" />
               <Chip active={labelFilter === 'all'} onClick={() => setLabelFilter('all')} variant="neutral">Všetko</Chip>
               <Chip active={labelFilter === 'yes'} onClick={() => setLabelFilter('yes')} variant="green"><Tag className="h-3 w-3" /> S etiketou</Chip>
@@ -798,7 +815,7 @@ export default function PrepPackagingPage() {
             <div className="px-4 pb-4 border-t border-[#f1f5f9] pt-3 flex flex-col gap-3">
               {/* Category */}
               <div className="flex flex-wrap gap-2 items-center">
-                <span className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wide w-14 shrink-0">Kategória</span>
+                <span className="text-[11px] font-bold text-[#475569] uppercase tracking-wide w-14 shrink-0">Kategória</span>
                 <div className="w-px h-4 bg-[#e2e8f0]" />
                 <Chip active={categoryFilter === 'all'} onClick={() => setCategoryFilter('all')} variant="neutral">Všetky</Chip>
                 <Chip active={categoryFilter === 'microgreens'} onClick={() => setCategoryFilter('microgreens')} variant="green"><Leaf className="h-3 w-3" /> Mikrozelenina</Chip>
@@ -808,7 +825,7 @@ export default function PrepPackagingPage() {
               </div>
               {/* Size */}
               <div className="flex flex-wrap gap-2 items-center">
-                <span className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wide w-14 shrink-0">Veľkosť</span>
+                <span className="text-[11px] font-bold text-[#475569] uppercase tracking-wide w-14 shrink-0">Veľkosť</span>
                 <div className="w-px h-4 bg-[#e2e8f0]" />
                 {['all','250','500','750','1000','1200','1500'].map(v => (
                   <Chip key={v} active={sizeFilter === v} onClick={() => setSizeFilter(v)} variant="neutral">
@@ -818,7 +835,7 @@ export default function PrepPackagingPage() {
               </div>
               {/* Pkg type */}
               <div className="flex flex-wrap gap-2 items-center">
-                <span className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wide w-14 shrink-0">Obal</span>
+                <span className="text-[11px] font-bold text-[#475569] uppercase tracking-wide w-14 shrink-0">Obal</span>
                 <div className="w-px h-4 bg-[#e2e8f0]" />
                 {['all','rPET','PET','EKO','Vrátny obal'].map(v => (
                   <Chip key={v} active={pkgTypeFilter === v} onClick={() => setPkgTypeFilter(v)} variant="neutral">
@@ -828,7 +845,7 @@ export default function PrepPackagingPage() {
               </div>
               {/* Customer */}
               <div className="flex flex-wrap gap-2 items-center">
-                <span className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wide w-14 shrink-0">Klient</span>
+                <span className="text-[11px] font-bold text-[#475569] uppercase tracking-wide w-14 shrink-0">Klient</span>
                 <div className="w-px h-4 bg-[#e2e8f0]" />
                 <div className="flex-1 min-w-[200px]">
                   <SearchableCustomerSelect
@@ -855,7 +872,7 @@ export default function PrepPackagingPage() {
         {/* Summary */}
         {hasContent && summaryCounts.length > 0 && (
           <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-3">
-            <div className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wide mb-2">Súhrn obalov na dnes</div>
+            <div className="text-[11px] font-bold text-[#475569] uppercase tracking-wide mb-2">Súhrn obalov na dnes</div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {summaryCounts.map(([key, val]) => (
                 <div key={key} className="bg-[#f8fafc] border border-[#f1f5f9] rounded-lg px-3 py-2">
