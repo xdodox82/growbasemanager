@@ -33,7 +33,7 @@ interface CustomerItem {
   pieces: number;
   prepared: boolean;
   packaging_size: string;
-  package_ml: string;
+  package_ml: string | null;
   package_type: string;
   has_label_req: boolean;
   order_items?: any[];
@@ -42,7 +42,7 @@ interface CustomerItem {
 
 interface SizeSubgroup {
   size_key: string;
-  package_ml: string;
+  package_ml: string | null;
   package_type: string;
   total_pieces: number;
   items: CustomerItem[];
@@ -292,7 +292,7 @@ export default function PrepPackagingPage() {
         const pkgSize     = item.packaging_size;
         if (!pkgSize) return;
 
-        const packageMl   = item.package_ml ? `${item.package_ml}ml` : String(pkgSize);
+        const packageMl   = item.package_ml ? `${item.package_ml}ml` : null;
         const packageType = item.packaging_type || item.package_type || 'rPET';
         const hasLabel    = item.has_label_req === true || item.needs_label === true;
         const pieces      = Math.ceil(item.quantity || 1);
@@ -305,7 +305,7 @@ export default function PrepPackagingPage() {
         if (!crops[cropName]) crops[cropName] = { crop_name: cropName, is_blend: isBlend, total_pieces: 0, size_subgroups: [] };
 
         const crop = crops[cropName];
-        let sub = crop.size_subgroups.find(s => s.size_key === sizeKey && s.package_ml === packageMl);
+        let sub = crop.size_subgroups.find(s => s.size_key === sizeKey && s.package_ml === (packageMl ?? null));
         if (!sub) {
           sub = { size_key: sizeKey, package_ml: packageMl, package_type: packageType, total_pieces: 0, items: [] };
           crop.size_subgroups.push(sub);
@@ -361,7 +361,7 @@ export default function PrepPackagingPage() {
     const map: Record<string, { total: number; withLabel: number }> = {};
     groupedItems.forEach(g =>
       g.size_subgroups.forEach(s => {
-        const key = `${s.package_type} ${s.package_ml}`;
+        const key = s.package_ml ? `${s.package_type} ${s.package_ml}` : s.package_type;
         if (!map[key]) map[key] = { total: 0, withLabel: 0 };
         s.items.forEach(i => { map[key].total += i.pieces; if (i.has_label_req) map[key].withLabel += i.pieces; });
       })
@@ -425,26 +425,28 @@ export default function PrepPackagingPage() {
       <div
         onClick={() => setDetailItem(item)}
         className={[
-          'flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors border-t border-[#f1f5f9]',
+          'flex items-center gap-3 px-4 py-4 cursor-pointer transition-colors border-t border-[#f1f5f9]',
           isPrepared ? 'bg-[#f0fdf4] hover:bg-[#dcfce7]/40' : 'hover:bg-[#f8fafc]',
         ].join(' ')}
       >
-        <div className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 ${cfg.bg} ${cfg.border}`}>
+        <div className={`w-9 h-9 rounded-lg border flex items-center justify-center shrink-0 ${cfg.bg} ${cfg.border}`}>
           <Icon className={`h-4 w-4 ${cfg.text}`} />
         </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium text-sm text-[#0f172a] truncate">{item.name}</span>
+            <span className="font-medium text-[14px] text-[#0f172a] truncate">{item.name}</span>
             <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md border ${cfg.bg} ${cfg.border} ${cfg.text}`}>
               {cfg.label}
             </span>
           </div>
           <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-            <span className="text-[13px] font-semibold text-[#0f172a]">
+            <span className="text-[14px] font-semibold text-[#0f172a]">
               {item.pieces} × {item.packaging_size}g
             </span>
-            <span className="text-[11px] text-[#94a3b8]">({item.package_ml})</span>
+            {item.package_ml && (
+              <span className="text-[11px] text-[#94a3b8]">({item.package_ml})</span>
+            )}
             <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-[#16a34a] text-white rounded">
               {item.package_type}
             </span>
@@ -459,15 +461,15 @@ export default function PrepPackagingPage() {
         <button
           onClick={e => { e.stopPropagation(); markItem(item.id, item.order_id, !isPrepared); }}
           className={[
-            'shrink-0 flex items-center gap-1.5 px-3 h-9 rounded-lg text-xs font-semibold transition-colors border',
+            'shrink-0 flex items-center gap-1.5 px-4 h-11 rounded-xl text-sm font-semibold transition-colors border',
             isPrepared
               ? 'bg-[#dcfce7] text-[#166534] border-[#bbf7d0] hover:bg-[#fee2e2] hover:text-[#dc2626] hover:border-[#fca5a5]'
               : 'bg-[#f1f5f9] text-[#475569] border-[#e2e8f0] hover:bg-[#dcfce7] hover:text-[#166634] hover:border-[#bbf7d0]',
           ].join(' ')}
         >
           {isPrepared
-            ? <><RotateCcw className="h-3.5 w-3.5" /><span className="hidden sm:inline">Vrátiť</span></>
-            : <><Check className="h-3.5 w-3.5" /><span className="hidden sm:inline">Hotovo</span></>
+            ? <><RotateCcw className="h-4 w-4" /><span className="hidden sm:inline">Vrátiť</span></>
+            : <><Check className="h-4 w-4" /><span className="hidden sm:inline">Hotovo</span></>
           }
         </button>
       </div>
@@ -486,7 +488,7 @@ export default function PrepPackagingPage() {
       >
         {/* Header */}
         <div className={[
-          'flex items-center gap-2.5 px-4 py-3 border-b',
+          'flex items-center gap-2.5 px-4 py-3.5 border-b',
           isPrepared
             ? 'bg-gradient-to-r from-[#dcfce7] to-[#f0fdf4] border-[#bbf7d0]'
             : 'bg-gradient-to-r from-[#f0fdf4] to-[#f8fafc] border-[#d1fae5]',
@@ -501,7 +503,7 @@ export default function PrepPackagingPage() {
             : <Leaf className="h-4 w-4 text-[#16a34a] shrink-0" />
           }
 
-          <span className="font-semibold flex-1 text-[15px] tracking-tight text-[#14532d]">
+          <span className="font-semibold flex-1 text-[16px] tracking-tight text-[#14532d]">
             {group.crop_name}
           </span>
 
@@ -511,12 +513,12 @@ export default function PrepPackagingPage() {
 
           {!isPrepared ? (
             <button onClick={() => markAllInGroup(group, true)}
-              className="flex items-center gap-1.5 h-6 px-2.5 rounded-md border border-[#bbf7d0] bg-[#f0fdf4] text-[11px] font-medium text-[#166534] hover:bg-[#dcfce7] transition-colors">
-              <Check className="h-3 w-3" /> Všetko
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-[#bbf7d0] bg-[#f0fdf4] text-[12px] font-medium text-[#166534] hover:bg-[#dcfce7] transition-colors">
+              <Check className="h-3.5 w-3.5" /> Všetko
             </button>
           ) : (
             <button onClick={() => markAllInGroup(group, false)}
-              className="flex items-center gap-1.5 h-6 px-2.5 rounded-md border border-[#e2e8f0] bg-white text-[11px] font-medium text-[#64748b] hover:bg-[#fee2e2] hover:text-[#dc2626] hover:border-[#fca5a5] transition-colors">
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-[#e2e8f0] bg-white text-[12px] font-medium text-[#64748b] hover:bg-[#fee2e2] hover:text-[#dc2626] hover:border-[#fca5a5] transition-colors">
               <RotateCcw className="h-3 w-3" /> Vrátiť
             </button>
           )}
@@ -525,10 +527,12 @@ export default function PrepPackagingPage() {
         {/* Size subgroups */}
         {group.size_subgroups.map((sub, idx) => (
           <div key={`${sub.size_key}-${sub.package_ml}-${idx}`} className={idx > 0 ? 'border-t border-[#e2e8f0]' : ''}>
-            <div className="flex items-center px-4 py-2 bg-[#f0fdf4] border-b border-[#d1fae5]">
-              <span className="text-[13px] font-semibold text-[#14532d]">{sub.size_key}</span>
-              <span className="text-[12px] text-[#86efac] mx-1.5">·</span>
-              <span className="text-[12px] font-semibold text-[#166634]">{sub.package_type} {sub.package_ml}</span>
+            <div className="flex items-center px-4 py-2.5 bg-[#f0fdf4] border-b border-[#d1fae5]">
+              <span className="text-[14px] font-semibold text-[#14532d]">{sub.size_key}</span>
+              <span className="text-[13px] text-[#86efac] mx-1.5">·</span>
+              <span className="text-[13px] font-semibold text-[#166634]">
+                {sub.package_type}{sub.package_ml ? ` ${sub.package_ml}` : ''}
+              </span>
               <span className="ml-auto text-[11px] font-medium text-[#16a34a] bg-[#dcfce7] px-2 py-0.5 rounded-full border border-[#bbf7d0]">
                 {sub.total_pieces} ks
               </span>
@@ -697,7 +701,7 @@ export default function PrepPackagingPage() {
 
   return (
     <MainLayout>
-      <div className="max-w-4xl mx-auto space-y-3 pb-8">
+      <div className="max-w-5xl mx-auto space-y-3 pb-8 px-2 md:px-4">
 
         {/* Top bar */}
         <div className="flex items-start justify-between gap-4 pt-1">
