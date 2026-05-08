@@ -425,7 +425,7 @@ export default function PrepPackagingPage() {
       <div
         onClick={() => setDetailItem(item)}
         className={[
-          'flex items-center gap-3 px-4 py-4 cursor-pointer transition-colors border-t border-[#f1f5f9]',
+          'flex items-center gap-3 px-4 py-3 lg:py-2.5 cursor-pointer transition-colors border-t border-[#f1f5f9]',
           isPrepared ? 'bg-[#f0fdf4] hover:bg-[#dcfce7]/40' : 'hover:bg-[#f8fafc]',
         ].join(' ')}
       >
@@ -461,7 +461,7 @@ export default function PrepPackagingPage() {
         <button
           onClick={e => { e.stopPropagation(); markItem(item.id, item.order_id, !isPrepared); }}
           className={[
-            'shrink-0 flex items-center gap-1.5 px-4 h-11 rounded-xl text-sm font-semibold transition-colors border',
+            'shrink-0 flex items-center gap-1.5 px-4 h-11 lg:h-9 lg:px-3 rounded-xl lg:rounded-lg text-sm lg:text-xs font-semibold transition-colors border',
             isPrepared
               ? 'bg-[#dcfce7] text-[#166534] border-[#bbf7d0] hover:bg-[#fee2e2] hover:text-[#dc2626] hover:border-[#fca5a5]'
               : 'bg-[#f1f5f9] text-[#475569] border-[#e2e8f0] hover:bg-[#dcfce7] hover:text-[#166634] hover:border-[#bbf7d0]',
@@ -488,7 +488,7 @@ export default function PrepPackagingPage() {
       >
         {/* Header */}
         <div className={[
-          'flex items-center gap-2.5 px-4 py-3.5 border-b',
+          'flex items-center gap-2.5 px-4 py-3 lg:py-2.5 border-b',
           isPrepared
             ? 'bg-gradient-to-r from-[#dcfce7] to-[#f0fdf4] border-[#bbf7d0]'
             : 'bg-gradient-to-r from-[#f0fdf4] to-[#f8fafc] border-[#d1fae5]',
@@ -503,13 +503,13 @@ export default function PrepPackagingPage() {
             : <Leaf className="h-4 w-4 text-[#16a34a] shrink-0" />
           }
 
-          <span className="font-semibold flex-1 text-[15px] tracking-tight text-[#14532d]">
+          <span className="font-semibold flex-1 text-[17px] tracking-tight text-[#14532d]">
             {group.crop_name}
           </span>
 
           {/* When only one size: show pkg info inline next to name */}
           {group.size_subgroups.length === 1 && (
-            <span className="text-[11px] font-medium text-[#166634] bg-[#f0fdf4] border border-[#d1fae5] px-2 py-0.5 rounded-md">
+            <span className="text-[12px] font-semibold text-[#166634] bg-[#f0fdf4] border border-[#d1fae5] px-2.5 py-1 rounded-md">
               {group.size_subgroups[0].size_key}{group.size_subgroups[0].package_ml ? ` · ${group.size_subgroups[0].package_type} ${group.size_subgroups[0].package_ml}` : ` · ${group.size_subgroups[0].package_type}`}
             </span>
           )}
@@ -711,7 +711,7 @@ export default function PrepPackagingPage() {
 
   return (
     <MainLayout>
-      <div className="w-full space-y-3 pb-8 px-4 md:px-6">
+      <div className="w-full lg:max-w-4xl lg:mx-auto space-y-3 pb-8 px-4 md:px-6 lg:px-0">
 
         {/* Top bar */}
         <div className="flex items-start justify-between gap-4 pt-1">
@@ -875,12 +875,12 @@ export default function PrepPackagingPage() {
             <div className="text-[11px] font-bold text-[#475569] uppercase tracking-wide mb-2">Súhrn obalov na dnes</div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {summaryCounts.map(([key, val]) => (
-                <div key={key} className="bg-[#f8fafc] border border-[#f1f5f9] rounded-lg px-3 py-2">
-                  <div className="text-[10px] text-[#94a3b8] mb-1">{key}</div>
-                  <div className="text-[18px] font-semibold text-[#0f172a] leading-none">{val.total}</div>
+                <div key={key} className="bg-[#f8fafc] border border-[#e2e8f0] rounded-lg px-3 py-2.5">
+                  <div className="text-[12px] font-semibold text-[#475569] mb-1">{key}</div>
+                  <div className="text-[22px] font-bold text-[#0f172a] leading-none">{val.total}</div>
                   {val.withLabel > 0
-                    ? <div className="text-[10px] text-[#16a34a] mt-1 flex items-center gap-0.5"><Tag className="h-2.5 w-2.5" /> {val.withLabel} s etiketou</div>
-                    : <div className="text-[10px] text-[#94a3b8] mt-1">bez etikety</div>
+                    ? <div className="text-[11px] font-medium text-[#16a34a] mt-1.5 flex items-center gap-1"><Tag className="h-3 w-3" /> {val.withLabel} s etiketou</div>
+                    : <div className="text-[11px] font-medium text-[#64748b] mt-1.5">bez etikety</div>
                   }
                 </div>
               ))}
