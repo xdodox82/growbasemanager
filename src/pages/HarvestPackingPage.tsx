@@ -602,6 +602,8 @@ export default function HarvestPackingPage() {
       ?.replace(/freq:(weekly|biweekly)/g, '')
       .replace(/\|/g, '')
       .replace(/\bpickup\b/gi, 'Osobný odber')
+      .replace(/\bpreorder\b/gi, 'Predobjednávka')
+      .replace(/\bPredobjednávka\b/g, 'Predobjednávka')
       .trim();
     const routeName = getRouteName(order);
 
