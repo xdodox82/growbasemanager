@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { useOrders, useCustomers, useCrops, useBlends, useOrderItems, useDeliveryRoutes } from '@/hooks/useSupabaseData';
 import { usePrices, useVatSettings } from '@/hooks/usePrices';
 import { useDeliveryDays } from '@/hooks/useDeliveryDays';
-import { Truck, FileSpreadsheet, FileText, CircleCheck as CheckCircle2, Calendar as CalendarIcon, Filter, Undo2, Navigation, CreditCard, Euro, House, Utensils, Store, Building2, Settings, GripVertical, Phone, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Truck, FileSpreadsheet, FileText, CircleCheck as CheckCircle2, Calendar as CalendarIcon, Filter, Undo2, Navigation, CreditCard, Euro, House, Utensils, Store, Building2, Settings, GripVertical, Phone, ChevronLeft, ChevronRight, Wallet, AlertCircle, Plus, X } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -318,9 +318,121 @@ function DeliveryPage() {
   const [expandedOrderIds, setExpandedOrderIds] = useState<Set<string>>(new Set());
   const [rozvozStarted, setRozvozStarted] = useState(false);
 
+  // ── Dlhová peňaženka ──
+  const [activeTab, setActiveTab] = useState<'delivery' | 'debts'>('delivery');
+  const [debts, setDebts] = useState<any[]>([]);
+  const [debtsLoading, setDebtsLoading] = useState(false);
+  const [debtDialog, setDebtDialog] = useState<{ open: boolean; order: any | null }>({ open: false, order: null });
+  const [debtAmount, setDebtAmount] = useState('');
+  const [debtNote, setDebtNote] = useState('');
+  const [paymentDialog, setPaymentDialog] = useState<{ open: boolean; debt: any | null }>({ open: false, debt: null });
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentNote, setPaymentNote] = useState('');
+  const [debtTypeFilter, setDebtTypeFilter] = useState('all');
+  const [debtCustomerSearch, setDebtCustomerSearch] = useState('all');
+
   const handleNavToggle = () => {
     const next = navApp === 'waze' ? 'maps' : 'waze';
     setNavApp(next);
+  };
+
+  // ── Dlhy — fetch ──────────────────────────────────────────────────────────
+
+  const fetchDebts = async () => {
+    setDebtsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('payment_debts')
+        .select(`*, customer:customers(id, name, customer_type), order:orders(id, delivery_date)`)
+        .neq('status', 'paid')
+        .order('created_at', { ascending: false });
+      if (!error && data) setDebts(data);
+    } catch (e) { console.error(e); }
+    finally { setDebtsLoading(false); }
+  };
+
+  const fetchDebtPayments = async (debtId: string) => {
+    const { data } = await supabase
+      .from('debt_payments')
+      .select('*')
+      .eq('debt_id', debtId)
+      .order('paid_at', { ascending: true });
+    return data || [];
+  };
+
+  useEffect(() => {
+    if (activeTab === 'debts') fetchDebts();
+  }, [activeTab]);
+
+  const createDebt = async () => {
+    if (!debtDialog.order || !debtAmount) return;
+    const amount = parseFloat(debtAmount.replace(',', '.'));
+    if (isNaN(amount) || amount <= 0) return;
+    const order = debtDialog.order;
+    const customer = customers.find(c => c.id === order.customer_id);
+    try {
+      await supabase.from('payment_debts').insert({
+        customer_id: order.customer_id,
+        order_id: order.id,
+        delivery_date: order.delivery_date,
+        amount_owed: amount,
+        amount_paid: 0,
+        notes: debtNote || null,
+        status: 'unpaid',
+      });
+      toast({ title: '⚠️ Dlh zaznamenaný', description: `${customer?.name} dlží ${amount.toFixed(2)} €` });
+      setDebtDialog({ open: false, order: null });
+      setDebtAmount('');
+      setDebtNote('');
+      if (activeTab === 'debts') fetchDebts();
+    } catch (e) { console.error(e); }
+  };
+
+  const addDebtPayment = async () => {
+    if (!paymentDialog.debt || !paymentAmount) return;
+    const amount = parseFloat(paymentAmount.replace(',', '.'));
+    if (isNaN(amount) || amount <= 0) return;
+    const debt = paymentDialog.debt;
+    const newPaid = Math.min((debt.amount_paid || 0) + amount, debt.amount_owed);
+    const newStatus = newPaid >= debt.amount_owed ? 'paid' : 'partial';
+    try {
+      await supabase.from('debt_payments').insert({
+        debt_id: debt.id,
+        amount,
+        paid_at: format(new Date(), 'yyyy-MM-dd'),
+        notes: paymentNote || null,
+      });
+      await supabase.from('payment_debts').update({
+        amount_paid: newPaid,
+        status: newStatus,
+        updated_at: new Date().toISOString(),
+      }).eq('id', debt.id);
+      toast({ title: newStatus === 'paid' ? '✅ Dlh uhradený' : '💰 Platba zaznamenaná', description: `Zaplatené: ${amount.toFixed(2)} €` });
+      setPaymentDialog({ open: false, debt: null });
+      setPaymentAmount('');
+      setPaymentNote('');
+      fetchDebts();
+    } catch (e) { console.error(e); }
+  };
+
+  const markDebtFullyPaid = async (debt: any) => {
+    const remaining = debt.amount_owed - (debt.amount_paid || 0);
+    if (remaining <= 0) return;
+    try {
+      await supabase.from('debt_payments').insert({
+        debt_id: debt.id,
+        amount: remaining,
+        paid_at: format(new Date(), 'yyyy-MM-dd'),
+        notes: 'Plná úhrada',
+      });
+      await supabase.from('payment_debts').update({
+        amount_paid: debt.amount_owed,
+        status: 'paid',
+        updated_at: new Date().toISOString(),
+      }).eq('id', debt.id);
+      toast({ title: '✅ Dlh plne uhradený' });
+      fetchDebts();
+    } catch (e) { console.error(e); }
   };
 
   const openNavigation = (address: string) => {
@@ -1365,6 +1477,287 @@ function DeliveryPage() {
         description="Prehľad objednávok na rozvoz"
       >
       </PageHeader>
+
+      {/* ── Tab switcher ──────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 px-4 mb-4">
+        <button
+          onClick={() => setActiveTab('delivery')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
+            activeTab === 'delivery'
+              ? 'bg-[#16a34a] text-white border-[#16a34a]'
+              : 'bg-white text-[#475569] border-[#e2e8f0] hover:border-[#bbf7d0]'
+          }`}
+        >
+          <Truck className="h-4 w-4" /> Rozvoz
+        </button>
+        <button
+          onClick={() => setActiveTab('debts')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
+            activeTab === 'debts'
+              ? 'bg-[#dc2626] text-white border-[#dc2626]'
+              : 'bg-white text-[#475569] border-[#e2e8f0] hover:border-[#fca5a5]'
+          }`}
+        >
+          <Wallet className="h-4 w-4" />
+          Dlhová peňaženka
+          {debts.length > 0 && (
+            <span className="bg-white text-[#dc2626] text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+              {debts.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* ── DLHY TAB ─────────────────────────────────────────────── */}
+      {activeTab === 'debts' && (
+        <div className="px-4 space-y-4 pb-8">
+          {/* Filtre */}
+          <div className="bg-white rounded-xl border border-[#e2e8f0] p-4 space-y-3">
+            <div className="flex flex-wrap gap-2">
+              {(['all', 'home', 'gastro', 'wholesale'] as const).map(type => {
+                const labels = { all: 'Všetci', home: 'Domáci', gastro: 'Gastro', wholesale: 'VO' };
+                const icons = { all: null, home: <House className="h-3 w-3" />, gastro: <Utensils className="h-3 w-3" />, wholesale: <Store className="h-3 w-3" /> };
+                return (
+                  <button key={type} onClick={() => setDebtTypeFilter(type)}
+                    className={`inline-flex items-center gap-1.5 px-3 h-8 rounded-full border text-xs font-medium transition-colors ${
+                      debtTypeFilter === type
+                        ? 'bg-[#0f172a] text-white border-[#0f172a]'
+                        : 'bg-white border-[#e2e8f0] text-[#475569] hover:border-[#cbd5e1]'
+                    }`}>
+                    {icons[type]}{labels[type]}
+                  </button>
+                );
+              })}
+            </div>
+            <SearchableCustomerSelect
+              customers={customers.filter(c => debtTypeFilter === 'all' || c.customer_type === debtTypeFilter)}
+              value={debtCustomerSearch}
+              onValueChange={setDebtCustomerSearch}
+              placeholder="Všetci zákazníci"
+              allowAll={true}
+            />
+          </div>
+
+          {debtsLoading ? (
+            <div className="text-center py-8 text-[#64748b]">Načítavam dlhy...</div>
+          ) : debts.length === 0 ? (
+            <div className="bg-white rounded-xl border border-[#e2e8f0] py-16 flex flex-col items-center text-center px-6">
+              <div className="w-14 h-14 rounded-2xl bg-[#f0fdf4] flex items-center justify-center mb-4">
+                <Wallet className="h-7 w-7 text-[#16a34a]" />
+              </div>
+              <h3 className="text-base font-semibold text-[#0f172a] mb-1">Žiadne nezaplatené dlhy</h3>
+              <p className="text-sm text-[#64748b]">Všetky objednávky sú uhradené.</p>
+            </div>
+          ) : (() => {
+            // Group debts by customer
+            const filteredDebts = debts.filter(d => {
+              const typeOk = debtTypeFilter === 'all' || d.customer?.customer_type === debtTypeFilter;
+              const custOk = debtCustomerSearch === 'all' || d.customer_id === debtCustomerSearch;
+              return typeOk && custOk;
+            });
+            const grouped: Record<string, any[]> = {};
+            filteredDebts.forEach(d => {
+              const cid = d.customer_id || 'unknown';
+              if (!grouped[cid]) grouped[cid] = [];
+              grouped[cid].push(d);
+            });
+            return Object.entries(grouped).map(([custId, custDebts]) => {
+              const customer = custDebts[0]?.customer;
+              const totalOwed = custDebts.reduce((s, d) => s + (d.amount_owed || 0), 0);
+              const totalPaid = custDebts.reduce((s, d) => s + (d.amount_paid || 0), 0);
+              const totalRemaining = totalOwed - totalPaid;
+              const custType = customer?.customer_type || 'home';
+              const typeColors = {
+                home: 'bg-[#f0fdf4] border-[#bbf7d0] text-[#16a34a]',
+                gastro: 'bg-[#eff6ff] border-[#bfdbfe] text-[#2563eb]',
+                wholesale: 'bg-[#fff7ed] border-[#fed7aa] text-[#d97706]',
+              };
+              const typeLabels = { home: 'Domáci', gastro: 'Gastro', wholesale: 'VO' };
+              return (
+                <div key={custId} className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm overflow-hidden">
+                  {/* Customer header */}
+                  <div className="flex items-center gap-3 px-4 py-3 bg-[#fef2f2] border-b border-[#fecaca]">
+                    <AlertCircle className="h-5 w-5 text-[#dc2626] shrink-0" />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-[#0f172a]">{customer?.name || 'Neznámy'}</span>
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md border ${typeColors[custType as keyof typeof typeColors] || typeColors.home}`}>
+                          {typeLabels[custType as keyof typeof typeLabels] || custType}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[11px] text-[#64748b]">Celkový dlh</div>
+                      <div className="text-lg font-bold text-[#dc2626]">{totalRemaining.toFixed(2)} €</div>
+                    </div>
+                  </div>
+                  {/* Individual debts */}
+                  <div className="divide-y divide-[#f1f5f9]">
+                    {custDebts.map(debt => {
+                      const remaining = (debt.amount_owed || 0) - (debt.amount_paid || 0);
+                      return (
+                        <div key={debt.id} className="px-4 py-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm font-medium text-[#0f172a]">
+                                  {debt.delivery_date ? format(new Date(debt.delivery_date), 'd. MMM yyyy', { locale: sk }) : '—'}
+                                </span>
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${
+                                  debt.status === 'partial'
+                                    ? 'bg-[#fff7ed] border-[#fed7aa] text-[#d97706]'
+                                    : 'bg-[#fef2f2] border-[#fecaca] text-[#dc2626]'
+                                }`}>
+                                  {debt.status === 'partial' ? 'Čiastočne' : 'Nezaplatené'}
+                                </span>
+                              </div>
+                              <div className="text-xs text-[#64748b] mt-0.5">
+                                Dlžná suma: <span className="font-semibold text-[#0f172a]">{(debt.amount_owed || 0).toFixed(2)} €</span>
+                                {(debt.amount_paid || 0) > 0 && (
+                                  <> · Zaplatené: <span className="font-semibold text-[#16a34a]">{(debt.amount_paid || 0).toFixed(2)} €</span></>
+                                )}
+                              </div>
+                              {debt.notes && <div className="text-xs text-[#94a3b8] mt-0.5 italic">{debt.notes}</div>}
+                              <div className="text-sm font-bold text-[#dc2626] mt-1">
+                                Zostatok: {remaining.toFixed(2)} €
+                              </div>
+                            </div>
+                            <div className="flex flex-col gap-1.5 shrink-0">
+                              <button
+                                onClick={() => { setPaymentDialog({ open: true, debt }); setPaymentAmount(remaining.toFixed(2)); setPaymentNote(''); }}
+                                className="flex items-center gap-1.5 px-3 h-8 rounded-lg bg-[#16a34a] text-white text-xs font-semibold hover:bg-[#15803d] transition-colors"
+                              >
+                                <Plus className="h-3.5 w-3.5" /> Platba
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            });
+          })()}
+        </div>
+      )}
+
+      {/* ── Debt Dialog ───────────────────────────────────────────── */}
+      <Dialog open={debtDialog.open} onOpenChange={open => { if (!open) { setDebtDialog({ open: false, order: null }); setDebtAmount(''); setDebtNote(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-[#dc2626]" /> Zaznamenať dlh
+            </DialogTitle>
+          </DialogHeader>
+          {debtDialog.order && (
+            <div className="space-y-4 pt-2">
+              <div className="bg-[#fef2f2] rounded-lg p-3 text-sm">
+                <div className="font-semibold text-[#0f172a]">{customers.find(c => c.id === debtDialog.order?.customer_id)?.name}</div>
+                <div className="text-[#64748b]">
+                  {debtDialog.order?.delivery_date ? format(new Date(debtDialog.order.delivery_date), 'd. MMMM yyyy', { locale: sk }) : ''}
+                  {' · '}celková suma: <span className="font-semibold">{debtDialog.order?.totalPrice?.toFixed(2)} €</span>
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-[#0f172a] block mb-1.5">Nezaplatená suma (€)</label>
+                <input
+                  type="number" step="0.01" min="0"
+                  value={debtAmount}
+                  onChange={e => setDebtAmount(e.target.value)}
+                  placeholder={debtDialog.order?.totalPrice?.toFixed(2) || '0.00'}
+                  className="w-full px-3 py-2 border border-[#e2e8f0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#dc2626]"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-[#0f172a] block mb-1.5">Poznámka (voliteľné)</label>
+                <textarea
+                  value={debtNote}
+                  onChange={e => setDebtNote(e.target.value)}
+                  rows={2}
+                  placeholder="Napr. zaplatí budúci týždeň..."
+                  className="w-full px-3 py-2 border border-[#e2e8f0] rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#dc2626]"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => { setDebtDialog({ open: false, order: null }); setDebtAmount(''); setDebtNote(''); }}
+                  className="flex-1 h-10 rounded-lg border border-[#e2e8f0] text-sm font-medium text-[#475569] hover:bg-[#f8fafc]">
+                  Zrušiť
+                </button>
+                <button onClick={createDebt}
+                  className="flex-1 h-10 rounded-lg bg-[#dc2626] text-white text-sm font-semibold hover:bg-[#b91c1c] transition-colors">
+                  Zaznamenať dlh
+                </button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Payment Dialog ────────────────────────────────────────── */}
+      <Dialog open={paymentDialog.open} onOpenChange={open => { if (!open) { setPaymentDialog({ open: false, debt: null }); setPaymentAmount(''); setPaymentNote(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-[#16a34a]" /> Zaznamenať platbu
+            </DialogTitle>
+          </DialogHeader>
+          {paymentDialog.debt && (
+            <div className="space-y-4 pt-2">
+              <div className="bg-[#f0fdf4] rounded-lg p-3 text-sm space-y-1">
+                <div className="font-semibold text-[#0f172a]">{paymentDialog.debt.customer?.name}</div>
+                <div className="flex justify-between text-xs text-[#64748b]">
+                  <span>Dlžná suma:</span>
+                  <span className="font-semibold text-[#0f172a]">{(paymentDialog.debt.amount_owed || 0).toFixed(2)} €</span>
+                </div>
+                {(paymentDialog.debt.amount_paid || 0) > 0 && (
+                  <div className="flex justify-between text-xs text-[#64748b]">
+                    <span>Už zaplatené:</span>
+                    <span className="font-semibold text-[#16a34a]">{(paymentDialog.debt.amount_paid || 0).toFixed(2)} €</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-xs font-bold border-t border-[#bbf7d0] pt-1 mt-1">
+                  <span>Zostatok:</span>
+                  <span className="text-[#dc2626]">{((paymentDialog.debt.amount_owed || 0) - (paymentDialog.debt.amount_paid || 0)).toFixed(2)} €</span>
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-[#0f172a] block mb-1.5">Suma platby (€)</label>
+                <input
+                  type="number" step="0.01" min="0"
+                  value={paymentAmount}
+                  onChange={e => setPaymentAmount(e.target.value)}
+                  className="w-full px-3 py-2 border border-[#e2e8f0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#16a34a]"
+                />
+                <p className="text-[11px] text-[#94a3b8] mt-1">
+                  Dátum platby: {format(new Date(), 'd. MMMM yyyy', { locale: sk })} (automaticky)
+                </p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-[#0f172a] block mb-1.5">Poznámka (voliteľné)</label>
+                <input
+                  type="text" value={paymentNote}
+                  onChange={e => setPaymentNote(e.target.value)}
+                  placeholder="Napr. v hotovosti..."
+                  className="w-full px-3 py-2 border border-[#e2e8f0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#16a34a]"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => { setPaymentDialog({ open: false, debt: null }); setPaymentAmount(''); setPaymentNote(''); }}
+                  className="flex-1 h-10 rounded-lg border border-[#e2e8f0] text-sm font-medium text-[#475569] hover:bg-[#f8fafc]">
+                  Zrušiť
+                </button>
+                <button onClick={addDebtPayment}
+                  className="flex-1 h-10 rounded-lg bg-[#16a34a] text-white text-sm font-semibold hover:bg-[#15803d] transition-colors">
+                  Uložiť platbu
+                </button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      {/* ── ROZVOZ TAB ───────────────────────────────────────────── */}
+      {activeTab === 'delivery' && (<>
       {/* DESKTOP Filter - rovnaké šírky, centrované labely */}
       <div className="hidden md:block space-y-3 p-4 bg-white border-b mb-6">
 
@@ -1789,7 +2182,21 @@ function DeliveryPage() {
                                   )}
                                 </div>
 
-                                <div className="grid grid-cols-3 gap-2">
+                                <div className="grid grid-cols-4 gap-2">
+                                  {/* Zaznamenať dlh */}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDebtDialog({ open: true, order });
+                                      setDebtAmount(order.totalPrice?.toFixed(2) || '');
+                                      setDebtNote('');
+                                    }}
+                                    className="flex flex-col items-center justify-center gap-1 py-3 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100 transition-colors"
+                                  >
+                                    <AlertCircle className="h-6 w-6" />
+                                    Dlh
+                                  </button>
+
                                   {/* Zaplatené */}
                                   <button
                                     onClick={(e) => {
@@ -2397,6 +2804,7 @@ function DeliveryPage() {
           </div>
         </DialogContent>
       </Dialog>
+      </>)}
     </MainLayout>
   );
 }
