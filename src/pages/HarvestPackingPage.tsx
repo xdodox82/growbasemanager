@@ -130,7 +130,11 @@ export default function HarvestPackingPage() {
   const [cropFilter, setCropFilter] = useState('all');
   const [customerFilter, setCustomerFilter] = useState('all');
   const [packagingSizeFilter, setPackagingSizeFilter] = useState('all');
+  const [routeFilter, setRouteFilter] = useState('all');
+  const [packTypeFilter, setPackTypeFilter] = useState('all');
   const [availableSizes, setAvailableSizes] = useState<number[]>([]);
+  const [availableRoutes, setAvailableRoutes] = useState<string[]>([]);
+  const [availablePackTypes, setAvailablePackTypes] = useState<string[]>([]);
 
   // State
   const [completedProducts, setCompletedProducts] = useState<Set<string>>(new Set());
@@ -159,6 +163,16 @@ export default function HarvestPackingPage() {
     if (orders.length > 0) {
       const sizes = orders.flatMap(o => o.items?.map(i => i.packaging_size) || []);
       setAvailableSizes([...new Set(sizes)].filter((s): s is number => s != null).sort((a, b) => a - b));
+
+      const routes = orders
+        .map(o => o.customer?.delivery_route?.name || o.route || null)
+        .filter((r): r is string => !!r);
+      setAvailableRoutes([...new Set(routes)].sort());
+
+      const packTypes = orders
+        .flatMap(o => o.items?.map((i: any) => i.package_type || 'rPET') || [])
+        .filter(Boolean);
+      setAvailablePackTypes([...new Set(packTypes)].sort());
     }
   }, [orders]);
 
@@ -293,11 +307,16 @@ export default function HarvestPackingPage() {
   }, [blends, categoryFilter]);
 
   const filteredOrders = useMemo(() =>
-    orders.filter(order =>
-      (customerTypeFilter === 'all' || order.customer_type === customerTypeFilter) &&
-      (customerFilter === 'all' || order.customer_id === customerFilter)
-    ),
-  [orders, customerTypeFilter, customerFilter]);
+    orders.filter(order => {
+      if (customerTypeFilter !== 'all' && order.customer_type !== customerTypeFilter) return false;
+      if (customerFilter !== 'all' && order.customer_id !== customerFilter) return false;
+      if (routeFilter !== 'all') {
+        const orderRoute = order.customer?.delivery_route?.name || order.route || null;
+        if (orderRoute !== routeFilter) return false;
+      }
+      return true;
+    }),
+  [orders, customerTypeFilter, customerFilter, routeFilter]);
 
   const groupedByProduct = useMemo(() => {
     const groups: Record<string, ProductGroup> = {};
@@ -325,6 +344,9 @@ export default function HarvestPackingPage() {
         // Size filter
         if (packagingSizeFilter !== 'all' && item.packaging_size?.toString() !== packagingSizeFilter) return;
 
+        // Pack type filter
+        if (packTypeFilter !== 'all' && (item.package_type || 'rPET') !== packTypeFilter) return;
+
         if (!groups[productId]) {
           groups[productId] = { productId, productName, productType, category, orders: [] };
         }
@@ -336,7 +358,7 @@ export default function HarvestPackingPage() {
     });
 
     return Object.values(groups);
-  }, [filteredOrders, crops, blends, categoryFilter, cropFilter, packagingSizeFilter]);
+  }, [filteredOrders, crops, blends, categoryFilter, cropFilter, packagingSizeFilter, packTypeFilter]);
 
   const singleProducts = groupedByProduct.filter(g => g.productType === 'crop' && !completedProducts.has(g.productId));
   const mixProducts    = groupedByProduct.filter(g => g.productType === 'blend' && !completedProducts.has(g.productId));
@@ -515,7 +537,8 @@ export default function HarvestPackingPage() {
 
   const activeFilterCount = [
     customerTypeFilter !== 'all', categoryFilter !== 'all',
-    cropFilter !== 'all', packagingSizeFilter !== 'all', customerFilter !== 'all',
+    cropFilter !== 'all', packagingSizeFilter !== 'all',
+    customerFilter !== 'all', routeFilter !== 'all', packTypeFilter !== 'all',
   ].filter(Boolean).length;
 
   // ── Calendar ───────────────────────────────────────────────────────────────
@@ -913,6 +936,34 @@ export default function HarvestPackingPage() {
                 ))}
               </div>
 
+              {/* Route */}
+              {availableRoutes.length > 0 && (
+                <div className="flex flex-wrap gap-2 items-center">
+                  <span className="text-[11px] font-bold text-[#475569] uppercase tracking-wide w-14 shrink-0">Trasa</span>
+                  <div className="w-px h-4 bg-[#e2e8f0]" />
+                  <Chip active={routeFilter === 'all'} onClick={() => setRouteFilter('all')} variant="neutral">Všetky</Chip>
+                  {availableRoutes.map(route => (
+                    <Chip key={route} active={routeFilter === route} onClick={() => setRouteFilter(route)} variant="blue">
+                      🚚 {route}
+                    </Chip>
+                  ))}
+                </div>
+              )}
+
+              {/* Pack type */}
+              {availablePackTypes.length > 0 && (
+                <div className="flex flex-wrap gap-2 items-center">
+                  <span className="text-[11px] font-bold text-[#475569] uppercase tracking-wide w-14 shrink-0">Obal</span>
+                  <div className="w-px h-4 bg-[#e2e8f0]" />
+                  <Chip active={packTypeFilter === 'all'} onClick={() => setPackTypeFilter('all')} variant="neutral">Všetky</Chip>
+                  {availablePackTypes.map(pt => (
+                    <Chip key={pt} active={packTypeFilter === pt} onClick={() => setPackTypeFilter(pt)} variant="neutral">
+                      {pt}
+                    </Chip>
+                  ))}
+                </div>
+              )}
+
               {/* Crop/blend */}
               {(filteredCrops.length > 0 || filteredBlends.length > 0) && (
                 <div className="flex flex-wrap gap-2 items-center">
@@ -945,7 +996,7 @@ export default function HarvestPackingPage() {
               {activeFilterCount > 0 && (
                 <div className="flex justify-end pt-1">
                   <button
-                    onClick={() => { setCustomerTypeFilter('all'); setCategoryFilter('all'); setCropFilter('all'); setPackagingSizeFilter('all'); setCustomerFilter('all'); }}
+                    onClick={() => { setCustomerTypeFilter('all'); setCategoryFilter('all'); setCropFilter('all'); setPackagingSizeFilter('all'); setCustomerFilter('all'); setRouteFilter('all'); setPackTypeFilter('all'); }}
                     className="flex items-center gap-1.5 text-xs text-[#64748b] hover:text-[#dc2626] transition-colors">
                     <X className="h-3 w-3" /> Zrušiť filtre
                   </button>
