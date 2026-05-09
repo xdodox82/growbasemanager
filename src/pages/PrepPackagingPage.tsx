@@ -820,7 +820,7 @@ export default function PrepPackagingPage() {
                 <div className="w-px h-4 bg-[#e2e8f0]" />
                 <Chip active={categoryFilter === 'all'} onClick={() => setCategoryFilter('all')} variant="neutral">Všetky</Chip>
                 <Chip active={categoryFilter === 'microgreens'} onClick={() => setCategoryFilter('microgreens')} variant="green"><Leaf className="h-3 w-3" /> Mikrozelenina</Chip>
-                <Chip active={categoryFilter === 'microherbs'} onClick={() => setCategoryFilter('microherbs')} variant="green"><Sprout className="h-3 w-3" /> Bylinky</Chip>
+                <Chip active={categoryFilter === 'microherbs'} onClick={() => setCategoryFilter('microherbs')} variant="green"><Sprout className="h-3 w-3" /> Mikrobylinky</Chip>
                 <Chip active={categoryFilter === 'edible_flowers'} onClick={() => setCategoryFilter('edible_flowers')} variant="green"><Flower2 className="h-3 w-3" /> Kvety</Chip>
                 <Chip active={categoryFilter === 'blends'} onClick={() => setCategoryFilter('blends')} variant="blue"><Grid3x3 className="h-3 w-3" /> Mixy</Chip>
               </div>

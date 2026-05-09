@@ -598,7 +598,11 @@ export default function HarvestPackingPage() {
     const cfg = getCfg(order.customer_type);
     const Icon = cfg.Icon;
     const isRecurring = order.notes?.includes('freq:weekly') || order.notes?.includes('freq:biweekly');
-    const cleanNotes = order.notes?.replace(/freq:(weekly|biweekly)/g, '').replace(/\|/g, '').trim();
+    const cleanNotes = order.notes
+      ?.replace(/freq:(weekly|biweekly)/g, '')
+      .replace(/\|/g, '')
+      .replace(/\bpickup\b/gi, 'Osobný odber')
+      .trim();
     const routeName = getRouteName(order);
 
     return (
@@ -890,7 +894,7 @@ export default function HarvestPackingPage() {
                 <div className="w-px h-4 bg-[#e2e8f0]" />
                 <Chip active={categoryFilter === 'all'} onClick={() => { setCategoryFilter('all'); setCropFilter('all'); }} variant="neutral">Všetky</Chip>
                 <Chip active={categoryFilter === 'microgreens'} onClick={() => { setCategoryFilter('microgreens'); setCropFilter('all'); }} variant="green"><Leaf className="h-3 w-3" /> Mikrozelenina</Chip>
-                <Chip active={categoryFilter === 'microherbs'} onClick={() => { setCategoryFilter('microherbs'); setCropFilter('all'); }} variant="green"><Sprout className="h-3 w-3" /> Bylinky</Chip>
+                <Chip active={categoryFilter === 'microherbs'} onClick={() => { setCategoryFilter('microherbs'); setCropFilter('all'); }} variant="green"><Sprout className="h-3 w-3" /> Mikrobylinky</Chip>
                 <Chip active={categoryFilter === 'edible_flowers'} onClick={() => { setCategoryFilter('edible_flowers'); setCropFilter('all'); }} variant="green"><Flower2 className="h-3 w-3" /> Kvety</Chip>
                 <Chip active={categoryFilter === 'mix'} onClick={() => { setCategoryFilter('mix'); setCropFilter('all'); }} variant="blue"><Grid3x3 className="h-3 w-3" /> Mixy</Chip>
               </div>
