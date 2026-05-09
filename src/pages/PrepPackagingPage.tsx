@@ -519,7 +519,7 @@ export default function PrepPackagingPage() {
           )}
 
           <span className="text-xs font-medium px-2 py-0.5 rounded-full border bg-[#dcfce7] text-[#166534] border-[#bbf7d0]">
-            {group.total_pieces} ks
+            {group.size_subgroups.length > 1 ? `celkom ${group.total_pieces} ks` : `${group.total_pieces} ks`}
           </span>
 
           {!isPrepared ? (
