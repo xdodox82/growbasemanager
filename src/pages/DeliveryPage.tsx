@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { useOrders, useCustomers, useCrops, useBlends, useOrderItems, useDeliveryRoutes } from '@/hooks/useSupabaseData';
 import { usePrices, useVatSettings } from '@/hooks/usePrices';
 import { useDeliveryDays } from '@/hooks/useDeliveryDays';
-import { Truck, FileSpreadsheet, FileText, CircleCheck as CheckCircle2, Calendar as CalendarIcon, Filter, Undo2, Navigation, CreditCard, Euro, House, Utensils, Store, Building2, Settings, GripVertical, Phone, ChevronLeft, ChevronRight, Wallet, AlertCircle, Plus, X } from 'lucide-react';
+import { Truck, FileSpreadsheet, FileText, CircleCheck as CheckCircle2, Calendar as CalendarIcon, Filter, Undo2, Navigation, CreditCard, Euro, House, Utensils, Store, Building2, Settings, GripVertical, Phone, ChevronLeft, ChevronRight, Wallet, AlertCircle, Plus, X, MapPin } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -109,177 +109,101 @@ function SortableOrderRow({
       style={style}
       className={cn(
         isDragging ? 'relative z-50' : '',
-        'cursor-pointer hover:bg-gray-50 transition-colors h-10'
+        'cursor-pointer hover:bg-[#f8fafc] transition-colors h-11 border-b border-[#f1f5f9]'
       )}
       onClick={() => onOrderClick(order)}
     >
-      <TableCell onClick={(e) => e.stopPropagation()} className="py-0.5">
-        <button
-          className="cursor-grab active:cursor-grabbing touch-none"
-          {...attributes}
-          {...listeners}
-        >
-          <GripVertical className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+      <TableCell onClick={(e) => e.stopPropagation()} className="py-0 w-8">
+        <button className="cursor-grab active:cursor-grabbing touch-none p-1" {...attributes} {...listeners}>
+          <GripVertical className="h-4 w-4 text-[#cbd5e1] hover:text-[#94a3b8]" />
         </button>
       </TableCell>
 
-      {/* ZÁKAZNÍK - tučný, väčší */}
-      <TableCell className="text-center py-0.5">
-        <div className="flex flex-col gap-1">
-          <span className="font-bold text-lg">{order.customerName}</span>
+      {/* ZÁKAZNÍK */}
+      <TableCell className="py-2">
+        <div className="flex flex-col gap-0.5">
+          <span className="font-semibold text-sm text-[#0f172a]">{order.customerName}</span>
           {order.deliveryNotes && (
-            <div className="text-xs text-muted-foreground italic">
-              📍 {order.deliveryNotes}
+            <div className="flex items-center gap-1 text-xs text-[#f59e0b]">
+              <Navigation className="h-3 w-3" />
+              {order.deliveryNotes}
             </div>
           )}
           {order.notes && (
-            <div className="text-xs text-amber-600 dark:text-amber-500 font-medium">
-              💬 {order.notes}
-            </div>
+            <div className="text-xs text-[#64748b]">{order.notes}</div>
           )}
         </div>
       </TableCell>
 
       {/* ADRESA */}
-      <TableCell className="hidden lg:table-cell text-center py-0.5">
+      <TableCell className="hidden lg:table-cell py-2">
         {order.customerAddress && (
-          <span className="text-sm">{order.customerAddress}</span>
+          <span className="text-xs text-[#64748b]">{order.customerAddress}</span>
         )}
       </TableCell>
 
-      {/* KONTAKT - telefón + swipe navigácia */}
-      <TableCell className="hidden lg:table-cell py-0.5" onClick={(e) => e.stopPropagation()}>
-        <div className="flex flex-col items-center gap-2">
-          {/* Telefón */}
+      {/* KONTAKT */}
+      <TableCell className="hidden lg:table-cell py-2" onClick={(e) => e.stopPropagation()}>
+        <div className="flex flex-col gap-1.5">
           {order.customerPhone && (
-            <a
-              href={`tel:${order.customerPhone}`}
-              className="flex items-center gap-1 text-blue-600 hover:underline text-sm"
-            >
-              <Phone className="h-4 w-4" />
-              {order.customerPhone}
+            <a href={`tel:${order.customerPhone}`} className="flex items-center gap-1 text-[#2563eb] hover:underline text-xs">
+              <Phone className="h-3.5 w-3.5" />{order.customerPhone}
             </a>
           )}
-
-          {/* Swipe navigácia */}
           {order.customerAddress && (
-            <div
-              className="relative select-none cursor-grab active:cursor-grabbing"
-              onTouchStart={(e) => {
-                const startX = e.touches[0].clientX;
-                const handleTouchMove = (moveEvent: TouchEvent) => {
-                  const deltaX = moveEvent.touches[0].clientX - startX;
-                  if (Math.abs(deltaX) > 50) {
-                    setNavigationMode(prev => ({
-                      ...prev,
-                      [order.id]: prev[order.id] === 'waze' ? 'maps' : 'waze'
-                    }));
-                    document.removeEventListener('touchmove', handleTouchMove);
-                  }
-                };
-                document.addEventListener('touchmove', handleTouchMove);
-                document.addEventListener('touchend', () => {
-                  document.removeEventListener('touchmove', handleTouchMove);
-                }, { once: true });
-              }}
+            <a
+              href={currentNav === 'waze'
+                ? `https://waze.com/ul?q=${encodeURIComponent(order.customerAddress)}`
+                : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(order.customerAddress)}`}
+              target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1 text-[#2563eb] hover:underline text-xs"
+              onClick={(e) => e.stopPropagation()}
             >
-              {currentNav === 'waze' ? (
-                <a
-                  href={`https://waze.com/ul?q=${encodeURIComponent(order.customerAddress)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-blue-600 hover:underline text-sm"
-                >
-                  <Navigation className="h-4 w-4" />
-                  Waze
-                </a>
-              ) : (
-                <a
-                  href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(order.customerAddress)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-green-600 hover:underline text-sm"
-                >
-                  <Navigation className="h-4 w-4" />
-                  Maps
-                </a>
-              )}
-            </div>
+              <Navigation className="h-3.5 w-3.5" />
+              {currentNav === 'waze' ? 'Waze' : 'Maps'}
+            </a>
           )}
         </div>
       </TableCell>
 
       {/* CENA */}
-      <TableCell className="text-center py-0.5">
-        <div className="text-xl font-bold text-green-600 dark:text-green-500">
-          {order.totalPrice.toFixed(2)} €
-        </div>
+      <TableCell className="py-2 text-right">
+        <div className="font-bold text-sm text-[#0f172a]">{order.totalPrice.toFixed(2)} €</div>
         {(order.deliveryFee || 0) > 0 && (
-          <div className="text-xs text-muted-foreground mt-1">
-            (vrátane dopravy {(order.deliveryFee || 0).toFixed(2)} €)
-          </div>
+          <div className="text-xs text-[#94a3b8]">+ {(order.deliveryFee || 0).toFixed(2)} € dop.</div>
+        )}
+        {order.isPaid && (
+          <span className="text-[10px] font-semibold text-[#16a34a] bg-[#dcfce7] px-1.5 py-0.5 rounded">Zaplatené</span>
         )}
       </TableCell>
 
       {/* AKCIE */}
-      <TableCell className="hidden md:table-cell py-0.5" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-center gap-2">
-
-          {/* Zaplatené ikona */}
-          {order.paymentMethod === 'invoice' ? (
-            <div
-              title="Uhradené faktúrou"
-              className="p-2 rounded-full text-blue-600 bg-blue-50"
-            >
-              <CreditCard className="h-6 w-6" />
-            </div>
-          ) : (
+      <TableCell className="py-2 text-center" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-center gap-1.5">
+          {order.paymentMethod !== 'invoice' && (
             <button
-              title={order.isPaid ? "Označiť ako nezaplatené" : "Označiť ako zaplatené"}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (order.isPaid) {
-                  handleMarkAsUnpaid(order.id, order.notes);
-                } else {
-                  handleMarkAsPaid(order.id, order.notes);
-                }
-              }}
-              className={`p-2 rounded-full transition-colors ${
+              title={order.isPaid ? 'Označiť ako nezaplatené' : 'Označiť ako zaplatené'}
+              onClick={() => order.isPaid ? handleMarkAsUnpaid(order.id, order.notes) : handleMarkAsPaid(order.id, order.notes)}
+              className={`flex items-center gap-1 px-2.5 h-7 rounded-lg text-xs font-medium border transition-colors ${
                 order.isPaid
-                  ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
-                  : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                  ? 'bg-[#16a34a] text-white border-[#16a34a]'
+                  : 'bg-white text-[#475569] border-[#e2e8f0] hover:border-[#16a34a] hover:text-[#16a34a]'
               }`}
             >
-              <CreditCard className="h-6 w-6" />
+              <CreditCard className="h-3.5 w-3.5" />
+              {order.isPaid ? 'Zapl.' : 'Nezapl.'}
             </button>
           )}
-
-          {/* Na ceste ikona - zobrazí sa len ak je status packed */}
           {order.status === 'packed' && (
-            <button
-              title="Označiť ako na ceste"
-              onClick={(e) => {
-                e.stopPropagation();
-                markOrderOnTheWay(order.id);
-              }}
-              className="p-2 rounded-full text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-            >
-              <Truck className="h-6 w-6" />
+            <button title="Na ceste" onClick={() => markOrderOnTheWay(order.id)}
+              className="flex items-center gap-1 px-2 h-7 rounded-lg text-xs font-medium border border-[#bfdbfe] bg-[#eff6ff] text-[#2563eb] hover:bg-[#dbeafe] transition-colors">
+              <Truck className="h-3.5 w-3.5" />
             </button>
           )}
-
-          {/* Doručené ikona */}
-          <button
-            title="Označiť ako doručené"
-            onClick={(e) => {
-              e.stopPropagation();
-              markOrderDelivered(order.id);
-            }}
-            className="p-2 rounded-full text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors"
-          >
-            <CheckCircle2 className="h-6 w-6" />
+          <button title="Doručené" onClick={() => markOrderDelivered(order.id)}
+            className="flex items-center gap-1 px-2 h-7 rounded-lg text-xs font-medium border border-[#bbf7d0] bg-[#f0fdf4] text-[#16a34a] hover:bg-[#dcfce7] transition-colors">
+            <CheckCircle2 className="h-3.5 w-3.5" />
           </button>
-
         </div>
       </TableCell>
     </TableRow>
@@ -1809,7 +1733,7 @@ function DeliveryPage() {
               }`}
             >
               <Truck className="h-4 w-4" />
-              {rozvozStarted ? '✅ Rozvoz prebieha' : '🚚 Štart rozvozu'}
+              {rozvozStarted ? 'Rozvoz prebieha' : 'Štart rozvozu'}
             </button>
             <button onClick={exportToExcel}
               className="flex items-center gap-1.5 h-9 px-3 rounded-xl border border-[#e2e8f0] bg-white text-sm font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
@@ -1869,7 +1793,7 @@ function DeliveryPage() {
                   className={`inline-flex items-center gap-1 px-3 h-7 rounded-full border text-xs font-medium transition-colors ${
                     routeFilter === route.id ? 'bg-[#eff6ff] border-[#bfdbfe] text-[#1d4ed8]' : 'bg-white border-[#e2e8f0] text-[#475569] hover:border-[#cbd5e1]'
                   }`}>
-                  🚚 {route.name}
+                  <MapPin className="h-3 w-3" />{route.name}
                 </button>
               ))}
             </div>
@@ -2030,7 +1954,7 @@ function DeliveryPage() {
                               onClick={() => { setSelectedOrderDetail(order); setDetailModalOpen(true); }}>
                               <TableCell className="py-2">
                                 <span className="font-semibold text-sm text-[#166534]">{order.customerName}</span>
-                                {order.deliveryNotes && <div className="text-xs text-[#94a3b8] italic">📍 {order.deliveryNotes}</div>}
+                                {order.deliveryNotes && <div className="text-xs text-[#94a3b8] italic"><MapPin className="h-3 w-3 inline mr-0.5" />{order.deliveryNotes}</div>}
                               </TableCell>
                               <TableCell className="hidden lg:table-cell py-2 text-sm text-[#64748b]">{order.customerAddress}</TableCell>
                               <TableCell className="hidden lg:table-cell py-2" onClick={e => e.stopPropagation()}>
@@ -2180,7 +2104,7 @@ function DeliveryPage() {
                     className={`inline-flex items-center gap-1 px-2.5 h-6 rounded-full border text-[11px] font-medium transition-colors ${
                       routeFilter === route.id ? 'bg-[#eff6ff] border-[#bfdbfe] text-[#1d4ed8]' : 'bg-white border-[#e2e8f0] text-[#475569]'
                     }`}>
-                    🚚 {route.name}
+                    <MapPin className="h-3 w-3" />{route.name}
                   </button>
                 ))}
               </div>
@@ -2216,7 +2140,7 @@ function DeliveryPage() {
             </div>
             <div className="grid grid-cols-3 gap-2">
               <div className="bg-[#f0fdf4] border border-[#bbf7d0] rounded-lg px-2 py-2 text-center">
-                <div className="text-[10px] text-[#94a3b8] text-center">Hotovosť</div>
+                <div className="text-[10px] font-semibold text-[#475569] text-center">Hotovosť</div>
                 <div className="text-sm font-bold text-[#16a34a] text-center">
                   {(() => {
                     const cash = pendingOrders.reduce((sum, o) => {
@@ -2233,11 +2157,11 @@ function DeliveryPage() {
                 </div>
               </div>
               <div className="bg-[#f8fafc] border border-[#cbd5e1] rounded-lg px-2 py-2 text-center">
-                <div className="text-[10px] text-[#94a3b8] text-center">Zastávky</div>
+                <div className="text-[10px] font-semibold text-[#475569] text-center">Zastávky</div>
                 <div className="text-sm font-bold text-[#0f172a] text-center">{pendingCount} ostáva</div>
               </div>
               <div className="bg-[#f8fafc] border border-[#cbd5e1] rounded-lg px-2 py-2 text-center">
-                <div className="text-[10px] text-[#94a3b8] text-center">Celkom</div>
+                <div className="text-[10px] font-semibold text-[#475569] text-center">Celkom</div>
                 <div className="text-sm font-bold text-[#0f172a] text-center">{totalItemsCount} obj.</div>
               </div>
             </div>
@@ -2321,16 +2245,16 @@ function DeliveryPage() {
                             <div className="font-semibold text-base text-[#0f172a] truncate">{order.customerName}</div>
                             <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                               {order.customerAddress && <span className="text-xs text-[#94a3b8] truncate max-w-[140px]">{order.customerAddress}</span>}
-                              {routeName && <span className="text-[10px] font-medium px-1.5 py-0.5 bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe] rounded-md shrink-0">🚚 {routeName}</span>}
+                              {routeName && <span className="text-[10px] font-medium px-1.5 py-0.5 bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe] rounded-md shrink-0">{routeName}</span>}
                             </div>
                           </div>
                           <div className="flex flex-col items-end gap-1 shrink-0">
                             <span className="text-base font-bold text-[#0f172a]">{order.totalPrice.toFixed(2)} €</span>
                             {payType === 'cash' && cashDue > 0 && (
-                              <span className="text-[10px] font-medium px-1.5 py-0.5 bg-[#fff7ed] text-[#c2410c] border border-[#fed7aa] rounded-md">💰 Hotovosť</span>
+                              <span className="text-[10px] font-medium px-1.5 py-0.5 bg-[#fff7ed] text-[#c2410c] border border-[#fed7aa] rounded-md">Hotovosť</span>
                             )}
                             {payType === 'wallet' && (
-                              <span className="text-[10px] font-medium px-1.5 py-0.5 bg-[#f0fdf4] text-[#16a34a] border border-[#bbf7d0] rounded-md">✅ Pugiľar</span>
+                              <span className="text-[10px] font-medium px-1.5 py-0.5 bg-[#f0fdf4] text-[#16a34a] border border-[#bbf7d0] rounded-md">Pugiľar</span>
                             )}
                             {payType === 'voucher' && (
                               <span className="text-[10px] font-medium px-1.5 py-0.5 bg-[#f5f3ff] text-[#7c3aed] border border-[#e9d5ff] rounded-md">🎁 Poukaz</span>
@@ -2464,7 +2388,7 @@ function DeliveryPage() {
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-md border ${typeColors[ct] || typeColors.home}`}>
                       {typeLabels[ct] || ct}
                     </span>
-                    {routeName && <span className="text-[10px] font-medium px-1.5 py-0.5 bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe] rounded-md">🚚 {routeName}</span>}
+                    {routeName && <span className="text-[10px] font-medium px-1.5 py-0.5 bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe] rounded-md">{routeName}</span>}
                   </div>
 
                   {/* Položky */}
@@ -2583,7 +2507,7 @@ function DeliveryPage() {
                   {selectedStopIndex < allStops.length - 1 ? (
                     <><span>Ďalšia zastávka</span><ChevronRight className="h-5 w-5" /></>
                   ) : (
-                    <span>✅ Dokončiť rozvoz</span>
+                    <span>Dokončiť rozvoz</span>
                   )}
                 </button>
               </div>
@@ -2598,140 +2522,107 @@ function DeliveryPage() {
 
       {/* Detail Dialog */}
       <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">Detail objednávky</DialogTitle>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-0">
+          <DialogHeader className="px-5 pt-5 pb-4 border-b border-[#f1f5f9]">
+            <DialogTitle className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-[#dcfce7] border border-[#bbf7d0] flex items-center justify-center shrink-0">
+                <Truck className="h-5 w-5 text-[#16a34a]" />
+              </div>
+              <div>
+                <div className="text-base font-bold text-[#0f172a]">{selectedOrderDetail?.customerName}</div>
+                <div className="text-xs text-[#94a3b8] font-normal">{format(new Date(selectedDate), 'd. MMMM yyyy', { locale: sk })}</div>
+              </div>
+            </DialogTitle>
           </DialogHeader>
+
           {selectedOrderDetail && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
-                <div>
-                  <div className="text-sm text-gray-600">Zákazník</div>
-                  <div className="font-semibold text-gray-900">{selectedOrderDetail.customerName || 'Bez názvu'}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-600">Dátum dodania</div>
-                  <div className="font-semibold text-gray-900">
-                    {format(new Date(selectedDate), 'dd. MM. yyyy', { locale: sk })}
+            <div className="p-5 space-y-4">
+              {/* Info grid */}
+              <div className="grid grid-cols-2 gap-3">
+                {selectedOrderDetail.customerAddress && (
+                  <div className="col-span-2 bg-[#f8fafc] rounded-xl border border-[#e2e8f0] px-4 py-3">
+                    <div className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-wide mb-1">Adresa</div>
+                    <div className="text-sm font-semibold text-[#0f172a]">{selectedOrderDetail.customerAddress}</div>
+                    {selectedOrderDetail.customerAddress && (
+                      <a href={`https://waze.com/ul?q=${encodeURIComponent(selectedOrderDetail.customerAddress)}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1 mt-2 text-xs text-[#2563eb] font-medium hover:underline">
+                        <Navigation className="h-3.5 w-3.5" /> Navigovať vo Waze
+                      </a>
+                    )}
                   </div>
-                </div>
-                <div className="col-span-2">
-                  <div className="text-sm text-gray-600">Platobná metóda</div>
-                  <div className="font-semibold text-gray-900">
+                )}
+                {selectedOrderDetail.customerPhone && (
+                  <div className="bg-[#f8fafc] rounded-xl border border-[#e2e8f0] px-4 py-3">
+                    <div className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-wide mb-1">Telefón</div>
+                    <a href={`tel:${selectedOrderDetail.customerPhone}`} className="text-sm font-semibold text-[#2563eb] hover:underline flex items-center gap-1">
+                      <Phone className="h-3.5 w-3.5" />{selectedOrderDetail.customerPhone}
+                    </a>
+                  </div>
+                )}
+                <div className="bg-[#f8fafc] rounded-xl border border-[#e2e8f0] px-4 py-3">
+                  <div className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-wide mb-1">Platba</div>
+                  <div className="text-sm font-semibold text-[#0f172a]">
                     {selectedOrderDetail.paymentMethod === 'cash' ? 'Hotovosť' :
                      selectedOrderDetail.paymentMethod === 'invoice' ? 'Faktúra' : 'Iné'}
                   </div>
                 </div>
               </div>
 
-              {selectedOrderDetail.customerAddress && (
-                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="text-sm font-semibold text-blue-900 mb-1">Adresa:</div>
-                  <div className="text-sm text-blue-800">{selectedOrderDetail.customerAddress}</div>
-                </div>
-              )}
-
               {selectedOrderDetail.deliveryNotes && (
-                <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
-                  <div className="text-sm font-semibold text-amber-900 mb-1">Poznámky k doručeniu:</div>
-                  <div className="text-sm text-amber-800">{selectedOrderDetail.deliveryNotes}</div>
+                <div className="bg-[#fefce8] rounded-xl border border-[#fde68a] px-4 py-3">
+                  <div className="text-[10px] font-bold text-[#854d0e] uppercase tracking-wide mb-1">Poznámky k doručeniu</div>
+                  <div className="text-sm text-[#713f12]">{selectedOrderDetail.deliveryNotes}</div>
                 </div>
               )}
 
-              {selectedOrderDetail.notes && (
-                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="text-sm font-semibold text-blue-900 mb-1">Poznámky:</div>
-                  <div className="text-sm text-blue-800">{selectedOrderDetail.notes}</div>
+              {/* Položky */}
+              <div className="bg-white rounded-xl border border-[#e2e8f0] overflow-hidden">
+                <div className="px-4 py-2.5 border-b border-[#f1f5f9] bg-[#f8fafc]">
+                  <span className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-wide">Položky objednávky</span>
                 </div>
-              )}
-
-              <div className="border-t pt-4">
-                <h3 className="font-semibold text-base mb-3">Položky objednávky:</h3>
-                <div className="space-y-2">
-                  {selectedOrderDetail.itemsDetail
-                    .sort((a, b) => {
-                      // Sort by price descending (most expensive first)
-                      return b.price - a.price;
-                    })
-                    .map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <div className="flex-1">
-                        <div className="font-medium text-gray-900">
-                          {item.quantity} × {item.size} g {item.name}
-                        </div>
+                <div className="divide-y divide-[#f1f5f9]">
+                  {selectedOrderDetail.itemsDetail.sort((a, b) => b.price - a.price).map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between px-4 py-3">
+                      <div>
+                        <div className="text-sm font-semibold text-[#0f172a]">{item.name}</div>
+                        <div className="text-xs text-[#64748b]">{item.quantity} × {item.size}g</div>
                       </div>
-                      <div className="text-right">
-                        <div className="font-bold text-green-600">
-                          {item.price.toFixed(2)} €
-                        </div>
-                      </div>
+                      <div className="font-bold text-sm text-[#16a34a]">{item.price.toFixed(2)} €</div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="border-t pt-4 space-y-2">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-600">Medzisúčet:</span>
-                  <span className="font-semibold text-gray-900">
-                    {(selectedOrderDetail.totalPrice - (selectedOrderDetail.deliveryFee || 0)).toFixed(2)}€
+              {/* Cenový súhrn */}
+              <div className="bg-[#f8fafc] rounded-xl border border-[#e2e8f0] px-4 py-3 space-y-2">
+                <div className="flex justify-between text-sm text-[#64748b]">
+                  <span>Medzisúčet</span>
+                  <span>{(selectedOrderDetail.totalPrice - (selectedOrderDetail.deliveryFee || 0)).toFixed(2)} €</span>
+                </div>
+                <div className="flex justify-between text-sm text-[#64748b]">
+                  <span className="flex items-center gap-1"><Truck className="h-3.5 w-3.5" /> Doprava</span>
+                  <span className={(selectedOrderDetail.deliveryFee || 0) === 0 ? 'text-[#16a34a] font-medium' : ''}>
+                    {(selectedOrderDetail.deliveryFee || 0) === 0 ? 'Zdarma' : `${(selectedOrderDetail.deliveryFee || 0).toFixed(2)} €`}
                   </span>
                 </div>
-                {(selectedOrderDetail.deliveryFee || 0) > 0 ? (
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600 flex items-center gap-1">
-                      <Truck className="h-3 w-3" />
-                      Doprava:
-                    </span>
-                    <span className="font-semibold text-gray-900">
-                      {(selectedOrderDetail.deliveryFee || 0).toFixed(2)} €
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-green-600 flex items-center gap-1 font-medium">
-                      <Truck className="h-3 w-3" />
-                      Doprava: Zdarma
-                    </span>
+                {(selectedOrderDetail as any).voucherDiscount > 0 && (
+                  <div className="flex justify-between text-sm text-[#7c3aed]">
+                    <span>Poukaz</span>
+                    <span>−{((selectedOrderDetail as any).voucherDiscount || 0).toFixed(2)} €</span>
                   </div>
                 )}
-                <div className="flex justify-between items-center pt-2 border-t border-gray-300">
-                  <span className="text-lg text-gray-700 font-semibold">Celkom:</span>
-                  <span className="text-3xl font-bold text-green-600">
-                    {selectedOrderDetail.totalPrice.toFixed(2)} €
-                  </span>
+                <div className="flex justify-between pt-2 border-t border-[#e2e8f0]">
+                  <span className="font-bold text-sm text-[#0f172a]">K úhrade</span>
+                  <span className="font-bold text-lg text-[#0f172a]">{selectedOrderDetail.totalPrice.toFixed(2)} €</span>
                 </div>
-                {(selectedOrderDetail as any).voucherCode && (
-                  <div className="mt-3 p-3 bg-green-50 rounded-xl border-2 border-green-300">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="text-sm font-bold text-green-700">💳 Darčekový poukaz</p>
-                      <p className="text-sm font-bold text-green-700">
-                        -{((selectedOrderDetail as any).voucherDiscount || 0).toFixed(2)} €
-                      </p>
-                    </div>
-                    <p className="text-xs text-green-600 font-mono mb-1">
-                      Kód: {(selectedOrderDetail as any).voucherCode}
-                    </p>
-                    {((selectedOrderDetail as any).voucherDiscount || 0) >= selectedOrderDetail.totalPrice ? (
-                      <p className="text-sm font-bold text-green-700 text-center mt-2 py-1 bg-green-100 rounded-lg">
-                        ✅ Plne hradené poukazom — NEPÝTAŤ HOTOVOSŤ
-                      </p>
-                    ) : (
-                      <p className="text-sm font-bold text-orange-600 text-center mt-2 py-1 bg-orange-50 rounded-lg border border-orange-200">
-                        💵 K úhrade v hotovosti: {Math.max(0, selectedOrderDetail.totalPrice - ((selectedOrderDetail as any).voucherDiscount || 0)).toFixed(2)} €
-                      </p>
-                    )}
-                  </div>
-                )}
               </div>
 
-              <div className="flex justify-end gap-2 pt-4 border-t">
-                <Button
-                  variant="outline"
-                  onClick={() => setDetailModalOpen(false)}
-                >
+              <div className="flex justify-end gap-2 pt-2">
+                <button onClick={() => setDetailModalOpen(false)}
+                  className="h-9 px-4 rounded-xl border border-[#e2e8f0] bg-white text-sm font-medium text-[#475569] hover:bg-[#f8fafc]">
                   Zavrieť
-                </Button>
+                </button>
               </div>
             </div>
           )}
@@ -2743,7 +2634,7 @@ function DeliveryPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              💰 Finančné zúčtovanie rozvozu
+              Finančné zúčtovanie rozvozu
             </DialogTitle>
           </DialogHeader>
 
@@ -2773,7 +2664,7 @@ function DeliveryPage() {
             {/* Platby */}
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-green-50 rounded-lg p-3">
-                <div className="text-xs text-gray-600">✅ Zaplatené</div>
+                <div className="text-xs text-gray-600">Zaplatené</div>
                 <div className="text-base font-bold text-green-600">
                   {calculatePaid().toFixed(2)} €
                 </div>
