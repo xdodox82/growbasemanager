@@ -1912,15 +1912,26 @@ function DeliveryPage() {
             )}
           </button>
           {/* Dátum picker */}
-          <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-            <PopoverTrigger asChild>
-              <button className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold border border-[#e2e8f0] bg-white text-[#0f172a] shrink-0">
-                <CalendarIcon className="h-3.5 w-3.5 text-[#16a34a]" />
-                {selectedDates.length === 1 ? format(selectedDates[0], 'd. MMM', { locale: sk }) : `${selectedDates.length} dní`}
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end"><CalendarGrid /></PopoverContent>
-          </Popover>
+          <button
+            onClick={() => setCalendarOpen(true)}
+            className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold border border-[#e2e8f0] bg-white text-[#0f172a] shrink-0">
+            <CalendarIcon className="h-3.5 w-3.5 text-[#16a34a]" />
+            {selectedDates.length === 1 ? format(selectedDates[0], 'd. MMM', { locale: sk }) : `${selectedDates.length} dní`}
+          </button>
+          <Dialog open={calendarOpen} onOpenChange={setCalendarOpen}>
+            <DialogContent className="w-auto p-0 max-w-[340px]">
+              <DialogHeader className="px-4 pt-4 pb-0">
+                <DialogTitle className="text-sm font-semibold">Vybrať dátum rozvozu</DialogTitle>
+              </DialogHeader>
+              <CalendarGrid />
+              <div className="px-4 pb-4">
+                <button onClick={() => setCalendarOpen(false)}
+                  className="w-full h-10 rounded-xl bg-[#16a34a] text-white text-sm font-semibold">
+                  Potvrdiť
+                </button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* ── Filter panel (skladateľný) ── */}
