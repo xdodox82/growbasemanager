@@ -21,7 +21,7 @@ import { RecurringOrderDeleteDialog } from '@/components/orders/RecurringOrderDe
 import { RecurringOrderExtendDialog } from '@/components/orders/RecurringOrderExtendDialog';
 import { BulkDateChangeDialog } from '@/components/orders/BulkDateChangeDialog';
 import { useDeliveryDays } from '@/hooks/useDeliveryDays';
-import { ShoppingCart, Plus, Grid3x3, List, FileSpreadsheet, FileText, Pencil, Copy, Trash2, Calendar, Package, Truck, House, Utensils, Store, Scissors, X, MapPin, RefreshCw, Check, Leaf, Sprout, Flower, Palette, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Smartphone, Clock } from 'lucide-react';
+import { ShoppingCart, Plus, Grid3x3, List, FileSpreadsheet, FileText, Pencil, Copy, Trash2, Calendar, Package, Truck, House, Utensils, Store, Scissors, X, MapPin, RefreshCw, Check, Leaf, Sprout, Flower, Palette, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Smartphone, Clock, Tag } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO, getDay, addWeeks, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday } from 'date-fns';
@@ -330,6 +330,11 @@ export default function OrdersPage() {
             ...prev,
             packaging_type: (selectedCustomer as any).default_packaging_type || 'rPET'
           }));
+        }
+        // Auto-nastaviť etiketu ak má zákazník always_label
+        if ((selectedCustomer as any).always_label) {
+          setOrderItems(prev => prev.map(item => ({ ...item, has_label: true })));
+          setCurrentItem(prev => ({ ...prev, has_label: true }));
         }
         // Auto-populate route from customer's assigned delivery route (only for new orders)
         if (!editingOrder && selectedCustomer.delivery_route_id && routes?.length) {
@@ -1219,6 +1224,9 @@ export default function OrdersPage() {
       ? autoPrice
       : parseFloat(currentItem.price_per_unit.toString().replace(',', '.')) || 0;
 
+    const selectedCustomer = customers?.find(c => c.id === customerId);
+    const alwaysLabel = (selectedCustomer as any)?.always_label || false;
+
     const itemToAdd = {
       ...currentItem,
       crop_id: currentItem.is_special_item ? null : currentItem.crop_id,
@@ -1226,7 +1234,8 @@ export default function OrdersPage() {
       quantity: parseFloat(currentItem.quantity) || 1,
       price_per_unit: priceValue,
       is_special_item: currentItem.is_special_item || false,
-      custom_crop_name: currentItem.is_special_item ? currentItem.custom_crop_name : null
+      custom_crop_name: currentItem.is_special_item ? currentItem.custom_crop_name : null,
+      has_label: alwaysLabel ? true : (currentItem.has_label || false),
     };
 
     setOrderItems([...(orderItems || []), itemToAdd]);
@@ -1238,7 +1247,7 @@ export default function OrdersPage() {
       delivery_form: 'rezana',
       packaging_type: 'rPET',
       packaging_volume_ml: 250,
-      has_label: false,
+      has_label: alwaysLabel,
       notes: '',
       special_requirements: '',
       price_per_unit: '',
@@ -1733,26 +1742,25 @@ export default function OrdersPage() {
 
         // Check if this is a recurring order
         const isRecurring = orderType !== 'jednorazova';
-        const recurringCount = isRecurring ? parseInt(weekCount) || 1 : 1;
+        const weeksInterval = orderType === 'tyzdenne' ? 1 : 2;
+        const weeksAhead = 4; // vždy generuj 4 týždne dopredu
+        const recurringCount = isRecurring ? Math.floor(weeksAhead / weeksInterval) : 1;
 
-        if (isRecurring && recurringCount > 1) {
+        if (isRecurring && recurringCount > 0) {
 
           const childOrders = [];
 
-          for (let i = 1; i < recurringCount; i++) {
-            // Calculate new delivery date
-            const weeksToAdd = orderType === 'tyzdenne' ? i : i * 2;
+          for (let i = 1; i <= recurringCount; i++) {
             const newDate = new Date(deliveryDate);
-            newDate.setDate(newDate.getDate() + (weeksToAdd * 7));
+            newDate.setDate(newDate.getDate() + (weeksInterval * i * 7));
             const newDateString = newDate.toISOString().split('T')[0];
 
-            // Create child order data
             const childOrderData = {
               customer_id: customerId,
               customer_name: customer?.company_name || customer?.name || '',
               customer_type: customer?.customer_type || 'home',
               delivery_date: newDateString,
-              status: status,
+              status: 'growing', // vždy growing pre opakované
               total_price: Number(parseFloat(finalTotalPrice.toFixed(2))),
               delivery_price: Number(parseFloat(deliveryPrice.toFixed(2))),
               charge_delivery: !freeDelivery,
@@ -1761,7 +1769,7 @@ export default function OrdersPage() {
               notes: orderNotes || null,
               is_recurring: true,
               recurrence_pattern: orderType,
-              recurring_weeks: recurringCount,
+              recurring_weeks: recurringCount + 1,
               parent_order_id: newOrder.id,
               order_source: 'recurring',
               user_id: user.id
@@ -1788,7 +1796,7 @@ export default function OrdersPage() {
 
           toast({
             title: 'Úspech',
-            description: `Vytvorených ${recurringCount} opakujúcich sa objednávok`
+            description: `Vytvorených ${recurringCount + 1} objednávok (4 týždne dopredu)`
           });
         } else {
           toast({ title: 'Úspech', description: 'Objednávka vytvorená' });
@@ -2425,7 +2433,7 @@ export default function OrdersPage() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3">
                         <div>
                           <Label className="text-sm font-medium">Typ objednávky</Label>
                           <select value={orderType || 'jednorazova'} onChange={(e) => setOrderType(e.target.value)} className="mt-1 w-full h-10 px-3 border border-[#e2e8f0] rounded-md text-sm bg-white">
@@ -2433,17 +2441,13 @@ export default function OrdersPage() {
                             <option value="tyzdenne">Týždenne</option>
                             <option value="dvojtyzdenne">Dvojtýždenne</option>
                           </select>
+                          {orderType !== 'jednorazova' && (
+                            <p className="mt-1.5 text-xs text-[#16a34a] flex items-center gap-1">
+                              <span>✓</span> Automaticky sa vygenerujú objednávky 4 týždne dopredu (status: Rastie)
+                            </p>
+                          )}
                         </div>
-                        {orderType !== 'jednorazova' && (
-                          <div>
-                            <Label className="text-sm font-medium">Počet týždňov</Label>
-                            <Input type="text" inputMode="numeric" placeholder="1" value={weekCount}
-                              onChange={(e) => { const v = e.target.value; if (v === '') { setWeekCount(''); return; } const clean = v.replace(/[^0-9]/g, ''); if (clean) { const n = parseInt(clean); if (n <= 52) setWeekCount(n); } }}
-                              onBlur={(e) => { const n = parseInt(e.target.value); if (!n || n < 1) setWeekCount(1); else if (n > 52) setWeekCount(52); }}
-                              className="mt-1 h-10 border-[#e2e8f0]" />
-                          </div>
-                        )}
-                      </div>
+                        </div>
                     </div>
                   )}
 
@@ -2478,10 +2482,22 @@ export default function OrdersPage() {
                       {/* Zoznam pridaných položiek */}
                       {(orderItems || []).length > 0 && (
                         <div className="bg-white border border-[#e2e8f0] rounded-xl overflow-hidden">
-                          <div className="px-4 py-2 bg-[#fafafa] border-b border-[#f1f5f9]">
+                          <div className="px-4 py-2 bg-[#fafafa] border-b border-[#f1f5f9] flex items-center justify-between">
                             <span className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider">
                               Pridané položky ({orderItems.length})
                             </span>
+                            <button
+                              type="button"
+                              onClick={() => setOrderItems(prev => prev.map(item => ({ ...item, has_label: !prev.every(i => i.has_label) })))}
+                              className={`flex items-center gap-1 px-2 h-6 rounded-md text-[10px] font-semibold border transition-colors ${
+                                orderItems.every(i => i.has_label)
+                                  ? 'bg-[#fef08a] border-[#fbbf24] text-[#854d0e]'
+                                  : 'bg-white border-[#e2e8f0] text-[#475569] hover:border-[#fbbf24] hover:bg-[#fef9c3]'
+                              }`}
+                            >
+                              <Tag className="h-3 w-3" />
+                              {orderItems.every(i => i.has_label) ? 'Etiketa: Všetky ✓' : 'Etiketa pre všetky'}
+                            </button>
                           </div>
                           <div className="divide-y divide-[#f8fafc]">
                             {orderItems.map((item, idx) => {
