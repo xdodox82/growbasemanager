@@ -1368,13 +1368,24 @@ export default function OrdersPage() {
         return;
       }
 
+      // Zachytiť všetky state hodnoty pred zatvorením dialógu
+      const capturedManualDelivery = manualDeliveryAmount;
+      const capturedFreeDelivery = freeDelivery;
+      const capturedOrderItems = [...(orderItems || [])];
+      const capturedCustomerId = customerId;
+      const capturedDeliveryDate = deliveryDate;
+      const capturedOrderType = orderType;
+      const capturedRoute = route;
+      const capturedOrderNotes = orderNotes;
+      const capturedStatus = status;
+
       // Zavrieť dialóg IHNEĎ — procesy prebiehajú na pozadí
       setIsDialogOpen(false);
       setWizardStep(1);
       toast({ title: 'Spracovávam...', description: 'Objednávka sa vytvára na pozadí.' });
 
-      const customer = customers?.find(c => c.id === customerId);
-      const totalPrice = (orderItems || []).reduce((sum, item) => {
+      const customer = customers?.find(c => c.id === capturedCustomerId);
+      const totalPrice = capturedOrderItems.reduce((sum, item) => {
         const quantity = parseFloat(item.quantity) || 0;
         const price = parseFloat(item.price_per_unit.toString().replace(',', '.')) || 0;
         return sum + (quantity * price);
@@ -1384,12 +1395,12 @@ export default function OrdersPage() {
       let deliveryPrice = 0;
 
       // PRIORITY 1: Free Delivery Toggle (forces 0€)
-      if (freeDelivery) {
+      if (capturedFreeDelivery) {
         deliveryPrice = 0;
       }
       // PRIORITY 2: Manual Delivery Amount (specific amount entered)
-      else if (manualDeliveryAmount && manualDeliveryAmount.trim() !== '') {
-        deliveryPrice = parseFloat(manualDeliveryAmount) || 0;
+      else if (capturedManualDelivery && capturedManualDelivery.trim() !== '') {
+        deliveryPrice = parseFloat(capturedManualDelivery) || 0;
       }
       // PRIORITY 3: Auto-calculate from route settings
       else if (customer) {
@@ -1403,9 +1414,9 @@ export default function OrdersPage() {
           // CRITICAL: Use selected route from dropdown, NOT customer's assigned route
           let deliveryRoute = null;
 
-          if (route && route !== '' && route !== 'Žiadna trasa') {
+          if (capturedRoute && capturedRoute !== '' && route !== 'Žiadna trasa') {
             // Find route by NAME from the route dropdown selection
-            deliveryRoute = routes?.find(r => r.name === route);
+            deliveryRoute = routes?.find(r => r.name === capturedRoute);
           }
 
           if (deliveryRoute) {
@@ -1478,20 +1489,20 @@ export default function OrdersPage() {
       const finalTotalPrice = totalPrice + deliveryPrice;
 
       const orderData = {
-        customer_id: customerId,
+        customer_id: capturedCustomerId,
         customer_name: customer?.company_name || customer?.name || '',
         customer_type: customer?.customer_type || 'home',
-        delivery_date: deliveryDate,
-        status: orderType !== 'jednorazova' ? 'growing' : status,
+        delivery_date: capturedDeliveryDate,
+        status: capturedOrderType !== 'jednorazova' ? 'growing' : capturedStatus,
         total_price: Number(parseFloat(finalTotalPrice.toFixed(2))),
         delivery_price: Number(parseFloat(deliveryPrice.toFixed(2))),
-        charge_delivery: !freeDelivery,
-        route: route || null,
+        charge_delivery: !capturedFreeDelivery,
+        route: capturedRoute || null,
         delivery_route_id: customer?.delivery_route_id || null,
-        notes: orderNotes || null,
-        is_recurring: orderType === 'tyzdenne' || orderType === 'dvojtyzdenne',
-        recurrence_pattern: orderType !== 'jednorazova' ? orderType : null,
-        recurring_weeks: orderType !== 'jednorazova' ? parseInt(weekCount) || 1 : null,
+        notes: capturedOrderNotes || null,
+        is_recurring: capturedOrderType === 'tyzdenne' || capturedOrderType === 'dvojtyzdenne',
+        recurrence_pattern: capturedOrderType !== 'jednorazova' ? capturedOrderType : null,
+        recurring_weeks: capturedOrderType !== 'jednorazova' ? parseInt(weekCount) || 1 : null,
         order_source: 'manual',
         user_id: user.id
       };
@@ -1666,7 +1677,7 @@ export default function OrdersPage() {
 
         // Helper function to create order items for an order
         const createOrderItemsForOrder = async (orderId: string) => {
-          const items = (orderItems || []).map(item => {
+          const items = capturedOrderItems.map(item => {
             const crop = crops?.find(c => c.id === item.crop_id);
             const blend = blends?.find(b => b.id === item.blend_id);
             const cropName = item.is_special_item
@@ -1752,9 +1763,9 @@ export default function OrdersPage() {
         await createOrderItemsForOrder(newOrder.id);
 
         // Check if this is a recurring order
-        const isRecurring = orderType !== 'jednorazova';
-        const weeksInterval = orderType === 'tyzdenne' ? 1 : 2;
-        const weeksAhead = 4; // vždy generuj 4 týždne dopredu
+        const isRecurring = capturedOrderType !== 'jednorazova';
+        const weeksInterval = capturedOrderType === 'tyzdenne' ? 1 : 2;
+        const weeksAhead = 4;
         const recurringCount = isRecurring ? Math.floor(weeksAhead / weeksInterval) : 1;
 
         if (isRecurring && recurringCount > 0) {
@@ -1762,24 +1773,24 @@ export default function OrdersPage() {
           const childOrders = [];
 
           for (let i = 1; i <= recurringCount; i++) {
-            const newDate = new Date(deliveryDate);
+            const newDate = new Date(capturedDeliveryDate);
             newDate.setDate(newDate.getDate() + (weeksInterval * i * 7));
             const newDateString = newDate.toISOString().split('T')[0];
 
             const childOrderData = {
-              customer_id: customerId,
+              customer_id: capturedCustomerId,
               customer_name: customer?.company_name || customer?.name || '',
               customer_type: customer?.customer_type || 'home',
               delivery_date: newDateString,
-              status: 'growing', // vždy growing pre opakované
+              status: 'growing',
               total_price: Number(parseFloat(finalTotalPrice.toFixed(2))),
               delivery_price: Number(parseFloat(deliveryPrice.toFixed(2))),
-              charge_delivery: !freeDelivery,
-              route: route || null,
+              charge_delivery: !capturedFreeDelivery,
+              route: capturedRoute || null,
               delivery_route_id: customer?.delivery_route_id || null,
-              notes: orderNotes || null,
+              notes: capturedOrderNotes || null,
               is_recurring: true,
-              recurrence_pattern: orderType,
+              recurrence_pattern: capturedOrderType,
               recurring_weeks: recurringCount + 1,
               parent_order_id: newOrder.id,
               order_source: 'recurring',
