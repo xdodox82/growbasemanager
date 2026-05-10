@@ -1458,16 +1458,14 @@ export default function OrdersPage() {
       }
 
       // VALIDATION: If charge_delivery is true but deliveryPrice is 0, recalculate
-      if (!freeDelivery && deliveryPrice === 0 && route && route !== '' && route !== 'Žiadna trasa') {
-        console.warn('⚠️ VALIDATION: Delivery fee is 0€ but charge_delivery is enabled. Recalculating...');
-
-        const deliveryRoute = routes?.find(r => r.name === route);
+      // SKIP if manual delivery was set — manual always wins
+      if (!capturedFreeDelivery && !capturedManualDelivery && deliveryPrice === 0 && capturedRoute && capturedRoute !== '' && capturedRoute !== 'Žiadna trasa') {
+        const deliveryRoute = routes?.find(r => r.name === capturedRoute);
         if (deliveryRoute && customer && !customer.free_delivery) {
           const custType = customer.customer_type || 'home';
           let deliveryFee = 0;
           let minFreeDelivery = 0;
 
-          // Individuálna cena dopravy má prednosť pred štandardnými limitmi trasy
           if ((customer as any).custom_delivery_fee != null) {
             deliveryFee = parseFloat((customer as any).custom_delivery_fee);
             minFreeDelivery = parseFloat((customer as any).custom_min_free_delivery || '0');
@@ -1487,6 +1485,8 @@ export default function OrdersPage() {
           }
         }
       }
+
+      console.log('DEBUG deliveryPrice after calc:', deliveryPrice, 'capturedManual:', capturedManualDelivery);
 
       const finalTotalPrice = totalPrice + deliveryPrice;
 
