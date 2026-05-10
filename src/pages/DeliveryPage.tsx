@@ -1139,8 +1139,19 @@ function DeliveryPage() {
   const returnToReady = async (orderId: string) => {
     const { error } = await updateOrder(orderId, { status: 'packed' });
     if (!error) {
+      // Zmaž nezaplatené dlhy pre túto objednávku
+      await supabase.from('payment_debts')
+        .delete()
+        .eq('order_id', orderId)
+        .in('status', ['unpaid', 'partial']);
+      // Odober "Zaplatené" z poznámok
+      const order = orders.find(o => o.id === orderId);
+      if (order?.notes?.toLowerCase().includes('zaplatené')) {
+        const newNotes = order.notes.replace(/\s*\|\s*Zaplatené/gi, '').replace(/Zaplatené\s*\|?\s*/gi, '').trim();
+        await updateOrder(orderId, { notes: newNotes || null });
+      }
       await refetchOrders();
-      toast({ title: 'Vrátené', description: 'Objednávka bola vrátená do zoznamu na rozvoz.' });
+      toast({ title: 'Vrátené', description: 'Objednávka vrátená na rozvoz, dlh zmazaný.' });
     }
   };
 
@@ -2204,9 +2215,9 @@ function DeliveryPage() {
                 style={{ width: totalItemsCount > 0 ? `${(deliveredCount / totalItemsCount) * 100}%` : '0%' }} />
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <div className="bg-[#f8fafc] rounded-lg px-2 py-1.5">
-                <div className="text-[10px] text-[#94a3b8]">Hotovosť</div>
-                <div className="text-sm font-semibold text-[#16a34a]">
+              <div className="bg-[#f0fdf4] border border-[#bbf7d0] rounded-lg px-2 py-2 text-center">
+                <div className="text-[10px] text-[#94a3b8] text-center">Hotovosť</div>
+                <div className="text-sm font-bold text-[#16a34a] text-center">
                   {(() => {
                     const cash = pendingOrders.reduce((sum, o) => {
                       const c = customers.find(c => c.id === o.customer_id);
@@ -2221,13 +2232,13 @@ function DeliveryPage() {
                   })()}
                 </div>
               </div>
-              <div className="bg-[#f8fafc] rounded-lg px-2 py-1.5">
-                <div className="text-[10px] text-[#94a3b8]">Zastávky</div>
-                <div className="text-sm font-semibold text-[#0f172a]">{pendingCount} ostáva</div>
+              <div className="bg-[#f8fafc] border border-[#cbd5e1] rounded-lg px-2 py-2 text-center">
+                <div className="text-[10px] text-[#94a3b8] text-center">Zastávky</div>
+                <div className="text-sm font-bold text-[#0f172a] text-center">{pendingCount} ostáva</div>
               </div>
-              <div className="bg-[#f8fafc] rounded-lg px-2 py-1.5">
-                <div className="text-[10px] text-[#94a3b8]">Celkom</div>
-                <div className="text-sm font-semibold text-[#0f172a]">{totalItemsCount} obj.</div>
+              <div className="bg-[#f8fafc] border border-[#cbd5e1] rounded-lg px-2 py-2 text-center">
+                <div className="text-[10px] text-[#94a3b8] text-center">Celkom</div>
+                <div className="text-sm font-bold text-[#0f172a] text-center">{totalItemsCount} obj.</div>
               </div>
             </div>
           </div>
@@ -2300,7 +2311,7 @@ function DeliveryPage() {
                     const ct = order.customerType || 'home';
                     return (
                       <button key={order.id} onClick={() => setSelectedStopIndex(idx)}
-                        className="w-full text-left bg-white rounded-xl border border-[#e2e8f0] shadow-sm overflow-hidden hover:border-[#bbf7d0] transition-colors">
+                        className="w-full text-left bg-white rounded-xl border border-[#cbd5e1] shadow-sm overflow-hidden hover:border-[#16a34a] hover:shadow-md transition-all">
                         <div className="flex items-center gap-2.5 px-3 py-3">
                           <div className={`w-2 h-2 rounded-full shrink-0 ${dotColor}`} />
                           <div className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 ${typeColors[ct] || typeColors.home}`}>
@@ -2342,17 +2353,22 @@ function DeliveryPage() {
                   <span className="text-[10px] font-semibold bg-[#dcfce7] text-[#166534] border border-[#bbf7d0] px-2 py-0.5 rounded-full">{deliveredCount}</span>
                   <div className="flex-1 h-px bg-[#bbf7d0]" />
                 </div>
-                {sortedDeliveredOrders.flatMap(([_, g]) => g.orders).map(order => (
-                  <div key={order.id} className="w-full bg-white rounded-xl border border-[#e2e8f0] opacity-50 overflow-hidden mb-2">
+                {sortedDeliveredOrders.flatMap(([_, g]) => g.orders).map((order, idx) => (
+                  <button key={order.id}
+                    onClick={() => setSelectedStopIndex(pendingCount + idx)}
+                    className="w-full text-left bg-[#f0fdf4] rounded-xl border border-[#bbf7d0] overflow-hidden mb-2 hover:border-[#16a34a] transition-colors">
                     <div className="flex items-center gap-2.5 px-3 py-3">
-                      <div className="w-2 h-2 rounded-full bg-[#16a34a] shrink-0" />
+                      <CheckCircle2 className="h-4 w-4 text-[#16a34a] shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-sm text-[#0f172a] truncate">{order.customerName}</div>
-                        {order.customerAddress && <div className="text-[11px] text-[#94a3b8] truncate">{order.customerAddress}</div>}
+                        <div className="font-bold text-sm text-[#166534] truncate">{order.customerName}</div>
+                        {order.customerAddress && <div className="text-xs text-[#4ade80] truncate">{order.customerAddress}</div>}
                       </div>
-                      <span className="text-sm font-semibold text-[#16a34a]">{order.totalPrice.toFixed(2)} €</span>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="text-sm font-bold text-[#16a34a]">{order.totalPrice.toFixed(2)} €</span>
+                        <span className="text-[9px] text-[#94a3b8]">Klepni pre vrátenie</span>
+                      </div>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
@@ -2361,20 +2377,25 @@ function DeliveryPage() {
 
         {/* ── Fullscreen stop detail ── */}
         {selectedStopIndex !== null && (() => {
+          // Zahrnúť aj doručené — aby fungovalo "Vrátiť späť"
           const flatPending = sortedPendingOrders.flatMap(([_, g]) => g.orders).reduce((acc, o) => {
             if (!acc.find((x: any) => x.id === o.id)) acc.push(o);
             return acc;
           }, [] as any[]);
-          const order = flatPending[selectedStopIndex];
+          const flatDelivered = sortedDeliveredOrders.flatMap(([_, g]) => g.orders).reduce((acc, o) => {
+            if (!acc.find((x: any) => x.id === o.id)) acc.push(o);
+            return acc;
+          }, [] as any[]);
+          const allStops = [...flatPending, ...flatDelivered];
+          const order = allStops[selectedStopIndex];
           if (!order) return null;
-          const rawOrder = pendingOrders.find(o => o.id === order.id);
+          const rawOrder = orders.find(o => o.id === order.id); // všetky orders, nie len pending
           const customer = customers.find(c => c.id === order.customerId);
           const routeName = routes.find(r => r.id === ((rawOrder as any)?.delivery_route_id ?? customer?.delivery_route_id))?.name || null;
           const walletPay = (rawOrder as any)?.wallet_payment || 0;
           const walletRemainder = (rawOrder as any)?.wallet_remainder || 0;
           const voucherDiscount = (rawOrder as any)?.voucher_discount || 0;
           const voucherCode = (rawOrder as any)?.voucher_code || null;
-          const orderItems = (rawOrder as any)?.order_items || order.itemsDetail || [];
           const isDone = doneOrders.has(order.id) || rawOrder?.status === 'delivered';
           const cashDue = Math.max(0, order.totalPrice - walletPay - voucherDiscount);
           const payType = walletPay > 0 && walletPay >= order.totalPrice ? 'wallet' : voucherCode ? 'voucher' : 'cash';
@@ -2397,13 +2418,13 @@ function DeliveryPage() {
                 <button onClick={() => setSelectedStopIndex(null)} className="flex items-center gap-1.5 text-[#16a34a] font-semibold text-sm">
                   <ChevronLeft className="h-5 w-5" /> Späť
                 </button>
-                <span className="text-xs font-semibold text-[#94a3b8]">Zastávka {selectedStopIndex + 1} / {flatPending.length}</span>
+                <span className="text-xs font-semibold text-[#94a3b8]">Zastávka {selectedStopIndex + 1} / {allStops.length}</span>
                 <div className="flex gap-1.5">
                   <button onClick={() => setSelectedStopIndex(Math.max(0, selectedStopIndex - 1))} disabled={selectedStopIndex === 0}
                     className="w-8 h-8 rounded-lg border border-[#e2e8f0] bg-white flex items-center justify-center disabled:opacity-30">
                     <ChevronLeft className="h-4 w-4 text-[#475569]" />
                   </button>
-                  <button onClick={() => setSelectedStopIndex(Math.min(flatPending.length - 1, selectedStopIndex + 1))} disabled={selectedStopIndex === flatPending.length - 1}
+                  <button onClick={() => setSelectedStopIndex(Math.min(allStops.length - 1, selectedStopIndex + 1))} disabled={selectedStopIndex === allStops.length - 1}
                     className="w-8 h-8 rounded-lg border border-[#e2e8f0] bg-white flex items-center justify-center disabled:opacity-30">
                     <ChevronRight className="h-4 w-4 text-[#475569]" />
                   </button>
@@ -2512,7 +2533,7 @@ function DeliveryPage() {
                           await handleMarkAsPaid(order.id, rawOrder?.notes || null);
                           await markOrderDelivered(order.id);
                           setDoneOrders(p => new Set(p).add(order.id));
-                          if (selectedStopIndex < flatPending.length - 1) setSelectedStopIndex(selectedStopIndex + 1);
+                          if (selectedStopIndex < allStops.length - 1) setSelectedStopIndex(selectedStopIndex + 1);
                           else setSelectedStopIndex(null);
                         }}
                           className="flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg bg-[#16a34a] text-white text-xs font-semibold hover:bg-[#15803d] transition-colors">
@@ -2522,7 +2543,7 @@ function DeliveryPage() {
                         <button onClick={async () => {
                           await markOrderDelivered(order.id);
                           setDoneOrders(p => new Set(p).add(order.id));
-                          if (selectedStopIndex < flatPending.length - 1) setSelectedStopIndex(selectedStopIndex + 1);
+                          if (selectedStopIndex < allStops.length - 1) setSelectedStopIndex(selectedStopIndex + 1);
                           else setSelectedStopIndex(null);
                         }}
                           className="flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg bg-[#16a34a] text-white text-xs font-semibold hover:bg-[#15803d] transition-colors">
@@ -2555,11 +2576,11 @@ function DeliveryPage() {
                 </button>
                 <button
                   onClick={() => {
-                    if (selectedStopIndex < flatPending.length - 1) setSelectedStopIndex(selectedStopIndex + 1);
+                    if (selectedStopIndex < allStops.length - 1) setSelectedStopIndex(selectedStopIndex + 1);
                     else setSelectedStopIndex(null);
                   }}
                   className="flex-1 h-12 rounded-xl bg-[#16a34a] text-white font-semibold text-sm flex items-center justify-center gap-2">
-                  {selectedStopIndex < flatPending.length - 1 ? (
+                  {selectedStopIndex < allStops.length - 1 ? (
                     <><span>Ďalšia zastávka</span><ChevronRight className="h-5 w-5" /></>
                   ) : (
                     <span>✅ Dokončiť rozvoz</span>
