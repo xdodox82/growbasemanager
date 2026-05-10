@@ -1490,6 +1490,8 @@ export default function OrdersPage() {
 
       const finalTotalPrice = totalPrice + deliveryPrice;
 
+      console.log('DEBUG orderData delivery_price:', deliveryPrice, 'finalTotal:', finalTotalPrice);
+
       const orderData = {
         customer_id: capturedCustomerId,
         customer_name: customer?.company_name || customer?.name || '',
