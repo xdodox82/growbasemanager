@@ -322,6 +322,7 @@ function DeliveryPage() {
   const [selectedStopIndex, setSelectedStopIndex] = useState<number | null>(null);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [doneOrders, setDoneOrders] = useState<Set<string>>(new Set());
+  const [mobileCalendarOpen, setMobileCalendarOpen] = useState(false);
 
   // ── Dlhová peňaženka ──
   const [activeTab, setActiveTab] = useState<'delivery' | 'debts'>('delivery');
@@ -1913,9 +1914,9 @@ function DeliveryPage() {
           </button>
           {/* Dátum picker */}
           <button
-            onClick={() => setCalendarOpen(p => !p)}
+            onClick={() => setMobileCalendarOpen(p => !p)}
             className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold border transition-colors shrink-0 ${
-              calendarOpen
+              mobileCalendarOpen
                 ? 'bg-[#16a34a] text-white border-[#16a34a]'
                 : 'bg-white border-[#e2e8f0] text-[#0f172a]'
             }`}>
@@ -1925,10 +1926,10 @@ function DeliveryPage() {
         </div>
 
         {/* ── Inline kalendár panel ── */}
-        {calendarOpen && (
+        {mobileCalendarOpen && (
           <div className="bg-white border-b border-[#e2e8f0] flex flex-col items-center py-3">
             <CalendarGrid />
-            <button onClick={() => setCalendarOpen(false)}
+            <button onClick={() => setMobileCalendarOpen(false)}
               className="mt-2 mx-4 w-[calc(100%-2rem)] h-9 rounded-xl bg-[#16a34a] text-white text-sm font-semibold">
               Potvrdiť ({selectedDates.length === 1 ? format(selectedDates[0], 'd. MMM', { locale: sk }) : `${selectedDates.length} dní`})
             </button>
