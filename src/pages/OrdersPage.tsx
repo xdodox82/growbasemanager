@@ -1914,21 +1914,23 @@ export default function OrdersPage() {
 
         // Find parent order ID
         const parentId = orderToDelete.parent_order_id || orderToDelete.id;
+        const currentDate = orderToDelete.delivery_date;
 
-        // Find all related orders with delivery_date >= current order date
-        const { data: relatedOrders, error: fetchError } = await supabase
+        // Fetch ALL orders in the series (parent + all children)
+        const { data: allSeriesOrders, error: fetchError } = await supabase
           .from('orders')
-          .select('id')
-          .or(`id.eq.${parentId},parent_order_id.eq.${parentId}`)
-          .gte('delivery_date', orderToDelete.delivery_date);
+          .select('id, delivery_date, parent_order_id')
+          .or(`id.eq.${parentId},parent_order_id.eq.${parentId}`);
 
-        if (fetchError) {
-          console.error('Error fetching related orders:', fetchError);
-          throw fetchError;
-        }
+        if (fetchError) throw fetchError;
 
-        if (relatedOrders && relatedOrders.length > 0) {
-          const orderIds = relatedOrders.map(o => o.id);
+        // Filter: keep only orders with delivery_date >= current order date
+        const ordersToDelete = (allSeriesOrders || []).filter(o =>
+          o.delivery_date >= currentDate
+        );
+
+        if (ordersToDelete.length > 0) {
+          const orderIds = ordersToDelete.map(o => o.id);
 
           // First delete order_items (foreign key constraint)
           const { error: itemsError } = await supabase
@@ -1936,10 +1938,7 @@ export default function OrdersPage() {
             .delete()
             .in('order_id', orderIds);
 
-          if (itemsError) {
-            console.error('Error deleting order items:', itemsError);
-            throw itemsError;
-          }
+          if (itemsError) throw itemsError;
 
           // Then delete orders
           const { error: ordersError } = await supabase
@@ -1947,15 +1946,14 @@ export default function OrdersPage() {
             .delete()
             .in('id', orderIds);
 
-          if (ordersError) {
-            console.error('Error deleting orders:', ordersError);
-            throw ordersError;
-          }
+          if (ordersError) throw ordersError;
 
           toast({
             title: 'Úspech',
             description: `Zmazaných ${orderIds.length} objednávok`
           });
+        } else {
+          toast({ title: 'Info', description: 'Žiadne budúce objednávky na zmazanie' });
         }
       } else {
 
