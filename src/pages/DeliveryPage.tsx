@@ -1913,26 +1913,27 @@ function DeliveryPage() {
           </button>
           {/* Dátum picker */}
           <button
-            onClick={() => setCalendarOpen(true)}
-            className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold border border-[#e2e8f0] bg-white text-[#0f172a] shrink-0">
-            <CalendarIcon className="h-3.5 w-3.5 text-[#16a34a]" />
+            onClick={() => setCalendarOpen(p => !p)}
+            className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold border transition-colors shrink-0 ${
+              calendarOpen
+                ? 'bg-[#16a34a] text-white border-[#16a34a]'
+                : 'bg-white border-[#e2e8f0] text-[#0f172a]'
+            }`}>
+            <CalendarIcon className="h-3.5 w-3.5" />
             {selectedDates.length === 1 ? format(selectedDates[0], 'd. MMM', { locale: sk }) : `${selectedDates.length} dní`}
           </button>
-          <Dialog open={calendarOpen} onOpenChange={setCalendarOpen}>
-            <DialogContent className="w-auto p-0 max-w-[340px]">
-              <DialogHeader className="px-4 pt-4 pb-0">
-                <DialogTitle className="text-sm font-semibold">Vybrať dátum rozvozu</DialogTitle>
-              </DialogHeader>
-              <CalendarGrid />
-              <div className="px-4 pb-4">
-                <button onClick={() => setCalendarOpen(false)}
-                  className="w-full h-10 rounded-xl bg-[#16a34a] text-white text-sm font-semibold">
-                  Potvrdiť
-                </button>
-              </div>
-            </DialogContent>
-          </Dialog>
         </div>
+
+        {/* ── Inline kalendár panel ── */}
+        {calendarOpen && (
+          <div className="bg-white border-b border-[#e2e8f0] flex flex-col items-center py-3">
+            <CalendarGrid />
+            <button onClick={() => setCalendarOpen(false)}
+              className="mt-2 mx-4 w-[calc(100%-2rem)] h-9 rounded-xl bg-[#16a34a] text-white text-sm font-semibold">
+              Potvrdiť ({selectedDates.length === 1 ? format(selectedDates[0], 'd. MMM', { locale: sk }) : `${selectedDates.length} dní`})
+            </button>
+          </div>
+        )}
 
         {/* ── Filter panel (skladateľný) ── */}
         {mobileFiltersOpen && (
