@@ -1379,6 +1379,8 @@ export default function OrdersPage() {
       const capturedOrderNotes = orderNotes;
       const capturedStatus = status;
 
+      console.log('DEBUG saveOrder:', { capturedManualDelivery, capturedFreeDelivery, capturedRoute });
+
       // Zavrieť dialóg IHNEĎ — procesy prebiehajú na pozadí
       setIsDialogOpen(false);
       setWizardStep(1);
