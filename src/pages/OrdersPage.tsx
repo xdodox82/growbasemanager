@@ -648,6 +648,11 @@ export default function OrdersPage() {
         return 0;
       }
 
+      // Ak je delivery_price uložená v DB, použiť ju priamo
+      if (order.delivery_price != null && order.delivery_price > 0) {
+        return parseFloat(order.delivery_price.toString());
+      }
+
       const customer = customers?.find(c => c.id === order.customer_id);
       if (!customer || customer?.free_delivery) {
         return 0;
@@ -1379,7 +1384,6 @@ export default function OrdersPage() {
       const capturedOrderNotes = orderNotes;
       const capturedStatus = status;
 
-      console.log('DEBUG saveOrder:', { capturedManualDelivery, capturedFreeDelivery, capturedRoute });
 
       // Zavrieť dialóg IHNEĎ — procesy prebiehajú na pozadí
       setIsDialogOpen(false);
@@ -1486,11 +1490,9 @@ export default function OrdersPage() {
         }
       }
 
-      console.log('DEBUG deliveryPrice after calc:', deliveryPrice, 'capturedManual:', capturedManualDelivery);
 
       const finalTotalPrice = totalPrice + deliveryPrice;
 
-      console.log('DEBUG orderData delivery_price:', deliveryPrice, 'finalTotal:', finalTotalPrice);
 
       const orderData = {
         customer_id: capturedCustomerId,
