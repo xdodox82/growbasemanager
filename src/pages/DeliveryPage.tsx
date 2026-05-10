@@ -1047,6 +1047,7 @@ function DeliveryPage() {
     const order = orders.find(o => o.id === orderId);
     const { error } = await updateOrder(orderId, { status: 'delivered' });
     if (!error) {
+      await refetchOrders(); // ← sync PC view
       if (order) {
         await consumeOrderInventory(
           order.crop_id || null,
@@ -1138,10 +1139,8 @@ function DeliveryPage() {
   const returnToReady = async (orderId: string) => {
     const { error } = await updateOrder(orderId, { status: 'packed' });
     if (!error) {
-      toast({
-        title: 'Vrátené',
-        description: 'Objednávka bola vrátená do zoznamu na rozvoz.',
-      });
+      await refetchOrders();
+      toast({ title: 'Vrátené', description: 'Objednávka bola vrátená do zoznamu na rozvoz.' });
     }
   };
 
@@ -2308,14 +2307,14 @@ function DeliveryPage() {
                             {typeIcons[ct] || typeIcons.home}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-sm text-[#0f172a] truncate">{order.customerName}</div>
+                            <div className="font-semibold text-base text-[#0f172a] truncate">{order.customerName}</div>
                             <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                              {order.customerAddress && <span className="text-[11px] text-[#94a3b8] truncate max-w-[140px]">{order.customerAddress}</span>}
-                              {routeName && <span className="text-[9px] font-medium px-1.5 py-0.5 bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe] rounded-md shrink-0">🚚 {routeName}</span>}
+                              {order.customerAddress && <span className="text-xs text-[#94a3b8] truncate max-w-[140px]">{order.customerAddress}</span>}
+                              {routeName && <span className="text-[10px] font-medium px-1.5 py-0.5 bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe] rounded-md shrink-0">🚚 {routeName}</span>}
                             </div>
                           </div>
                           <div className="flex flex-col items-end gap-1 shrink-0">
-                            <span className="text-sm font-semibold text-[#0f172a]">{order.totalPrice.toFixed(2)} €</span>
+                            <span className="text-base font-bold text-[#0f172a]">{order.totalPrice.toFixed(2)} €</span>
                             {payType === 'cash' && cashDue > 0 && (
                               <span className="text-[10px] font-medium px-1.5 py-0.5 bg-[#fff7ed] text-[#c2410c] border border-[#fed7aa] rounded-md">💰 Hotovosť</span>
                             )}
@@ -2437,14 +2436,14 @@ function DeliveryPage() {
                 <div className="bg-white rounded-xl border border-[#e2e8f0] overflow-hidden">
                   {/* Hlavička */}
                   <div className="flex items-center gap-2.5 px-3 py-3 border-b border-[#f1f5f9]">
-                    <div className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 ${typeColors[ct] || typeColors.home}`}>
+                    <div className={`w-9 h-9 rounded-lg border flex items-center justify-center shrink-0 ${typeColors[ct] || typeColors.home}`}>
                       {typeIcons[ct] || typeIcons.home}
                     </div>
-                    <div className="flex-1 font-semibold text-sm text-[#0f172a]">{order.customerName}</div>
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${typeColors[ct] || typeColors.home}`}>
+                    <div className="flex-1 font-bold text-base text-[#0f172a]">{order.customerName}</div>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-md border ${typeColors[ct] || typeColors.home}`}>
                       {typeLabels[ct] || ct}
                     </span>
-                    {routeName && <span className="text-[9px] font-medium px-1.5 py-0.5 bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe] rounded-md">🚚 {routeName}</span>}
+                    {routeName && <span className="text-[10px] font-medium px-1.5 py-0.5 bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe] rounded-md">🚚 {routeName}</span>}
                   </div>
 
                   {/* Položky */}
@@ -2532,8 +2531,15 @@ function DeliveryPage() {
                       )}
                     </div>
                   ) : (
-                    <div className="px-3 py-3">
-                      <div className="flex items-center justify-center gap-1.5 h-10 rounded-lg bg-[#dcfce7] border border-[#bbf7d0] text-[#166534] text-xs font-semibold">
+                    <div className="flex gap-2 px-3 py-3">
+                      <button onClick={async () => {
+                        await returnToReady(order.id);
+                        setDoneOrders(p => { const n = new Set(p); n.delete(order.id); return n; });
+                      }}
+                        className="flex items-center justify-center gap-1.5 h-10 px-4 rounded-lg border border-[#e2e8f0] bg-white text-[#475569] text-xs font-semibold hover:bg-[#fee2e2] hover:text-[#dc2626] hover:border-[#fca5a5] transition-colors">
+                        <Undo2 className="h-4 w-4" /> Vrátiť späť
+                      </button>
+                      <div className="flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg bg-[#dcfce7] border border-[#bbf7d0] text-[#166534] text-xs font-semibold">
                         <CheckCircle2 className="h-4 w-4" /> Hotovo — doručené
                       </div>
                     </div>
