@@ -8,9 +8,10 @@ import { Menu } from 'lucide-react';
 
 interface MainLayoutProps {
   children: ReactNode;
+  hideMobileHeader?: boolean;
 }
 
-export function MainLayout({ children }: MainLayoutProps) {
+export function MainLayout({ children, hideMobileHeader }: MainLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('sidebarOpen');
@@ -45,7 +46,7 @@ export function MainLayout({ children }: MainLayoutProps) {
       )}
 
       {/* Mobile header */}
-      <MobileHeader />
+      {!hideMobileHeader && <MobileHeader />}
 
       {/* Desktop notification center */}
       <DesktopHeader />
