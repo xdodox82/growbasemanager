@@ -1475,7 +1475,7 @@ export default function OrdersPage() {
         customer_name: customer?.company_name || customer?.name || '',
         customer_type: customer?.customer_type || 'home',
         delivery_date: deliveryDate,
-        status: status,
+        status: orderType !== 'jednorazova' ? 'growing' : status,
         total_price: Number(parseFloat(finalTotalPrice.toFixed(2))),
         delivery_price: Number(parseFloat(deliveryPrice.toFixed(2))),
         charge_delivery: !freeDelivery,
