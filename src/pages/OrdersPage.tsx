@@ -331,11 +331,8 @@ export default function OrdersPage() {
             packaging_type: (selectedCustomer as any).default_packaging_type || 'rPET'
           }));
         }
-        // Auto-nastaviť etiketu len ak má zákazník always_label
-        if ((selectedCustomer as any).always_label) {
-          setOrderItems(prev => prev.map(item => ({ ...item, has_label: true })));
-          setCurrentItem(prev => ({ ...prev, has_label: true }));
-        } else {
+        // Auto-nastaviť etiketu len ak má zákazník always_label — nastaví sa pri pridaní položky
+        if (!(selectedCustomer as any).always_label) {
           setCurrentItem(prev => ({ ...prev, has_label: false }));
         }
         // Auto-populate route from customer's assigned delivery route (only for new orders)
@@ -2373,7 +2370,7 @@ export default function OrdersPage() {
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <Label className="text-sm font-medium">Zákazník *</Label>
-                          <div className="mt-1">
+                          <div className="mt-1 h-10">
                             <SearchableCustomerSelect
                               customers={safeCustomers}
                               value={customerId || ''}
