@@ -82,6 +82,8 @@ const CustomersPage = () => {
     free_delivery: false, uses_returnable_containers: false,
     default_packaging_type: 'rPET',
     company_name: '', contact_name: '', ico: '', dic: '', ic_dph: '', bank_account: '',
+    custom_delivery_fee: '' as string,
+    custom_min_free_delivery: '' as string,
   };
   const [formData, setFormData] = useState(emptyForm);
 
@@ -102,6 +104,8 @@ const CustomersPage = () => {
       contact_name: (customer as any).contact_name || '',
       ico: (customer as any).ico || '', dic: (customer as any).dic || '',
       ic_dph: (customer as any).ic_dph || '', bank_account: (customer as any).bank_account || '',
+      custom_delivery_fee: (customer as any).custom_delivery_fee != null ? String((customer as any).custom_delivery_fee) : '',
+      custom_min_free_delivery: (customer as any).custom_min_free_delivery != null ? String((customer as any).custom_min_free_delivery) : '',
     });
     setIsDialogOpen(true);
   };
@@ -130,6 +134,8 @@ const CustomersPage = () => {
       company_name: formData.company_name || null, contact_name: formData.contact_name || null,
       ico: formData.ico || null, dic: formData.dic || null,
       ic_dph: formData.ic_dph || null, bank_account: formData.bank_account || null,
+      custom_delivery_fee: formData.custom_delivery_fee !== '' ? parseFloat(formData.custom_delivery_fee) : null,
+      custom_min_free_delivery: formData.custom_min_free_delivery !== '' ? parseFloat(formData.custom_min_free_delivery) : null,
     };
     if (editingCustomer) {
       const { error } = await update(editingCustomer.id, data);
@@ -617,6 +623,51 @@ const CustomersPage = () => {
                     <Label htmlFor="returnable" className="text-[13px] cursor-pointer">Vratné obaly</Label>
                   </div>
                 </div>
+
+                {/* Individuálna cena dopravy */}
+                {!formData.free_delivery && (
+                  <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider">Individuálna cena dopravy</label>
+                      <button type="button"
+                        onClick={() => setFormData({ ...formData, custom_delivery_fee: '', custom_min_free_delivery: '' })}
+                        className="text-[10px] text-[#94a3b8] hover:text-[#dc2626] transition-colors">
+                        Zrušiť individuálnu
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[11px] text-[#64748b] mb-1 block">Cena dopravy (€)</label>
+                        <input
+                          type="number" min="0" step="0.01"
+                          placeholder="napr. 1.50"
+                          value={formData.custom_delivery_fee}
+                          onChange={e => setFormData({ ...formData, custom_delivery_fee: e.target.value })}
+                          className="w-full h-9 px-3 border border-[#e2e8f0] rounded-md text-[13px] bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-[#64748b] mb-1 block">Min. pre zdarma (€)</label>
+                        <input
+                          type="number" min="0" step="0.01"
+                          placeholder="napr. 15.00"
+                          value={formData.custom_min_free_delivery}
+                          onChange={e => setFormData({ ...formData, custom_min_free_delivery: e.target.value })}
+                          className="w-full h-9 px-3 border border-[#e2e8f0] rounded-md text-[13px] bg-white"
+                        />
+                      </div>
+                    </div>
+                    {formData.custom_delivery_fee !== '' && (
+                      <p className="text-[11px] text-[#16a34a]">
+                        Doprava: {parseFloat(formData.custom_delivery_fee || '0').toFixed(2)} €
+                        {formData.custom_min_free_delivery !== '' && ` · Zdarma od ${parseFloat(formData.custom_min_free_delivery || '0').toFixed(2)} €`}
+                      </p>
+                    )}
+                    {formData.custom_delivery_fee === '' && (
+                      <p className="text-[11px] text-[#94a3b8]">Nevyplnené = použijú sa štandardné limity trasy</p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Poznámky */}
