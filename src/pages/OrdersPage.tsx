@@ -1863,8 +1863,21 @@ export default function OrdersPage() {
       }
 
       // Check if this is part of a recurring series
-      const isPartOfSeries = order.parent_order_id !== null ||
-                            (order.is_recurring && (order.recurring_weeks || 0) > 1);
+      // Parent: has children orders (parent_order_id pointing to this id)
+      // Child: has parent_order_id set
+      let isPartOfSeries = order.parent_order_id !== null ||
+                           (order.is_recurring && (order.recurring_weeks || 0) > 1) ||
+                           order.recurrence_pattern === 'tyzdenne' ||
+                           order.recurrence_pattern === 'dvojtyzdenne';
+
+      // If not detected yet, check if this order has any children in DB
+      if (!isPartOfSeries) {
+        const { count } = await supabase
+          .from('orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('parent_order_id', orderId);
+        if ((count || 0) > 0) isPartOfSeries = true;
+      }
 
       if (isPartOfSeries) {
         // Show recurring delete dialog
@@ -1932,25 +1945,22 @@ export default function OrdersPage() {
         if (ordersToDelete.length > 0) {
           const orderIds = ordersToDelete.map(o => o.id);
 
-          // First delete order_items (foreign key constraint)
-          const { error: itemsError } = await supabase
-            .from('order_items')
-            .delete()
-            .in('order_id', orderIds);
+          // Delete order_items first (foreign key constraint)
+          for (const oid of orderIds) {
+            await supabase.from('order_items').delete().eq('order_id', oid);
+          }
 
-          if (itemsError) throw itemsError;
-
-          // Then delete orders
-          const { error: ordersError } = await supabase
-            .from('orders')
-            .delete()
-            .in('id', orderIds);
-
-          if (ordersError) throw ordersError;
+          // Then delete orders one by one to avoid any constraint issues
+          let deletedCount = 0;
+          for (const oid of orderIds) {
+            const { error: delErr } = await supabase.from('orders').delete().eq('id', oid);
+            if (!delErr) deletedCount++;
+            else console.error('Error deleting order', oid, delErr);
+          }
 
           toast({
             title: 'Úspech',
-            description: `Zmazaných ${orderIds.length} objednávok`
+            description: `Zmazaných ${deletedCount} objednávok`
           });
         } else {
           toast({ title: 'Info', description: 'Žiadne budúce objednávky na zmazanie' });
