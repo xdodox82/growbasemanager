@@ -1764,8 +1764,306 @@ function DeliveryPage() {
       </Dialog>
       {/* ── ROZVOZ TAB ───────────────────────────────────────────── */}
       {activeTab === 'delivery' && (<>
-      {/* DESKTOP Filter - rovnaké šírky, centrované labely */}
-      <div className="hidden md:block space-y-3 p-4 bg-white border-b mb-6">
+      {/* DESKTOP Filter - GrowBase štýl */}
+      <div className="hidden md:block">
+
+        {/* Top bar — PageHeader náhrada */}
+        <div className="flex items-center justify-between gap-4 px-6 pt-4 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-[#dcfce7] border border-[#bbf7d0] flex items-center justify-center">
+              <Truck className="h-5 w-5 text-[#16a34a]" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-[#0f172a] leading-none">Rozvoz</h1>
+              <p className="text-xs text-[#94a3b8] mt-0.5">Prehľad objednávok na rozvoz</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={async () => {
+                if (rozvozStarted) { setRozvozStarted(false); return; }
+                const packedOrders = pendingOrders.filter(o => o.status === 'packed' || o.status === 'on_the_way');
+                if (packedOrders.length === 0) {
+                  toast({ title: 'Žiadne zabalené objednávky', description: 'Nie sú žiadne zabalené objednávky na prepnutie.' });
+                  return;
+                }
+                for (const order of packedOrders) await updateOrder(order.id, { status: 'on_the_way' });
+                await refetchOrders();
+                setRozvozStarted(true);
+                toast({ title: '🚚 Rozvoz spustený!', description: `${packedOrders.length} objednávok je na ceste.` });
+              }}
+              className={`flex items-center gap-2 h-9 px-4 rounded-xl text-sm font-semibold border transition-colors ${
+                rozvozStarted
+                  ? 'bg-[#2563eb] text-white border-[#2563eb]'
+                  : 'bg-[#16a34a] text-white border-[#16a34a] hover:bg-[#15803d]'
+              }`}
+            >
+              <Truck className="h-4 w-4" />
+              {rozvozStarted ? '✅ Rozvoz prebieha' : '🚚 Štart rozvozu'}
+            </button>
+            <button onClick={exportToExcel}
+              className="flex items-center gap-1.5 h-9 px-3 rounded-xl border border-[#e2e8f0] bg-white text-sm font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
+              <FileSpreadsheet className="h-4 w-4" /> Excel
+            </button>
+            <button onClick={exportToPDF}
+              className="flex items-center gap-1.5 h-9 px-3 rounded-xl border border-[#e2e8f0] bg-white text-sm font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
+              <FileText className="h-4 w-4" /> PDF
+            </button>
+          </div>
+        </div>
+
+        {/* Filter card */}
+        <div className="mx-6 mb-4 bg-white rounded-xl border border-[#e2e8f0] shadow-sm overflow-hidden">
+          <div className="px-4 py-3 flex flex-wrap gap-4 items-center border-b border-[#f1f5f9]">
+            {/* Dátum */}
+            <div className="flex items-center gap-2">
+              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <button className="flex items-center gap-2 h-8 px-3 rounded-lg border border-[#e2e8f0] bg-white text-sm font-medium text-[#0f172a] hover:border-[#bbf7d0] transition-colors">
+                    <CalendarIcon className="h-3.5 w-3.5 text-[#16a34a]" />
+                    {selectedDates.length === 1 ? format(selectedDates[0], 'd. MMMM yyyy', { locale: sk }) : `${selectedDates.length} dní`}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 shadow-xl" align="start">
+                  <CalendarGrid />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="w-px h-5 bg-[#e2e8f0]" />
+            {/* Zákazník typ chips */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-bold text-[#94a3b8] uppercase tracking-wide shrink-0">Zákazník</span>
+              {(['all','home','gastro','wholesale'] as const).map(t => {
+                const labels = { all: 'Všetci', home: 'Domáci', gastro: 'Gastro', wholesale: 'VO' };
+                const icons: Record<string,any> = { all: null, home: <House className="h-3 w-3" />, gastro: <Utensils className="h-3 w-3" />, wholesale: <Store className="h-3 w-3" /> };
+                return (
+                  <button key={t} onClick={() => setSelectedCustomerType(t)}
+                    className={`inline-flex items-center gap-1 px-3 h-7 rounded-full border text-xs font-medium transition-colors ${
+                      selectedCustomerType === t ? 'bg-[#0f172a] border-[#0f172a] text-white' : 'bg-white border-[#e2e8f0] text-[#475569] hover:border-[#cbd5e1]'
+                    }`}>
+                    {icons[t]}{labels[t]}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="w-px h-5 bg-[#e2e8f0]" />
+            {/* Trasa chips */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[11px] font-bold text-[#94a3b8] uppercase tracking-wide shrink-0">Trasa</span>
+              <button onClick={() => setRouteFilter('all')}
+                className={`inline-flex items-center gap-1 px-3 h-7 rounded-full border text-xs font-medium transition-colors ${
+                  routeFilter === 'all' ? 'bg-[#0f172a] border-[#0f172a] text-white' : 'bg-white border-[#e2e8f0] text-[#475569] hover:border-[#cbd5e1]'
+                }`}>Všetky</button>
+              {routes.map(route => (
+                <button key={route.id} onClick={() => setRouteFilter(route.id)}
+                  className={`inline-flex items-center gap-1 px-3 h-7 rounded-full border text-xs font-medium transition-colors ${
+                    routeFilter === route.id ? 'bg-[#eff6ff] border-[#bfdbfe] text-[#1d4ed8]' : 'bg-white border-[#e2e8f0] text-[#475569] hover:border-[#cbd5e1]'
+                  }`}>
+                  🚚 {route.name}
+                </button>
+              ))}
+            </div>
+            <div className="ml-auto flex items-center gap-3">
+              {/* Zákazník search */}
+              <SearchableCustomerSelect customers={customers} value={customerFilter} onValueChange={setCustomerFilter}
+                placeholder="Všetci zákazníci" filterByType={selectedCustomerType} allowAll={true} className="w-48" />
+              {/* Zobraziť doručené */}
+              <label className="flex items-center gap-2 text-sm text-[#475569] cursor-pointer whitespace-nowrap">
+                <Switch checked={showArchive} onCheckedChange={setShowArchive} />
+                Doručené
+              </label>
+            </div>
+          </div>
+
+          {/* Progress + summary */}
+          {ordersForDate.length > 0 && (
+            <div className="px-4 py-3 flex items-center gap-6">
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-wide">Priebeh rozvozu</span>
+                  <span className="text-xs font-semibold text-[#0f172a]">{deliveredCount} / {totalItemsCount} doručených</span>
+                </div>
+                <div className="h-1.5 bg-[#f1f5f9] rounded-full overflow-hidden">
+                  <div className="h-full bg-[#16a34a] rounded-full transition-all duration-500"
+                    style={{ width: totalItemsCount > 0 ? `${(deliveredCount / totalItemsCount) * 100}%` : '0%' }} />
+                </div>
+              </div>
+              <div className="flex gap-3 shrink-0">
+                {[
+                  { label: 'Hotovosť', value: (() => {
+                    const cash = pendingOrders.reduce((sum, o) => {
+                      const c = customers.find(c => c.id === o.customer_id);
+                      const walletPay = (o as any).wallet_payment || 0;
+                      const voucherDiscount = (o as any).voucher_discount || 0;
+                      const ot = calculateOrderTotal(o, c?.customer_type || null);
+                      const df = o.delivery_price ?? 0;
+                      return sum + Math.max(0, ot + df - voucherDiscount - walletPay);
+                    }, 0);
+                    return `${cash.toFixed(2)} €`;
+                  })(), color: 'text-[#16a34a]' },
+                  { label: 'Na rozvoz', value: `${pendingCount}`, color: 'text-[#0f172a]' },
+                  { label: 'Doručených', value: `${deliveredCount}`, color: 'text-[#0f172a]' },
+                ].map(({ label, value, color }) => (
+                  <div key={label} className="bg-[#f8fafc] rounded-lg px-3 py-1.5 text-center min-w-[80px]">
+                    <div className="text-[10px] text-[#94a3b8]">{label}</div>
+                    <div className={`text-sm font-semibold ${color}`}>{value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Finančné zúčtovanie */}
+        {allOrdersForReport.length > 0 && (
+          <div className="mx-6 mb-4">
+            <button onClick={() => setFinancialReportOpen(true)}
+              className="w-full flex items-center gap-3 px-4 py-3 bg-white rounded-xl border border-[#e2e8f0] shadow-sm hover:border-[#bbf7d0] transition-colors">
+              <div className="w-8 h-8 rounded-lg bg-[#f0fdf4] border border-[#bbf7d0] flex items-center justify-center shrink-0">
+                <Euro className="h-4 w-4 text-[#16a34a]" />
+              </div>
+              <div className="flex-1 text-left">
+                <div className="text-sm font-semibold text-[#0f172a]">Finančné zúčtovanie rozvozu</div>
+                <div className="text-xs text-[#94a3b8]">{format(selectedDate, 'd. MMMM yyyy', { locale: sk })} · {totalItemsCount} objednávok · {pendingCount} na rozvoz · {deliveredCount} doručených</div>
+              </div>
+              <ChevronRight className="h-4 w-4 text-[#94a3b8]" />
+            </button>
+          </div>
+        )}
+
+        {/* Content */}
+        <div className="mx-6 space-y-4 pb-8">
+          {sortedPendingOrders.length === 0 && sortedDeliveredOrders.length === 0 ? (
+            <div className="bg-white rounded-xl border border-[#e2e8f0] py-16 flex flex-col items-center text-center px-6">
+              <div className="w-14 h-14 rounded-2xl bg-[#f1f5f9] flex items-center justify-center mb-4">
+                <Truck className="h-7 w-7 text-[#94a3b8]" />
+              </div>
+              <h3 className="text-base font-semibold text-[#0f172a] mb-1">Žiadne objednávky</h3>
+              <p className="text-sm text-[#64748b]">Na tento deň nie sú naplánované žiadne rozvozy.</p>
+            </div>
+          ) : (
+            <>
+              {/* Na rozvoz */}
+              {sortedPendingOrders.length > 0 && (
+                <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm overflow-hidden">
+                  <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#f1f5f9] bg-gradient-to-r from-[#f0fdf4] to-[#f8fafc]">
+                    <div className="flex items-center gap-2.5">
+                      <Truck className="h-4 w-4 text-[#16a34a]" />
+                      <span className="font-semibold text-[#14532d] text-sm">Na rozvoz</span>
+                    </div>
+                    <span className="text-xs font-semibold px-2 py-0.5 bg-[#dcfce7] text-[#166534] border border-[#bbf7d0] rounded-full">
+                      {pendingCount} {pendingCount === 1 ? 'objednávka' : pendingCount < 5 ? 'objednávky' : 'objednávok'}
+                    </span>
+                  </div>
+                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-[#f8fafc] border-b border-[#e2e8f0]">
+                            <TableHead className="w-8 py-2.5"></TableHead>
+                            <TableHead className="font-semibold text-[#475569] text-xs uppercase tracking-wide py-2.5">Zákazník</TableHead>
+                            <TableHead className="hidden lg:table-cell font-semibold text-[#475569] text-xs uppercase tracking-wide py-2.5">Adresa</TableHead>
+                            <TableHead className="hidden lg:table-cell font-semibold text-[#475569] text-xs uppercase tracking-wide py-2.5">Kontakt</TableHead>
+                            <TableHead className="font-semibold text-[#475569] text-xs uppercase tracking-wide py-2.5 text-right">Cena</TableHead>
+                            <TableHead className="font-semibold text-[#475569] text-xs uppercase tracking-wide py-2.5 text-center">Akcia</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          <SortableContext items={sortedPendingOrders.flatMap(([_, item]) => item.orders.map(o => o.id))} strategy={verticalListSortingStrategy}>
+                            {sortedPendingOrders.map(([key, item]) =>
+                              item.orders.map((order, orderIdx) => (
+                                <SortableOrderRow key={order.id} order={order} orderIdx={orderIdx} item={item}
+                                  getCropColor={getCropColor} getPackagingSummary={getPackagingSummary}
+                                  openInGoogleMaps={openInGoogleMaps} markOrderDelivered={markOrderDelivered}
+                                  markOrderOnTheWay={markOrderOnTheWay} handleMarkAsPaid={handleMarkAsPaid}
+                                  handleMarkAsUnpaid={handleMarkAsUnpaid} navigationMode={navigationMode}
+                                  setNavigationMode={setNavigationMode}
+                                  onOrderClick={(order) => { setSelectedOrderDetail(order); setDetailModalOpen(true); }}
+                                />
+                              ))
+                            )}
+                          </SortableContext>
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </DndContext>
+                </div>
+              )}
+
+              {/* Doručené */}
+              {sortedDeliveredOrders.length > 0 && (
+                <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm overflow-hidden">
+                  <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#f1f5f9] bg-gradient-to-r from-[#dcfce7] to-[#f0fdf4]">
+                    <div className="flex items-center gap-2.5">
+                      <CheckCircle2 className="h-4 w-4 text-[#16a34a]" />
+                      <span className="font-semibold text-[#14532d] text-sm">Doručené dnes</span>
+                    </div>
+                    <span className="text-xs font-semibold px-2 py-0.5 bg-[#f0fdf4] text-[#166534] border border-[#bbf7d0] rounded-full">
+                      {deliveredCount} {deliveredCount === 1 ? 'objednávka' : deliveredCount < 5 ? 'objednávky' : 'objednávok'}
+                    </span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-[#f8fafc] border-b border-[#e2e8f0]">
+                          <TableHead className="font-semibold text-[#475569] text-xs uppercase tracking-wide py-2.5">Zákazník</TableHead>
+                          <TableHead className="hidden lg:table-cell font-semibold text-[#475569] text-xs uppercase tracking-wide py-2.5">Adresa</TableHead>
+                          <TableHead className="hidden lg:table-cell font-semibold text-[#475569] text-xs uppercase tracking-wide py-2.5">Kontakt</TableHead>
+                          <TableHead className="font-semibold text-[#475569] text-xs uppercase tracking-wide py-2.5 text-right">Cena</TableHead>
+                          <TableHead className="font-semibold text-[#475569] text-xs uppercase tracking-wide py-2.5 text-center">Akcia</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {sortedDeliveredOrders.map(([key, item]) =>
+                          item.orders.map((order) => (
+                            <TableRow key={order.id} className="bg-[#f0fdf4]/50 hover:bg-[#dcfce7]/50 cursor-pointer transition-colors"
+                              onClick={() => { setSelectedOrderDetail(order); setDetailModalOpen(true); }}>
+                              <TableCell className="py-2">
+                                <span className="font-semibold text-sm text-[#166534]">{order.customerName}</span>
+                                {order.deliveryNotes && <div className="text-xs text-[#94a3b8] italic">📍 {order.deliveryNotes}</div>}
+                              </TableCell>
+                              <TableCell className="hidden lg:table-cell py-2 text-sm text-[#64748b]">{order.customerAddress}</TableCell>
+                              <TableCell className="hidden lg:table-cell py-2" onClick={e => e.stopPropagation()}>
+                                <div className="flex flex-col gap-1">
+                                  {order.customerPhone && (
+                                    <a href={`tel:${order.customerPhone}`} className="flex items-center gap-1 text-[#2563eb] hover:underline text-xs">
+                                      <Phone className="h-3.5 w-3.5" />{order.customerPhone}
+                                    </a>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="py-2 text-right">
+                                <span className="font-semibold text-sm text-[#16a34a]">{order.totalPrice.toFixed(2)} €</span>
+                              </TableCell>
+                              <TableCell className="py-2 text-center" onClick={e => e.stopPropagation()}>
+                                <div className="flex items-center justify-center gap-2">
+                                  <button onClick={() => returnToReady(order.id)}
+                                    className="flex items-center gap-1 px-2.5 h-7 rounded-lg border border-[#e2e8f0] bg-white text-xs font-medium text-[#475569] hover:bg-[#f8fafc]">
+                                    <Undo2 className="h-3.5 w-3.5" /> Späť
+                                  </button>
+                                  {order.paymentMethod !== 'invoice' && (
+                                    <button onClick={() => order.isPaid ? handleMarkAsUnpaid(order.id, order.notes) : handleMarkAsPaid(order.id, order.notes)}
+                                      className={`flex items-center gap-1 px-2.5 h-7 rounded-lg text-xs font-medium transition-colors ${
+                                        order.isPaid ? 'bg-[#16a34a] text-white' : 'border border-[#e2e8f0] bg-white text-[#475569]'
+                                      }`}>
+                                      <CreditCard className="h-3.5 w-3.5" />
+                                      {order.isPaid ? 'Zaplatené' : 'Nezaplatené'}
+                                    </button>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
 
         {/* Typ zákazníka - presné ikony z HarvestPackingPage */}
         <div className="flex justify-start">
@@ -2363,674 +2661,6 @@ function DeliveryPage() {
           KONIEC MOBILE LAYOUT
           ═══════════════════════════════════════════════════════════ */}
 
-      <div className="hidden md:block space-y-6">
-        {/* Finančný report - vždy hore ak sú nejaké objednávky */}
-        {allOrdersForReport.length > 0 && (
-          <Card className="p-4 bg-green-50 border-green-200">
-            <button
-              onClick={() => setFinancialReportOpen(true)}
-              className="w-full flex items-center justify-between hover:bg-green-100 rounded-lg p-2 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <Euro className="h-6 w-6 text-green-600" />
-                <div className="text-left">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Finančné zúčtovanie rozvozu
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    {format(selectedDate, 'd. MMMM yyyy', { locale: sk })} • {totalItemsCount} položiek • {pendingCount} na rozvoz • {deliveredCount} doručených
-                  </p>
-                </div>
-              </div>
-              <ChevronRight className="h-5 w-5 text-gray-400" />
-            </button>
-          </Card>
-        )}
-
-        {sortedPendingOrders.length === 0 && sortedDeliveredOrders.length === 0 ? (
-          <EmptyState
-            icon={<Truck className="h-8 w-8" />}
-            title="Žiadne položky"
-            description="Na tento deň nie sú naplánované žiadne rozvozy."
-          />
-        ) : (
-          <>
-            {/* Pending Orders Section */}
-            {sortedPendingOrders.length > 0 && (
-              <Card className="p-4 md:p-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-warning/10 flex items-center justify-center">
-                      <Truck className="h-5 w-5 text-warning" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold">Na rozvoz</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {pendingCount} {pendingCount === 1 ? 'položka' : pendingCount < 5 ? 'položky' : 'položiek'} na doručenie
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      if (rozvozStarted) {
-                        setRozvozStarted(false);
-                        return;
-                      }
-                      const packedOrders = pendingOrders.filter(o => o.status === 'packed' || o.status === 'on_the_way');
-                      if (packedOrders.length === 0) {
-                        toast({ title: 'Žiadne zabalené objednávky', description: 'Nie sú žiadne zabalené objednávky na prepnutie.' });
-                        return;
-                      }
-                      for (const order of packedOrders) {
-                        await updateOrder(order.id, { status: 'on_the_way' });
-                      }
-                      await refetchOrders();
-                      setRozvozStarted(true);
-                      toast({ title: '🚚 Rozvoz spustený!', description: `${packedOrders.length} objednávok je na ceste.` });
-                    }}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-colors ${
-                      rozvozStarted
-                        ? 'bg-green-600 text-white cursor-pointer hover:bg-green-700'
-                        : 'bg-blue-600 text-white hover:bg-blue-700'
-                    }`}
-                  >
-                    <Truck className="h-4 w-4" />
-                    {rozvozStarted ? '✅ Na ceste' : '🚚 Štart rozvozu'}
-                  </button>
-                </div>
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  {/* Mobile karty */}
-                  <div className="block md:hidden space-y-3 mb-4">
-                    {sortedPendingOrders.map(([key, item]) =>
-                      item.orders.map(order => (
-                        <div
-                          key={order.id}
-                          className={`rounded-2xl border-2 overflow-hidden shadow-sm cursor-pointer ${
-                            order.status === 'on_the_way'
-                              ? 'border-blue-400 bg-blue-50'
-                              : order.status === 'packed'
-                              ? 'border-amber-400 bg-amber-50'
-                              : 'border-gray-200 bg-white'
-                          }`}
-                          onClick={() => setExpandedOrderIds(prev => {
-                            const next = new Set(prev);
-                            if (next.has(order.id)) {
-                              next.delete(order.id);
-                            } else {
-                              next.add(order.id);
-                            }
-                            return next;
-                          })}
-                        >
-                          {/* Status bar */}
-                          <div className={`px-4 py-1.5 flex items-center justify-between ${
-                            order.status === 'on_the_way'
-                              ? 'bg-blue-500'
-                              : order.status === 'packed'
-                              ? 'bg-amber-500'
-                              : 'bg-gray-400'
-                          }`}>
-                            <span className="text-white text-xs font-bold">
-                              {order.status === 'on_the_way' ? '🚚 Na ceste' :
-                               order.status === 'packed' ? '📦 Zabalená' : '✓ Pripravená'}
-                            </span>
-                            {order.isPaid && (
-                              <span className="text-white text-xs font-bold bg-white/20 px-2 py-0.5 rounded-full">
-                                💳 Zaplatené
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="p-4">
-                            {/* Meno + Cena */}
-                            <div className="flex justify-between items-start mb-3">
-                              <div>
-                                <p className="font-bold text-xl text-gray-900">{order.customerName}</p>
-                                {order.customerAddress && (
-                                  <p className="text-xs text-gray-500 mt-0.5">{order.customerAddress}</p>
-                                )}
-                                {order.deliveryNotes && (
-                                  <p className="text-xs text-amber-600 mt-0.5">📍 {order.deliveryNotes}</p>
-                                )}
-                              </div>
-                              <div className="text-right">
-                                <p className="text-2xl font-bold text-green-600">{order.totalPrice.toFixed(2)} €</p>
-                                {(order.deliveryFee || 0) > 0 ? (
-                                  <p className="text-xs text-gray-400">vrátane {order.deliveryFee.toFixed(2)} € doprava</p>
-                                ) : (
-                                  <p className="text-xs text-green-500 font-medium">doprava zdarma</p>
-                                )}
-                              </div>
-                            </div>
-                            {(order as any).voucherCode && (
-                              <div className="mt-2 mb-2 px-3 py-2 bg-green-100 rounded-xl border border-green-300 w-full">
-                                <div className="flex items-center justify-between">
-                                  <p className="text-xs font-bold text-green-700">💳 Zaplatené poukazom</p>
-                                  <p className="text-xs font-bold text-green-700">-{((order as any).voucherDiscount || 0).toFixed(2)} €</p>
-                                </div>
-                                {((order as any).voucherDiscount || 0) >= order.totalPrice ? (
-                                  <p className="text-xs text-green-600 mt-0.5">✅ Plne hradené — nepýtať hotovosť</p>
-                                ) : (
-                                  <p className="text-xs text-green-600 mt-0.5">
-                                    K úhrade v hotovosti: {Math.max(0, order.totalPrice - ((order as any).voucherDiscount || 0)).toFixed(2)} €
-                                  </p>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Vždy viditeľné mini tlačidlá */}
-                            {!expandedOrderIds.has(order.id) && (
-                              <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                                {(() => {
-                                  const fullyPaidByVoucher = (order.voucherDiscount || 0) >= order.totalPrice && order.totalPrice > 0;
-                                  return (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (fullyPaidByVoucher) return;
-                                        if (order.isPaid) {
-                                          handleMarkAsUnpaid(order.id, order.notes);
-                                        } else {
-                                          handleMarkAsPaid(order.id, order.notes);
-                                        }
-                                      }}
-                                      disabled={fullyPaidByVoucher}
-                                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-colors ${
-                                        fullyPaidByVoucher
-                                          ? 'bg-green-600 text-white opacity-75 cursor-not-allowed'
-                                          : order.isPaid
-                                          ? 'bg-green-600 text-white'
-                                          : 'bg-gray-100 text-gray-600'
-                                      }`}
-                                    >
-                                      <CreditCard className="h-5 w-5" />
-                                      {fullyPaidByVoucher ? '✅ Poukazom' : order.isPaid ? 'Zaplatené' : 'Nezaplatené'}
-                                    </button>
-                                  );
-                                })()}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    markOrderDelivered(order.id);
-                                  }}
-                                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm font-bold hover:bg-green-600 hover:text-white transition-colors"
-                                >
-                                  <CheckCircle2 className="h-5 w-5" />
-                                  Doručené
-                                </button>
-                              </div>
-                            )}
-
-                            {/* Rozbalený obsah */}
-                            {expandedOrderIds.has(order.id) && (
-                              <div onClick={(e) => e.stopPropagation()}>
-                                {/* Položky */}
-                                <div className="bg-gray-50 rounded-xl p-3 mb-3 space-y-1">
-                                  {order.itemsDetail.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between text-sm">
-                                      <span className="text-gray-700">{item.quantity} × {item.size}g {item.name}</span>
-                                      <span className="font-semibold text-gray-900">{item.price.toFixed(2)} €</span>
-                                    </div>
-                                  ))}
-                                </div>
-
-                                {/* Akčné tlačidlá — veľké, dobre klikateľné */}
-                                <div className="grid grid-cols-2 gap-2 mb-2">
-                                  {/* Navigácia */}
-                                  {order.customerAddress && (
-                                    <div className="flex gap-1">
-                                      <a
-                                        href={navApp === 'waze'
-                                          ? `https://waze.com/ul?q=${encodeURIComponent(order.customerAddress)}`
-                                          : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.customerAddress)}`
-                                        }
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        onClick={(e) => e.stopPropagation()}
-                                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-blue-600 text-white rounded-xl font-semibold text-sm"
-                                      >
-                                        <Navigation className="h-5 w-5" />
-                                        {navApp === 'waze' ? 'Waze' : 'Maps'}
-                                      </a>
-                                      <button
-                                        onClick={(e) => { e.stopPropagation(); handleNavToggle(); }}
-                                        className="px-3 py-3 bg-blue-100 text-blue-700 rounded-xl text-xs font-bold"
-                                      >
-                                        ⇄
-                                      </button>
-                                    </div>
-                                  )}
-
-                                  {/* Telefón */}
-                                  {order.customerPhone && (
-                                    <a
-                                      href={`tel:${order.customerPhone}`}
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="flex items-center justify-center gap-2 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold text-sm"
-                                    >
-                                      <Phone className="h-5 w-5" />
-                                      Volať
-                                    </a>
-                                  )}
-                                </div>
-
-                                <div className="grid grid-cols-4 gap-2">
-                                  {/* Zaznamenať dlh */}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setDebtDialog({ open: true, order });
-                                      setDebtAmount(order.totalPrice?.toFixed(2) || '');
-                                      setDebtNote('');
-                                    }}
-                                    className="flex flex-col items-center justify-center gap-1 py-3 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100 transition-colors"
-                                  >
-                                    <AlertCircle className="h-6 w-6" />
-                                    Dlh
-                                  </button>
-
-                                  {/* Zaplatené */}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (order.isPaid) {
-                                        handleMarkAsUnpaid(order.id, order.notes);
-                                      } else {
-                                        handleMarkAsPaid(order.id, order.notes);
-                                      }
-                                    }}
-                                    className={`flex flex-col items-center justify-center gap-1 py-3 rounded-xl text-xs font-bold transition-colors ${
-                                      order.isPaid
-                                        ? 'bg-green-600 text-white'
-                                        : 'bg-gray-100 text-gray-600'
-                                    }`}
-                                  >
-                                    <CreditCard className="h-6 w-6" />
-                                    {order.isPaid ? 'Zaplatené' : 'Nezaplatené'}
-                                  </button>
-
-                                  {/* Na ceste - len ak packed */}
-                                  {order.status === 'packed' ? (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        markOrderOnTheWay(order.id);
-                                      }}
-                                      className="flex flex-col items-center justify-center gap-1 py-3 bg-blue-500 text-white rounded-xl text-xs font-bold"
-                                    >
-                                      <Truck className="h-6 w-6" />
-                                      Na ceste
-                                    </button>
-                                  ) : (
-                                    <div className="rounded-xl bg-gray-50" />
-                                  )}
-
-                                  {/* Doručené */}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      markOrderDelivered(order.id);
-                                    }}
-                                    className="flex flex-col items-center justify-center gap-1 py-3 bg-gray-100 text-gray-600 rounded-xl text-xs font-bold hover:bg-green-600 hover:text-white transition-colors"
-                                  >
-                                    <CheckCircle2 className="h-6 w-6" />
-                                    Doručené
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-
-                  {/* Desktop tabuľka */}
-                  <div className="hidden md:block rounded-lg border border-border overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="h-10">
-                          <TableHead className="w-12"></TableHead>
-                          <TableHead className="text-center font-bold text-base">Zákazník</TableHead>
-                          <TableHead className="hidden lg:table-cell text-center font-bold text-base">Adresa</TableHead>
-                          <TableHead className="hidden lg:table-cell text-center font-bold text-base">Kontakt</TableHead>
-                          <TableHead className="text-center font-bold text-base">Cena</TableHead>
-                          <TableHead className="hidden md:table-cell text-center font-bold text-base">Akcia</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        <SortableContext
-                          items={sortedPendingOrders.flatMap(([_, item]) => item.orders.map(o => o.id))}
-                          strategy={verticalListSortingStrategy}
-                        >
-                          {sortedPendingOrders.map(([key, item]) => (
-                            item.orders.map((order, orderIdx) => (
-                              <SortableOrderRow
-                                key={order.id}
-                                order={order}
-                                orderIdx={orderIdx}
-                                item={item}
-                                getCropColor={getCropColor}
-                                getPackagingSummary={getPackagingSummary}
-                                openInGoogleMaps={openInGoogleMaps}
-                                markOrderDelivered={markOrderDelivered}
-                                markOrderOnTheWay={markOrderOnTheWay}
-                                handleMarkAsPaid={handleMarkAsPaid}
-                                handleMarkAsUnpaid={handleMarkAsUnpaid}
-                                navigationMode={navigationMode}
-                                setNavigationMode={setNavigationMode}
-                                onOrderClick={(order) => {
-                                  setSelectedOrderDetail(order);
-                                  setDetailModalOpen(true);
-                                }}
-                              />
-                            ))
-                          ))}
-                        </SortableContext>
-                      </TableBody>
-                    </Table>
-                  </div>
-                </DndContext>
-              </Card>
-            )}
-
-            {/* Delivered Orders Section */}
-            {sortedDeliveredOrders.length > 0 && (
-              <Card className="p-4 md:p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="h-10 w-10 rounded-lg bg-success/10 flex items-center justify-center">
-                    <CheckCircle2 className="h-6 w-6 text-success" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold">Doručené dnes</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {deliveredCount} {deliveredCount === 1 ? 'položka' : deliveredCount < 5 ? 'položky' : 'položiek'} úspešne doručených
-                    </p>
-                  </div>
-                </div>
-
-                {/* Mobile karty - Delivered */}
-                <div className="block md:hidden space-y-3">
-                  {sortedDeliveredOrders.map(([key, item]) =>
-                    item.orders.map(order => (
-                      <div
-                        key={order.id}
-                        className="bg-success/5 rounded-lg border border-success/20 p-4 cursor-pointer"
-                        onClick={() => {
-                          setSelectedOrderDetail(order);
-                          setDetailModalOpen(true);
-                        }}
-                      >
-                        {/* Riadok 1: Meno + Cena */}
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="font-bold text-base text-success">{order.customerName}</span>
-                          <span className="text-green-600/60 font-bold text-lg">
-                            {order.totalPrice.toFixed(2)} €
-                          </span>
-                        </div>
-
-                        {/* Riadok 3: Akčné tlačidlá */}
-                        <div className="flex items-center gap-2 pt-3 border-t border-success/20">
-                          {/* Telefón */}
-                          {order.customerPhone && (
-                            <a
-                              href={`tel:${order.customerPhone}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100"
-                            >
-                              <Phone className="h-5 w-5 text-blue-600" />
-                            </a>
-                          )}
-
-                          {/* Navigácia */}
-                          {order.customerAddress && (
-                            <>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openNavigation(order.customerAddress);
-                                }}
-                                onTouchStart={(e) => {
-                                  const startX = e.touches[0].clientX;
-                                  const handleTouchMove = (moveEvent: TouchEvent) => {
-                                    const deltaX = moveEvent.touches[0].clientX - startX;
-                                    if (Math.abs(deltaX) > 30) {
-                                      handleNavToggle();
-                                      document.removeEventListener('touchmove', handleTouchMove);
-                                    }
-                                  };
-                                  document.addEventListener('touchmove', handleTouchMove);
-                                  document.addEventListener('touchend', () => {
-                                    document.removeEventListener('touchmove', handleTouchMove);
-                                  }, { once: true });
-                                }}
-                                className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 active:bg-blue-200 select-none"
-                              >
-                                <Navigation className="h-5 w-5 text-blue-600" />
-                              </button>
-
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleNavToggle();
-                                }}
-                                className="text-xs text-gray-500 px-2 py-1 rounded bg-gray-100"
-                              >
-                                {navApp === 'waze' ? 'Waze' : 'Maps'}
-                              </button>
-                            </>
-                          )}
-
-                          <div className="flex-1" />
-
-                          {/* Späť */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              returnToReady(order.id);
-                            }}
-                            className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-700"
-                          >
-                            <Undo2 className="h-4 w-4" />
-                            <span className="hidden sm:inline">Späť</span>
-                          </button>
-
-                          {/* Zaplatené */}
-                          {order.paymentMethod !== 'invoice' && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (order.isPaid) {
-                                  handleMarkAsUnpaid(order.id, order.notes);
-                                } else {
-                                  handleMarkAsPaid(order.id, order.notes);
-                                }
-                              }}
-                              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium ${
-                                order.isPaid
-                                  ? 'bg-success text-white'
-                                  : 'bg-gray-100 text-gray-700'
-                              }`}
-                            >
-                              <CreditCard className="h-6 w-6" />
-                              <span className="hidden sm:inline">Zapl.</span>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                {/* Desktop tabuľka - Delivered */}
-                <div className="hidden md:block rounded-lg border border-border overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="h-10">
-                        <TableHead className="text-center font-bold text-base">Zákazník</TableHead>
-                        <TableHead className="hidden lg:table-cell text-center font-bold text-base">Adresa</TableHead>
-                        <TableHead className="hidden lg:table-cell text-center font-bold text-base">Kontakt</TableHead>
-                        <TableHead className="text-center font-bold text-base">Cena</TableHead>
-                        <TableHead className="hidden md:table-cell text-center font-bold text-base">Akcia</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sortedDeliveredOrders.map(([key, item]) => (
-                        item.orders.map((order, orderIdx) => (
-                          <TableRow
-                            key={order.id}
-                            className="bg-success/5 cursor-pointer hover:bg-success/10 transition-colors h-10"
-                            onClick={() => {
-                              setSelectedOrderDetail(order);
-                              setDetailModalOpen(true);
-                            }}
-                          >
-                            {/* ZÁKAZNÍK */}
-                            <TableCell className="text-center text-muted-foreground py-0.5">
-                              <span className="font-bold text-lg">{order.customerName}</span>
-                            </TableCell>
-
-                            {/* ADRESA */}
-                            <TableCell className="hidden lg:table-cell text-center text-muted-foreground py-0.5">
-                              {order.customerAddress && (
-                                <span className="text-sm">{order.customerAddress}</span>
-                              )}
-                            </TableCell>
-
-                            {/* KONTAKT */}
-                            <TableCell className="hidden lg:table-cell text-muted-foreground py-0.5" onClick={(e) => e.stopPropagation()}>
-                              <div className="flex flex-col items-center gap-2">
-                                {/* Telefón */}
-                                {order.customerPhone && (
-                                  <a
-                                    href={`tel:${order.customerPhone}`}
-                                    className="flex items-center gap-1 text-blue-600 hover:underline text-sm"
-                                  >
-                                    <Phone className="h-4 w-4" />
-                                    {order.customerPhone}
-                                  </a>
-                                )}
-
-                                {/* Swipe navigácia */}
-                                {order.customerAddress && (
-                                  <div
-                                    className="relative select-none cursor-grab active:cursor-grabbing"
-                                    onTouchStart={(e) => {
-                                      const startX = e.touches[0].clientX;
-                                      const handleTouchMove = (moveEvent: TouchEvent) => {
-                                        const deltaX = moveEvent.touches[0].clientX - startX;
-                                        if (Math.abs(deltaX) > 50) {
-                                          setNavigationMode(prev => ({
-                                            ...prev,
-                                            [order.id]: prev[order.id] === 'waze' ? 'maps' : 'waze'
-                                          }));
-                                          document.removeEventListener('touchmove', handleTouchMove);
-                                        }
-                                      };
-                                      document.addEventListener('touchmove', handleTouchMove);
-                                      document.addEventListener('touchend', () => {
-                                        document.removeEventListener('touchmove', handleTouchMove);
-                                      }, { once: true });
-                                    }}
-                                  >
-                                    {(navigationMode[order.id] || 'waze') === 'waze' ? (
-                                      <a
-                                        href={`https://waze.com/ul?q=${encodeURIComponent(order.customerAddress)}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center gap-1 text-blue-600 hover:underline text-sm"
-                                      >
-                                        <Navigation className="h-4 w-4" />
-                                        Waze
-                                      </a>
-                                    ) : (
-                                      <a
-                                        href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(order.customerAddress)}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center gap-1 text-green-600 hover:underline text-sm"
-                                      >
-                                        <Navigation className="h-4 w-4" />
-                                        Maps
-                                      </a>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            </TableCell>
-
-                            {/* CENA */}
-                            <TableCell className="text-center text-muted-foreground py-0.5">
-                              <div className="text-xl font-bold text-green-600/60 dark:text-green-500/60">
-                                {order.totalPrice.toFixed(2)} €
-                              </div>
-                              {(order.deliveryFee || 0) > 0 && (
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  (vrátane dopravy {(order.deliveryFee || 0).toFixed(2)} €)
-                                </div>
-                              )}
-                            </TableCell>
-                            <TableCell className="hidden md:table-cell py-0.5" onClick={(e) => e.stopPropagation()}>
-                              <div className="flex items-center justify-center gap-2">
-
-                                {/* Späť do Ready ikona */}
-                                <button
-                                  title="Vrátiť späť"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    returnToReady(order.id);
-                                  }}
-                                  className="p-2 rounded-full text-gray-400 hover:text-orange-600 hover:bg-orange-50 transition-colors"
-                                >
-                                  <Undo2 className="h-6 w-6" />
-                                </button>
-
-                                {/* Zaplatené ikona - ak nie je invoice */}
-                                {order.paymentMethod === 'invoice' ? (
-                                  <div
-                                    title="Uhradené faktúrou"
-                                    className="p-2 rounded-full text-blue-600 bg-blue-50"
-                                  >
-                                    <CreditCard className="h-6 w-6" />
-                                  </div>
-                                ) : (
-                                  <button
-                                    title={order.isPaid ? "Označiť ako nezaplatené" : "Označiť ako zaplatené"}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (order.isPaid) {
-                                        handleMarkAsUnpaid(order.id, order.notes);
-                                      } else {
-                                        handleMarkAsPaid(order.id, order.notes);
-                                      }
-                                    }}
-                                    className={`p-2 rounded-full transition-colors ${
-                                      order.isPaid
-                                        ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
-                                        : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
-                                    }`}
-                                  >
-                                    <CreditCard className="h-6 w-6" />
-                                  </button>
-                                )}
-
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </Card>
-            )}
-          </>
-        )}
-      </div>
 
       {/* Detail Dialog */}
       <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
