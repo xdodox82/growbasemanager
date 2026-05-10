@@ -2065,102 +2065,6 @@ function DeliveryPage() {
         </div>
       </div>
 
-        {/* Typ zákazníka - presné ikony z HarvestPackingPage */}
-        <div className="flex justify-start">
-          <CustomerTypeFilter
-            value={selectedCustomerType}
-            onChange={setSelectedCustomerType}
-          />
-        </div>
-
-        {/* Polia s labelmi - VŠETKY flex-1, centrované labely */}
-        <div className="flex gap-3 items-end">
-
-          {/* Dátum rozvozu - flex-1 */}
-          <div className="flex flex-col gap-1 flex-1">
-            <label className="text-sm font-medium text-gray-700 text-center">
-              Dátum rozvozu
-            </label>
-            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-              <PopoverTrigger asChild>
-                <button className="flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white hover:bg-gray-50 w-full">
-                  <CalendarIcon className="h-4 w-4 text-gray-500 shrink-0" />
-                  <span>
-                    {selectedDates.length === 1
-                      ? format(selectedDates[0], 'd. MMM', { locale: sk })
-                      : `${selectedDates.length} dní`}
-                  </span>
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <CalendarGrid />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          {/* Zákazník - flex-1 */}
-          <div className="flex flex-col gap-1 flex-1">
-            <label className="text-sm font-medium text-gray-700 text-center">
-              Zákazník
-            </label>
-            <SearchableCustomerSelect
-              customers={customers}
-              value={customerFilter}
-              onValueChange={setCustomerFilter}
-              placeholder="Všetci zákazníci"
-              filterByType={selectedCustomerType}
-              allowAll={true}
-              className="w-full"
-            />
-          </div>
-
-          {/* Rozvozová trasa - flex-1 */}
-          <div className="flex flex-col gap-1 flex-1">
-            <label className="text-sm font-medium text-gray-700 text-center">
-              Rozvozová trasa
-            </label>
-            <Select value={routeFilter} onValueChange={setRouteFilter}>
-              <SelectTrigger className="text-sm border-gray-300 w-full">
-                <Navigation className="h-4 w-4 text-gray-500 mr-2 shrink-0" />
-                <SelectValue placeholder="Všetky trasy" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Všetky trasy</SelectItem>
-                {routes.map((route) => (
-                  <SelectItem key={route.id} value={route.id}>
-                    {route.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Zobraziť doručené - flex-1 */}
-          <div className="flex flex-col gap-1 flex-1">
-            <label className="text-sm font-medium text-gray-700 text-center">
-              Zobraziť doručené
-            </label>
-            <div className="flex items-center justify-center border border-gray-300 rounded-lg py-2 bg-white h-10">
-              <Switch
-                checked={showArchive}
-                onCheckedChange={setShowArchive}
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-2 items-end pb-0.5">
-            <Button variant="outline" size="sm" onClick={exportToExcel} className="gap-2">
-              <FileSpreadsheet className="h-4 w-4" />
-              Excel
-            </Button>
-            <Button variant="outline" size="sm" onClick={exportToPDF} className="gap-2">
-              <FileText className="h-4 w-4" />
-              PDF
-            </Button>
-          </div>
-
-        </div>
-      </div>
 
       {/* ═══════════════════════════════════════════════════════════
           MOBILE LAYOUT — GrowBase redesign
@@ -2593,13 +2497,16 @@ function DeliveryPage() {
                   {/* Akcie */}
                   {!isDone ? (
                     <div className="flex gap-2 px-3 py-3">
-                      <button onClick={() => {
+                      <button onClick={async () => {
                         setDebtDialog({ open: true, order: { ...order, id: order.id, delivery_date: rawOrder?.delivery_date, customer_id: order.customerId, totalPrice: order.totalPrice } });
                         setDebtAmount(cashDue.toFixed(2));
                         setDebtNote('');
+                        // Označíme ako doručené aj pri dlhu
+                        await markOrderDelivered(order.id);
+                        setDoneOrders(p => new Set(p).add(order.id));
                       }}
                         className="flex items-center justify-center gap-1.5 h-10 px-3 rounded-lg border border-[#fecaca] bg-[#fef2f2] text-[#dc2626] text-xs font-semibold">
-                        <AlertCircle className="h-4 w-4" /> Dlh
+                        <AlertCircle className="h-4 w-4" /> Prevzaté + dlh
                       </button>
                       {payType === 'cash' ? (
                         <button onClick={async () => {
@@ -2635,7 +2542,7 @@ function DeliveryPage() {
               </div>
 
               {/* Bottom bar */}
-              <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-[#e2e8f0] px-3 py-3 flex gap-2">
+              <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-[#e2e8f0] px-3 pt-3 pb-[calc(0.75rem+64px)] flex gap-2">
                 <button onClick={() => setSelectedStopIndex(null)}
                   className="w-12 h-12 rounded-xl border border-[#e2e8f0] bg-white flex items-center justify-center text-[#475569] shrink-0">
                   <Truck className="h-5 w-5" />
