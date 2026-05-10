@@ -331,10 +331,12 @@ export default function OrdersPage() {
             packaging_type: (selectedCustomer as any).default_packaging_type || 'rPET'
           }));
         }
-        // Auto-nastaviť etiketu ak má zákazník always_label
+        // Auto-nastaviť etiketu len ak má zákazník always_label
         if ((selectedCustomer as any).always_label) {
           setOrderItems(prev => prev.map(item => ({ ...item, has_label: true })));
           setCurrentItem(prev => ({ ...prev, has_label: true }));
+        } else {
+          setCurrentItem(prev => ({ ...prev, has_label: false }));
         }
         // Auto-populate route from customer's assigned delivery route (only for new orders)
         if (!editingOrder && selectedCustomer.delivery_route_id && routes?.length) {
