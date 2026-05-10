@@ -283,7 +283,7 @@ export default function LabelsPage() {
   );
 
   return (
-    <MainLayout>
+    <MainLayout hideMobileHeader>
       <PageHeader 
         title="Etikety" 
         description="Spravujte sklad etikiet"

@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useOrders, useCustomers, useCrops, useBlends, useSeeds, usePackagings, useSubstrates, useOtherInventory, usePlantingPlans, useSuppliers, useLabels } from '@/hooks/useSupabaseData';
-import { FileSpreadsheet, ShoppingCart, Package, TrendingUp, Leaf, BarChart3, FileText, Sprout, Box, Layers, Tag, AlertTriangle } from 'lucide-react';
+import { FileSpreadsheet, ShoppingCart, Package, TrendingUp, Leaf, ChartBar as BarChart3, FileText, Sprout, Box, Layers, Tag, TriangleAlert as AlertTriangle } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, isWithinInterval, subMonths, eachMonthOfInterval, differenceInDays } from 'date-fns';
 import { sk } from 'date-fns/locale';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
@@ -523,7 +523,7 @@ export default function ReportsPage() {
   };
 
   return (
-    <MainLayout>
+    <MainLayout hideMobileHeader>
       <PageHeader 
         title="Reporty" 
         description="Prehľady, štatistiky a export dát"

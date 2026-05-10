@@ -3,22 +3,7 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { PageHeader, StatCard, EmptyState } from '@/components/ui/page-components';
 import { useCrops, useCustomers, useOrders, usePlantingPlans, useTasks, useOrderItems } from '@/hooks/useSupabaseData';
 import { useLanguage } from '@/i18n/LanguageContext';
-import {
-  Leaf,
-  Users,
-  ShoppingCart,
-  CheckCircle2,
-  Clock,
-  Sprout,
-  Scissors,
-  Package,
-  History,
-  ChevronDown,
-  ChevronUp,
-  Bell,
-  Truck,
-  Calendar
-} from 'lucide-react';
+import { Leaf, Users, ShoppingCart, CircleCheck as CheckCircle2, Clock, Sprout, Scissors, Package, History, ChevronDown, ChevronUp, Bell, Truck, Calendar } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -392,7 +377,7 @@ const Dashboard = () => {
   };
 
   return (
-    <MainLayout>
+    <MainLayout hideMobileHeader>
       <PageHeader
         title={t('nav.dashboard')}
         description={`${t('dashboard.welcome')} ${format(new Date(), 'EEEE, d. MMMM yyyy', { locale: dateLocale })}`}

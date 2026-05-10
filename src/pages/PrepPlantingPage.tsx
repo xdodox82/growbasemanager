@@ -138,7 +138,7 @@ export default function PrepPlantingPage() {
   };
 
   return (
-    <MainLayout>
+    <MainLayout hideMobileHeader>
       <div className="space-y-6">
         <PageHeader
           title="Príprava na sadenie"

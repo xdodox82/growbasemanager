@@ -185,7 +185,7 @@ export default function ConsumableInventoryPage() {
   }));
 
   return (
-    <MainLayout>
+    <MainLayout hideMobileHeader>
       <PageHeader
         title="Spotrebný materiál"
         description="Evidencia spotrebného materiálu a pomôcok"

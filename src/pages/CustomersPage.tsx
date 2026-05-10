@@ -19,11 +19,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import {
-  Users, Plus, Pencil, Trash2, Mail, Phone, MapPin, Navigation,
-  Loader2, ShoppingCart, House, Utensils, Store, ChevronDown,
-  Grid3x3, List, Search, Route, Package,
-} from 'lucide-react';
+import { Users, Plus, Pencil, Trash2, Mail, Phone, MapPin, Navigation, Loader as Loader2, ShoppingCart, House, Utensils, Store, ChevronDown, Grid3x3, List, Search, Route, Package } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -191,7 +187,7 @@ const CustomersPage = () => {
 
   // ─── Render ───────────────────────────────────────────────────────────────
   if (loading) return (
-    <MainLayout>
+    <MainLayout hideMobileHeader>
       <div className="p-6 space-y-4">
         <div className="h-10 bg-white rounded-xl border border-[#e2e8f0] animate-pulse" />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -202,7 +198,7 @@ const CustomersPage = () => {
   );
 
   return (
-    <MainLayout>
+    <MainLayout hideMobileHeader>
       <div className="p-6 space-y-4">
 
         {/* ── TOPBAR ── */}

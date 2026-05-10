@@ -169,7 +169,7 @@ function ElectricityCostsPage() {
   const totalSpent = costs.reduce((sum, cost) => sum + (cost.total_price || 0), 0);
 
   return (
-    <MainLayout>
+    <MainLayout hideMobileHeader>
       <PageHeader
         title="Elektrina"
         description="Evidencia spotreby elektriny"

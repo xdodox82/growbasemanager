@@ -148,7 +148,7 @@ export default function TodayTasksPage() {
   );
 
   return (
-    <MainLayout>
+    <MainLayout hideMobileHeader>
       <PageHeader 
         title="Dnešné úlohy" 
         description={`Prehľad úloh na ${format(today, 'EEEE, d. MMMM yyyy', { locale: sk })}`}

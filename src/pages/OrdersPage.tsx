@@ -1,4 +1,4 @@
-﻿// IMPORTANT: Use 'House' not 'Home' - Home is Chrome browser icon, House is home icon
+// IMPORTANT: Use 'House' not 'Home' - Home is Chrome browser icon, House is home icon
 import { useState, useEffect, useMemo } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -2200,7 +2200,7 @@ export default function OrdersPage() {
 
   if (loading) {
     return (
-      <MainLayout>
+      <MainLayout hideMobileHeader>
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#10b981] mb-4"></div>
@@ -2212,7 +2212,7 @@ export default function OrdersPage() {
   }
 
   return (
-    <MainLayout>
+    <MainLayout hideMobileHeader>
       <div className="p-6 space-y-4">
         <OrdersTopBar
           viewMode={viewMode}

@@ -149,7 +149,7 @@ export default function CalendarPage() {
   }, [events, currentMonth]);
 
   return (
-    <MainLayout>
+    <MainLayout hideMobileHeader>
       <PageHeader 
         title="Kalendár" 
         description="Prehľad výsevu, zberu a dodávok"

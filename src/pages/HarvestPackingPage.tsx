@@ -15,12 +15,7 @@ import {
   useSortable, sortableKeyboardCoordinates, arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import {
-  Scissors, Package, Check, RotateCcw, House, Utensils, Store,
-  CalendarIcon, Leaf, Blend, ChevronLeft, ChevronRight, GripVertical,
-  TriangleAlert as AlertTriangle, Tag, Filter, ChevronDown, ChevronUp,
-  Sprout, Flower2, Grid3x3, X,
-} from 'lucide-react';
+import { Scissors, Package, Check, RotateCcw, House, Utensils, Store, Calendar as CalendarIcon, Leaf, Blend, ChevronLeft, ChevronRight, GripVertical, TriangleAlert as AlertTriangle, Tag, Filter, ChevronDown, ChevronUp, Sprout, Flower2, Grid3x3, X } from 'lucide-react';
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
   getDay, isSameDay, isToday,
@@ -825,7 +820,7 @@ export default function HarvestPackingPage() {
 
   if (loading) {
     return (
-      <MainLayout>
+      <MainLayout hideMobileHeader>
         <div className="flex items-center justify-center h-64">
           <div className="text-sm text-[#64748b]">Načítavam...</div>
         </div>
@@ -836,7 +831,7 @@ export default function HarvestPackingPage() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <MainLayout>
+    <MainLayout hideMobileHeader>
       <div className="w-full space-y-3 pb-8 px-4 md:px-6">
 
         {/* Top bar */}

@@ -168,7 +168,7 @@ export default function OtherInventoryPage() {
   }, {} as Record<string, DbOtherInventory[]>);
 
   return (
-    <MainLayout>
+    <MainLayout hideMobileHeader>
       <PageHeader title="Ostatné zásoby" description="Správa ostatných zásob vrátane etikiet">
         <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>

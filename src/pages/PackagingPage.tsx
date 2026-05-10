@@ -279,7 +279,7 @@ export default function PackagingPage() {
   );
 
   return (
-    <MainLayout>
+    <MainLayout hideMobileHeader>
       <PageHeader title="Obaly" description="Správa zásob obalov">
         <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>

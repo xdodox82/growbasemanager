@@ -175,7 +175,7 @@ function CarServiceCostsPage() {
   const totalCost = costs.reduce((sum, cost) => sum + cost.price, 0);
 
   return (
-    <MainLayout>
+    <MainLayout hideMobileHeader>
       <PageHeader
         title="Servis auta"
         description="Evidencia servisných úkonov a nákladov"

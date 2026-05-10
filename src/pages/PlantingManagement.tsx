@@ -38,7 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Calendar as CalendarIcon, Plus, Pencil, Trash2, Leaf, CheckCircle2, Check, ChevronLeft, ChevronRight, TrendingUp, Layers, Undo2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Plus, Pencil, Trash2, Leaf, CircleCheck as CheckCircle2, Check, ChevronLeft, ChevronRight, TrendingUp, Layers, Undo2 } from 'lucide-react';
 import { ViewToggle, ViewMode } from '@/components/ui/view-toggle';
 import { useToast } from '@/hooks/use-toast';
 import { format, addDays, isSameDay, startOfDay, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth } from 'date-fns';
@@ -198,7 +198,7 @@ const PlantingManagement = () => {
 
   if (!cropsRaw || !plantingPlansRaw) {
     return (
-      <MainLayout>
+      <MainLayout hideMobileHeader>
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <p className="text-lg">Načítavam dáta...</p>
@@ -474,7 +474,7 @@ const PlantingManagement = () => {
   };
 
   return (
-    <MainLayout>
+    <MainLayout hideMobileHeader>
       <PageHeader
         title="Plán sadenia"
         description="Plánujte výsev a zber mikrozeleniny"

@@ -161,7 +161,7 @@ function AdblueCostsPage() {
   const totalLiters = costs.reduce((sum, cost) => sum + cost.liters, 0);
 
   return (
-    <MainLayout>
+    <MainLayout hideMobileHeader>
       <PageHeader
         title="AdBlue"
         description="Evidencia nákladov na AdBlue"

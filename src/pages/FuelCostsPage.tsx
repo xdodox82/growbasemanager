@@ -187,7 +187,7 @@ function FuelCostsPage() {
     : 0;
 
   return (
-    <MainLayout>
+    <MainLayout hideMobileHeader>
       <PageHeader
         title="Pohonné hmoty"
         description="Evidencia nákladov na pohonné hmoty"

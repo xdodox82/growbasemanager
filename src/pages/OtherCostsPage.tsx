@@ -180,7 +180,7 @@ function OtherCostsPage() {
   }));
 
   return (
-    <MainLayout>
+    <MainLayout hideMobileHeader>
       <PageHeader
         title="Ostatné réžie"
         description="Evidencia ostatných nákladov a režijných výdavkov"

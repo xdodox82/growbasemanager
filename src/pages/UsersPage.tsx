@@ -295,7 +295,7 @@ const UsersPage = () => {
 
   if (!isAdmin) {
     return (
-      <MainLayout>
+      <MainLayout hideMobileHeader>
         <PageHeader title="Používatelia" />
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
@@ -308,7 +308,7 @@ const UsersPage = () => {
   }
 
   return (
-    <MainLayout>
+    <MainLayout hideMobileHeader>
       <PageHeader
         title="Správa používateľov"
         description="Spravujte používateľov a ich prístupové práva"

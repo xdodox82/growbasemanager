@@ -1106,7 +1106,7 @@ const PlantingPlanPage = () => {
   };
 
   return (
-    <MainLayout>
+    <MainLayout hideMobileHeader>
       <div className="pb-20 md:pb-6 bg-background">
           <PageHeader
             title="Plán sadenia"

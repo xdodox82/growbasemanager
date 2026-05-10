@@ -263,7 +263,7 @@ const BlendsPage = () => {
 
   if (loading || cropsLoading) {
     return (
-      <MainLayout>
+      <MainLayout hideMobileHeader>
         <PageHeader title="Mixy" description="Vytvárajte kombinácie mikrozelenín" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
@@ -279,7 +279,7 @@ const BlendsPage = () => {
   }
 
   return (
-    <MainLayout>
+    <MainLayout hideMobileHeader>
       <PageHeader
         title="Mixy"
         description="Vytvárajte kombinácie mikrozelenín"

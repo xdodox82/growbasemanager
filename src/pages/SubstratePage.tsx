@@ -267,7 +267,7 @@ export default function SubstratePage() {
   );
 
   return (
-    <MainLayout>
+    <MainLayout hideMobileHeader>
       <PageHeader title="Substrát" description="Správa zásob substrátu">
         <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>

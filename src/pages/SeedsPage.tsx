@@ -707,7 +707,7 @@ export default function SeedsPage() {
   );
 
   return (
-    <MainLayout>
+    <MainLayout hideMobileHeader>
       <PageHeader title="Semená" description="Správa zásob semien mikrozeleniny">
         <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>

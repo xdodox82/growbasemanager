@@ -43,7 +43,7 @@ const SettingsPage = () => {
   };
 
   return (
-    <MainLayout>
+    <MainLayout hideMobileHeader>
       <PageHeader 
         title={t('settings.title')} 
         description={t('settings.description')}

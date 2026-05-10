@@ -5,11 +5,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  CalendarIcon, Package, Check, RotateCcw, House, Utensils, Store, Tag,
-  ChevronLeft, ChevronRight, Leaf, Blend, Filter, X, ChevronDown, ChevronUp,
-  GripVertical, Sprout, Flower2, Grid3x3,
-} from 'lucide-react';
+import { Calendar as CalendarIcon, Package, Check, RotateCcw, House, Utensils, Store, Tag, ChevronLeft, ChevronRight, Leaf, Blend, Filter, X, ChevronDown, ChevronUp, GripVertical, Sprout, Flower2, Grid3x3 } from 'lucide-react';
 import { DndContext, closestCenter, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -711,7 +707,7 @@ export default function PrepPackagingPage() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <MainLayout>
+    <MainLayout hideMobileHeader>
       <div className="w-full space-y-3 pb-8 px-4 md:px-6">
 
         {/* Top bar */}

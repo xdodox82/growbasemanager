@@ -258,7 +258,7 @@ const CropsPage = () => {
 
   if (loading) {
     return (
-      <MainLayout>
+      <MainLayout hideMobileHeader>
         <PageHeader title="Plodiny" description="Spravujte katalóg plodín" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
@@ -274,7 +274,7 @@ const CropsPage = () => {
   }
 
   return (
-    <MainLayout>
+    <MainLayout hideMobileHeader>
       <PageHeader 
         title="Plodiny" 
         description="Spravujte katalóg vašich mikrozelenín"
