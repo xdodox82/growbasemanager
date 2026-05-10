@@ -1234,7 +1234,7 @@ export default function OrdersPage() {
       price_per_unit: priceValue,
       is_special_item: currentItem.is_special_item || false,
       custom_crop_name: currentItem.is_special_item ? currentItem.custom_crop_name : null,
-      has_label: alwaysLabel ? true : (currentItem.has_label || false),
+      has_label: false,
     };
 
     setOrderItems([...(orderItems || []), itemToAdd]);
