@@ -1412,8 +1412,11 @@ export default function OrdersPage() {
             let deliveryFee = 0;
             let minFreeDelivery = 0;
 
-            // Get fee and threshold from route based on customer type
-            if (custType === 'home') {
+            // Individuálna cena dopravy má prednosť pred štandardnými limitmi trasy
+            if ((customer as any).custom_delivery_fee != null) {
+              deliveryFee = parseFloat((customer as any).custom_delivery_fee);
+              minFreeDelivery = parseFloat((customer as any).custom_min_free_delivery || '0');
+            } else if (custType === 'home') {
               deliveryFee = parseFloat((deliveryRoute?.delivery_fee_home || 0).toString());
               minFreeDelivery = parseFloat((deliveryRoute?.home_min_free_delivery || 0).toString());
             } else if (custType === 'gastro') {
