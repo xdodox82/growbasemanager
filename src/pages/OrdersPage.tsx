@@ -1246,7 +1246,7 @@ export default function OrdersPage() {
       delivery_form: 'rezana',
       packaging_type: 'rPET',
       packaging_volume_ml: 250,
-      has_label: alwaysLabel,
+      has_label: false,
       notes: '',
       special_requirements: '',
       price_per_unit: '',
@@ -2370,7 +2370,7 @@ export default function OrdersPage() {
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <Label className="text-sm font-medium">Zákazník *</Label>
-                          <div className="mt-1 h-10">
+                          <div className="mt-1 [&_button]:h-10 [&_[role=combobox]]:h-10">
                             <SearchableCustomerSelect
                               customers={safeCustomers}
                               value={customerId || ''}
