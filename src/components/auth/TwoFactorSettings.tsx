@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Shield, ShieldCheck, ShieldOff, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -66,75 +64,69 @@ export const TwoFactorSettings = () => {
     setIsEnabled(true);
   };
 
-  if (loading) {
-    return (
-      <Card className="p-6">
-        <div className="flex items-center gap-3">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          <span>Načítavam...</span>
-        </div>
-      </Card>
-    );
-  }
+  if (loading) return (
+    <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm px-5 py-4 flex items-center gap-3">
+      <Loader2 className="h-4 w-4 animate-spin text-[#16a34a]" />
+      <span className="text-sm text-[#64748b]">Načítavam...</span>
+    </div>
+  );
 
   return (
-    <Card className="p-6">
-      <div className="flex items-center gap-3 mb-4">
-        <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${isEnabled ? 'bg-green-500/10 text-green-500' : 'bg-muted text-muted-foreground'}`}>
-          {isEnabled ? <ShieldCheck className="h-5 w-5" /> : <Shield className="h-5 w-5" />}
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold">Dvojfaktorové overenie (2FA)</h2>
-          <p className="text-sm text-muted-foreground">
-            {isEnabled ? 'Aktivované - váš účet je chránený' : 'Neaktívne - pridajte ďalšiu vrstvu zabezpečenia'}
-          </p>
+    <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-[#f1f5f9]">
+        <div className="flex items-center gap-3">
+          <div className={`w-9 h-9 rounded-lg border flex items-center justify-center ${isEnabled ? 'bg-[#f0fdf4] border-[#bbf7d0]' : 'bg-[#f1f5f9] border-[#e2e8f0]'}`}>
+            {isEnabled ? <ShieldCheck className="h-4 w-4 text-[#16a34a]" /> : <Shield className="h-4 w-4 text-[#475569]" />}
+          </div>
+          <div>
+            <div className="text-sm font-bold text-[#0f172a]">Dvojfaktorové overenie (2FA)</div>
+            <div className="text-xs text-[#64748b]">
+              {isEnabled ? 'Aktivované — váš účet je chránený' : 'Neaktívne — pridajte ďalšiu vrstvu zabezpečenia'}
+            </div>
+          </div>
+          {isEnabled && <span className="ml-auto text-[10px] font-bold px-2 py-1 rounded-full bg-[#dcfce7] border border-[#bbf7d0] text-[#166534]">Aktívne</span>}
         </div>
       </div>
-
-      {isEnabled ? (
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="destructive" disabled={disabling}>
-              {disabling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              <ShieldOff className="mr-2 h-4 w-4" />
-              Deaktivovať 2FA
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Deaktivovať 2FA?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Tým sa zníži zabezpečenie vášho účtu. Budete sa môcť prihlásiť len pomocou hesla.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Zrušiť</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDisable}>Deaktivovať</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      ) : (
-        <Dialog open={showSetup} onOpenChange={setShowSetup}>
-          <DialogTrigger asChild>
-            <Button>
-              <Shield className="mr-2 h-4 w-4" />
-              Aktivovať 2FA
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Nastaviť 2FA</DialogTitle>
-              <DialogDescription>
-                Nastavte dvojfaktorové overenie pre váš účet
-              </DialogDescription>
-            </DialogHeader>
-            <TwoFactorSetup 
-              onComplete={handleSetupComplete} 
-              onCancel={() => setShowSetup(false)} 
-            />
-          </DialogContent>
-        </Dialog>
-      )}
-    </Card>
+      <div className="px-5 py-4">
+        {isEnabled ? (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <button disabled={disabling}
+                className="h-9 px-4 rounded-xl border border-[#fecaca] bg-[#fef2f2] text-[#dc2626] text-sm font-semibold hover:bg-[#fee2e2] transition-colors disabled:opacity-50 flex items-center gap-2">
+                {disabling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldOff className="h-3.5 w-3.5" />}
+                Deaktivovať 2FA
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Deaktivovať 2FA?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tým sa zníži zabezpečenie vášho účtu. Budete sa môcť prihlásiť len pomocou hesla.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Zrušiť</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDisable}>Deaktivovať</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        ) : (
+          <Dialog open={showSetup} onOpenChange={setShowSetup}>
+            <DialogTrigger asChild>
+              <button className="h-9 px-5 rounded-xl bg-[#16a34a] text-white text-sm font-semibold hover:bg-[#15803d] transition-colors flex items-center gap-2">
+                <Shield className="h-3.5 w-3.5" /> Aktivovať 2FA
+              </button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Nastaviť 2FA</DialogTitle>
+                <DialogDescription>Nastavte dvojfaktorové overenie pre váš účet</DialogDescription>
+              </DialogHeader>
+              <TwoFactorSetup onComplete={handleSetupComplete} onCancel={() => setShowSetup(false)} />
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
+    </div>
   );
 };

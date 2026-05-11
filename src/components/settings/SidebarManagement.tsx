@@ -1,12 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Sidebar, Save, LayoutDashboard, Leaf, Users, ShoppingCart, Calendar, Blend, Warehouse, Package, Truck, Euro, FileBarChart, ListChecks } from 'lucide-react';
+import { LayoutGrid, Save, Loader2, LayoutDashboard, Leaf, Users, ShoppingCart, Calendar, Blend, Warehouse, Package, Truck, Euro, FileBarChart, ListChecks } from 'lucide-react';
 
 interface SidebarItem {
   id: string;
@@ -129,65 +126,52 @@ export function SidebarManagement() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <Sidebar className="h-5 w-5" />
-          <CardTitle>Správa modulov</CardTitle>
+    <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-[#f1f5f9]">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-[#f1f5f9] border border-[#e2e8f0] flex items-center justify-center">
+            <LayoutGrid className="h-4 w-4 text-[#475569]" />
+          </div>
+          <div>
+            <div className="text-sm font-bold text-[#0f172a]">Správa modulov</div>
+            <div className="text-xs text-[#64748b]">Vyberte ktoré položky sa zobrazujú v bočnom menu</div>
+          </div>
         </div>
-        <CardDescription>
-          Vyberte, ktoré položky sa majú zobrazovať v bočnom menu
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {loading ? (
-            <p className="text-sm text-muted-foreground">Načítavam nastavenia...</p>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {items.map(item => {
-                  const Icon = item.icon;
-                  return (
-                    <div key={item.id} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-accent/50 transition-colors">
-                      <Checkbox
-                        id={item.id}
-                        checked={item.enabled}
-                        onCheckedChange={() => handleToggle(item.id)}
-                      />
-                      <Label
-                        htmlFor={item.id}
-                        className="flex items-center gap-2 cursor-pointer flex-1"
-                      >
-                        <Icon className="h-4 w-4" />
-                        <span>{item.name}</span>
-                      </Label>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="flex gap-2 pt-4 border-t">
-                <Button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="gap-2"
-                >
-                  <Save className="h-4 w-4" />
-                  {saving ? 'Ukladám...' : 'Uložiť zmeny'}
-                </Button>
-                <Button
-                  onClick={handleReset}
-                  variant="outline"
-                  disabled={saving}
-                >
-                  Obnoviť predvolené
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+      <div className="px-5 py-4">
+        {loading ? (
+          <div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin text-[#16a34a]" /><span className="text-sm text-[#64748b]">Načítavam...</span></div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+              {items.map(item => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.id}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors ${item.enabled ? 'bg-[#f0fdf4] border-[#bbf7d0]' : 'bg-[#f8fafc] border-[#e2e8f0] hover:border-[#cbd5e1]'}`}
+                    onClick={() => handleToggle(item.id)}>
+                    <Checkbox id={item.id} checked={item.enabled} onCheckedChange={() => handleToggle(item.id)}
+                      className="border-[#cbd5e1]" />
+                    <Icon className={`h-3.5 w-3.5 shrink-0 ${item.enabled ? 'text-[#16a34a]' : 'text-[#94a3b8]'}`} />
+                    <span className={`text-xs font-semibold ${item.enabled ? 'text-[#0f172a]' : 'text-[#64748b]'}`}>{item.name}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-2 pt-3 border-t border-[#f1f5f9]">
+              <button onClick={handleSave} disabled={saving}
+                className="h-9 px-5 rounded-xl bg-[#16a34a] text-white text-sm font-semibold hover:bg-[#15803d] transition-colors disabled:opacity-50 flex items-center gap-2">
+                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                {saving ? 'Ukladám...' : 'Uložiť zmeny'}
+              </button>
+              <button onClick={handleReset} disabled={saving}
+                className="h-9 px-4 rounded-xl border border-[#e2e8f0] bg-white text-sm font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
+                Obnoviť predvolené
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   );
 }

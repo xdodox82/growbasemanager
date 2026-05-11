@@ -1,33 +1,31 @@
 import { MainLayout } from '@/components/layout/MainLayout';
-import { PageHeader } from '@/components/ui/page-components';
-import { Card } from '@/components/ui/card';
-import { useLanguage } from '@/i18n/LanguageContext';
-import { LanguageSelector } from '@/components/LanguageSelector';
-import { DataExportBackup } from '@/components/DataExportBackup';
-import { DataMigrationTool } from '@/components/DataMigrationTool';
-import { TwoFactorSettings } from '@/components/auth/TwoFactorSettings';
-import { LoginHistory } from '@/components/auth/LoginHistory';
-import { WorkerPermissionsSettings } from '@/components/settings/WorkerPermissionsSettings';
-import { SidebarManagement } from '@/components/settings/SidebarManagement';
 import { DeliverySettings } from '@/components/settings/DeliverySettings';
 import { HarvestSettings } from '@/components/settings/HarvestSettings';
 import { DeliveryDaysSettings } from '@/components/settings/DeliveryDaysSettings';
 import { VATSettings } from '@/components/settings/VATSettings';
 import { DeliveryExceptionsSettings } from '@/components/settings/DeliveryExceptionsSettings';
-import { Globe, Moon, Sun } from 'lucide-react';
-import { Label } from '@/components/ui/label';
+import { TwoFactorSettings } from '@/components/auth/TwoFactorSettings';
+import { WorkerPermissionsSettings } from '@/components/settings/WorkerPermissionsSettings';
+import { SidebarManagement } from '@/components/settings/SidebarManagement';
+import { Settings, Truck, Scissors, ShieldCheck, Users, Sun, Moon } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 
+const SectionLabel = ({ label }: { label: string }) => (
+  <div className="flex items-center gap-3 mt-2 mb-3">
+    <div className="flex-1 h-px bg-[#e2e8f0]" />
+    <span className="text-[11px] font-bold text-[#94a3b8] uppercase tracking-widest">{label}</span>
+    <div className="flex-1 h-px bg-[#e2e8f0]" />
+  </div>
+);
+
 const SettingsPage = () => {
-  const { t } = useLanguage();
   const { isAdmin } = useAuth();
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
-    const isDark = document.documentElement.classList.contains('dark');
-    setIsDarkMode(isDark);
+    setIsDarkMode(document.documentElement.classList.contains('dark'));
   }, []);
 
   const toggleTheme = () => {
@@ -44,76 +42,63 @@ const SettingsPage = () => {
 
   return (
     <MainLayout hideMobileHeader>
-      <PageHeader 
-        title={t('settings.title')} 
-        description={t('settings.description')}
-      />
+      {/* GrowBase header */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-9 h-9 rounded-xl bg-[#f1f5f9] border border-[#e2e8f0] flex items-center justify-center">
+          <Settings className="h-5 w-5 text-[#475569]" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold text-[#0f172a]">Nastavenia</h1>
+          <p className="text-xs text-[#64748b]">Správa systému GrowBase</p>
+        </div>
+      </div>
 
-      <div className="space-y-6">
-        {/* Worker Permissions - Only for admins */}
-        {isAdmin && <WorkerPermissionsSettings />}
+      <div className="space-y-3">
 
-        {/* Sidebar Management */}
-        <SidebarManagement />
-
-        {/* VAT Settings */}
-        <VATSettings />
-
-        {/* Delivery Settings */}
+        {/* ROZVOZ */}
+        <SectionLabel label="Rozvoz" />
         <DeliverySettings />
-        {/* Harvest Settings */}
-        <HarvestSettings />
-        {/* Delivery Days Settings */}
         <DeliveryDaysSettings />
-
-        {/* Delivery Exceptions / Holidays */}
         <DeliveryExceptionsSettings />
 
-        {/* Security - 2FA */}
+        {/* ZBER */}
+        <SectionLabel label="Zber a balenie" />
+        <HarvestSettings />
+
+        {/* FINANCIE */}
+        <SectionLabel label="Financie" />
+        <VATSettings />
+
+        {/* PRACOVNÍCI — len admin */}
+        {isAdmin && (
+          <>
+            <SectionLabel label="Pracovníci a prístupy" />
+            <WorkerPermissionsSettings />
+            <SidebarManagement />
+          </>
+        )}
+
+        {/* BEZPEČNOSŤ */}
+        <SectionLabel label="Bezpečnosť" />
         <TwoFactorSettings />
 
-        {/* Login History */}
-        <LoginHistory />
-
-        {/* Theme Settings */}
-        <Card className="p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              {isDarkMode ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold">Vzhľad</h2>
-            </div>
-          </div>
-          
+        {/* VZHĽAD */}
+        <SectionLabel label="Vzhľad" />
+        <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm px-5 py-4">
           <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Tmavý režim</Label>
-              <p className="text-sm text-muted-foreground">Prepnúť na tmavý režim zobrazenia</p>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-[#f1f5f9] border border-[#e2e8f0] flex items-center justify-center">
+                {isDarkMode ? <Moon className="h-4 w-4 text-[#475569]" /> : <Sun className="h-4 w-4 text-[#475569]" />}
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-[#0f172a]">Tmavý režim</div>
+                <div className="text-xs text-[#64748b]">Prepnúť na tmavé zobrazenie</div>
+              </div>
             </div>
             <Switch checked={isDarkMode} onCheckedChange={toggleTheme} />
           </div>
-        </Card>
+        </div>
 
-        {/* Language Settings */}
-        <Card className="p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Globe className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold">{t('settings.language')}</h2>
-            </div>
-          </div>
-          
-          <LanguageSelector />
-        </Card>
-
-        {/* Data Migration Tool */}
-        <DataMigrationTool />
-
-        {/* Data Management */}
-        <DataExportBackup />
       </div>
     </MainLayout>
   );

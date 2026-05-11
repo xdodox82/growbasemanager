@@ -1,9 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useWorkerPermissions, WorkerPermission } from '@/hooks/useWorkerPermissions';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -149,87 +145,84 @@ export const WorkerPermissionsSettings = () => {
 
   if (loadingUsers || loadingPermissions) {
     return (
-      <Card className="p-6">
-        <div className="space-y-4">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-32 w-full" />
-        </div>
-      </Card>
+      <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm px-5 py-4 flex items-center gap-3">
+        <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#16a34a] border-t-transparent" />
+        <span className="text-sm text-[#64748b]">Načítavam pracovníkov...</span>
+      </div>
     );
   }
 
   if (workers.length === 0) {
     return (
-      <Card className="p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-            <Users className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h3 className="font-semibold">Oprávnenia pracovníkov</h3>
-            <p className="text-sm text-muted-foreground">Nastavte, čo môžu pracovníci vidieť</p>
+      <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-[#f1f5f9]">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-[#f1f5f9] border border-[#e2e8f0] flex items-center justify-center">
+              <Users className="h-4 w-4 text-[#475569]" />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-[#0f172a]">Oprávnenia pracovníkov</div>
+              <div className="text-xs text-[#64748b]">Nastavte čo môžu pracovníci vidieť</div>
+            </div>
           </div>
         </div>
-        <p className="text-muted-foreground text-center py-8">
-          Žiadni pracovníci nie sú zaregistrovaní. Oprávnenia sa nastavia automaticky pri pridaní pracovníkov.
-        </p>
-      </Card>
+        <div className="px-5 py-8 text-center">
+          <p className="text-sm text-[#64748b]">Žiadni pracovníci nie sú zaregistrovaní.</p>
+          <p className="text-xs text-[#94a3b8] mt-1">Oprávnenia sa nastavia automaticky pri pridaní pracovníkov cez stránku Používatelia.</p>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card className="p-6">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-          <Users className="h-5 w-5 text-primary" />
-        </div>
-        <div>
-          <h3 className="font-semibold">Oprávnenia pracovníkov</h3>
-          <p className="text-sm text-muted-foreground">Nastavte, čo môžu pracovníci vidieť v aplikácii</p>
+    <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-[#f1f5f9]">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-[#f1f5f9] border border-[#e2e8f0] flex items-center justify-center">
+            <Users className="h-4 w-4 text-[#475569]" />
+          </div>
+          <div>
+            <div className="text-sm font-bold text-[#0f172a]">Oprávnenia pracovníkov</div>
+            <div className="text-xs text-[#64748b]">Nastavte čo môžu pracovníci vidieť v aplikácii</div>
+          </div>
         </div>
       </div>
 
-      <div className="space-y-6">
+      <div className="divide-y divide-[#f1f5f9]">
         {workers.map((worker) => (
-          <div key={worker.id} className="border rounded-lg p-4">
+          <div key={worker.id} className="px-5 py-4">
+            {/* Worker header */}
             <div className="flex items-center gap-3 mb-4">
-              <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center">
-                <span className="text-sm font-medium">
-                  {worker.fullName?.charAt(0) || worker.email.charAt(0).toUpperCase()}
+              <div className="w-9 h-9 rounded-full bg-[#f1f5f9] border border-[#e2e8f0] flex items-center justify-center shrink-0">
+                <span className="text-sm font-bold text-[#475569]">
+                  {(worker.fullName?.charAt(0) || worker.email.charAt(0)).toUpperCase()}
                 </span>
               </div>
-              <div>
-                <p className="font-medium">{worker.fullName || 'Neznáme meno'}</p>
-                <p className="text-sm text-muted-foreground">{worker.email}</p>
+              <div className="flex-1">
+                <div className="text-sm font-bold text-[#0f172a]">{worker.fullName || 'Neznáme meno'}</div>
+                <div className="text-xs text-[#64748b]">{worker.email}</div>
               </div>
-              <Badge variant="secondary" className="ml-auto">Pracovník</Badge>
+              <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-[#f1f5f9] border border-[#e2e8f0] text-[#475569]">
+                Pracovník
+              </span>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {/* Permissions grid */}
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {PERMISSION_CONFIG.map((config) => {
                 const Icon = config.icon;
                 const value = getPermissionValue(worker.id, config.key as keyof Omit<WorkerPermission, 'id' | 'user_id'>);
-                
                 return (
-                  <div 
-                    key={config.key}
-                    className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
-                      value ? 'bg-primary/5 border-primary/20' : 'bg-muted/30 border-border'
-                    }`}
-                  >
+                  <div key={config.key}
+                    className={`flex items-center justify-between px-3 py-2.5 rounded-lg border transition-colors ${
+                      value ? 'bg-[#f0fdf4] border-[#bbf7d0]' : 'bg-[#f8fafc] border-[#e2e8f0]'
+                    }`}>
                     <div className="flex items-center gap-2 min-w-0">
-                      <Icon className={`h-4 w-4 shrink-0 ${value ? 'text-primary' : 'text-muted-foreground'}`} />
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <Label className="text-sm font-medium truncate">{config.label}</Label>
-                          {config.sensitive && (
-                            <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 shrink-0">
-                              Citlivé
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
+                      <Icon className={`h-3.5 w-3.5 shrink-0 ${value ? 'text-[#16a34a]' : 'text-[#94a3b8]'}`} />
+                      <span className="text-xs font-semibold text-[#0f172a] truncate">{config.label}</span>
+                      {config.sensitive && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#fff7ed] border border-[#fed7aa] text-[#c2410c] shrink-0">Citlivé</span>
+                      )}
                     </div>
                     <Switch
                       checked={value}
@@ -243,12 +236,11 @@ export const WorkerPermissionsSettings = () => {
         ))}
       </div>
 
-      <div className="mt-6 p-4 bg-muted/30 rounded-lg">
-        <p className="text-sm text-muted-foreground">
-          <strong>Poznámka:</strong> Citlivé údaje (ceny, zákazníci, dodávatelia) sú predvolene skryté pre pracovníkov. 
-          Zapnite ich len ak potrebujete, aby pracovník mal k týmto údajom prístup.
+      <div className="px-5 py-3 bg-[#f8fafc] border-t border-[#e2e8f0]">
+        <p className="text-xs text-[#64748b]">
+          <strong className="text-[#475569]">Citlivé údaje</strong> (ceny, zákazníci, dodávatelia, reporty) sú predvolene skryté. Zapnite ich len ak je to nevyhnutné.
         </p>
       </div>
-    </Card>
+    </div>
   );
 };
