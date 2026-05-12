@@ -78,14 +78,37 @@ export function UsersManagement() {
     if (!deleteUserId) return;
     setIsDeleting(true);
     try {
+      // Najprv skús cez RPC
       const { data, error } = await supabase.rpc('admin_delete_user', { p_user_id_to_delete: deleteUserId });
-      if (error) throw new Error(error.message);
-      if (!data?.success) throw new Error(data?.error || 'Nepodarilo sa zmazať používateľa');
+      
+      if (error) {
+        console.error('[DELETE USER] RPC error:', error);
+        // Fallback: zmaž len z user_roles (odoberie prístup do GrowBase)
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .delete()
+          .eq('user_id', deleteUserId);
+        if (roleError) throw roleError;
+        setUsers(prev => prev.filter(u => u.id !== deleteUserId));
+        setDeleteUserId(null);
+        toast({ title: 'Prístup odobratý', description: 'Používateľ bol odstránený zo zoznamu pracovníkov.' });
+        return;
+      }
+
+      if (data && !data.success) {
+        console.error('[DELETE USER] RPC failed:', data);
+        throw new Error(data.error || 'Nepodarilo sa zmazať používateľa');
+      }
+
       setUsers(prev => prev.filter(u => u.id !== deleteUserId));
       setDeleteUserId(null);
       toast({ title: 'Používateľ zmazaný' });
-    } catch (err: any) { toast({ variant: 'destructive', title: 'Chyba', description: err.message }); }
-    finally { setIsDeleting(false); }
+    } catch (err: any) {
+      console.error('[DELETE USER] Error:', err);
+      toast({ variant: 'destructive', title: 'Chyba', description: err.message || 'Neočakávaná chyba pri mazaní.' });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   if (!isAdmin) return null;
