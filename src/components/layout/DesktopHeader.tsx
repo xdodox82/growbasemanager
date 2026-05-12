@@ -22,7 +22,7 @@ export function DesktopHeader() {
   };
 
   return (
-    <div className="hidden md:flex fixed top-4 right-6 z-40 items-center gap-2">
+    <div className="hidden md:flex fixed top-3 right-6 z-20 items-center gap-2">
       <button
         onClick={toggleTheme}
         className="w-9 h-9 rounded-xl border border-[#e2e8f0] bg-white flex items-center justify-center text-[#475569] hover:bg-[#f8fafc] hover:border-[#cbd5e1] transition-colors shadow-sm"
