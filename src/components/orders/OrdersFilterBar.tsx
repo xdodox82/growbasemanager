@@ -227,14 +227,29 @@ export function OrdersFilterBar({
               { v: 'confirmed',        l: 'Potvrdená',   a: 'bg-[#f0fdf4] border-[#16a34a] text-[#16a34a]' },
               { v: 'delivered',        l: 'Doručená',    a: 'bg-[#d1fae5] border-[#059669] text-[#064e3b]' },
               { v: 'cancelled',        l: 'Zrušená',     a: 'bg-[#f8fafc] border-[#94a3b8] text-[#64748b]' },
-            ] as const).map(s => (
-              <button key={s.v} onClick={() => onFilterStatusChange(s.v)} className={chip(filterStatus === s.v, s.a)}>{s.l}</button>
-            ))}
+            ] as const).map(s => {
+              const count = s.v === 'all'
+                ? orders?.length || 0
+                : orders?.filter(o => o.status === s.v).length || 0;
+              const showBadge = s.v !== 'all' && count > 0;
+              const isPending = s.v === 'pending_approval' && count > 0;
+              return (
+                <button key={s.v} onClick={() => onFilterStatusChange(s.v)}
+                  className={chip(filterStatus === s.v, s.a) + (isPending && filterStatus !== s.v ? ' ring-1 ring-[#d97706]' : '')}>
+                  {s.l}
+                  {showBadge && (
+                    <span className={`ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                      isPending
+                        ? 'bg-[#dc2626] text-white'
+                        : filterStatus === s.v
+                        ? 'bg-white/30 text-inherit'
+                        : 'bg-[#f1f5f9] text-[#475569]'
+                    }`}>{count}</span>
+                  )}
+                </button>
+              );
+            })}
           </div>
-
-          <div className="border-t border-[#f8fafc]" />
-
-          {/* Riadok 4: Obdobie chips + calendar */}
           <div className="flex items-center gap-2 flex-wrap py-2">
             {rowLabel('Dátum')}
             {([
