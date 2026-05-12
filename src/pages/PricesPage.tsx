@@ -1,312 +1,169 @@
 import { useState, useMemo } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { PageHeader, EmptyState } from '@/components/ui/page-components';
 import { useCrops, useBlends } from '@/hooks/useSupabaseData';
 import { usePrices, useVatSettings, DbPrice } from '@/hooks/usePrices';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Euro, Plus, Pencil, Trash2, Percent, Leaf, Blend, X, Sprout, Flower, ChevronDown, ChevronUp } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Euro, Plus, Pencil, Trash2, Leaf, Blend, X, Sprout, Flower, House, Utensils, Store, Users, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 const PACKAGING_SIZES = ['25g', '50g', '60g', '70g', '100g', '120g', '150g'];
 
 const CUSTOMER_TYPES = [
-  { value: 'all', label: 'Všetci zákazníci' },
-  { value: 'home', label: 'Domáci' },
-  { value: 'gastro', label: 'Gastro' },
-  { value: 'wholesale', label: 'Veľkoobchod' },
+  { value: 'all',       label: 'Všetci',       color: 'bg-[#f1f5f9] border-[#e2e8f0] text-[#475569]' },
+  { value: 'home',      label: 'Domáci',        color: 'bg-[#f0fdf4] border-[#bbf7d0] text-[#166534]' },
+  { value: 'gastro',    label: 'Gastro',         color: 'bg-[#eff6ff] border-[#bfdbfe] text-[#1e40af]' },
+  { value: 'wholesale', label: 'Veľkoobchod',   color: 'bg-[#fff7ed] border-[#fed7aa] text-[#92400e]' },
+  { value: 'vip',       label: 'VIP',            color: 'bg-[#fdf4ff] border-[#e9d5ff] text-[#6b21a8]' },
 ];
 
-const CATEGORY_ORDER = { microgreens: 0, microherbs: 1, edible_flowers: 2 };
+const CATEGORY_OPTIONS = [
+  { value: 'all',           label: 'Všetky',        icon: null },
+  { value: 'microgreens',   label: 'Mikrozelenina',  icon: Leaf },
+  { value: 'microherbs',    label: 'Mikrobylinky',   icon: Sprout },
+  { value: 'edible_flowers',label: 'Jedlé kvety',    icon: Flower },
+];
 
-interface PriceEntry {
-  packagingSize: string;
-  price: string;
-  customerType: string;
-}
+interface PriceEntry { packagingSize: string; price: string; customerType: string; }
+interface GroupedPrice { itemId: string; itemName: string; isCrop: boolean; prices: DbPrice[]; }
 
-interface GroupedPrice {
-  itemId: string;
-  itemName: string;
-  isCrop: boolean;
-  prices: DbPrice[];
-}
+const CustomerBadge = ({ type }: { type: string }) => {
+  const ct = CUSTOMER_TYPES.find(t => t.value === type);
+  return ct ? (
+    <span className={`inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded border ${ct.color}`}>{ct.label}</span>
+  ) : null;
+};
 
 const PricesPage = () => {
   const { data: crops, loading: cropsLoading } = useCrops();
   const { data: blends, loading: blendsLoading } = useBlends();
   const { data: prices, loading: pricesLoading, add: addPrice, addMany: addManyPrices, update: updatePrice, remove: deletePrice } = usePrices();
-  const { data: vatSettings, loading: vatLoading, update: updateVatSettings, vatRate, isVatEnabled, calculateWithVat } = useVatSettings();
+  const { isVatEnabled, vatRate } = useVatSettings();
   const { toast } = useToast();
-  const isMobile = useIsMobile();
-  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
-  const toggleCardExpansion = (itemId: string) => {
-    setExpandedCards(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(itemId)) {
-        newSet.delete(itemId);
-      } else {
-        newSet.add(itemId);
-      }
-      return newSet;
-    });
-  };
+  const isLoading = cropsLoading || blendsLoading || pricesLoading;
 
-  const isLoading = cropsLoading || blendsLoading || pricesLoading || vatLoading;
-  
+  const [activeTab, setActiveTab] = useState<'crops' | 'blends'>('crops');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [cropFilter, setCropFilter] = useState('all');
+  const [customerTypeFilter, setCustomerTypeFilter] = useState('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingPrice, setEditingPrice] = useState<DbPrice | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('crops');
-  const [categoryFilter, setCategoryFilter] = useState<'all' | 'microgreens' | 'microherbs' | 'edible_flowers'>('all');
-  const [cropFilter, setCropFilter] = useState<string>('all');
-  const [customerTypeFilterView, setCustomerTypeFilterView] = useState<string>('all');
-  
-  // Multi-price form state
-  const [formData, setFormData] = useState({
-    cropId: '',
-    blendId: '',
-  });
-  const [priceEntries, setPriceEntries] = useState<PriceEntry[]>([
-    { packagingSize: '50g', price: '', customerType: 'home' }
-  ]);
+  const [saving, setSaving] = useState(false);
+  const [formData, setFormData] = useState({ cropId: '', blendId: '' });
+  const [priceEntries, setPriceEntries] = useState<PriceEntry[]>([{ packagingSize: '50g', price: '', customerType: 'home' }]);
 
-  const getCropName = (cropId: string | null) => {
-    if (!cropId || !crops || crops.length === 0) return 'Neznáma plodina';
-    return crops.find(c => c.id === cropId)?.name || 'Neznáma plodina';
-  };
-
-  const getBlendName = (blendId: string | null) => {
-    if (!blendId || !blends || blends.length === 0) return 'Neznáma zmes';
-    return blends.find(b => b.id === blendId)?.name || 'Neznáma zmes';
-  };
-
-  const getCustomerTypeLabel = (type: string) => {
-    return CUSTOMER_TYPES.find(t => t.value === type)?.label || 'Všetci';
-  };
+  const getCropName = (id: string) => crops?.find(c => c.id === id)?.name || 'Neznáma plodina';
+  const getBlendName = (id: string) => blends?.find(b => b.id === id)?.name || 'Neznáma zmes';
+  const calculateWithVat = (price: number) => price * (1 + vatRate / 100);
 
   const sortedCrops = useMemo(() => {
-    if (!crops || crops.length === 0) return [];
+    if (!crops) return [];
     return [...crops].sort((a, b) => {
-      const orderA = CATEGORY_ORDER[a.category as keyof typeof CATEGORY_ORDER] ?? 99;
-      const orderB = CATEGORY_ORDER[b.category as keyof typeof CATEGORY_ORDER] ?? 99;
-      if (orderA !== orderB) return orderA - orderB;
-      return a.name.localeCompare(b.name, 'sk');
+      const catOrder: Record<string,number> = { microgreens: 0, microherbs: 1, edible_flowers: 2 };
+      const catDiff = (catOrder[(a as any).category] ?? 3) - (catOrder[(b as any).category] ?? 3);
+      return catDiff !== 0 ? catDiff : a.name.localeCompare(b.name, 'sk');
     });
   }, [crops]);
 
   const filteredCropsByCategory = useMemo(() => {
+    if (!sortedCrops) return [];
     if (categoryFilter === 'all') return sortedCrops;
-    return sortedCrops.filter(crop => crop.category === categoryFilter);
+    return sortedCrops.filter(c => (c as any).category === categoryFilter);
   }, [sortedCrops, categoryFilter]);
 
-  const cropPrices = useMemo(() => {
-    if (!prices || prices.length === 0) return [];
-    return prices.filter(p => p.crop_id !== null);
-  }, [prices]);
-
-  const blendPrices = useMemo(() => {
-    if (!prices || prices.length === 0) return [];
-    return prices.filter(p => p.blend_id !== null);
-  }, [prices]);
+  const cropPrices = useMemo(() => prices?.filter(p => p.crop_id) || [], [prices]);
+  const blendPrices = useMemo(() => prices?.filter(p => p.blend_id) || [], [prices]);
 
   const filteredCropPrices = useMemo(() => {
     let result = cropPrices;
-
-    // Crop filter
-    if (cropFilter !== 'all') {
-      result = result.filter(p => p.crop_id === cropFilter);
-    } else if (categoryFilter !== 'all') {
-      // Ak nie je vybraná konkrétna plodina, filtruj podľa kategórie
-      result = result.filter(p => {
-        const crop = crops.find(c => c.id === p.crop_id);
-        return crop && crop.category === categoryFilter;
-      });
+    if (cropFilter !== 'all') result = result.filter(p => p.crop_id === cropFilter);
+    else if (categoryFilter !== 'all') {
+      const catCropIds = filteredCropsByCategory.map(c => c.id);
+      result = result.filter(p => catCropIds.includes(p.crop_id!));
     }
-
-    // Customer filter
-    if (customerTypeFilterView !== 'all') {
-      result = result.filter(p => p.customer_type === customerTypeFilterView);
-    }
-
+    if (customerTypeFilter !== 'all') result = result.filter(p => p.customer_type === customerTypeFilter);
     return result;
-  }, [cropPrices, cropFilter, customerTypeFilterView, categoryFilter, crops]);
+  }, [cropPrices, cropFilter, customerTypeFilter, categoryFilter, filteredCropsByCategory]);
 
   const filteredBlendPrices = useMemo(() => {
     let result = blendPrices;
-    if (customerTypeFilterView !== 'all') {
-      result = result.filter(p => p.customer_type === customerTypeFilterView);
-    }
+    if (customerTypeFilter !== 'all') result = result.filter(p => p.customer_type === customerTypeFilter);
     return result;
-  }, [blendPrices, customerTypeFilterView]);
+  }, [blendPrices, customerTypeFilter]);
 
-  // Group prices by crop/blend for cleaner display
   const groupedCropPrices = useMemo(() => {
     const groups: GroupedPrice[] = [];
     const processed = new Set<string>();
-
     filteredCropPrices.forEach(price => {
-      const cropId = price.crop_id!;
-      if (!processed.has(cropId)) {
-        processed.add(cropId);
-        const cropPricesForItem = filteredCropPrices.filter(p => p.crop_id === cropId);
-        groups.push({
-          itemId: cropId,
-          itemName: getCropName(cropId),
-          isCrop: true,
-          prices: cropPricesForItem,
-        });
+      const id = price.crop_id!;
+      if (!processed.has(id)) {
+        processed.add(id);
+        groups.push({ itemId: id, itemName: getCropName(id), isCrop: true, prices: filteredCropPrices.filter(p => p.crop_id === id) });
       }
     });
-
     return groups.sort((a, b) => a.itemName.localeCompare(b.itemName, 'sk'));
   }, [filteredCropPrices, crops]);
 
   const groupedBlendPrices = useMemo(() => {
     const groups: GroupedPrice[] = [];
     const processed = new Set<string>();
-
     filteredBlendPrices.forEach(price => {
-      const blendId = price.blend_id!;
-      if (!processed.has(blendId)) {
-        processed.add(blendId);
-        const blendPricesForItem = filteredBlendPrices.filter(p => p.blend_id === blendId);
-        groups.push({
-          itemId: blendId,
-          itemName: getBlendName(blendId),
-          isCrop: false,
-          prices: blendPricesForItem,
-        });
+      const id = price.blend_id!;
+      if (!processed.has(id)) {
+        processed.add(id);
+        groups.push({ itemId: id, itemName: getBlendName(id), isCrop: false, prices: filteredBlendPrices.filter(p => p.blend_id === id) });
       }
     });
-
     return groups.sort((a, b) => a.itemName.localeCompare(b.itemName, 'sk'));
   }, [filteredBlendPrices, blends]);
 
   const resetForm = () => {
-    setFormData({
-      cropId: '',
-      blendId: '',
-    });
+    setFormData({ cropId: '', blendId: '' });
     setPriceEntries([{ packagingSize: '50g', price: '', customerType: 'home' }]);
-    setEditingPrice(null);
   };
 
   const openEditDialog = (cropId: string | null, blendId: string | null, existingPrices: DbPrice[]) => {
-    setEditingPrice(null);
-    setFormData({
-      cropId: cropId || '',
-      blendId: blendId || '',
-    });
-
-    if (existingPrices.length > 0) {
-      setPriceEntries(existingPrices.map(p => ({
-        packagingSize: p.packaging_size,
-        price: p.unit_price.toString(),
-        customerType: p.customer_type,
-      })));
-    } else {
-      setPriceEntries([{ packagingSize: '50g', price: '', customerType: 'home' }]);
-    }
-
+    setFormData({ cropId: cropId || '', blendId: blendId || '' });
+    setPriceEntries(existingPrices.length > 0
+      ? existingPrices.map(p => ({ packagingSize: p.packaging_size, price: p.unit_price.toString(), customerType: p.customer_type }))
+      : [{ packagingSize: '50g', price: '', customerType: 'home' }]
+    );
     setIsDialogOpen(true);
   };
 
-  const addPriceEntry = () => {
-    setPriceEntries([...priceEntries, { packagingSize: '50g', price: '', customerType: 'home' }]);
+  const openNewDialog = () => {
+    resetForm();
+    setIsDialogOpen(true);
   };
 
-  const removePriceEntry = (index: number) => {
-    if (priceEntries.length > 1) {
-      setPriceEntries(priceEntries.filter((_, i) => i !== index));
-    }
-  };
-
-  const updatePriceEntry = (index: number, field: keyof PriceEntry, value: string) => {
-    setPriceEntries(priceEntries.map((entry, i) => 
-      i === index ? { ...entry, [field]: value } : entry
-    ));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const isCropPrice = activeTab === 'crops';
-
-    if (isCropPrice && !formData.cropId) {
-      toast({ title: 'Chyba', description: 'Vyberte plodinu', variant: 'destructive' });
-      return;
-    }
-
-    if (!isCropPrice && !formData.blendId) {
-      toast({ title: 'Chyba', description: 'Vyberte zmes', variant: 'destructive' });
-      return;
-    }
-
+  const handleSubmit = async () => {
+    const isCrop = activeTab === 'crops';
+    if (isCrop && !formData.cropId) { toast({ title: 'Chyba', description: 'Vyberte plodinu', variant: 'destructive' }); return; }
+    if (!isCrop && !formData.blendId) { toast({ title: 'Chyba', description: 'Vyberte zmes', variant: 'destructive' }); return; }
     const validEntries = priceEntries.filter(e => e.price && parseFloat(e.price) >= 0);
+    if (validEntries.length === 0) { toast({ title: 'Chyba', description: 'Zadajte aspoň jednu cenu', variant: 'destructive' }); return; }
 
-    if (validEntries.length === 0) {
-      toast({ title: 'Chyba', description: 'Zadajte aspoň jednu cenu', variant: 'destructive' });
-      return;
-    }
+    setSaving(true);
+    const itemId = isCrop ? formData.cropId : formData.blendId;
+    const existing = prices.filter(p => isCrop ? p.crop_id === itemId : p.blend_id === itemId);
+    for (const p of existing) await deletePrice(p.id);
 
-    const itemId = isCropPrice ? formData.cropId : formData.blendId;
-    const existingPrices = prices.filter(p =>
-      isCropPrice ? p.crop_id === itemId : p.blend_id === itemId
-    );
-
-    for (const existingPrice of existingPrices) {
-      await deletePrice(existingPrice.id);
-    }
-
-    const pricesToAdd = validEntries.map(entry => ({
-      crop_id: isCropPrice ? formData.cropId : null,
-      blend_id: !isCropPrice ? formData.blendId : null,
-      packaging_size: entry.packagingSize,
-      unit_price: parseFloat(entry.price),
-      customer_type: entry.customerType,
+    const toAdd = validEntries.map(e => ({
+      crop_id: isCrop ? formData.cropId : null,
+      blend_id: !isCrop ? formData.blendId : null,
+      packaging_size: e.packagingSize,
+      unit_price: parseFloat(e.price),
+      customer_type: e.customerType,
     }));
 
-    const success = await addManyPrices(pricesToAdd);
-
+    const success = await addManyPrices(toAdd);
+    setSaving(false);
     if (success) {
-      toast({
-        title: 'Ceny uložené',
-        description: `Uložených ${validEntries.length} cien`
-      });
+      toast({ title: 'Ceny uložené', description: `Uložených ${validEntries.length} cien` });
       setIsDialogOpen(false);
       resetForm();
     }
@@ -314,588 +171,336 @@ const PricesPage = () => {
 
   const handleDelete = async () => {
     if (!deleteId) return;
-
-    const itemPrices = prices.filter(p =>
-      activeTab === 'crops' ? p.crop_id === deleteId : p.blend_id === deleteId
-    );
-
-    for (const price of itemPrices) {
-      await deletePrice(price.id);
-    }
-
-    toast({
-      title: 'Ceny odstránené',
-      description: `Odstránených ${itemPrices.length} cien`
-    });
+    const toDelete = prices.filter(p => activeTab === 'crops' ? p.crop_id === deleteId : p.blend_id === deleteId);
+    for (const p of toDelete) await deletePrice(p.id);
     setDeleteId(null);
+    toast({ title: 'Ceny zmazané' });
   };
 
-  const handleVatToggle = async (enabled: boolean) => {
-    await updateVatSettings({ is_enabled: enabled });
+  const updatePriceEntry = (index: number, field: keyof PriceEntry, value: string) => {
+    setPriceEntries(prev => prev.map((e, i) => i === index ? { ...e, [field]: value } : e));
   };
 
-  const handleVatRateChange = async (rate: string) => {
-    const rateNum = parseFloat(rate);
-    if (!isNaN(rateNum) && rateNum >= 0 && rateNum <= 100) {
-      await updateVatSettings({ vat_rate: rateNum });
-    }
-  };
-
-  // Mobile grouped price card component
-  const GroupedPriceCard = ({ group }: { group: GroupedPrice }) => {
-    const isExpanded = expandedCards.has(group.itemId);
-
-    return (
-      <Card
-        className="p-4 cursor-pointer transition-all hover:shadow-md overflow-hidden"
-        onClick={() => toggleCardExpansion(group.itemId)}
-      >
-        {/* Collapsed - vždy viditeľné */}
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className="h-9 w-9 rounded-lg flex items-center justify-center bg-primary/10 flex-shrink-0">
-              {group.isCrop
-                ? <Leaf className="h-4 w-4 text-primary" />
-                : <Blend className="h-4 w-4 text-primary" />
-              }
-            </div>
-            <div className="min-w-0 flex-1">
-              <h4 className="font-semibold text-base break-words leading-tight">{group.itemName}</h4>
-              <p className="text-xs text-muted-foreground">{group.prices.length} cien</p>
-            </div>
-          </div>
-          {isExpanded
-            ? <ChevronUp className="h-5 w-5 text-gray-400 flex-shrink-0" />
-            : <ChevronDown className="h-5 w-5 text-gray-400 flex-shrink-0" />
-          }
-        </div>
-
-        {/* Expanded - zobrazí sa po kliknutí */}
-        {isExpanded && (
-          <div
-            className="mt-4 pt-4 border-t space-y-3 animate-in slide-in-from-top duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Zoznam cien */}
-            <div className="space-y-2">
-              {group.prices.map(price => (
-                <div
-                  key={price.id}
-                  className="flex items-center justify-between gap-2 text-sm bg-gray-50 rounded-lg px-3 py-2 min-w-0"
-                >
-                  <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                    <Badge variant="outline" className="text-xs whitespace-nowrap">{price.packaging_size}</Badge>
-                    <Badge variant="secondary" className="text-xs truncate max-w-[120px]">{getCustomerTypeLabel(price.customer_type)}</Badge>
-                  </div>
-                  <span className="font-mono font-semibold text-primary whitespace-nowrap">{price.unit_price.toFixed(2)} €</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Akcie */}
-            <div className="flex gap-2 pt-2 border-t min-w-0">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openEditDialog(
-                    group.isCrop ? group.itemId : null,
-                    group.isCrop ? null : group.itemId,
-                    group.prices
-                  );
-                }}
-                className="flex-1 min-w-0 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"
-              >
-                <Pencil className="h-4 w-4 flex-shrink-0" />
-                <span className="truncate">Upraviť ceny</span>
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setDeleteId(group.itemId);
-                }}
-                className="flex-shrink-0 p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        )}
-      </Card>
-    );
-  };
-
-  if (isLoading) {
-    return (
-      <MainLayout hideMobileHeader>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Načítavam...</p>
-          </div>
-        </div>
-      </MainLayout>
-    );
-  }
+  const groups = activeTab === 'crops' ? groupedCropPrices : groupedBlendPrices;
 
   return (
     <MainLayout hideMobileHeader>
-      <div className="space-y-4 md:space-y-6">
-        <PageHeader
-          title="Ceny"
-          description="Nastavte ceny pre plodiny a zmesi podľa typu zákazníka"
-        />
-
-        {/* VAT Settings Card */}
-        <Card className="p-4 md:p-6">
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-3 md:gap-4">
-              <div className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-xl bg-primary/10 shrink-0">
-                <Percent className="h-5 w-5 md:h-6 md:w-6 text-primary" />
-              </div>
-              <div className="min-w-0">
-                <h3 className="font-semibold text-sm md:text-base">Nastavenia DPH</h3>
-                <p className="text-xs md:text-sm text-muted-foreground truncate">
-                  {isVatEnabled 
-                    ? `DPH ${vatRate}% je zapnuté` 
-                    : 'DPH je vypnuté'}
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 sm:justify-end">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="vat-rate" className="text-sm whitespace-nowrap">Sadzba:</Label>
-                <Input
-                  id="vat-rate"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  value={vatRate}
-                  onChange={(e) => handleVatRateChange(e.target.value)}
-                  className="w-20"
-                  disabled={!isVatEnabled}
-                />
-                <span className="text-sm text-muted-foreground">%</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="vat-enabled"
-                  checked={isVatEnabled}
-                  onCheckedChange={handleVatToggle}
-                />
-                <Label htmlFor="vat-enabled" className="text-sm">
-                  {isVatEnabled ? 'Zapnuté' : 'Vypnuté'}
-                </Label>
-              </div>
-            </div>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-[#f0fdf4] border border-[#bbf7d0] flex items-center justify-center">
+            <Euro className="h-5 w-5 text-[#16a34a]" />
           </div>
-        </Card>
+          <div>
+            <h1 className="text-xl font-bold text-[#0f172a]">Ceny</h1>
+            <p className="text-xs text-[#64748b]">{prices?.length || 0} cenových záznamov</p>
+          </div>
+        </div>
+        <button onClick={openNewDialog}
+          className="flex items-center gap-1.5 h-9 px-4 rounded-xl bg-[#16a34a] text-white text-sm font-semibold hover:bg-[#15803d] transition-colors">
+          <Plus className="h-4 w-4" /> Pridať ceny
+        </button>
+      </div>
 
-        {/* Prices Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <div className="flex flex-col gap-3 md:gap-4 mb-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <TabsList className="w-full sm:w-auto">
-                <TabsTrigger value="crops" className="gap-1.5 flex-1 sm:flex-none text-xs sm:text-sm">
-                  <Leaf className="h-4 w-4" />
-                  <span className="hidden xs:inline">Plodiny</span>
-                  <span className="xs:hidden">Plod.</span>
-                  ({cropPrices.length})
-                </TabsTrigger>
-                <TabsTrigger value="blends" className="gap-1.5 flex-1 sm:flex-none text-xs sm:text-sm">
-                  <Blend className="h-4 w-4" />
-                  <span className="hidden xs:inline">Zmesi</span>
-                  <span className="xs:hidden">Zmes.</span>
-                  ({blendPrices.length})
-                </TabsTrigger>
-              </TabsList>
-              <Button 
-                onClick={() => { resetForm(); setIsDialogOpen(true); }}
-                className="w-full sm:w-auto"
-                size={isMobile ? "default" : "default"}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Pridať ceny
-              </Button>
+      {/* Tabs + Filters card */}
+      <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm overflow-hidden mb-4">
+        {/* Tab switcher */}
+        <div className="flex border-b border-[#f1f5f9]">
+          {([
+            { id: 'crops', label: 'Plodiny', icon: Leaf, count: groupedCropPrices.length },
+            { id: 'blends', label: 'Mixy', icon: Blend, count: groupedBlendPrices.length },
+          ] as const).map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 flex items-center justify-center gap-2 h-11 text-sm font-semibold border-b-2 transition-colors ${
+                activeTab === tab.id
+                  ? 'border-[#16a34a] text-[#16a34a] bg-[#f0fdf4]'
+                  : 'border-transparent text-[#64748b] hover:text-[#0f172a] hover:bg-[#f8fafc]'
+              }`}>
+              <tab.icon className="h-4 w-4" />
+              {tab.label}
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                activeTab === tab.id ? 'bg-[#16a34a] text-white' : 'bg-[#f1f5f9] text-[#64748b]'
+              }`}>{tab.count}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Filters */}
+        <div className="px-4 py-3 flex flex-wrap gap-2 items-center">
+          {/* Customer type chips */}
+          <div className="flex gap-1.5 flex-wrap">
+            {CUSTOMER_TYPES.map(ct => (
+              <button key={ct.value} onClick={() => setCustomerTypeFilter(ct.value)}
+                className={`inline-flex items-center gap-1 px-2.5 h-7 rounded-lg border text-[11px] font-semibold transition-colors ${
+                  customerTypeFilter === ct.value ? ct.color : 'bg-white border-[#e2e8f0] text-[#64748b] hover:border-[#cbd5e1]'
+                }`}>
+                {ct.label}
+              </button>
+            ))}
+          </div>
+
+          {activeTab === 'crops' && (
+            <>
+              <div className="w-px h-5 bg-[#e2e8f0]" />
+              {/* Category chips */}
+              <div className="flex gap-1.5 flex-wrap">
+                {CATEGORY_OPTIONS.map(cat => {
+                  const Icon = cat.icon;
+                  return (
+                    <button key={cat.value} onClick={() => { setCategoryFilter(cat.value); setCropFilter('all'); }}
+                      className={`inline-flex items-center gap-1 px-2.5 h-7 rounded-lg border text-[11px] font-semibold transition-colors ${
+                        categoryFilter === cat.value
+                          ? 'bg-[#0f172a] border-[#0f172a] text-white'
+                          : 'bg-white border-[#e2e8f0] text-[#64748b] hover:border-[#cbd5e1]'
+                      }`}>
+                      {Icon && <Icon className="h-3 w-3" />}
+                      {cat.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Crop filter */}
+              <Select value={cropFilter} onValueChange={setCropFilter}>
+                <SelectTrigger className="h-7 w-[160px] text-xs border-[#e2e8f0]">
+                  <SelectValue placeholder="Všetky plodiny" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[260px]">
+                  <SelectItem value="all">Všetky plodiny</SelectItem>
+                  {filteredCropsByCategory.map(crop => (
+                    <SelectItem key={crop.id} value={crop.id}>{crop.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Price list */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="h-6 w-6 animate-spin text-[#16a34a]" />
+        </div>
+      ) : groups.length === 0 ? (
+        <div className="bg-white rounded-xl border border-[#e2e8f0] py-16 flex flex-col items-center text-center">
+          <div className="w-14 h-14 rounded-2xl bg-[#f1f5f9] border border-[#e2e8f0] flex items-center justify-center mb-4">
+            <Euro className="h-7 w-7 text-[#94a3b8]" />
+          </div>
+          <h3 className="text-base font-semibold text-[#0f172a] mb-1">Žiadne ceny</h3>
+          <p className="text-sm text-[#64748b] mb-4">Zatiaľ nie sú nastavené žiadne ceny</p>
+          <button onClick={openNewDialog}
+            className="flex items-center gap-1.5 h-9 px-4 rounded-xl bg-[#16a34a] text-white text-sm font-semibold hover:bg-[#15803d] transition-colors">
+            <Plus className="h-4 w-4" /> Pridať ceny
+          </button>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm overflow-hidden">
+          <div className="divide-y divide-[#f1f5f9]">
+            {groups.map(group => (
+              <div key={group.itemId} className="flex items-center gap-4 px-5 py-3 hover:bg-[#f8fafc] transition-colors group">
+                {/* Name */}
+                <div className="w-44 shrink-0">
+                  <div className="text-sm font-semibold text-[#0f172a]">{group.itemName}</div>
+                  <div className="text-xs text-[#94a3b8]">
+                    {group.prices.length} {group.prices.length === 1 ? 'cena' : group.prices.length < 5 ? 'ceny' : 'cien'}
+                  </div>
+                </div>
+
+                {/* Price badges */}
+                <div className="flex-1 flex flex-wrap gap-1.5">
+                  {group.prices
+                    .sort((a, b) => a.packaging_size.localeCompare(b.packaging_size, undefined, { numeric: true }))
+                    .map((price, idx) => {
+                      const ct = CUSTOMER_TYPES.find(t => t.value === price.customer_type);
+                      return (
+                        <div key={idx} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium ${ct?.color || 'bg-[#f1f5f9] border-[#e2e8f0] text-[#475569]'}`}>
+                          <span className="font-bold">{price.packaging_size}</span>
+                          <span className="opacity-60">·</span>
+                          <span className="font-semibold">{price.unit_price.toFixed(2)} €</span>
+                          {isVatEnabled && (
+                            <span className="opacity-60 text-[10px]">({calculateWithVat(price.unit_price).toFixed(2)} €)</span>
+                          )}
+                          <CustomerBadge type={price.customer_type} />
+                        </div>
+                      );
+                    })}
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                  <button onClick={() => openEditDialog(group.isCrop ? group.itemId : null, group.isCrop ? null : group.itemId, group.prices)}
+                    className="w-8 h-8 rounded-lg border border-[#e2e8f0] bg-white flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors">
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button onClick={() => setDeleteId(group.itemId)}
+                    className="w-8 h-8 rounded-lg border border-[#fecaca] bg-[#fef2f2] flex items-center justify-center text-[#dc2626] hover:bg-[#fee2e2] transition-colors">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={v => { setIsDialogOpen(v); if (!v) resetForm(); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Euro className="h-5 w-5 text-[#16a34a]" />
+              {formData.cropId || formData.blendId ? 'Upraviť ceny' : 'Pridať ceny'}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Tab select in dialog */}
+            <div className="flex gap-2">
+              {(['crops', 'blends'] as const).map(tab => (
+                <button key={tab} onClick={() => { setActiveTab(tab); resetForm(); }}
+                  className={`flex-1 h-9 rounded-lg border text-sm font-semibold transition-colors ${
+                    activeTab === tab ? 'bg-[#f0fdf4] border-[#16a34a] text-[#16a34a]' : 'bg-white border-[#e2e8f0] text-[#64748b]'
+                  }`}>
+                  {tab === 'crops' ? 'Plodina' : 'Mix'}
+                </button>
+              ))}
             </div>
 
-            {/* Filters */}
+            {/* Item select */}
             {activeTab === 'crops' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1 md:text-sm md:mb-2">Kategória</label>
-                  <Select
-                    value={categoryFilter}
-                    onValueChange={(value: any) => {
-                      setCategoryFilter(value);
-                      setCropFilter('all');
-                    }}
-                  >
-                    <SelectTrigger className="w-full h-9 text-sm">
-                      <SelectValue placeholder="Všetky kategórie" />
-                    </SelectTrigger>
-                    <SelectContent position="popper" sideOffset={5} className="max-h-[300px]">
-                      <SelectItem value="all">Všetky kategórie</SelectItem>
-                      <SelectItem value="microgreens">
-                        <Leaf className="h-4 w-4 text-green-600 mr-2 inline" />Mikrozelenina
-                      </SelectItem>
-                      <SelectItem value="microherbs">
-                        <Sprout className="h-4 w-4 text-green-600 mr-2 inline" />Mikrobylinky
-                      </SelectItem>
-                      <SelectItem value="edible_flowers">
-                        <Flower className="h-4 w-4 text-green-600 mr-2 inline" />Jedlé kvety
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1 md:text-sm md:mb-2">Plodina</label>
-                  <Select value={cropFilter} onValueChange={setCropFilter}>
-                    <SelectTrigger className="w-full h-9 text-sm">
-                      <SelectValue placeholder="Všetky plodiny" />
-                    </SelectTrigger>
-                    <SelectContent position="popper" sideOffset={5} className="max-h-[300px]">
-                      <SelectItem value="all">Všetky plodiny</SelectItem>
-                      {filteredCropsByCategory.map(crop => (
-                        <SelectItem key={crop.id} value={crop.id}>{crop.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1 md:text-sm md:mb-2">Zákazník</label>
-                  <Select value={customerTypeFilterView} onValueChange={setCustomerTypeFilterView}>
-                    <SelectTrigger className="w-full h-9 text-sm">
-                      <SelectValue placeholder="Všetci zákazníci" />
-                    </SelectTrigger>
-                    <SelectContent position="popper" sideOffset={5} className="max-h-[300px]">
-                      {CUSTOMER_TYPES.map(type => (
-                        <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div>
+                <label className="text-xs font-semibold text-[#475569] mb-1.5 block">Plodina *</label>
+                <Select value={formData.cropId} onValueChange={v => setFormData({ ...formData, cropId: v })}>
+                  <SelectTrigger className="h-9 border-[#e2e8f0] text-sm">
+                    <SelectValue placeholder="Vyberte plodinu" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[260px]">
+                    {sortedCrops.map(crop => (
+                      <SelectItem key={crop.id} value={crop.id}>{crop.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             ) : (
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1 md:text-sm md:mb-2">Zákazník</label>
-                <Select value={customerTypeFilterView} onValueChange={setCustomerTypeFilterView}>
-                  <SelectTrigger className="w-full sm:w-[200px] h-9 text-sm">
-                    <SelectValue placeholder="Filter podľa typu zákazníka" />
+                <label className="text-xs font-semibold text-[#475569] mb-1.5 block">Mix *</label>
+                <Select value={formData.blendId} onValueChange={v => setFormData({ ...formData, blendId: v })}>
+                  <SelectTrigger className="h-9 border-[#e2e8f0] text-sm">
+                    <SelectValue placeholder="Vyberte mix" />
                   </SelectTrigger>
-                  <SelectContent position="popper" sideOffset={5} className="max-h-[300px]">
-                    {CUSTOMER_TYPES.map(type => (
-                      <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                  <SelectContent className="max-h-[260px]">
+                    {blends?.map(b => (
+                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             )}
-          </div>
 
-          <TabsContent value="crops">
-            {groupedCropPrices.length === 0 ? (
-              <EmptyState
-                icon={<Euro className="h-12 w-12" />}
-                title="Žiadne ceny"
-                description="Zatiaľ nemáte nastavené žiadne ceny pre plodiny"
-              />
-            ) : isMobile ? (
-              <div className="grid gap-3 w-full min-w-0">
-                {groupedCropPrices.map(group => (
-                  <GroupedPriceCard key={group.itemId} group={group} />
-                ))}
+            {/* Price entries */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-semibold text-[#475569]">Ceny podľa balenia a zákazníka</label>
+                <button type="button" onClick={() => setPriceEntries(p => [...p, { packagingSize: '50g', price: '', customerType: 'home' }])}
+                  className="flex items-center gap-1 h-7 px-2.5 rounded-lg border border-[#e2e8f0] bg-white text-xs font-medium text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors">
+                  <Plus className="h-3 w-3" /> Pridať riadok
+                </button>
               </div>
-            ) : (
-              <Card>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Plodina</TableHead>
-                      <TableHead>Počet cien</TableHead>
-                      <TableHead className="text-right">Akcie</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {groupedCropPrices.map(group => (
-                      <TableRow key={group.itemId}>
-                        <TableCell className="font-medium">
-                          {group.itemName}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {group.prices.map((price, idx) => (
-                              <span key={idx} className="text-xs text-muted-foreground">
-                                {price.packaging_size} ({getCustomerTypeLabel(price.customer_type)}: {price.unit_price.toFixed(2)} €)
-                                {idx < group.prices.length - 1 && ', '}
-                              </span>
-                            ))}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openEditDialog(group.itemId, null, group.prices)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setDeleteId(group.itemId)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </Card>
-            )}
-          </TabsContent>
 
-          <TabsContent value="blends">
-            {groupedBlendPrices.length === 0 ? (
-              <EmptyState
-                icon={<Euro className="h-12 w-12" />}
-                title="Žiadne ceny"
-                description="Zatiaľ nemáte nastavené žiadne ceny pre zmesi"
-              />
-            ) : isMobile ? (
-              <div className="grid gap-3 w-full min-w-0">
-                {groupedBlendPrices.map(group => (
-                  <GroupedPriceCard key={group.itemId} group={group} />
-                ))}
-              </div>
-            ) : (
-              <Card>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Zmes</TableHead>
-                      <TableHead>Počet cien</TableHead>
-                      <TableHead className="text-right">Akcie</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {groupedBlendPrices.map(group => (
-                      <TableRow key={group.itemId}>
-                        <TableCell className="font-medium">
-                          {group.itemName}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {group.prices.map((price, idx) => (
-                              <span key={idx} className="text-xs text-muted-foreground">
-                                {price.packaging_size} ({getCustomerTypeLabel(price.customer_type)}: {price.unit_price.toFixed(2)} €)
-                                {idx < group.prices.length - 1 && ', '}
-                              </span>
-                            ))}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openEditDialog(null, group.itemId, group.prices)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setDeleteId(group.itemId)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </Card>
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
-
-      {/* Add/Edit Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {formData.cropId || formData.blendId ? 'Upraviť ceny' : 'Pridať ceny'}
-            </DialogTitle>
-            <DialogDescription>
-              Nastavte ceny pre rôzne balenia a typy zákazníkov
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {activeTab === 'crops' ? (
               <div className="space-y-2">
-                <Label>Plodina</Label>
-                <Select
-                  value={formData.cropId}
-                  onValueChange={(value) => setFormData({ ...formData, cropId: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Vyberte plodinu" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sortedCrops.map(crop => (
-                      <SelectItem key={crop.id} value={crop.id}>
-                        {crop.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Label>Zmes</Label>
-                <Select
-                  value={formData.blendId}
-                  onValueChange={(value) => setFormData({ ...formData, blendId: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Vyberte zmes" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {blends.map(blend => (
-                      <SelectItem key={blend.id} value={blend.id}>
-                        {blend.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label>Ceny podľa balenia a typu zákazníka</Label>
-                <Button type="button" variant="outline" size="sm" onClick={addPriceEntry}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  <span className="hidden sm:inline">Pridať</span>
-                  <span className="sm:hidden">+</span>
-                </Button>
-              </div>
-
-              <div className="space-y-3">
                 {priceEntries.map((entry, index) => (
-                  <div key={index} className="grid grid-cols-[1fr_1fr_auto] sm:grid-cols-[100px_1fr_130px_auto] gap-2 items-center border rounded-lg p-2">
-                    <Select
-                      value={entry.packagingSize}
-                      onValueChange={(value) => updatePriceEntry(index, 'packagingSize', value)}
-                    >
-                      <SelectTrigger className="w-full">
+                  <div key={index} className="flex items-center gap-2 p-2.5 rounded-xl border border-[#e2e8f0] bg-[#f8fafc]">
+                    {/* Packaging size */}
+                    <Select value={entry.packagingSize} onValueChange={v => updatePriceEntry(index, 'packagingSize', v)}>
+                      <SelectTrigger className="h-8 w-[80px] text-xs border-[#e2e8f0] bg-white shrink-0">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {PACKAGING_SIZES.map(size => (
-                          <SelectItem key={size} value={size}>{size}</SelectItem>
-                        ))}
+                        {PACKAGING_SIZES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                       </SelectContent>
                     </Select>
 
-                    <div className="relative">
-                      <Input
-                        type="text"
-                        inputMode="decimal"
-                        value={entry.price}
-                        onChange={(e) => {
-                          let value = e.target.value;
-                          value = value.replace(',', '.');
-                          value = value.replace(/[^0-9.]/g, '');
-                          const parts = value.split('.');
-                          if (parts.length > 2) {
-                            value = parts[0] + '.' + parts.slice(1).join('');
-                          }
-                          updatePriceEntry(index, 'price', value);
+                    {/* Price input */}
+                    <div className="relative flex-1">
+                      <Input type="text" inputMode="decimal" value={entry.price}
+                        onChange={e => {
+                          let v = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
+                          const parts = v.split('.');
+                          if (parts.length > 2) v = parts[0] + '.' + parts.slice(1).join('');
+                          updatePriceEntry(index, 'price', v);
                         }}
                         placeholder="0.00"
-                        className="pr-6"
-                      />
-                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">€</span>
+                        className="h-8 pr-6 text-sm border-[#e2e8f0] bg-white" />
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[#94a3b8]">€</span>
                     </div>
 
-                    <Select
-                      value={entry.customerType}
-                      onValueChange={(value) => updatePriceEntry(index, 'customerType', value)}
-                    >
-                      <SelectTrigger className="w-full col-span-2 sm:col-span-1">
+                    {/* Customer type */}
+                    <Select value={entry.customerType} onValueChange={v => updatePriceEntry(index, 'customerType', v)}>
+                      <SelectTrigger className="h-8 w-[110px] text-xs border-[#e2e8f0] bg-white shrink-0">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {CUSTOMER_TYPES.filter(t => t.value !== 'all').map(type => (
-                          <SelectItem key={type.value} value={type.value}>
-                            {type.label}
-                          </SelectItem>
+                        {CUSTOMER_TYPES.filter(t => t.value !== 'all').map(t => (
+                          <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
 
+                    {/* Remove */}
                     {priceEntries.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => removePriceEntry(index)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                      <button type="button" onClick={() => setPriceEntries(p => p.filter((_, i) => i !== index))}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center text-[#94a3b8] hover:text-[#dc2626] transition-colors shrink-0">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
                     )}
                   </div>
                 ))}
               </div>
-              
+
+              {/* VAT preview */}
               {isVatEnabled && priceEntries.some(e => e.price) && (
-                <div className="text-sm text-muted-foreground bg-muted/50 rounded-lg p-3">
-                  <p className="font-medium mb-1">S DPH ({vatRate}%):</p>
-                  {priceEntries.filter(e => e.price).map((entry, index) => (
-                    <div key={index} className="flex justify-between">
-                      <span>{entry.packagingSize}</span>
-                      <span className="font-mono font-semibold text-primary">
-                        {calculateWithVat(parseFloat(entry.price) || 0).toFixed(2)} €
-                      </span>
-                    </div>
-                  ))}
+                <div className="mt-3 p-3 rounded-xl bg-[#f0fdf4] border border-[#bbf7d0]">
+                  <div className="text-xs font-semibold text-[#166534] mb-2">S DPH ({vatRate}%)</div>
+                  <div className="space-y-1">
+                    {priceEntries.filter(e => e.price).map((entry, idx) => (
+                      <div key={idx} className="flex justify-between text-xs text-[#166534]">
+                        <span>{entry.packagingSize} · {CUSTOMER_TYPES.find(t => t.value === entry.customerType)?.label}</span>
+                        <span className="font-bold">{calculateWithVat(parseFloat(entry.price) || 0).toFixed(2)} €</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
+          </div>
 
-            <DialogFooter className="flex-col sm:flex-row gap-2">
-              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="w-full sm:w-auto">
-                Zrušiť
-              </Button>
-              <Button type="submit" className="w-full sm:w-auto">
-                Uložiť ceny
-              </Button>
-            </DialogFooter>
-          </form>
+          <DialogFooter>
+            <button onClick={() => { setIsDialogOpen(false); resetForm(); }}
+              className="h-9 px-4 rounded-xl border border-[#e2e8f0] bg-white text-sm font-medium text-[#475569] hover:bg-[#f8fafc]">
+              Zrušiť
+            </button>
+            <button onClick={handleSubmit} disabled={saving}
+              className="h-9 px-5 rounded-xl bg-[#16a34a] text-white text-sm font-semibold hover:bg-[#15803d] disabled:opacity-50 flex items-center gap-2">
+              {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Uložiť ceny
+            </button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
+      {/* Delete confirmation */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <AlertDialogContent className="max-w-[95vw] sm:max-w-lg">
+        <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Odstrániť všetky ceny?</AlertDialogTitle>
+            <AlertDialogTitle>Zmazať ceny?</AlertDialogTitle>
             <AlertDialogDescription>
-              Táto akcia je nevratná. Všetky ceny pre túto položku budú natrvalo odstránené.
+              Táto akcia zmaže všetky ceny pre túto položku. Akcia je nevratná.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-            <AlertDialogCancel className="w-full sm:w-auto">Zrušiť</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="w-full sm:w-auto bg-destructive text-destructive-foreground">
-              Odstrániť všetky ceny
+          <AlertDialogFooter>
+            <AlertDialogCancel>Zrušiť</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-[#dc2626] hover:bg-[#b91c1c] text-white">
+              Zmazať
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
