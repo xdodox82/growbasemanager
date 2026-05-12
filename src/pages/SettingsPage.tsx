@@ -7,7 +7,8 @@ import { DeliveryExceptionsSettings } from '@/components/settings/DeliveryExcept
 import { TwoFactorSettings } from '@/components/auth/TwoFactorSettings';
 import { WorkerPermissionsSettings } from '@/components/settings/WorkerPermissionsSettings';
 import { SidebarManagement } from '@/components/settings/SidebarManagement';
-import { Settings, Truck, Scissors, ShieldCheck, Users, Sun, Moon } from 'lucide-react';
+import { UsersManagement } from '@/components/settings/UsersManagement';
+import { Settings, Sun, Moon } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
@@ -73,6 +74,7 @@ const SettingsPage = () => {
         {isAdmin && (
           <>
             <SectionLabel label="Pracovníci a prístupy" />
+            <UsersManagement />
             <WorkerPermissionsSettings />
             <SidebarManagement />
           </>
