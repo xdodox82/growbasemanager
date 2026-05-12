@@ -39,7 +39,11 @@ export function UsersManagement() {
           const userRole = roles?.find(r => r.user_id === p.user_id);
           return { id: p.user_id, email: p.email || '', fullName: p.full_name, role: (userRole?.role as 'admin' | 'worker') || 'worker', createdAt: p.created_at };
         });
-      setUsers(usersWithRoles);
+      setUsers(usersWithRoles.sort((a, b) => {
+        if (a.role === 'admin' && b.role !== 'admin') return -1;
+        if (a.role !== 'admin' && b.role === 'admin') return 1;
+        return 0;
+      }));
     } catch { toast({ variant: 'destructive', title: 'Chyba', description: 'Nepodarilo sa načítať používateľov.' }); }
     finally { setLoading(false); }
   };
