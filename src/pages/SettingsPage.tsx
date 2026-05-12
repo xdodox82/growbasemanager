@@ -4,7 +4,6 @@ import { HarvestSettings } from '@/components/settings/HarvestSettings';
 import { DeliveryDaysSettings } from '@/components/settings/DeliveryDaysSettings';
 import { VATSettings } from '@/components/settings/VATSettings';
 import { DeliveryExceptionsSettings } from '@/components/settings/DeliveryExceptionsSettings';
-import { TwoFactorSettings } from '@/components/auth/TwoFactorSettings';
 import { WorkerPermissionsSettings } from '@/components/settings/WorkerPermissionsSettings';
 import { SidebarManagement } from '@/components/settings/SidebarManagement';
 import { UsersManagement } from '@/components/settings/UsersManagement';
@@ -86,7 +85,6 @@ const SettingsPage = () => {
 
         {activeTab === 'system' && (
           <>
-            <TwoFactorSettings />
             {isAdmin && <SidebarManagement />}
           </>
         )}
