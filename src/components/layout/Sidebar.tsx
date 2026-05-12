@@ -33,8 +33,10 @@ import {
   Fuel,
   Droplets,
   Droplet,
-  Zap
+  Zap,
+  Moon
 } from 'lucide-react';
+import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 
 interface SidebarProps {
   onToggle?: () => void;
@@ -433,8 +435,22 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
           </Link>
           
           <div className="pt-2 border-t border-sidebar-border mt-2">
-            <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
-              <span className="truncate">{user?.email}</span>
+            <div className="flex items-center justify-between px-3 py-2">
+              <span className="truncate text-xs text-muted-foreground">{user?.email}</span>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  onClick={() => {
+                    const newMode = !document.documentElement.classList.contains('dark');
+                    if (newMode) { document.documentElement.classList.add('dark'); localStorage.setItem('theme', 'dark'); }
+                    else { document.documentElement.classList.remove('dark'); localStorage.setItem('theme', 'light'); }
+                  }}
+                  className="w-7 h-7 rounded-lg border border-sidebar-border flex items-center justify-center text-muted-foreground hover:bg-sidebar-accent transition-colors"
+                  title="Prepnúť tmavý režim"
+                >
+                  <Moon className="h-3.5 w-3.5" />
+                </button>
+                <NotificationCenter />
+              </div>
             </div>
             <button
               onClick={handleSignOut}
