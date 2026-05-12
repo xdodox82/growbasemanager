@@ -97,16 +97,18 @@ export const WorkerPermissionsSettings = () => {
 
         if (rolesError) throw rolesError;
 
-        // Combine and filter only workers
-        const allUsers: UserWithRole[] = (profiles || []).map(profile => {
-          const roleData = roles?.find(r => r.user_id === profile.user_id);
-          return {
+        // Combine and filter only EXPLICIT workers (must have user_roles record)
+        const allUsers: UserWithRole[] = (profiles || [])
+          .filter(profile => {
+            const roleData = roles?.find(r => r.user_id === profile.user_id);
+            return roleData?.role === 'worker'; // len explicitní workers
+          })
+          .map(profile => ({
             id: profile.user_id,
             email: profile.email || '',
             fullName: profile.full_name,
-            role: (roleData?.role as 'admin' | 'worker') || 'worker',
-          };
-        }).filter(u => u.role === 'worker');
+            role: 'worker' as const,
+          }));
 
         setWorkers(allUsers);
       } catch (error) {
