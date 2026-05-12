@@ -53,7 +53,7 @@ export function MainLayout({ children, hideMobileHeader }: MainLayoutProps) {
 
       {/* Main content */}
       <main className={`h-screen overflow-y-auto ${hideMobileHeader ? 'pt-0' : 'pt-16'} md:pt-0 pb-20 md:pb-0 transition-all duration-300 ${sidebarOpen ? 'md:pl-64' : 'md:pl-0'}`}>
-        <div className="p-4 md:p-6 lg:p-8">
+        <div className="p-4 md:p-6 lg:p-8 md:pr-24 lg:pr-28">
           {children}
         </div>
       </main>
