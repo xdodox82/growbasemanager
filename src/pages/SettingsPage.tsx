@@ -81,13 +81,13 @@ const SettingsPage = () => {
           <>
             <UsersManagement />
             <WorkerPermissionsSettings />
-            <SidebarManagement />
           </>
         )}
 
         {activeTab === 'system' && (
           <>
             <TwoFactorSettings />
+            {isAdmin && <SidebarManagement />}
           </>
         )}
 
