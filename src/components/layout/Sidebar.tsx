@@ -75,6 +75,21 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
   const toggleProdukcia = () => setIsProdukciaOpen(v => { const n = !v; localStorage.setItem('sidebar-produkcia', String(n)); return n; });
   const toggleSprava = () => setIsSpravaOpen(v => { const n = !v; localStorage.setItem('sidebar-sprava', String(n)); return n; });
 
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    const fetchPending = async () => {
+      const { count } = await supabase
+        .from('orders')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending_approval');
+      setPendingCount(count || 0);
+    };
+    fetchPending();
+    const interval = setInterval(fetchPending, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Load sidebar settings from profiles
   useEffect(() => {
     const loadSidebarSettings = async () => {
@@ -259,7 +274,7 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
               {[
                 { id: 'customers', name: 'Zákazníci', href: '/customers', icon: Users },
                 { id: 'suppliers', name: 'Dodávatelia', href: '/suppliers', icon: Building2 },
-                { id: 'orders', name: 'Objednávky', href: '/orders', icon: ShoppingCart },
+                { id: 'orders', name: 'Objednávky', href: '/orders', icon: ShoppingCart, badge: pendingCount },
                 { id: 'crops', name: 'Plodiny', href: '/crops', icon: Sprout },
                 { id: 'blends', name: 'Mixy', href: '/blends', icon: Blend },
                 { id: 'prices', name: 'Ceny', href: '/prices', icon: DollarSign },
@@ -278,6 +293,11 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
                   >
                     <item.icon className="h-4 w-4 shrink-0" />
                     {item.name}
+                    {(item as any).badge > 0 && (
+                      <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[#dc2626] px-1.5 text-[10px] font-bold text-white">
+                        {(item as any).badge}
+                      </span>
+                    )}
                   </Link>
                 );
               })}
