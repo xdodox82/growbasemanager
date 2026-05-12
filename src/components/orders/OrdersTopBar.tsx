@@ -71,7 +71,7 @@ export function OrdersTopBar({
       <div className="hidden md:flex items-center gap-3 border-l border-[#e2e8f0] pl-3">
         <div className="flex items-center gap-1.5">
           <Switch id="topbar-archive" checked={showArchive} onCheckedChange={onShowArchiveChange} />
-          <Label htmlFor="topbar-archive" className="text-xs text-[#374151] cursor-pointer whitespace-nowrap">Archív</Label>
+          <Label htmlFor="topbar-archive" className="text-xs text-[#374151] cursor-pointer whitespace-nowrap">Doručené</Label>
         </div>
         <div className="flex items-center gap-1.5">
           <Switch id="topbar-cancelled" checked={showCancelled} onCheckedChange={onShowCancelledChange} />
