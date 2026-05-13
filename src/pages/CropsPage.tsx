@@ -500,7 +500,7 @@ const CropsPage = () => {
                   </div>
                 </div>
 
-                <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+                <div className="border border-[#cbd5e1] rounded-xl p-4 space-y-3 bg-[#f8fafc]">
                   <div className="flex items-center justify-between">
                     <h4 className="font-medium text-sm">Konfigurácia veľkostí tácok</h4>
                   </div>
@@ -743,7 +743,7 @@ const CropsPage = () => {
         </div>
       ) : filteredCrops.length === 0 ? (
         <div className="bg-white rounded-xl border border-[#cbd5e1] py-16 flex flex-col items-center text-center">
-          <div className="w-14 h-14 rounded-2xl bg-[#f1f5f9] border border-[#e2e8f0] flex items-center justify-center mb-4">
+          <div className="w-14 h-14 rounded-2xl bg-[#f1f5f9] border border-[#cbd5e1] flex items-center justify-center mb-4">
             <Leaf className="h-7 w-7 text-[#94a3b8]" />
           </div>
           <h3 className="text-base font-bold text-[#0f172a] mb-1">Žiadne výsledky</h3>
@@ -949,7 +949,7 @@ const CropsPage = () => {
                         <div className="flex items-center justify-between text-sm">
                           <span>Namáčanie osiva</span>
                           <div className="flex items-center gap-2">
-                            <span className="font-medium">
+                            <span className="font-bold text-[#0f172a]">
                               {((crop as any).soaking || crop.seed_soaking) ? 'Áno' : 'Nie'}
                             </span>
                             {(crop as any).soaking_duration_hours > 0 && (
@@ -961,11 +961,11 @@ const CropsPage = () => {
                         </div>
                         <div className="flex items-center justify-between text-sm">
                           <span>Rezaná forma</span>
-                          <span className="font-medium">{crop.can_be_cut ? 'Áno' : 'Nie'}</span>
+                          <span className="font-bold text-[#0f172a]">{crop.can_be_cut ? 'Áno' : 'Nie'}</span>
                         </div>
                         <div className="flex items-center justify-between text-sm">
                           <span>Živá forma</span>
-                          <span className="font-medium">{crop.can_be_live ? 'Áno' : 'Nie'}</span>
+                          <span className="font-bold text-[#0f172a]">{crop.can_be_live ? 'Áno' : 'Nie'}</span>
                         </div>
                       </div>
                     </div>
@@ -1048,7 +1048,7 @@ const CropsPage = () => {
                             <Leaf className="h-3 w-3" />
                           </div>
                           <div>
-                            <p className="font-medium">{crop.name}</p>
+                            <p className="font-bold text-[#0f172a]">{crop.name}</p>
                             {crop.variety && <p className="text-xs text-[#475569]">{crop.variety}</p>}
                           </div>
                         </div>
@@ -1140,37 +1140,37 @@ const CropsPage = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <div className="text-sm text-[#475569]">Dni do zberu</div>
-                  <div className="font-medium">{selectedCropDetail.days_to_harvest} dní</div>
+                  <div className="font-bold text-[#0f172a]">{selectedCropDetail.days_to_harvest} dní</div>
                 </div>
                 <div className="space-y-1">
                   <div className="text-sm text-[#475569]">Dni klíčenia</div>
-                  <div className="font-medium">{selectedCropDetail.days_to_germination} dní</div>
+                  <div className="font-bold text-[#0f172a]">{selectedCropDetail.days_to_germination} dní</div>
                 </div>
                 <div className="space-y-1">
                   <div className="text-sm text-[#475569]">Typ klíčenia</div>
-                  <div className="font-medium">
+                  <div className="font-bold text-[#0f172a]">
                     {GERMINATION_TYPES[selectedCropDetail.germination_type as keyof typeof GERMINATION_TYPES] || selectedCropDetail.germination_type}
                   </div>
                 </div>
                 <div className="space-y-1">
                   <div className="text-sm text-[#475569]">Hustota osiva</div>
-                  <div className="font-medium">{(selectedCropDetail as any).tray_configs?.XL?.seed_density || selectedCropDetail.seed_density} g/tác</div>
+                  <div className="font-bold text-[#0f172a]">{(selectedCropDetail as any).tray_configs?.XL?.seed_density || selectedCropDetail.seed_density} g/tác</div>
                 </div>
                 <div className="space-y-1">
                   <div className="text-sm text-[#475569]">Očakávaný výnos</div>
-                  <div className="font-medium">{(selectedCropDetail as any).tray_configs?.XL?.expected_yield || selectedCropDetail.expected_yield || '-'} g</div>
+                  <div className="font-bold text-[#0f172a]">{(selectedCropDetail as any).tray_configs?.XL?.expected_yield || selectedCropDetail.expected_yield || '-'} g</div>
                 </div>
                 <div className="space-y-1">
                   <div className="text-sm text-[#475569]">Dni v tme</div>
-                  <div className="font-medium">{selectedCropDetail.days_in_darkness} dní</div>
+                  <div className="font-bold text-[#0f172a]">{selectedCropDetail.days_in_darkness} dní</div>
                 </div>
                 <div className="space-y-1">
                   <div className="text-sm text-[#475569]">Dni na svetle</div>
-                  <div className="font-medium">{selectedCropDetail.days_on_light} dní</div>
+                  <div className="font-bold text-[#0f172a]">{selectedCropDetail.days_on_light} dní</div>
                 </div>
                 <div className="space-y-1">
                   <div className="text-sm text-[#475569]">Namáčanie osiva</div>
-                  <div className="font-medium">
+                  <div className="font-bold text-[#0f172a]">
                     {((selectedCropDetail as any).soaking || selectedCropDetail.seed_soaking) ? (
                       <div className="flex items-center gap-2">
                         <span>Áno</span>
@@ -1187,15 +1187,15 @@ const CropsPage = () => {
                 </div>
                 <div className="space-y-1">
                   <div className="text-sm text-[#475569]">Zaťaženie</div>
-                  <div className="font-medium">{selectedCropDetail.needs_weight ? 'Áno' : 'Nie'}</div>
+                  <div className="font-bold text-[#0f172a]">{selectedCropDetail.needs_weight ? 'Áno' : 'Nie'}</div>
                 </div>
                 <div className="space-y-1">
                   <div className="text-sm text-[#475569]">Rezaná forma</div>
-                  <div className="font-medium">{selectedCropDetail.can_be_cut ? 'Áno' : 'Nie'}</div>
+                  <div className="font-bold text-[#0f172a]">{selectedCropDetail.can_be_cut ? 'Áno' : 'Nie'}</div>
                 </div>
                 <div className="space-y-1">
                   <div className="text-sm text-[#475569]">Živá forma</div>
-                  <div className="font-medium">{selectedCropDetail.can_be_live ? 'Áno' : 'Nie'}</div>
+                  <div className="font-bold text-[#0f172a]">{selectedCropDetail.can_be_live ? 'Áno' : 'Nie'}</div>
                 </div>
               </div>
 
