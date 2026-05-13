@@ -605,8 +605,8 @@ export default function OrdersPage() {
     // Vyhľadávanie podľa čísla objednávky alebo mena zákazníka
     if (searchQuery && searchQuery.trim() !== '') {
       const q = searchQuery.trim().toLowerCase();
-      const orderNum = ((order as any).order_number || '').toLowerCase();
-      const custName = (order.customer_name || '').toLowerCase();
+      const orderNum = String((order as any).order_number || '').toLowerCase();
+      const custName = String(order.customer_name || '').toLowerCase();
       if (!orderNum.includes(q) && !custName.includes(q)) return false;
     }
 
