@@ -181,7 +181,7 @@ const CustomersPage = () => {
     <div>
       <label className="text-[11px] font-bold text-[#475569] uppercase tracking-wider mb-1.5 block">{label}{opts.required && ' *'}</label>
       <Input id={id} type={opts.type || 'text'} value={value} onChange={e => onChange(e.target.value)}
-        placeholder={opts.placeholder || ''} className="h-9 border-[#e2e8f0] text-[13px] bg-white" />
+        placeholder={opts.placeholder || ''} className="h-9 border-[#cbd5e1] text-[13px] bg-white" />
     </div>
   );
 
@@ -241,7 +241,7 @@ const CustomersPage = () => {
           </div>
 
           {!filtersCollapsed && (
-            <div className="border-t border-[#f1f5f9]">
+            <div className="border-t border-[#e2e8f0]">
               {/* Riadok 1: Typ zákazníka + hľadanie */}
               <div className="flex items-center gap-2 flex-wrap py-2.5">
                 <span className="text-[11px] font-bold text-[#475569] uppercase tracking-wider min-w-[85px] shrink-0">Zákazník</span>
@@ -251,7 +251,7 @@ const CustomersPage = () => {
                   return (
                     <button key={t} onClick={() => setTypeFilter(t)}
                       className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md border-[1.5px] text-[12px] font-medium cursor-pointer transition-colors ${
-                        active ? (chip ? `${chip.bg} ${chip.border} ${chip.text}` : 'bg-[#16a34a] border-[#16a34a] text-white') : 'border-[#e2e8f0] text-[#374151] bg-white hover:border-[#bbf7d0] hover:text-[#16a34a] hover:bg-[#f0fdf4]'
+                        active ? (chip ? `${chip.bg} ${chip.border} ${chip.text}` : 'bg-[#16a34a] border-[#16a34a] text-white') : 'border-[#cbd5e1] text-[#374151] bg-white hover:border-[#bbf7d0] hover:text-[#16a34a] hover:bg-[#f0fdf4]'
                       }`}>
                       {chip && <chip.Icon className="w-3.5 h-3.5" />}
                       {t === 'all' ? 'Všetci' : chip?.label}
@@ -264,7 +264,7 @@ const CustomersPage = () => {
                   <input
                     type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                     placeholder="Hľadať zákazníka..."
-                    className="h-8 pl-8 pr-3 border-[1.5px] border-[#e2e8f0] rounded-md text-[12px] bg-white outline-none focus:border-[#16a34a] w-[200px] transition-colors"
+                    className="h-8 pl-8 pr-3 border-[1.5px] border-[#cbd5e1] rounded-md text-[12px] bg-white outline-none focus:border-[#16a34a] w-[200px] transition-colors"
                   />
                 </div>
               </div>
@@ -275,12 +275,12 @@ const CustomersPage = () => {
               <div className="flex items-center gap-2 flex-wrap py-2.5">
                 <span className="text-[11px] font-bold text-[#475569] uppercase tracking-wider min-w-[85px] shrink-0">Trasa</span>
                 <button onClick={() => setRouteFilter('all')}
-                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md border-[1.5px] text-[12px] font-medium cursor-pointer transition-colors ${routeFilter === 'all' ? 'bg-[#16a34a] border-[#16a34a] text-white' : 'border-[#e2e8f0] text-[#374151] bg-white hover:border-[#bbf7d0] hover:text-[#16a34a] hover:bg-[#f0fdf4]'}`}>
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md border-[1.5px] text-[12px] font-medium cursor-pointer transition-colors ${routeFilter === 'all' ? 'bg-[#16a34a] border-[#16a34a] text-white' : 'border-[#cbd5e1] text-[#374151] bg-white hover:border-[#bbf7d0] hover:text-[#16a34a] hover:bg-[#f0fdf4]'}`}>
                   Všetky
                 </button>
                 {deliveryRoutes.map(r => (
                   <button key={r.id} onClick={() => setRouteFilter(r.id)}
-                    className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md border-[1.5px] text-[12px] font-medium cursor-pointer transition-colors ${routeFilter === r.id ? 'bg-[#16a34a] border-[#16a34a] text-white' : 'border-[#e2e8f0] text-[#374151] bg-white hover:border-[#bbf7d0] hover:text-[#16a34a] hover:bg-[#f0fdf4]'}`}>
+                    className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md border-[1.5px] text-[12px] font-medium cursor-pointer transition-colors ${routeFilter === r.id ? 'bg-[#16a34a] border-[#16a34a] text-white' : 'border-[#cbd5e1] text-[#374151] bg-white hover:border-[#bbf7d0] hover:text-[#16a34a] hover:bg-[#f0fdf4]'}`}>
                     <Route className="w-3 h-3" />{r.name}
                   </button>
                 ))}
@@ -317,7 +317,7 @@ const CustomersPage = () => {
               const routeName = getRouteName(customer.delivery_route_id);
               return (
                 <div key={customer.id}
-                  className="bg-white rounded-xl border-[1.5px] border-[#e2e8f0] hover:shadow-md hover:border-[#cbd5e1] transition-all cursor-pointer overflow-hidden"
+                  className="bg-white rounded-xl border-[1.5px] border-[#cbd5e1] hover:shadow-md hover:border-[#cbd5e1] transition-all cursor-pointer overflow-hidden"
                   onClick={() => openDetail(customer)}
                 >
                   {/* Header */}
@@ -396,7 +396,7 @@ const CustomersPage = () => {
                   </div>
 
                   {/* Footer */}
-                  <div className="border-t border-[#f1f5f9] px-4 py-2.5 flex items-center justify-between">
+                  <div className="border-t border-[#e2e8f0] px-4 py-2.5 flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-[12px] text-[#475569]">
                       <ShoppingCart className="h-3.5 w-3.5" />
                       <span>{stats} obj.</span>
@@ -416,7 +416,7 @@ const CustomersPage = () => {
           /* ── LIST VIEW ── */
           <div className="bg-white rounded-xl border border-[#cbd5e1] overflow-hidden">
             <table className="w-full">
-              <thead className="bg-[#f8fafc] border-b-2 border-[#e2e8f0]">
+              <thead className="bg-[#f8fafc] border-b-2 border-[#cbd5e1]">
                 <tr>
                   <th className="px-4 py-3 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wider">Zákazník</th>
                   <th className="px-4 py-3 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wider">Kontakt</th>
@@ -512,7 +512,7 @@ const CustomersPage = () => {
                 <div className="grid grid-cols-3 gap-2">
                   {([['home', 'Domáci', House, '#16a34a', '#f0fdf4'], ['gastro', 'Gastro', Utensils, '#2563eb', '#eff6ff'], ['wholesale', 'VO', Store, '#d97706', '#fff7ed']] as const).map(([t, l, Icon, color, bg]) => (
                     <button key={t} type="button" onClick={() => setFormData({ ...formData, customer_type: t })}
-                      className={`h-14 rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition-all ${formData.customer_type === t ? 'border-current' : 'border-[#e2e8f0] hover:border-[#cbd5e1]'}`}
+                      className={`h-14 rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition-all ${formData.customer_type === t ? 'border-current' : 'border-[#cbd5e1] hover:border-[#cbd5e1]'}`}
                       style={formData.customer_type === t ? { borderColor: color, backgroundColor: bg } : {}}>
                       <Icon className="h-5 w-5" style={{ color: formData.customer_type === t ? color : '#94a3b8' }} />
                       <span className="text-[12px] font-semibold" style={{ color: formData.customer_type === t ? color : '#64748b' }}>{l}</span>
@@ -553,7 +553,7 @@ const CustomersPage = () => {
               <div>
                 <label className="text-[11px] font-bold text-[#475569] uppercase tracking-wider mb-1.5 block">Adresa</label>
                 <Textarea value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })}
-                  placeholder="Ulica, Mesto, PSČ" rows={2} className="border-[#e2e8f0] text-[13px] resize-none" />
+                  placeholder="Ulica, Mesto, PSČ" rows={2} className="border-[#cbd5e1] text-[13px] resize-none" />
               </div>
 
               {/* Bankový účet pre gastro/VO */}
@@ -569,7 +569,7 @@ const CustomersPage = () => {
                 <div>
                   <label className="text-[11px] font-bold text-[#475569] uppercase tracking-wider mb-1.5 block">Rozvozová trasa</label>
                   <Select value={formData.delivery_route_id || 'none'} onValueChange={v => setFormData({ ...formData, delivery_route_id: v === 'none' ? null : v })}>
-                    <SelectTrigger className="h-9 border-[#e2e8f0] bg-white text-[13px]"><SelectValue placeholder="Vyberte trasu" /></SelectTrigger>
+                    <SelectTrigger className="h-9 border-[#cbd5e1] bg-white text-[13px]"><SelectValue placeholder="Vyberte trasu" /></SelectTrigger>
                     <SelectContent className="bg-white z-[9999]">
                       <SelectItem value="none">Žiadna trasa</SelectItem>
                       {deliveryRoutes.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
@@ -582,7 +582,7 @@ const CustomersPage = () => {
                   <div>
                     <label className="text-[11px] font-bold text-[#475569] uppercase tracking-wider mb-1.5 block">Spôsob platby</label>
                     <Select value={formData.payment_method} onValueChange={(v: 'cash'|'card'|'invoice') => setFormData({ ...formData, payment_method: v })}>
-                      <SelectTrigger className="h-9 border-[#e2e8f0] bg-white text-[13px]"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-9 border-[#cbd5e1] bg-white text-[13px]"><SelectValue /></SelectTrigger>
                       <SelectContent className="bg-white z-[9999]">
                         <SelectItem value="cash">Hotovosť</SelectItem>
                         <SelectItem value="card">Karta</SelectItem>
@@ -595,7 +595,7 @@ const CustomersPage = () => {
                   <div>
                     <label className="text-[11px] font-bold text-[#475569] uppercase tracking-wider mb-1.5 block">Predvolený obal</label>
                     <Select value={formData.default_packaging_type} onValueChange={v => setFormData({ ...formData, default_packaging_type: v })}>
-                      <SelectTrigger className="h-9 border-[#e2e8f0] bg-white text-[13px]"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-9 border-[#cbd5e1] bg-white text-[13px]"><SelectValue /></SelectTrigger>
                       <SelectContent className="bg-white z-[9999]">
                         <SelectItem value="rPET">rPET</SelectItem>
                         <SelectItem value="PET">PET</SelectItem>
@@ -623,12 +623,12 @@ const CustomersPage = () => {
               <div>
                 <label className="text-[11px] font-bold text-[#475569] uppercase tracking-wider mb-1.5 block">Poznámky k dodaniu</label>
                 <Textarea value={formData.delivery_notes} onChange={e => setFormData({ ...formData, delivery_notes: e.target.value })}
-                  placeholder="Špeciálne požiadavky, dodacie inštrukcie..." rows={2} className="border-[#e2e8f0] text-[13px] resize-none" />
+                  placeholder="Špeciálne požiadavky, dodacie inštrukcie..." rows={2} className="border-[#cbd5e1] text-[13px] resize-none" />
               </div>
             </div>
 
             {/* Footer */}
-            <div className="flex justify-end gap-2 pt-5 border-t border-[#f1f5f9] mt-5">
+            <div className="flex justify-end gap-2 pt-5 border-t border-[#e2e8f0] mt-5">
               <button type="button" onClick={() => { setIsDialogOpen(false); resetForm(); }}
                 className="px-4 py-2 rounded-lg border border-[#cbd5e1] text-[13px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
                 Zrušiť
@@ -674,7 +674,7 @@ const CustomersPage = () => {
 
                 <div className="space-y-4 pt-2">
                   {/* Meta grid */}
-                  <div className="grid grid-cols-2 gap-px bg-[#f1f5f9] border border-[#f1f5f9] rounded-xl overflow-hidden">
+                  <div className="grid grid-cols-2 gap-px bg-[#f1f5f9] border border-[#cbd5e1] rounded-xl overflow-hidden">
                     {c.phone && (
                       <div className="bg-white px-4 py-3">
                         <div className="text-[10px] font-bold text-[#475569] uppercase tracking-wider mb-1">Telefón</div>
@@ -766,7 +766,7 @@ const CustomersPage = () => {
                   )}
                 </div>
 
-                <div className="flex justify-end gap-2 pt-4 border-t border-[#f1f5f9] mt-4">
+                <div className="flex justify-end gap-2 pt-4 border-t border-[#e2e8f0] mt-4">
                   <button onClick={() => setDetailOpen(false)}
                     className="px-4 py-2 rounded-lg border border-[#cbd5e1] text-[13px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
                     Zavrieť

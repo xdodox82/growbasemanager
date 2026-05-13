@@ -2395,15 +2395,15 @@ export default function OrdersPage() {
                       <div>
                         <Label className="text-xs font-semibold text-[#475569] font-bold uppercase tracking-wider mb-2 block">Typ zákazníka</Label>
                         <div className="grid grid-cols-3 gap-2">
-                          <button type="button" onClick={async () => { setCustomerType('home'); setCustomerId(''); if ((currentItem?.crop_id || currentItem?.blend_id) && currentItem?.packaging_size) { const p = await autoFetchPrice(currentItem.packaging_size, 'home', currentItem.crop_id, currentItem.blend_id); setCurrentItem(prev => ({ ...prev, price_per_unit: p > 0 ? p.toString() : (prev.price_per_unit || '') })); } }} className={`h-14 rounded-lg border-2 transition-all flex flex-col items-center justify-center gap-1 ${customerType === 'home' ? 'border-[#10b981] bg-emerald-50' : 'border-[#e2e8f0] hover:border-[#cbd5e1]'}`}>
+                          <button type="button" onClick={async () => { setCustomerType('home'); setCustomerId(''); if ((currentItem?.crop_id || currentItem?.blend_id) && currentItem?.packaging_size) { const p = await autoFetchPrice(currentItem.packaging_size, 'home', currentItem.crop_id, currentItem.blend_id); setCurrentItem(prev => ({ ...prev, price_per_unit: p > 0 ? p.toString() : (prev.price_per_unit || '') })); } }} className={`h-14 rounded-lg border-2 transition-all flex flex-col items-center justify-center gap-1 ${customerType === 'home' ? 'border-[#10b981] bg-emerald-50' : 'border-[#cbd5e1] hover:border-[#cbd5e1]'}`}>
                             <House className={`h-4 w-4 ${customerType === 'home' ? 'text-[#10b981]' : 'text-[#94a3b8]'}`} />
                             <span className="text-xs font-medium">Domáci</span>
                           </button>
-                          <button type="button" onClick={async () => { setCustomerType('gastro'); setCustomerId(''); if ((currentItem?.crop_id || currentItem?.blend_id) && currentItem?.packaging_size) { const p = await autoFetchPrice(currentItem.packaging_size, 'gastro', currentItem.crop_id, currentItem.blend_id); setCurrentItem(prev => ({ ...prev, price_per_unit: p > 0 ? p.toString() : (prev.price_per_unit || '') })); } }} className={`h-14 rounded-lg border-2 transition-all flex flex-col items-center justify-center gap-1 ${customerType === 'gastro' ? 'border-blue-500 bg-blue-50' : 'border-[#e2e8f0] hover:border-[#cbd5e1]'}`}>
+                          <button type="button" onClick={async () => { setCustomerType('gastro'); setCustomerId(''); if ((currentItem?.crop_id || currentItem?.blend_id) && currentItem?.packaging_size) { const p = await autoFetchPrice(currentItem.packaging_size, 'gastro', currentItem.crop_id, currentItem.blend_id); setCurrentItem(prev => ({ ...prev, price_per_unit: p > 0 ? p.toString() : (prev.price_per_unit || '') })); } }} className={`h-14 rounded-lg border-2 transition-all flex flex-col items-center justify-center gap-1 ${customerType === 'gastro' ? 'border-blue-500 bg-blue-50' : 'border-[#cbd5e1] hover:border-[#cbd5e1]'}`}>
                             <Utensils className={`h-4 w-4 ${customerType === 'gastro' ? 'text-blue-500' : 'text-[#94a3b8]'}`} />
                             <span className="text-xs font-medium">Gastro</span>
                           </button>
-                          <button type="button" onClick={async () => { setCustomerType('wholesale'); setCustomerId(''); if ((currentItem?.crop_id || currentItem?.blend_id) && currentItem?.packaging_size) { const p = await autoFetchPrice(currentItem.packaging_size, 'wholesale', currentItem.crop_id, currentItem.blend_id); setCurrentItem(prev => ({ ...prev, price_per_unit: p > 0 ? p.toString() : (prev.price_per_unit || '') })); } }} className={`h-14 rounded-lg border-2 transition-all flex flex-col items-center justify-center gap-1 ${customerType === 'wholesale' ? 'border-orange-500 bg-orange-50' : 'border-[#e2e8f0] hover:border-[#cbd5e1]'}`}>
+                          <button type="button" onClick={async () => { setCustomerType('wholesale'); setCustomerId(''); if ((currentItem?.crop_id || currentItem?.blend_id) && currentItem?.packaging_size) { const p = await autoFetchPrice(currentItem.packaging_size, 'wholesale', currentItem.crop_id, currentItem.blend_id); setCurrentItem(prev => ({ ...prev, price_per_unit: p > 0 ? p.toString() : (prev.price_per_unit || '') })); } }} className={`h-14 rounded-lg border-2 transition-all flex flex-col items-center justify-center gap-1 ${customerType === 'wholesale' ? 'border-orange-500 bg-orange-50' : 'border-[#cbd5e1] hover:border-[#cbd5e1]'}`}>
                             <Store className={`h-4 w-4 ${customerType === 'wholesale' ? 'text-orange-500' : 'text-[#94a3b8]'}`} />
                             <span className="text-xs font-medium">VO</span>
                           </button>
@@ -2445,7 +2445,7 @@ export default function OrdersPage() {
                           <Label className="text-sm font-medium">Dátum dodania *</Label>
                           <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
                             <PopoverTrigger asChild>
-                              <Button variant="outline" className={cn('w-full h-10 justify-start text-left font-normal mt-1 border-[#e2e8f0]', !deliveryDate && 'text-muted-foreground')}>
+                              <Button variant="outline" className={cn('w-full h-10 justify-start text-left font-normal mt-1 border-[#cbd5e1]', !deliveryDate && 'text-muted-foreground')}>
                                 <Calendar className="mr-2 h-4 w-4" />
                                 {deliveryDate ? format(new Date(deliveryDate), 'dd. MMM yyyy', { locale: sk }) : 'Vyberte dátum'}
                               </Button>
@@ -2519,7 +2519,7 @@ export default function OrdersPage() {
                               className={`px-3 py-1 rounded-md border-[1.5px] text-[11px] font-medium transition-colors ${
                                 categoryFilter === cat.v
                                   ? 'bg-[#16a34a] border-[#16a34a] text-white'
-                                  : 'border-[#e2e8f0] text-[#374151] bg-white hover:border-[#bbf7d0] hover:text-[#16a34a] hover:bg-[#f0fdf4]'
+                                  : 'border-[#cbd5e1] text-[#374151] bg-white hover:border-[#bbf7d0] hover:text-[#16a34a] hover:bg-[#f0fdf4]'
                               }`}
                             >{cat.l}</button>
                           ))}
@@ -2529,7 +2529,7 @@ export default function OrdersPage() {
                       {/* Zoznam pridaných položiek */}
                       {(orderItems || []).length > 0 && (
                         <div className="bg-white border border-[#cbd5e1] rounded-xl overflow-hidden">
-                          <div className="px-4 py-2 bg-[#f8fafc] border-b-2 border-[#e2e8f0] flex items-center justify-between">
+                          <div className="px-4 py-2 bg-[#f8fafc] border-b-2 border-[#cbd5e1] flex items-center justify-between">
                             <span className="text-[10px] font-semibold text-[#475569] font-bold uppercase tracking-wider">
                               Pridané položky ({orderItems.length})
                             </span>
@@ -2539,7 +2539,7 @@ export default function OrdersPage() {
                               className={`flex items-center gap-1 px-2 h-6 rounded-md text-[10px] font-semibold border transition-colors ${
                                 orderItems.every(i => i.has_label)
                                   ? 'bg-[#fef08a] border-[#fbbf24] text-[#854d0e]'
-                                  : 'bg-white border-[#e2e8f0] text-[#475569] hover:border-[#fbbf24] hover:bg-[#fef9c3]'
+                                  : 'bg-white border-[#cbd5e1] text-[#475569] hover:border-[#fbbf24] hover:bg-[#fef9c3]'
                               }`}
                             >
                               <Tag className="h-3 w-3" />
@@ -2652,7 +2652,7 @@ export default function OrdersPage() {
                                   }
                                 }}
                               >
-                                <SelectTrigger className="h-9 bg-white border-[#e2e8f0] text-[13px]">
+                                <SelectTrigger className="h-9 bg-white border-[#cbd5e1] text-[13px]">
                                   <SelectValue placeholder="Vyber plodinu..." />
                                 </SelectTrigger>
                                 <SelectContent className="bg-white z-[9999]">
@@ -2685,7 +2685,7 @@ export default function OrdersPage() {
                                     if (v && !v.endsWith('g') && !isNaN(Number(v)))
                                       setCurrentItem(prev => ({ ...prev, packaging_size: v + 'g' }));
                                   }}
-                                  className="h-9 bg-white border-[#e2e8f0] text-[13px]"
+                                  className="h-9 bg-white border-[#cbd5e1] text-[13px]"
                                 />
                               ) : (
                                 <Select
@@ -2702,7 +2702,7 @@ export default function OrdersPage() {
                                     }
                                   }}
                                 >
-                                  <SelectTrigger className="h-9 bg-white border-[#e2e8f0] text-[13px]">
+                                  <SelectTrigger className="h-9 bg-white border-[#cbd5e1] text-[13px]">
                                     <SelectValue placeholder="Gramáž" />
                                   </SelectTrigger>
                                   <SelectContent className="bg-white z-[9999]">
@@ -2766,7 +2766,7 @@ export default function OrdersPage() {
                                 value={currentItem.price_per_unit || ''}
                                 onChange={(e) => setCurrentItem(prev => ({ ...prev, price_per_unit: e.target.value }))}
                                 disabled={!isPriceConfigured && !currentItem.is_special_item}
-                                className="h-9 border-[#e2e8f0] text-[13px] disabled:bg-[#f8fafc] disabled:cursor-not-allowed"
+                                className="h-9 border-[#cbd5e1] text-[13px] disabled:bg-[#f8fafc] disabled:cursor-not-allowed"
                               />
                             </div>
                           </div>
@@ -2865,10 +2865,10 @@ export default function OrdersPage() {
                         </div>
                         <div>
                           <Label className="text-xs text-[#94a3b8] mb-1 block">Manuálna suma dopravy (€)</Label>
-                          <Input type="number" min="0" step="0.01" placeholder="Auto-výpočet z trasy" value={manualDeliveryAmount} onChange={(e) => setManualDeliveryAmount(e.target.value)} disabled={freeDelivery} className="h-9 text-sm border-[#e2e8f0] disabled:bg-white disabled:opacity-50" />
+                          <Input type="number" min="0" step="0.01" placeholder="Auto-výpočet z trasy" value={manualDeliveryAmount} onChange={(e) => setManualDeliveryAmount(e.target.value)} disabled={freeDelivery} className="h-9 text-sm border-[#cbd5e1] disabled:bg-white disabled:opacity-50" />
                           <p className="text-[11px] text-[#94a3b8] mt-1">{freeDelivery ? 'Doprava zdarma je aktívna' : 'Nechajte prázdne pre auto-výpočet podľa trasy'}</p>
                         </div>
-                        <div className="flex items-center justify-between pt-2 border-t border-[#e2e8f0]">
+                        <div className="flex items-center justify-between pt-2 border-t border-[#cbd5e1]">
                           <span className="text-sm font-medium text-[#374151]">Vypočítaná doprava:</span>
                           <span className="text-lg font-bold text-[#10b981]">{calculatedDeliveryPrice.toFixed(2)} €</span>
                         </div>
@@ -2908,12 +2908,12 @@ export default function OrdersPage() {
                   )}
 
                   {/* Navigation footer */}
-                  <div className="flex items-center justify-between pt-4 mt-2 border-t border-[#e2e8f0]">
+                  <div className="flex items-center justify-between pt-4 mt-2 border-t border-[#cbd5e1]">
                     <div>
                       {wizardStep === 1 ? (
-                        <Button variant="outline" className="h-9 px-4 text-sm border-[#e2e8f0]" onClick={() => { setIsDialogOpen(false); setWizardStep(1); }}>Zrušiť</Button>
+                        <Button variant="outline" className="h-9 px-4 text-sm border-[#cbd5e1]" onClick={() => { setIsDialogOpen(false); setWizardStep(1); }}>Zrušiť</Button>
                       ) : (
-                        <Button variant="outline" className="h-9 px-4 text-sm border-[#e2e8f0]" onClick={() => setWizardStep(s => s - 1)}>
+                        <Button variant="outline" className="h-9 px-4 text-sm border-[#cbd5e1]" onClick={() => setWizardStep(s => s - 1)}>
                           <ChevronLeft className="h-4 w-4 mr-1" />Späť
                         </Button>
                       )}

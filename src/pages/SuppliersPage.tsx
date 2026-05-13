@@ -126,7 +126,7 @@ const SuppliersPage = () => {
     <div>
       <label className="text-[11px] font-bold text-[#475569] uppercase tracking-wider mb-1.5 block">{label}</label>
       <Input id={id} type={opts.type || 'text'} value={value} onChange={e => onChange(e.target.value)}
-        placeholder={opts.placeholder || ''} className="h-9 border-[#e2e8f0] text-[13px] bg-white" />
+        placeholder={opts.placeholder || ''} className="h-9 border-[#cbd5e1] text-[13px] bg-white" />
     </div>
   );
 
@@ -172,7 +172,7 @@ const SuppliersPage = () => {
             {!filtersCollapsed && <span className="ml-auto text-[11px] text-[#94a3b8]">{filteredSuppliers.length} dodávateľov</span>}
           </div>
           {!filtersCollapsed && (
-            <div className="border-t border-[#f1f5f9]">
+            <div className="border-t border-[#e2e8f0]">
               <div className="flex items-center gap-2 flex-wrap py-2.5">
                 <span className="text-[11px] font-bold text-[#475569] uppercase tracking-wider min-w-[85px] shrink-0">Typ</span>
                 {(['all', 'seeds', 'packaging', 'substrate', 'other'] as const).map(t => {
@@ -180,7 +180,7 @@ const SuppliersPage = () => {
                   const ti = typeInfo(t);
                   return (
                     <button key={t} onClick={() => setTypeFilter(t)}
-                      className={"inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md border-[1.5px] text-[12px] font-medium cursor-pointer transition-colors " + (active ? (ti ? ti.bg + ' ' + ti.border + ' ' + ti.text : 'bg-[#16a34a] border-[#16a34a] text-white') : 'border-[#e2e8f0] text-[#374151] bg-white hover:border-[#bbf7d0] hover:text-[#16a34a] hover:bg-[#f0fdf4]')}>
+                      className={"inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md border-[1.5px] text-[12px] font-medium cursor-pointer transition-colors " + (active ? (ti ? ti.bg + ' ' + ti.border + ' ' + ti.text : 'bg-[#16a34a] border-[#16a34a] text-white') : 'border-[#cbd5e1] text-[#374151] bg-white hover:border-[#bbf7d0] hover:text-[#16a34a] hover:bg-[#f0fdf4]')}>
                       {ti && <ti.Icon className="w-3.5 h-3.5" />}
                       {t === 'all' ? 'Všetci' : ti?.label}
                     </button>
@@ -189,7 +189,7 @@ const SuppliersPage = () => {
                 <div className="relative ml-1">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94a3b8]" />
                   <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Hľadať dodávateľa..."
-                    className="h-8 pl-8 pr-3 border-[1.5px] border-[#e2e8f0] rounded-md text-[12px] bg-white outline-none focus:border-[#16a34a] w-[200px] transition-colors" />
+                    className="h-8 pl-8 pr-3 border-[1.5px] border-[#cbd5e1] rounded-md text-[12px] bg-white outline-none focus:border-[#16a34a] w-[200px] transition-colors" />
                 </div>
               </div>
             </div>
@@ -214,7 +214,7 @@ const SuppliersPage = () => {
             {filteredSuppliers.map(s => {
               const ti = typeInfo(s.supplier_type);
               return (
-                <div key={s.id} className="bg-white rounded-xl border-[1.5px] border-[#e2e8f0] hover:shadow-md hover:border-[#cbd5e1] transition-all cursor-pointer overflow-hidden"
+                <div key={s.id} className="bg-white rounded-xl border-[1.5px] border-[#cbd5e1] hover:shadow-md hover:border-[#cbd5e1] transition-all cursor-pointer overflow-hidden"
                   onClick={() => { setDetailSupplier(s); setDetailOpen(true); }}>
                   <div className="px-4 pt-4 pb-3 flex items-start justify-between gap-2">
                     <div className="flex items-center gap-3 min-w-0">
@@ -250,7 +250,7 @@ const SuppliersPage = () => {
                     )}
                     {s.address && <div className="flex items-center gap-1.5 text-[12px] text-[#374151]"><MapPin className="h-3.5 w-3.5 text-[#94a3b8] shrink-0" /><span className="truncate">{s.address}</span></div>}
                   </div>
-                  {s.notes && <div className="border-t border-[#f1f5f9] px-4 py-2.5"><p className="text-[11px] text-[#94a3b8] truncate">{s.notes}</p></div>}
+                  {s.notes && <div className="border-t border-[#e2e8f0] px-4 py-2.5"><p className="text-[11px] text-[#94a3b8] truncate">{s.notes}</p></div>}
                 </div>
               );
             })}
@@ -258,7 +258,7 @@ const SuppliersPage = () => {
         ) : (
           <div className="bg-white rounded-xl border border-[#cbd5e1] overflow-hidden">
             <table className="w-full">
-              <thead className="bg-[#f8fafc] border-b-2 border-[#e2e8f0]">
+              <thead className="bg-[#f8fafc] border-b-2 border-[#cbd5e1]">
                 <tr>
                   <th className="px-4 py-3 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wider">Dodávateľ</th>
                   <th className="px-4 py-3 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wider">Kontakt</th>
@@ -321,7 +321,7 @@ const SuppliersPage = () => {
                 <div className="grid grid-cols-4 gap-2">
                   {typeButtons.map(([t,l,Icon,color,bg]) => (
                     <button key={t} type="button" onClick={() => setFormData({...formData, supplier_type: t})}
-                      className={"h-14 rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition-all " + (formData.supplier_type === t ? 'border-current' : 'border-[#e2e8f0] hover:border-[#cbd5e1]')}
+                      className={"h-14 rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition-all " + (formData.supplier_type === t ? 'border-current' : 'border-[#cbd5e1] hover:border-[#cbd5e1]')}
                       style={formData.supplier_type === t ? {borderColor: color, backgroundColor: bg} : {}}>
                       <Icon className="h-4 w-4" style={{color: formData.supplier_type === t ? color : '#94a3b8'}} />
                       <span className="text-[11px] font-semibold" style={{color: formData.supplier_type === t ? color : '#64748b'}}>{l}</span>
@@ -335,7 +335,7 @@ const SuppliersPage = () => {
               </div>
               <div>
                 <label className="text-[11px] font-bold text-[#475569] uppercase tracking-wider mb-1.5 block">Názov *</label>
-                <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="Krátky názov" className="h-9 border-[#e2e8f0] text-[13px] bg-white" />
+                <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="Krátky názov" className="h-9 border-[#cbd5e1] text-[13px] bg-white" />
               </div>
               <div className="grid grid-cols-3 gap-3">
                 {inp('IČO', 'ico', formData.ico, v => setFormData({...formData, ico: v}), {placeholder: '12345678'})}
@@ -348,15 +348,15 @@ const SuppliersPage = () => {
               </div>
               <div>
                 <label className="text-[11px] font-bold text-[#475569] uppercase tracking-wider mb-1.5 block">Adresa</label>
-                <Textarea value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} placeholder="Ulica, Mesto, PSČ" rows={2} className="border-[#e2e8f0] text-[13px] resize-none" />
+                <Textarea value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} placeholder="Ulica, Mesto, PSČ" rows={2} className="border-[#cbd5e1] text-[13px] resize-none" />
               </div>
               {inp('Bankový účet', 'bank_account', formData.bank_account, v => setFormData({...formData, bank_account: v}), {placeholder: 'SK12 3456 7890...'})}
               <div>
                 <label className="text-[11px] font-bold text-[#475569] uppercase tracking-wider mb-1.5 block">Poznámky</label>
-                <Textarea value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} placeholder="Interné poznámky..." rows={2} className="border-[#e2e8f0] text-[13px] resize-none" />
+                <Textarea value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} placeholder="Interné poznámky..." rows={2} className="border-[#cbd5e1] text-[13px] resize-none" />
               </div>
             </div>
-            <div className="flex justify-end gap-2 pt-5 border-t border-[#f1f5f9] mt-5">
+            <div className="flex justify-end gap-2 pt-5 border-t border-[#e2e8f0] mt-5">
               <button type="button" onClick={() => { setIsDialogOpen(false); resetForm(); }} className="px-4 py-2 rounded-lg border border-[#cbd5e1] text-[13px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">Zrušiť</button>
               <button type="submit" disabled={saving} className="flex items-center gap-2 px-5 py-2 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-[13px] font-semibold transition-colors disabled:opacity-60">
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -387,7 +387,7 @@ const SuppliersPage = () => {
                   </div>
                 </DialogHeader>
                 <div className="space-y-4 pt-2">
-                  <div className="grid grid-cols-2 gap-px bg-[#f1f5f9] border border-[#f1f5f9] rounded-xl overflow-hidden">
+                  <div className="grid grid-cols-2 gap-px bg-[#f1f5f9] border border-[#cbd5e1] rounded-xl overflow-hidden">
                     {s.phone && <div className="bg-white px-4 py-3"><div className="text-[10px] font-bold text-[#475569] uppercase tracking-wider mb-1">Telefón</div><a href={"tel:" + s.phone} className="text-[13px] font-semibold text-[#16a34a] flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" />{s.phone}</a></div>}
                     {s.email && <div className="bg-white px-4 py-3"><div className="text-[10px] font-bold text-[#475569] uppercase tracking-wider mb-1">Email</div><a href={"mailto:" + s.email} className="text-[13px] font-semibold text-[#16a34a] flex items-center gap-1.5 truncate"><Mail className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{s.email}</span></a></div>}
                     {s.ico && <div className="bg-white px-4 py-3"><div className="text-[10px] font-bold text-[#475569] uppercase tracking-wider mb-1">IČO</div><div className="text-[13px] font-bold text-[#0f172a]">{s.ico}</div></div>}
@@ -408,7 +408,7 @@ const SuppliersPage = () => {
                     </div>
                   )}
                 </div>
-                <div className="flex justify-end gap-2 pt-4 border-t border-[#f1f5f9] mt-4">
+                <div className="flex justify-end gap-2 pt-4 border-t border-[#e2e8f0] mt-4">
                   <button onClick={() => setDetailOpen(false)} className="px-4 py-2 rounded-lg border border-[#cbd5e1] text-[13px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">Zavrieť</button>
                   <button onClick={() => { setDetailOpen(false); openEdit(s); }} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-[13px] font-semibold transition-colors"><Pencil className="h-4 w-4" />Upraviť</button>
                 </div>

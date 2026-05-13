@@ -109,7 +109,7 @@ function SortableOrderRow({
       style={style}
       className={cn(
         isDragging ? 'relative z-50' : '',
-        'cursor-pointer hover:bg-[#f8fafc] transition-colors h-11 border-b border-[#e2e8f0]'
+        'cursor-pointer hover:bg-[#f8fafc] transition-colors h-11 border-b border-[#cbd5e1]'
       )}
       onClick={() => onOrderClick(order)}
     >
@@ -187,7 +187,7 @@ function SortableOrderRow({
               className={`flex items-center gap-1 px-2.5 h-7 rounded-lg text-xs font-medium border transition-colors ${
                 order.isPaid
                   ? 'bg-[#16a34a] text-white border-[#16a34a]'
-                  : 'bg-white text-[#475569] border-[#e2e8f0] hover:border-[#16a34a] hover:text-[#16a34a]'
+                  : 'bg-white text-[#475569] border-[#cbd5e1] hover:border-[#16a34a] hover:text-[#16a34a]'
               }`}
             >
               <CreditCard className="h-3.5 w-3.5" />
@@ -1425,7 +1425,7 @@ function DeliveryPage() {
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
             activeTab === 'delivery'
               ? 'bg-[#16a34a] text-white border-[#16a34a]'
-              : 'bg-white text-[#475569] border-[#e2e8f0] hover:border-[#bbf7d0]'
+              : 'bg-white text-[#475569] border-[#cbd5e1] hover:border-[#bbf7d0]'
           }`}
         >
           <Truck className="h-4 w-4" /> Rozvoz
@@ -1435,7 +1435,7 @@ function DeliveryPage() {
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
             activeTab === 'debts'
               ? 'bg-[#dc2626] text-white border-[#dc2626]'
-              : 'bg-white text-[#475569] border-[#e2e8f0] hover:border-[#fca5a5]'
+              : 'bg-white text-[#475569] border-[#cbd5e1] hover:border-[#fca5a5]'
           }`}
         >
           <Wallet className="h-4 w-4" />
@@ -1462,7 +1462,7 @@ function DeliveryPage() {
                     className={`inline-flex items-center gap-1.5 px-3 h-8 rounded-full border text-xs font-medium transition-colors ${
                       debtTypeFilter === type
                         ? 'bg-[#0f172a] text-white border-[#0f172a]'
-                        : 'bg-white border-[#e2e8f0] text-[#475569] hover:border-[#cbd5e1]'
+                        : 'bg-white border-[#cbd5e1] text-[#475569] hover:border-[#cbd5e1]'
                     }`}>
                     {icons[type]}{labels[type]}
                   </button>
@@ -1748,7 +1748,7 @@ function DeliveryPage() {
 
         {/* Filter card */}
         <div className="mx-6 mb-4 bg-white rounded-xl border border-[#cbd5e1] shadow-sm overflow-hidden">
-          <div className="px-4 py-3 flex flex-wrap gap-4 items-center border-b border-[#e2e8f0]">
+          <div className="px-4 py-3 flex flex-wrap gap-4 items-center border-b border-[#cbd5e1]">
             {/* Dátum */}
             <div className="flex items-center gap-2">
               <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
@@ -1773,7 +1773,7 @@ function DeliveryPage() {
                 return (
                   <button key={t} onClick={() => setSelectedCustomerType(t)}
                     className={`inline-flex items-center gap-1 px-3 h-7 rounded-full border text-xs font-medium transition-colors ${
-                      selectedCustomerType === t ? 'bg-[#0f172a] border-[#0f172a] text-white' : 'bg-white border-[#e2e8f0] text-[#475569] hover:border-[#cbd5e1]'
+                      selectedCustomerType === t ? 'bg-[#0f172a] border-[#0f172a] text-white' : 'bg-white border-[#cbd5e1] text-[#475569] hover:border-[#cbd5e1]'
                     }`}>
                     {icons[t]}{labels[t]}
                   </button>
@@ -1786,12 +1786,12 @@ function DeliveryPage() {
               <span className="text-[11px] font-bold text-[#475569] uppercase tracking-wide shrink-0">Trasa</span>
               <button onClick={() => setRouteFilter('all')}
                 className={`inline-flex items-center gap-1 px-3 h-7 rounded-full border text-xs font-medium transition-colors ${
-                  routeFilter === 'all' ? 'bg-[#0f172a] border-[#0f172a] text-white' : 'bg-white border-[#e2e8f0] text-[#475569] hover:border-[#cbd5e1]'
+                  routeFilter === 'all' ? 'bg-[#0f172a] border-[#0f172a] text-white' : 'bg-white border-[#cbd5e1] text-[#475569] hover:border-[#cbd5e1]'
                 }`}>Všetky</button>
               {routes.map(route => (
                 <button key={route.id} onClick={() => setRouteFilter(route.id)}
                   className={`inline-flex items-center gap-1 px-3 h-7 rounded-full border text-xs font-medium transition-colors ${
-                    routeFilter === route.id ? 'bg-[#eff6ff] border-[#bfdbfe] text-[#1d4ed8]' : 'bg-white border-[#e2e8f0] text-[#475569] hover:border-[#cbd5e1]'
+                    routeFilter === route.id ? 'bg-[#eff6ff] border-[#bfdbfe] text-[#1d4ed8]' : 'bg-white border-[#cbd5e1] text-[#475569] hover:border-[#cbd5e1]'
                   }`}>
                   <MapPin className="h-3 w-3" />{route.name}
                 </button>
@@ -1880,7 +1880,7 @@ function DeliveryPage() {
               {/* Na rozvoz */}
               {sortedPendingOrders.length > 0 && (
                 <div className="bg-white rounded-xl border border-[#cbd5e1] shadow-sm overflow-hidden">
-                  <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#e2e8f0] bg-gradient-to-r from-[#f0fdf4] to-[#f8fafc]">
+                  <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#cbd5e1] bg-gradient-to-r from-[#f0fdf4] to-[#f8fafc]">
                     <div className="flex items-center gap-2.5">
                       <Truck className="h-4 w-4 text-[#16a34a]" />
                       <span className="font-semibold text-[#14532d] text-sm">Na rozvoz</span>
@@ -1893,7 +1893,7 @@ function DeliveryPage() {
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
-                          <TableRow className="bg-[#f8fafc] border-b border-[#e2e8f0]">
+                          <TableRow className="bg-[#f8fafc] border-b border-[#cbd5e1]">
                             <TableHead className="w-8 py-2.5"></TableHead>
                             <TableHead className="font-semibold text-[#475569] text-xs uppercase tracking-wide py-2.5">Zákazník</TableHead>
                             <TableHead className="hidden lg:table-cell font-semibold text-[#475569] text-xs uppercase tracking-wide py-2.5">Adresa</TableHead>
@@ -1927,7 +1927,7 @@ function DeliveryPage() {
               {/* Doručené */}
               {sortedDeliveredOrders.length > 0 && (
                 <div className="bg-white rounded-xl border border-[#cbd5e1] shadow-sm overflow-hidden">
-                  <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#e2e8f0] bg-gradient-to-r from-[#dcfce7] to-[#f0fdf4]">
+                  <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#cbd5e1] bg-gradient-to-r from-[#dcfce7] to-[#f0fdf4]">
                     <div className="flex items-center gap-2.5">
                       <CheckCircle2 className="h-4 w-4 text-[#16a34a]" />
                       <span className="font-semibold text-[#14532d] text-sm">Doručené dnes</span>
@@ -1939,7 +1939,7 @@ function DeliveryPage() {
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
-                        <TableRow className="bg-[#f8fafc] border-b border-[#e2e8f0]">
+                        <TableRow className="bg-[#f8fafc] border-b border-[#cbd5e1]">
                           <TableHead className="font-semibold text-[#475569] text-xs uppercase tracking-wide py-2.5">Zákazník</TableHead>
                           <TableHead className="hidden lg:table-cell font-semibold text-[#475569] text-xs uppercase tracking-wide py-2.5">Adresa</TableHead>
                           <TableHead className="hidden lg:table-cell font-semibold text-[#475569] text-xs uppercase tracking-wide py-2.5">Kontakt</TableHead>
@@ -2006,7 +2006,7 @@ function DeliveryPage() {
       <div className="block md:hidden">
 
         {/* ── Action bar ── */}
-        <div className="flex items-center gap-2 px-4 py-2 bg-white border-b border-[#e2e8f0]">
+        <div className="flex items-center gap-2 px-4 py-2 bg-white border-b border-[#cbd5e1]">
           <button
             onClick={async () => {
               if (rozvozStarted) { setRozvozStarted(false); return; }
@@ -2037,7 +2037,7 @@ function DeliveryPage() {
             className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold border transition-colors ${
               mobileFiltersOpen || selectedCustomerType !== 'all' || routeFilter !== 'all' || customerFilter !== 'all'
                 ? 'bg-[#f0fdf4] border-[#16a34a] text-[#166534]'
-                : 'bg-white border-[#e2e8f0] text-[#475569]'
+                : 'bg-white border-[#cbd5e1] text-[#475569]'
             }`}
           >
             <Filter className="h-3.5 w-3.5" />
@@ -2054,7 +2054,7 @@ function DeliveryPage() {
             className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold border transition-colors shrink-0 ${
               mobileCalendarOpen
                 ? 'bg-[#16a34a] text-white border-[#16a34a]'
-                : 'bg-white border-[#e2e8f0] text-[#0f172a]'
+                : 'bg-white border-[#cbd5e1] text-[#0f172a]'
             }`}>
             <CalendarIcon className="h-3.5 w-3.5" />
             {selectedDates.length === 1 ? format(selectedDates[0], 'd. MMM', { locale: sk }) : `${selectedDates.length} dní`}
@@ -2063,7 +2063,7 @@ function DeliveryPage() {
 
         {/* ── Inline kalendár panel ── */}
         {mobileCalendarOpen && (
-          <div className="bg-white border-b border-[#e2e8f0] flex flex-col items-center py-3">
+          <div className="bg-white border-b border-[#cbd5e1] flex flex-col items-center py-3">
             <CalendarGrid />
             <button onClick={() => setMobileCalendarOpen(false)}
               className="mt-2 mx-4 w-[calc(100%-2rem)] h-9 rounded-xl bg-[#16a34a] text-white text-sm font-semibold">
@@ -2074,7 +2074,7 @@ function DeliveryPage() {
 
         {/* ── Filter panel (skladateľný) ── */}
         {mobileFiltersOpen && (
-          <div className="bg-white border-b border-[#e2e8f0] px-4 py-3 flex flex-col gap-3">
+          <div className="bg-white border-b border-[#cbd5e1] px-4 py-3 flex flex-col gap-3">
             {/* Zákazník typ */}
             <div className="flex flex-wrap gap-1.5 items-center">
               <span className="text-[10px] font-bold text-[#475569] uppercase tracking-wide w-14 shrink-0">Zákazník</span>
@@ -2084,7 +2084,7 @@ function DeliveryPage() {
                 return (
                   <button key={t} onClick={() => setSelectedCustomerType(t)}
                     className={`inline-flex items-center gap-1 px-2.5 h-6 rounded-full border text-[11px] font-medium transition-colors ${
-                      selectedCustomerType === t ? 'bg-[#0f172a] border-[#0f172a] text-white' : 'bg-white border-[#e2e8f0] text-[#475569]'
+                      selectedCustomerType === t ? 'bg-[#0f172a] border-[#0f172a] text-white' : 'bg-white border-[#cbd5e1] text-[#475569]'
                     }`}>
                     {icons[t]}{labels[t]}
                   </button>
@@ -2097,12 +2097,12 @@ function DeliveryPage() {
                 <span className="text-[10px] font-bold text-[#475569] uppercase tracking-wide w-14 shrink-0">Trasa</span>
                 <button onClick={() => setRouteFilter('all')}
                   className={`inline-flex items-center gap-1 px-2.5 h-6 rounded-full border text-[11px] font-medium transition-colors ${
-                    routeFilter === 'all' ? 'bg-[#0f172a] border-[#0f172a] text-white' : 'bg-white border-[#e2e8f0] text-[#475569]'
+                    routeFilter === 'all' ? 'bg-[#0f172a] border-[#0f172a] text-white' : 'bg-white border-[#cbd5e1] text-[#475569]'
                   }`}>Všetky</button>
                 {routes.map(route => (
                   <button key={route.id} onClick={() => setRouteFilter(route.id)}
                     className={`inline-flex items-center gap-1 px-2.5 h-6 rounded-full border text-[11px] font-medium transition-colors ${
-                      routeFilter === route.id ? 'bg-[#eff6ff] border-[#bfdbfe] text-[#1d4ed8]' : 'bg-white border-[#e2e8f0] text-[#475569]'
+                      routeFilter === route.id ? 'bg-[#eff6ff] border-[#bfdbfe] text-[#1d4ed8]' : 'bg-white border-[#cbd5e1] text-[#475569]'
                     }`}>
                     <MapPin className="h-3 w-3" />{route.name}
                   </button>
@@ -2129,7 +2129,7 @@ function DeliveryPage() {
 
         {/* ── Progress bar ── */}
         {ordersForDate.length > 0 && (
-          <div className="bg-white px-4 py-3 border-b border-[#e2e8f0]">
+          <div className="bg-white px-4 py-3 border-b border-[#cbd5e1]">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-[10px] font-bold text-[#475569] uppercase tracking-wide">Priebeh rozvozu</span>
               <span className="text-xs font-bold text-[#0f172a]">{deliveredCount} / {totalItemsCount} doručených</span>
@@ -2338,7 +2338,7 @@ function DeliveryPage() {
           return (
             <div className="fixed inset-0 bg-[#f8fafc] z-50 flex flex-col">
               {/* Nav */}
-              <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-[#e2e8f0]">
+              <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-[#cbd5e1]">
                 <button onClick={() => setSelectedStopIndex(null)} className="flex items-center gap-1.5 text-[#16a34a] font-semibold text-sm">
                   <ChevronLeft className="h-5 w-5" /> Späť
                 </button>
@@ -2380,7 +2380,7 @@ function DeliveryPage() {
                 {/* Zákazník blok */}
                 <div className="bg-white rounded-xl border border-[#cbd5e1] overflow-hidden">
                   {/* Hlavička */}
-                  <div className="flex items-center gap-2.5 px-3 py-3 border-b border-[#e2e8f0]">
+                  <div className="flex items-center gap-2.5 px-3 py-3 border-b border-[#cbd5e1]">
                     <div className={`w-9 h-9 rounded-lg border flex items-center justify-center shrink-0 ${typeColors[ct] || typeColors.home}`}>
                       {typeIcons[ct] || typeIcons.home}
                     </div>
@@ -2392,7 +2392,7 @@ function DeliveryPage() {
                   </div>
 
                   {/* Položky */}
-                  <div className="px-3 py-2.5 border-b border-[#e2e8f0]">
+                  <div className="px-3 py-2.5 border-b border-[#cbd5e1]">
                     <div className="text-[10px] font-bold text-[#475569] uppercase tracking-wide mb-2">Položky objednávky</div>
                     <div className="space-y-2">
                       {order.itemsDetail?.length > 0 ? order.itemsDetail.map((item: any, idx: number) => (
@@ -2413,7 +2413,7 @@ function DeliveryPage() {
                   </div>
 
                   {/* Cenový súhrn */}
-                  <div className="px-3 py-2.5 bg-[#f8fafc] border-b border-[#e2e8f0] space-y-1">
+                  <div className="px-3 py-2.5 bg-[#f8fafc] border-b border-[#cbd5e1] space-y-1">
                     <div className="flex justify-between text-xs text-[#475569]">
                       <span>Medzisúčet</span><span>{(order.totalPrice - (order.deliveryFee || 0)).toFixed(2)} €</span>
                     </div>
@@ -2425,7 +2425,7 @@ function DeliveryPage() {
                     </div>
                     {walletPay > 0 && <div className="flex justify-between text-xs text-[#16a34a]"><span>Pugiľar</span><span>−{walletPay.toFixed(2)} €</span></div>}
                     {voucherDiscount > 0 && <div className="flex justify-between text-xs text-[#7c3aed]"><span>Poukaz</span><span>−{voucherDiscount.toFixed(2)} €</span></div>}
-                    <div className="flex justify-between text-sm font-bold pt-1 border-t border-[#e2e8f0]">
+                    <div className="flex justify-between text-sm font-bold pt-1 border-t border-[#cbd5e1]">
                       <span>K úhrade</span>
                       {payType === 'cash' ? <span className="text-[#dc2626]">{cashDue.toFixed(2)} € hotovosť</span>
                         : payType === 'wallet' ? <span className="text-[#16a34a]">Uhradené z Pugiľaru</span>
@@ -2493,7 +2493,7 @@ function DeliveryPage() {
               </div>
 
               {/* Bottom bar */}
-              <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-[#e2e8f0] px-3 pt-3 pb-[calc(0.75rem+64px)] flex gap-2">
+              <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-[#cbd5e1] px-3 pt-3 pb-[calc(0.75rem+64px)] flex gap-2">
                 <button onClick={() => setSelectedStopIndex(null)}
                   className="w-12 h-12 rounded-xl border border-[#cbd5e1] bg-white flex items-center justify-center text-[#475569] shrink-0">
                   <Truck className="h-5 w-5" />
@@ -2523,7 +2523,7 @@ function DeliveryPage() {
       {/* Detail Dialog */}
       <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-0">
-          <DialogHeader className="px-5 pt-5 pb-4 border-b border-[#e2e8f0]">
+          <DialogHeader className="px-5 pt-5 pb-4 border-b border-[#cbd5e1]">
             <DialogTitle className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-[#dcfce7] border border-[#bbf7d0] flex items-center justify-center shrink-0">
                 <Truck className="h-5 w-5 text-[#16a34a]" />
@@ -2578,7 +2578,7 @@ function DeliveryPage() {
 
               {/* Položky */}
               <div className="bg-white rounded-xl border border-[#cbd5e1] overflow-hidden">
-                <div className="px-4 py-2.5 border-b border-[#e2e8f0] bg-[#f8fafc]">
+                <div className="px-4 py-2.5 border-b border-[#cbd5e1] bg-[#f8fafc]">
                   <span className="text-[10px] font-bold text-[#475569] uppercase tracking-wide">Položky objednávky</span>
                 </div>
                 <div className="divide-y divide-[#e2e8f0]">
@@ -2612,7 +2612,7 @@ function DeliveryPage() {
                     <span>−{((selectedOrderDetail as any).voucherDiscount || 0).toFixed(2)} €</span>
                   </div>
                 )}
-                <div className="flex justify-between pt-2 border-t border-[#e2e8f0]">
+                <div className="flex justify-between pt-2 border-t border-[#cbd5e1]">
                   <span className="font-bold text-sm text-[#0f172a]">K úhrade</span>
                   <span className="font-bold text-lg text-[#0f172a]">{selectedOrderDetail.totalPrice.toFixed(2)} €</span>
                 </div>

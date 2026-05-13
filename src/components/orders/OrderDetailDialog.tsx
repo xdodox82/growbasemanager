@@ -64,7 +64,7 @@ export function OrderDetailDialog({
           <DialogTitle className="text-[16px] font-700 text-[#0f172a] flex items-center gap-2">
             Detail objednávky
             {(order as any).order_number && (
-              <span className="text-[13px] font-bold px-2 py-0.5 rounded-lg bg-[#f1f5f9] border border-[#e2e8f0] text-[#475569]">
+              <span className="text-[13px] font-bold px-2 py-0.5 rounded-lg bg-[#f1f5f9] border border-[#cbd5e1] text-[#475569]">
                 MR-{String((order as any).order_number).padStart(3, '0')}
               </span>
             )}
@@ -85,7 +85,7 @@ export function OrderDetailDialog({
         </DialogHeader>
 
         {/* Tabs */}
-        <div className="flex border-b border-[#f1f5f9] -mt-1">
+        <div className="flex border-b border-[#e2e8f0] -mt-1">
           <button
             onClick={() => onTabChange('detail')}
             className={`px-4 py-2.5 text-[13px] font-medium border-b-2 transition-colors ${
@@ -111,7 +111,7 @@ export function OrderDetailDialog({
           <div className="space-y-4 pt-1">
 
             {/* Meta grid */}
-            <div className="grid grid-cols-2 gap-px bg-[#f1f5f9] border border-[#f1f5f9] rounded-xl overflow-hidden">
+            <div className="grid grid-cols-2 gap-px bg-[#f1f5f9] border border-[#cbd5e1] rounded-xl overflow-hidden">
               <div className="bg-white px-4 py-3">
                 <div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1">Zákazník</div>
                 <div className="text-[13px] font-semibold text-[#0f172a]">{order.customer_name || '—'}</div>
@@ -138,7 +138,7 @@ export function OrderDetailDialog({
             </div>
 
             {/* Status stepper */}
-            <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-xl p-4">
+            <div className="bg-[#f8fafc] border border-[#cbd5e1] rounded-xl p-4">
               {isCancelled ? (
                 <div className="flex items-center gap-2 text-[#dc2626] justify-center py-1">
                   <X className="h-5 w-5" />
@@ -165,7 +165,7 @@ export function OrderDetailDialog({
                             <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all z-10 ${
                               done ? 'bg-[#16a34a] border-[#16a34a]'
                               : active ? 'bg-white border-[#16a34a] shadow-sm shadow-green-200'
-                              : 'bg-white border-[#e2e8f0]'
+                              : 'bg-white border-[#cbd5e1]'
                             }`}>
                               {done ? <Check className="h-3.5 w-3.5 text-white" />
                                 : active ? <div className="w-2.5 h-2.5 rounded-full bg-[#16a34a]" />
@@ -245,7 +245,7 @@ export function OrderDetailDialog({
                     ? (item.packaging_size.includes('g') || item.packaging_size.includes('kg') ? item.packaging_size : `${item.packaging_size}g`)
                     : '';
                   return (
-                    <div key={idx} className="flex items-center justify-between border border-[#e2e8f0] rounded-xl px-4 py-3 hover:bg-[#f8fafc] transition-colors">
+                    <div key={idx} className="flex items-center justify-between border border-[#cbd5e1] rounded-xl px-4 py-3 hover:bg-[#f8fafc] transition-colors">
                       <div className="flex-1 min-w-0">
                         <div className="text-[13px] font-semibold text-[#0f172a]">{item.crop_name || '—'}</div>
                         <div className="text-[11px] text-[#64748b] mt-0.5">
@@ -388,8 +388,8 @@ export function OrderDetailDialog({
         )}
 
         {/* Footer */}
-        <div className="flex justify-end gap-2 pt-4 border-t border-[#f1f5f9]">
-          <Button variant="outline" className="border-[#e2e8f0] text-[#475569] hover:bg-[#f8fafc]" onClick={() => onOpenChange(false)}>
+        <div className="flex justify-end gap-2 pt-4 border-t border-[#e2e8f0]">
+          <Button variant="outline" className="border-[#cbd5e1] text-[#475569] hover:bg-[#f8fafc]" onClick={() => onOpenChange(false)}>
             Zatvoriť
           </Button>
           <Button
