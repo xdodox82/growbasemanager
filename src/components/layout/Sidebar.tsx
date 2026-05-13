@@ -407,20 +407,6 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
 
         {/* Footer */}
         <div className="border-t border-sidebar-border p-4 space-y-1">
-          {isAdmin && (
-            <Link
-              to="/users"
-              className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-                location.pathname === '/users'
-                  ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent'
-              )}
-            >
-              <Shield className="h-5 w-5" />
-              Používatelia
-            </Link>
-          )}
           <Link
             to="/settings"
             className={cn(
