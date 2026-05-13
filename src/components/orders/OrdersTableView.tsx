@@ -15,24 +15,24 @@ interface Props {
 
 export function OrdersTableView({ filteredOrders, getOrderTotal, onSelectOrder, onDuplicate, onEdit, onDelete }: Props) {
   return (
-    <div className="hidden md:block bg-white rounded-xl border border-[#e2e8f0] overflow-hidden">
+    <div className="hidden md:block bg-white rounded-xl border border-[#cbd5e1] overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-[#fafafa] border-b border-[#e2e8f0]">
+          <thead className="bg-[#f8fafc] border-b-2 border-[#cbd5e1]">
             <tr>
-              <th className="px-4 py-3 text-left text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider">Zákazník</th>
-              <th className="px-4 py-3 text-left text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider">Dátum dodania</th>
-              <th className="px-4 py-3 text-left text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider">Trasa</th>
-              <th className="px-4 py-3 text-left text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider">Stav</th>
-              <th className="px-4 py-3 text-right text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider">Celková cena</th>
-              <th className="px-4 py-3 text-right text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider">Akcie</th>
+              <th className="px-4 py-3 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wider">Zákazník</th>
+              <th className="px-4 py-3 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wider">Dátum dodania</th>
+              <th className="px-4 py-3 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wider">Trasa</th>
+              <th className="px-4 py-3 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wider">Stav</th>
+              <th className="px-4 py-3 text-right text-[10px] font-bold text-[#475569] uppercase tracking-wider">Celková cena</th>
+              <th className="px-4 py-3 text-right text-[10px] font-bold text-[#475569] uppercase tracking-wider">Akcie</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#f1f5f9]">
+          <tbody className="divide-y divide-[#e2e8f0]">
             {filteredOrders.map((order) => (
               <tr
                 key={order.id}
-                className="hover:bg-[#fafafa] cursor-pointer transition-colors"
+                className="hover:bg-[#f8fafc] cursor-pointer transition-colors"
                 style={{ borderLeft: `3px solid ${getStatusBorderColor(order.status)}` }}
                 onClick={() => onSelectOrder(order)}
               >
@@ -43,7 +43,7 @@ export function OrdersTableView({ filteredOrders, getOrderTotal, onSelectOrder, 
                     </div>
                     <div>
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-semibold text-sm text-[#0f172a]">{order.customer_name || 'Bez názvu'}</span>
+                        <span className="font-bold text-sm text-[#0f172a]">{order.customer_name || 'Bez názvu'}</span>
                         {((order as any).order_source === 'app' || (order as any).source === 'app') && (
                           <span className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[10px] font-medium bg-blue-100 text-blue-700 border border-blue-200">
                             <Smartphone className="w-2.5 h-2.5" />App
@@ -79,7 +79,7 @@ export function OrdersTableView({ filteredOrders, getOrderTotal, onSelectOrder, 
                   </div>
                 </td>
                 <td className="px-4 py-3 text-sm text-[#334155]">{formatDeliveryDate(order.delivery_date)}</td>
-                <td className="px-4 py-3 text-sm text-[#64748b]">{order.route || <span className="text-[#cbd5e1]">—</span>}</td>
+                <td className="px-4 py-3 text-sm text-[#475569]">{order.route || <span className="text-[#cbd5e1]">—</span>}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1.5">
                     <Badge className={`border ${getStatusBadgeClass(order.status)} text-[10px] font-semibold px-2 py-0`}>
@@ -97,10 +97,10 @@ export function OrdersTableView({ filteredOrders, getOrderTotal, onSelectOrder, 
                 </td>
                 <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                   <div className="flex gap-0.5 justify-end">
-                    <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-[#f1f5f9]" onClick={() => onDuplicate(order)}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-[#f0fdf4]" onClick={() => onDuplicate(order)}>
                       <Copy className="h-3.5 w-3.5 text-[#94a3b8]" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-[#f1f5f9]" onClick={() => onEdit(order)}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-[#f0fdf4]" onClick={() => onEdit(order)}>
                       <Pencil className="h-3.5 w-3.5 text-[#94a3b8]" />
                     </Button>
                     <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-red-50" onClick={() => onDelete(order.id)}>

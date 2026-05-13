@@ -26,7 +26,7 @@ export function OrdersCardView({
       {filteredOrders.map((order) => (
         <div
           key={order.id}
-          className="bg-white rounded-xl border-[1.5px] border-[#e2e8f0] hover:shadow-md transition-all cursor-pointer overflow-hidden"
+          className="bg-white rounded-xl border-2 border-[#cbd5e1] hover:shadow-md transition-all cursor-pointer overflow-hidden"
           style={{ borderLeftColor: getStatusBorderColor(order.status), borderLeftWidth: 4 }}
           onClick={() => onSelectOrder(order)}
         >
@@ -46,7 +46,7 @@ export function OrdersCardView({
                 )}
               </div>
               <div className="min-w-0">
-                <h3 className="font-semibold text-sm text-[#0f172a] truncate">{order.customer_name || 'Bez názvu'}</h3>
+                <h3 className="font-bold text-sm text-[#0f172a] truncate">{order.customer_name || 'Bez názvu'}</h3>
                 <div className="flex items-center flex-wrap gap-1.5 mt-1">
                   <Badge className={`border ${getStatusBadgeClass(order.status)} text-[10px] font-semibold px-2 py-0`}>
                     {getStatusLabel(order.status)}
@@ -85,10 +85,10 @@ export function OrdersCardView({
 
             {/* Actions */}
             <div className="flex gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-[#f1f5f9]" onClick={() => onDuplicate(order)}>
+              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-[#f0fdf4]" onClick={() => onDuplicate(order)}>
                 <Copy className="h-3.5 w-3.5 text-[#94a3b8]" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-[#f1f5f9]" onClick={() => onEdit(order)}>
+              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-[#f0fdf4]" onClick={() => onEdit(order)}>
                 <Pencil className="h-3.5 w-3.5 text-[#94a3b8]" />
               </Button>
               <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-red-50" onClick={() => onDelete(order.id)}>
@@ -98,7 +98,7 @@ export function OrdersCardView({
           </div>
 
           {/* Body */}
-          <div className="px-4 pb-3 space-y-1.5 text-xs text-[#64748b]">
+          <div className="px-4 pb-3 space-y-1.5 text-xs text-[#475569]">
             <div className="flex items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5 text-[#94a3b8] shrink-0" />
               <span>{formatDeliveryDate(order.delivery_date)}</span>
@@ -119,7 +119,7 @@ export function OrdersCardView({
           </div>
 
           {/* Footer */}
-          <div className="border-t border-[#f1f5f9] px-4 py-2.5 flex items-center justify-between">
+          <div className="border-t border-[#cbd5e1] px-4 py-2.5 flex items-center justify-between">
             {(() => {
               if (customers.length === 0 || routes.length === 0) return null;
               const deliveryFee = getDeliveryFee(order);
@@ -129,7 +129,7 @@ export function OrdersCardView({
                 );
               }
               return (
-                <span className="text-xs text-[#64748b]">Doprava: {deliveryFee.toFixed(2)} €</span>
+                <span className="text-xs text-[#475569]">Doprava: {deliveryFee.toFixed(2)} €</span>
               );
             })()}
             <span className="text-lg font-bold text-[#0f172a] ml-auto">
