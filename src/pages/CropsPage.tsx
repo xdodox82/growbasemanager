@@ -1002,9 +1002,6 @@ const CropsPage = () => {
                           <Trash2 className="h-3 w-3" />
                         </button>
                       )}
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      )}
                     </div>
                   </div>
                 )}
