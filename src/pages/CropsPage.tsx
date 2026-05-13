@@ -871,7 +871,7 @@ const CropsPage = () => {
                         {crop.variety && (
                           <p className="text-xs text-[#475569] truncate">{crop.variety}</p>
                         )}
-                        <Badge className="mt-1 inline-flex items-center px-2 py-0.5 rounded-md border border-[#cbd5e1] text-[#475569] text-[10px] font-semibold bg-[#f8fafc]">
+                        <span className="mt-1 inline-flex items-center px-2 py-0.5 rounded-md border border-[#cbd5e1] text-[#475569] text-[10px] font-semibold bg-[#f8fafc]">
                           {CROP_CATEGORIES[crop.category as keyof typeof CROP_CATEGORIES] || crop.category}
                         </span>
                       </div>
@@ -958,7 +958,7 @@ const CropsPage = () => {
                               {((crop as any).soaking || crop.seed_soaking) ? 'Áno' : 'Nie'}
                             </span>
                             {(crop as any).soaking_duration_hours > 0 && (
-                              <Badge variant="secondary" className="text-xs">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md border border-[#cbd5e1] text-[#475569] text-[10px] font-semibold bg-[#f8fafc]">
                                 {(crop as any).soaking_duration_hours}h
                               </span>
                             )}
@@ -1062,7 +1062,7 @@ const CropsPage = () => {
                         </div>
                       </MobileTableCell>
                       <MobileTableCell>
-                        <Badge variant="secondary" className="text-xs">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md border border-[#cbd5e1] text-[#475569] text-[10px] font-semibold bg-[#f8fafc]">
                           {CROP_CATEGORIES[crop.category as keyof typeof CROP_CATEGORIES] || crop.category}
                         </span>
                       </MobileTableCell>
@@ -1138,7 +1138,7 @@ const CropsPage = () => {
                     <p className="text-sm text-[#475569]">{selectedCropDetail.variety}</p>
                   )}
                   {selectedCropDetail.category && (
-                    <Badge variant="secondary" className="mt-1">
+                    <span className="mt-1 inline-flex items-center px-2 py-0.5 rounded-md border border-[#cbd5e1] text-[#475569] text-[10px] font-semibold bg-[#f8fafc]">
                       {CROP_CATEGORIES[selectedCropDetail.category as keyof typeof CROP_CATEGORIES] || selectedCropDetail.category}
                     </span>
                   )}
@@ -1183,7 +1183,7 @@ const CropsPage = () => {
                       <div className="flex items-center gap-2">
                         <span>Áno</span>
                         {(selectedCropDetail as any).soaking_duration_hours > 0 && (
-                          <Badge variant="secondary" className="text-xs">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md border border-[#cbd5e1] text-[#475569] text-[10px] font-semibold bg-[#f8fafc]">
                             {(selectedCropDetail as any).soaking_duration_hours}h
                           </span>
                         )}
