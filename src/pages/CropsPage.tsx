@@ -1,20 +1,14 @@
 import { useState, useCallback } from 'react';
 type ViewMode = 'grid' | 'list';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { PageHeader, EmptyState } from '@/components/ui/page-components';
 import { useCrops, DbCrop } from '@/hooks/useSupabaseData';
 import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableHeader } from '@/components/ui/table';
-
-
-import { PullToRefresh } from '@/components/ui/pull-to-refresh';
+import { MobileTableRow, MobileTableCell, MobileTableHead, ExpandedDetail } from '@/components/ui/mobile-table';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Select,
