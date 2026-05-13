@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { useOrders, useCustomers, useCrops, useBlends, useOrderItems, useDeliveryRoutes } from '@/hooks/useSupabaseData';
 import { usePrices, useVatSettings } from '@/hooks/usePrices';
 import { useDeliveryDays } from '@/hooks/useDeliveryDays';
-import { Truck, FileSpreadsheet, FileText, CircleCheck as CheckCircle2, Calendar as CalendarIcon, Filter, Undo2, Navigation, CreditCard, Euro, House, Utensils, Store, Building2, Settings, GripVertical, Phone, ChevronLeft, ChevronRight, Wallet, CircleAlert as AlertCircle, Plus, X, MapPin } from 'lucide-react';
+import { Truck, FileSpreadsheet, FileText, CircleCheck as CheckCircle2, Calendar as CalendarIcon, Filter, Undo2, Navigation, CreditCard, Euro, House, Utensils, Store, Building2, Settings, GripVertical, Phone, ChevronLeft, ChevronRight, Wallet, AlertCircle, Plus, X, MapPin } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -1300,7 +1300,7 @@ function DeliveryPage() {
 
   if (isLoading) {
     return (
-      <MainLayout hideMobileHeader>
+      <MainLayout>
         <PageHeader
           title="Rozvoz"
           description="Prehľad objednávok na rozvoz"
@@ -1411,7 +1411,7 @@ function DeliveryPage() {
   };
 
   return (
-    <MainLayout hideMobileHeader>
+    <MainLayout>
       <PageHeader
         title="Rozvoz"
         description="Prehľad objednávok na rozvoz"
@@ -1452,7 +1452,7 @@ function DeliveryPage() {
       {activeTab === 'debts' && (
         <div className="px-4 space-y-4 pb-8">
           {/* Filtre */}
-          <div className="bg-white rounded-xl border border-[#e2e8f0] p-4 space-y-3">
+          <div className="bg-white rounded-xl border border-[#cbd5e1] p-4 space-y-3">
             <div className="flex flex-wrap gap-2">
               {(['all', 'home', 'gastro', 'wholesale'] as const).map(type => {
                 const labels = { all: 'Všetci', home: 'Domáci', gastro: 'Gastro', wholesale: 'VO' };
@@ -1481,7 +1481,7 @@ function DeliveryPage() {
           {debtsLoading ? (
             <div className="text-center py-8 text-[#64748b]">Načítavam dlhy...</div>
           ) : debts.length === 0 ? (
-            <div className="bg-white rounded-xl border border-[#e2e8f0] py-16 flex flex-col items-center text-center px-6">
+            <div className="bg-white rounded-xl border border-[#cbd5e1] py-16 flex flex-col items-center text-center px-6">
               <div className="w-14 h-14 rounded-2xl bg-[#f0fdf4] flex items-center justify-center mb-4">
                 <Wallet className="h-7 w-7 text-[#16a34a]" />
               </div>
@@ -1514,7 +1514,7 @@ function DeliveryPage() {
               };
               const typeLabels = { home: 'Domáci', gastro: 'Gastro', wholesale: 'VO' };
               return (
-                <div key={custId} className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm overflow-hidden">
+                <div key={custId} className="bg-white rounded-xl border border-[#cbd5e1] shadow-sm overflow-hidden">
                   {/* Customer header */}
                   <div className="flex items-center gap-3 px-4 py-3 bg-[#fef2f2] border-b border-[#fecaca]">
                     <AlertCircle className="h-5 w-5 text-[#dc2626] shrink-0" />
@@ -1606,7 +1606,7 @@ function DeliveryPage() {
                   value={debtAmount}
                   onChange={e => setDebtAmount(e.target.value)}
                   placeholder={debtDialog.order?.totalPrice?.toFixed(2) || '0.00'}
-                  className="w-full px-3 py-2 border border-[#e2e8f0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#dc2626]"
+                  className="w-full px-3 py-2 border border-[#cbd5e1] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#dc2626]"
                 />
               </div>
               <div>
@@ -1616,12 +1616,12 @@ function DeliveryPage() {
                   onChange={e => setDebtNote(e.target.value)}
                   rows={2}
                   placeholder="Napr. zaplatí budúci týždeň..."
-                  className="w-full px-3 py-2 border border-[#e2e8f0] rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#dc2626]"
+                  className="w-full px-3 py-2 border border-[#cbd5e1] rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#dc2626]"
                 />
               </div>
               <div className="flex gap-2">
                 <button onClick={() => { setDebtDialog({ open: false, order: null }); setDebtAmount(''); setDebtNote(''); }}
-                  className="flex-1 h-10 rounded-lg border border-[#e2e8f0] text-sm font-medium text-[#475569] hover:bg-[#f8fafc]">
+                  className="flex-1 h-10 rounded-lg border border-[#cbd5e1] text-sm font-medium text-[#475569] hover:bg-[#f8fafc]">
                   Zrušiť
                 </button>
                 <button onClick={createDebt}
@@ -1667,7 +1667,7 @@ function DeliveryPage() {
                   type="number" step="0.01" min="0"
                   value={paymentAmount}
                   onChange={e => setPaymentAmount(e.target.value)}
-                  className="w-full px-3 py-2 border border-[#e2e8f0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#16a34a]"
+                  className="w-full px-3 py-2 border border-[#cbd5e1] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#16a34a]"
                 />
                 <p className="text-[11px] text-[#94a3b8] mt-1">
                   Dátum platby: {format(new Date(), 'd. MMMM yyyy', { locale: sk })} (automaticky)
@@ -1679,12 +1679,12 @@ function DeliveryPage() {
                   type="text" value={paymentNote}
                   onChange={e => setPaymentNote(e.target.value)}
                   placeholder="Napr. v hotovosti..."
-                  className="w-full px-3 py-2 border border-[#e2e8f0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#16a34a]"
+                  className="w-full px-3 py-2 border border-[#cbd5e1] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#16a34a]"
                 />
               </div>
               <div className="flex gap-2">
                 <button onClick={() => { setPaymentDialog({ open: false, debt: null }); setPaymentAmount(''); setPaymentNote(''); }}
-                  className="flex-1 h-10 rounded-lg border border-[#e2e8f0] text-sm font-medium text-[#475569] hover:bg-[#f8fafc]">
+                  className="flex-1 h-10 rounded-lg border border-[#cbd5e1] text-sm font-medium text-[#475569] hover:bg-[#f8fafc]">
                   Zrušiť
                 </button>
                 <button onClick={addDebtPayment}
@@ -1736,24 +1736,24 @@ function DeliveryPage() {
               {rozvozStarted ? 'Rozvoz prebieha' : 'Štart rozvozu'}
             </button>
             <button onClick={exportToExcel}
-              className="flex items-center gap-1.5 h-9 px-3 rounded-xl border border-[#e2e8f0] bg-white text-sm font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
+              className="flex items-center gap-1.5 h-9 px-3 rounded-xl border border-[#cbd5e1] bg-white text-sm font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
               <FileSpreadsheet className="h-4 w-4" /> Excel
             </button>
             <button onClick={exportToPDF}
-              className="flex items-center gap-1.5 h-9 px-3 rounded-xl border border-[#e2e8f0] bg-white text-sm font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
+              className="flex items-center gap-1.5 h-9 px-3 rounded-xl border border-[#cbd5e1] bg-white text-sm font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
               <FileText className="h-4 w-4" /> PDF
             </button>
           </div>
         </div>
 
         {/* Filter card */}
-        <div className="mx-6 mb-4 bg-white rounded-xl border border-[#e2e8f0] shadow-sm overflow-hidden">
+        <div className="mx-6 mb-4 bg-white rounded-xl border border-[#cbd5e1] shadow-sm overflow-hidden">
           <div className="px-4 py-3 flex flex-wrap gap-4 items-center border-b border-[#f1f5f9]">
             {/* Dátum */}
             <div className="flex items-center gap-2">
               <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                 <PopoverTrigger asChild>
-                  <button className="flex items-center gap-2 h-8 px-3 rounded-lg border border-[#e2e8f0] bg-white text-sm font-medium text-[#0f172a] hover:border-[#bbf7d0] transition-colors">
+                  <button className="flex items-center gap-2 h-8 px-3 rounded-lg border border-[#cbd5e1] bg-white text-sm font-medium text-[#0f172a] hover:border-[#bbf7d0] transition-colors">
                     <CalendarIcon className="h-3.5 w-3.5 text-[#16a34a]" />
                     {selectedDates.length === 1 ? format(selectedDates[0], 'd. MMMM yyyy', { locale: sk }) : `${selectedDates.length} dní`}
                   </button>
@@ -1852,7 +1852,7 @@ function DeliveryPage() {
         {allOrdersForReport.length > 0 && (
           <div className="mx-6 mb-4">
             <button onClick={() => setFinancialReportOpen(true)}
-              className="w-full flex items-center gap-3 px-4 py-3 bg-white rounded-xl border border-[#e2e8f0] shadow-sm hover:border-[#bbf7d0] transition-colors">
+              className="w-full flex items-center gap-3 px-4 py-3 bg-white rounded-xl border border-[#cbd5e1] shadow-sm hover:border-[#bbf7d0] transition-colors">
               <div className="w-8 h-8 rounded-lg bg-[#f0fdf4] border border-[#bbf7d0] flex items-center justify-center shrink-0">
                 <Euro className="h-4 w-4 text-[#16a34a]" />
               </div>
@@ -1868,7 +1868,7 @@ function DeliveryPage() {
         {/* Content */}
         <div className="mx-6 space-y-4 pb-8">
           {sortedPendingOrders.length === 0 && sortedDeliveredOrders.length === 0 ? (
-            <div className="bg-white rounded-xl border border-[#e2e8f0] py-16 flex flex-col items-center text-center px-6">
+            <div className="bg-white rounded-xl border border-[#cbd5e1] py-16 flex flex-col items-center text-center px-6">
               <div className="w-14 h-14 rounded-2xl bg-[#f1f5f9] flex items-center justify-center mb-4">
                 <Truck className="h-7 w-7 text-[#94a3b8]" />
               </div>
@@ -1879,7 +1879,7 @@ function DeliveryPage() {
             <>
               {/* Na rozvoz */}
               {sortedPendingOrders.length > 0 && (
-                <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm overflow-hidden">
+                <div className="bg-white rounded-xl border border-[#cbd5e1] shadow-sm overflow-hidden">
                   <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#f1f5f9] bg-gradient-to-r from-[#f0fdf4] to-[#f8fafc]">
                     <div className="flex items-center gap-2.5">
                       <Truck className="h-4 w-4 text-[#16a34a]" />
@@ -1926,7 +1926,7 @@ function DeliveryPage() {
 
               {/* Doručené */}
               {sortedDeliveredOrders.length > 0 && (
-                <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm overflow-hidden">
+                <div className="bg-white rounded-xl border border-[#cbd5e1] shadow-sm overflow-hidden">
                   <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#f1f5f9] bg-gradient-to-r from-[#dcfce7] to-[#f0fdf4]">
                     <div className="flex items-center gap-2.5">
                       <CheckCircle2 className="h-4 w-4 text-[#16a34a]" />
@@ -1972,13 +1972,13 @@ function DeliveryPage() {
                               <TableCell className="py-2 text-center" onClick={e => e.stopPropagation()}>
                                 <div className="flex items-center justify-center gap-2">
                                   <button onClick={() => returnToReady(order.id)}
-                                    className="flex items-center gap-1 px-2.5 h-7 rounded-lg border border-[#e2e8f0] bg-white text-xs font-medium text-[#475569] hover:bg-[#f8fafc]">
+                                    className="flex items-center gap-1 px-2.5 h-7 rounded-lg border border-[#cbd5e1] bg-white text-xs font-medium text-[#475569] hover:bg-[#f8fafc]">
                                     <Undo2 className="h-3.5 w-3.5" /> Späť
                                   </button>
                                   {order.paymentMethod !== 'invoice' && (
                                     <button onClick={() => order.isPaid ? handleMarkAsUnpaid(order.id, order.notes) : handleMarkAsPaid(order.id, order.notes)}
                                       className={`flex items-center gap-1 px-2.5 h-7 rounded-lg text-xs font-medium transition-colors ${
-                                        order.isPaid ? 'bg-[#16a34a] text-white' : 'border border-[#e2e8f0] bg-white text-[#475569]'
+                                        order.isPaid ? 'bg-[#16a34a] text-white' : 'border border-[#cbd5e1] bg-white text-[#475569]'
                                       }`}>
                                       <CreditCard className="h-3.5 w-3.5" />
                                       {order.isPaid ? 'Zaplatené' : 'Nezaplatené'}
@@ -2182,7 +2182,7 @@ function DeliveryPage() {
             {/* Finančné zúčtovanie */}
             {allOrdersForReport.length > 0 && (
               <button onClick={() => setFinancialReportOpen(true)}
-                className="w-full flex items-center gap-3 px-4 py-3 bg-white rounded-xl border border-[#e2e8f0] shadow-sm hover:border-[#bbf7d0] transition-colors">
+                className="w-full flex items-center gap-3 px-4 py-3 bg-white rounded-xl border border-[#cbd5e1] shadow-sm hover:border-[#bbf7d0] transition-colors">
                 <div className="w-8 h-8 rounded-lg bg-[#f0fdf4] border border-[#bbf7d0] flex items-center justify-center shrink-0">
                   <Euro className="h-4 w-4 text-[#16a34a]" />
                 </div>
@@ -2345,11 +2345,11 @@ function DeliveryPage() {
                 <span className="text-xs font-semibold text-[#94a3b8]">Zastávka {selectedStopIndex + 1} / {allStops.length}</span>
                 <div className="flex gap-1.5">
                   <button onClick={() => setSelectedStopIndex(Math.max(0, selectedStopIndex - 1))} disabled={selectedStopIndex === 0}
-                    className="w-8 h-8 rounded-lg border border-[#e2e8f0] bg-white flex items-center justify-center disabled:opacity-30">
+                    className="w-8 h-8 rounded-lg border border-[#cbd5e1] bg-white flex items-center justify-center disabled:opacity-30">
                     <ChevronLeft className="h-4 w-4 text-[#475569]" />
                   </button>
                   <button onClick={() => setSelectedStopIndex(Math.min(allStops.length - 1, selectedStopIndex + 1))} disabled={selectedStopIndex === allStops.length - 1}
-                    className="w-8 h-8 rounded-lg border border-[#e2e8f0] bg-white flex items-center justify-center disabled:opacity-30">
+                    className="w-8 h-8 rounded-lg border border-[#cbd5e1] bg-white flex items-center justify-center disabled:opacity-30">
                     <ChevronRight className="h-4 w-4 text-[#475569]" />
                   </button>
                 </div>
@@ -2358,7 +2358,7 @@ function DeliveryPage() {
               {/* Body */}
               <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 pb-24">
                 {/* Adresa + navigácia */}
-                <div className="bg-white rounded-xl border border-[#e2e8f0] p-3">
+                <div className="bg-white rounded-xl border border-[#cbd5e1] p-3">
                   <div className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-wide mb-1">Adresa zastávky</div>
                   <div className="font-semibold text-sm text-[#0f172a] mb-3">{order.customerAddress || 'Adresa nie je zadaná'}</div>
                   <div className="flex gap-2">
@@ -2370,7 +2370,7 @@ function DeliveryPage() {
                     )}
                     {order.customerPhone && (
                       <a href={`tel:${order.customerPhone}`}
-                        className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-lg border border-[#e2e8f0] bg-white text-xs font-semibold text-[#475569]">
+                        className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-lg border border-[#cbd5e1] bg-white text-xs font-semibold text-[#475569]">
                         <Phone className="h-3.5 w-3.5" /> {order.customerPhone}
                       </a>
                     )}
@@ -2378,7 +2378,7 @@ function DeliveryPage() {
                 </div>
 
                 {/* Zákazník blok */}
-                <div className="bg-white rounded-xl border border-[#e2e8f0] overflow-hidden">
+                <div className="bg-white rounded-xl border border-[#cbd5e1] overflow-hidden">
                   {/* Hlavička */}
                   <div className="flex items-center gap-2.5 px-3 py-3 border-b border-[#f1f5f9]">
                     <div className={`w-9 h-9 rounded-lg border flex items-center justify-center shrink-0 ${typeColors[ct] || typeColors.home}`}>
@@ -2481,7 +2481,7 @@ function DeliveryPage() {
                         await returnToReady(order.id);
                         setDoneOrders(p => { const n = new Set(p); n.delete(order.id); return n; });
                       }}
-                        className="flex items-center justify-center gap-1.5 h-10 px-4 rounded-lg border border-[#e2e8f0] bg-white text-[#475569] text-xs font-semibold hover:bg-[#fee2e2] hover:text-[#dc2626] hover:border-[#fca5a5] transition-colors">
+                        className="flex items-center justify-center gap-1.5 h-10 px-4 rounded-lg border border-[#cbd5e1] bg-white text-[#475569] text-xs font-semibold hover:bg-[#fee2e2] hover:text-[#dc2626] hover:border-[#fca5a5] transition-colors">
                         <Undo2 className="h-4 w-4" /> Vrátiť späť
                       </button>
                       <div className="flex-1 flex items-center justify-center gap-1.5 h-10 rounded-lg bg-[#dcfce7] border border-[#bbf7d0] text-[#166534] text-xs font-semibold">
@@ -2495,7 +2495,7 @@ function DeliveryPage() {
               {/* Bottom bar */}
               <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-[#e2e8f0] px-3 pt-3 pb-[calc(0.75rem+64px)] flex gap-2">
                 <button onClick={() => setSelectedStopIndex(null)}
-                  className="w-12 h-12 rounded-xl border border-[#e2e8f0] bg-white flex items-center justify-center text-[#475569] shrink-0">
+                  className="w-12 h-12 rounded-xl border border-[#cbd5e1] bg-white flex items-center justify-center text-[#475569] shrink-0">
                   <Truck className="h-5 w-5" />
                 </button>
                 <button
@@ -2540,7 +2540,7 @@ function DeliveryPage() {
               {/* Info grid */}
               <div className="grid grid-cols-2 gap-3">
                 {selectedOrderDetail.customerAddress && (
-                  <div className="col-span-2 bg-[#f8fafc] rounded-xl border border-[#e2e8f0] px-4 py-3">
+                  <div className="col-span-2 bg-[#f8fafc] rounded-xl border border-[#cbd5e1] px-4 py-3">
                     <div className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-wide mb-1">Adresa</div>
                     <div className="text-sm font-semibold text-[#0f172a]">{selectedOrderDetail.customerAddress}</div>
                     {selectedOrderDetail.customerAddress && (
@@ -2553,14 +2553,14 @@ function DeliveryPage() {
                   </div>
                 )}
                 {selectedOrderDetail.customerPhone && (
-                  <div className="bg-[#f8fafc] rounded-xl border border-[#e2e8f0] px-4 py-3">
+                  <div className="bg-[#f8fafc] rounded-xl border border-[#cbd5e1] px-4 py-3">
                     <div className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-wide mb-1">Telefón</div>
                     <a href={`tel:${selectedOrderDetail.customerPhone}`} className="text-sm font-semibold text-[#2563eb] hover:underline flex items-center gap-1">
                       <Phone className="h-3.5 w-3.5" />{selectedOrderDetail.customerPhone}
                     </a>
                   </div>
                 )}
-                <div className="bg-[#f8fafc] rounded-xl border border-[#e2e8f0] px-4 py-3">
+                <div className="bg-[#f8fafc] rounded-xl border border-[#cbd5e1] px-4 py-3">
                   <div className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-wide mb-1">Platba</div>
                   <div className="text-sm font-semibold text-[#0f172a]">
                     {selectedOrderDetail.paymentMethod === 'cash' ? 'Hotovosť' :
@@ -2577,7 +2577,7 @@ function DeliveryPage() {
               )}
 
               {/* Položky */}
-              <div className="bg-white rounded-xl border border-[#e2e8f0] overflow-hidden">
+              <div className="bg-white rounded-xl border border-[#cbd5e1] overflow-hidden">
                 <div className="px-4 py-2.5 border-b border-[#f1f5f9] bg-[#f8fafc]">
                   <span className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-wide">Položky objednávky</span>
                 </div>
@@ -2595,7 +2595,7 @@ function DeliveryPage() {
               </div>
 
               {/* Cenový súhrn */}
-              <div className="bg-[#f8fafc] rounded-xl border border-[#e2e8f0] px-4 py-3 space-y-2">
+              <div className="bg-[#f8fafc] rounded-xl border border-[#cbd5e1] px-4 py-3 space-y-2">
                 <div className="flex justify-between text-sm text-[#64748b]">
                   <span>Medzisúčet</span>
                   <span>{(selectedOrderDetail.totalPrice - (selectedOrderDetail.deliveryFee || 0)).toFixed(2)} €</span>
@@ -2620,7 +2620,7 @@ function DeliveryPage() {
 
               <div className="flex justify-end gap-2 pt-2">
                 <button onClick={() => setDetailModalOpen(false)}
-                  className="h-9 px-4 rounded-xl border border-[#e2e8f0] bg-white text-sm font-medium text-[#475569] hover:bg-[#f8fafc]">
+                  className="h-9 px-4 rounded-xl border border-[#cbd5e1] bg-white text-sm font-medium text-[#475569] hover:bg-[#f8fafc]">
                   Zavrieť
                 </button>
               </div>

@@ -2393,7 +2393,7 @@ export default function OrdersPage() {
                   {wizardStep === 1 && (
                     <div className="space-y-3">
                       <div>
-                        <Label className="text-xs font-semibold text-[#94a3b8] uppercase tracking-wider mb-2 block">Typ zákazníka</Label>
+                        <Label className="text-xs font-semibold text-[#475569] font-bold uppercase tracking-wider mb-2 block">Typ zákazníka</Label>
                         <div className="grid grid-cols-3 gap-2">
                           <button type="button" onClick={async () => { setCustomerType('home'); setCustomerId(''); if ((currentItem?.crop_id || currentItem?.blend_id) && currentItem?.packaging_size) { const p = await autoFetchPrice(currentItem.packaging_size, 'home', currentItem.crop_id, currentItem.blend_id); setCurrentItem(prev => ({ ...prev, price_per_unit: p > 0 ? p.toString() : (prev.price_per_unit || '') })); } }} className={`h-14 rounded-lg border-2 transition-all flex flex-col items-center justify-center gap-1 ${customerType === 'home' ? 'border-[#10b981] bg-emerald-50' : 'border-[#e2e8f0] hover:border-[#cbd5e1]'}`}>
                             <House className={`h-4 w-4 ${customerType === 'home' ? 'text-[#10b981]' : 'text-[#94a3b8]'}`} />
@@ -2433,7 +2433,7 @@ export default function OrdersPage() {
                         </div>
                         <div>
                           <Label className="text-sm font-medium">Trasa</Label>
-                          <select value={route || ''} onChange={(e) => setRoute(e.target.value)} className="mt-1 w-full h-10 px-3 border border-[#e2e8f0] rounded-md text-sm bg-white">
+                          <select value={route || ''} onChange={(e) => setRoute(e.target.value)} className="mt-1 w-full h-10 px-3 border border-[#cbd5e1] rounded-md text-sm bg-white">
                             <option value="">Žiadna trasa</option>
                             {safeRoutes.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
                           </select>
@@ -2468,7 +2468,7 @@ export default function OrdersPage() {
                           {editingOrder && (
                             <>
                               <Label className="text-sm font-medium">Stav</Label>
-                              <select value={status || 'pending'} onChange={(e) => setStatus(e.target.value)} className="mt-1 w-full h-10 px-3 border border-[#e2e8f0] rounded-md text-sm bg-white">
+                              <select value={status || 'pending'} onChange={(e) => setStatus(e.target.value)} className="mt-1 w-full h-10 px-3 border border-[#cbd5e1] rounded-md text-sm bg-white">
                                 <option value="pending">Čakajúca</option>
                                 <option value="confirmed">Potvrdená</option>
                                 <option value="ready">Pripravená</option>
@@ -2483,7 +2483,7 @@ export default function OrdersPage() {
                         <div className="grid grid-cols-1 gap-3">
                         <div>
                           <Label className="text-sm font-medium">Typ objednávky</Label>
-                          <select value={orderType || 'jednorazova'} onChange={(e) => setOrderType(e.target.value)} className="mt-1 w-full h-10 px-3 border border-[#e2e8f0] rounded-md text-sm bg-white">
+                          <select value={orderType || 'jednorazova'} onChange={(e) => setOrderType(e.target.value)} className="mt-1 w-full h-10 px-3 border border-[#cbd5e1] rounded-md text-sm bg-white">
                             <option value="jednorazova">Jednorazová</option>
                             <option value="tyzdenne">Týždenne</option>
                             <option value="dvojtyzdenne">Dvojtýždenne</option>
@@ -2503,7 +2503,7 @@ export default function OrdersPage() {
 
                       {/* Kategória chips */}
                       <div>
-                        <label className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-2 block">Kategória plodiny</label>
+                        <label className="text-[10px] font-semibold text-[#475569] font-bold uppercase tracking-wider mb-2 block">Kategória plodiny</label>
                         <div className="flex flex-wrap gap-1.5">
                           {[
                             { v: '', l: 'Všetky' },
@@ -2528,9 +2528,9 @@ export default function OrdersPage() {
 
                       {/* Zoznam pridaných položiek */}
                       {(orderItems || []).length > 0 && (
-                        <div className="bg-white border border-[#e2e8f0] rounded-xl overflow-hidden">
-                          <div className="px-4 py-2 bg-[#fafafa] border-b border-[#f1f5f9] flex items-center justify-between">
-                            <span className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider">
+                        <div className="bg-white border border-[#cbd5e1] rounded-xl overflow-hidden">
+                          <div className="px-4 py-2 bg-[#fafafa] border-b border-[#e2e8f0] flex items-center justify-between">
+                            <span className="text-[10px] font-semibold text-[#475569] font-bold uppercase tracking-wider">
                               Pridané položky ({orderItems.length})
                             </span>
                             <button
@@ -2551,7 +2551,7 @@ export default function OrdersPage() {
                               if (!item) return null;
                               const itemTotal = (item.quantity || 0) * (parseFloat(String(item.price_per_unit || '0').replace(',', '.')) || 0);
                               return (
-                                <div key={idx} className="px-4 py-3 flex items-center justify-between gap-3 hover:bg-[#fafafa]">
+                                <div key={idx} className="px-4 py-3 flex items-center justify-between gap-3 hover:bg-[#f8fafc]">
                                   <div className="flex-1 min-w-0">
                                     <div className="text-[13px] font-semibold text-[#0f172a]">{item.crop_name}</div>
                                     <div className="text-[11px] text-[#64748b] mt-0.5">
@@ -2566,7 +2566,7 @@ export default function OrdersPage() {
                                   <div className="flex gap-0.5 shrink-0">
                                     <button
                                       type="button"
-                                      className="w-7 h-7 rounded-md border border-[#e2e8f0] bg-white flex items-center justify-center text-[#64748b] hover:bg-[#eff6ff] hover:border-[#bfdbfe] hover:text-[#2563eb] transition-colors"
+                                      className="w-7 h-7 rounded-md border border-[#cbd5e1] bg-white flex items-center justify-center text-[#64748b] hover:bg-[#eff6ff] hover:border-[#bfdbfe] hover:text-[#2563eb] transition-colors"
                                       onClick={() => {
                                         let ps = String(item?.packaging_size || '');
                                         if (ps && !ps.includes('g') && !ps.includes('kg') && !isNaN(Number(ps))) ps += 'g';
@@ -2592,7 +2592,7 @@ export default function OrdersPage() {
                       )}
 
                       {/* Pridať novú položku */}
-                      <div className="bg-white border border-[#e2e8f0] rounded-xl overflow-hidden">
+                      <div className="bg-white border border-[#cbd5e1] rounded-xl overflow-hidden">
                         <div className="px-4 py-2 bg-[#f0fdf4] border-b border-[#bbf7d0]">
                           <span className="text-[10px] font-semibold text-[#16a34a] uppercase tracking-wider">
                             {currentItem.crop_name ? `Pridávam: ${currentItem.crop_name}` : 'Pridať položku'}
@@ -2620,7 +2620,7 @@ export default function OrdersPage() {
                           {/* Plodina + Gramáž v jednom riadku */}
                           <div className="grid grid-cols-2 gap-3">
                             <div>
-                              <label className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">
+                              <label className="text-[10px] font-semibold text-[#475569] font-bold uppercase tracking-wider mb-1.5 block">
                                 Plodina / Mix *
                               </label>
                               <Select
@@ -2672,7 +2672,7 @@ export default function OrdersPage() {
                               </Select>
                             </div>
                             <div>
-                              <label className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">
+                              <label className="text-[10px] font-semibold text-[#475569] font-bold uppercase tracking-wider mb-1.5 block">
                                 Gramáž *
                               </label>
                               {currentItem?.is_special_item ? (
@@ -2718,13 +2718,13 @@ export default function OrdersPage() {
                           {/* Počet kusov + Obal (auto) + Cena */}
                           <div className="grid grid-cols-3 gap-3">
                             <div>
-                              <label className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">
+                              <label className="text-[10px] font-semibold text-[#475569] font-bold uppercase tracking-wider mb-1.5 block">
                                 Počet ks *
                               </label>
                               <div className="flex items-center gap-1">
                                 <button
                                   type="button"
-                                  className="w-9 h-9 rounded-md border border-[#e2e8f0] bg-white flex items-center justify-center text-[#374151] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors font-bold text-lg"
+                                  className="w-9 h-9 rounded-md border border-[#cbd5e1] bg-white flex items-center justify-center text-[#374151] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors font-bold text-lg"
                                   onClick={() => setCurrentItem(prev => ({ ...prev, quantity: Math.max(1, (Number(prev.quantity) || 1) - 1) }))}
                                 >−</button>
                                 <input
@@ -2738,25 +2738,25 @@ export default function OrdersPage() {
                                     if (!e.target.value || parseInt(e.target.value) < 1)
                                       setCurrentItem(prev => ({ ...prev, quantity: 1 }));
                                   }}
-                                  className="w-12 h-9 text-center border border-[#e2e8f0] rounded-md text-[13px] font-semibold text-[#0f172a] bg-white"
+                                  className="w-12 h-9 text-center border border-[#cbd5e1] rounded-md text-[13px] font-semibold text-[#0f172a] bg-white"
                                 />
                                 <button
                                   type="button"
-                                  className="w-9 h-9 rounded-md border border-[#e2e8f0] bg-white flex items-center justify-center text-[#374151] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors font-bold text-lg"
+                                  className="w-9 h-9 rounded-md border border-[#cbd5e1] bg-white flex items-center justify-center text-[#374151] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors font-bold text-lg"
                                   onClick={() => setCurrentItem(prev => ({ ...prev, quantity: (Number(prev.quantity) || 1) + 1 }))}
                                 >+</button>
                               </div>
                             </div>
                             <div>
-                              <label className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">
+                              <label className="text-[10px] font-semibold text-[#475569] font-bold uppercase tracking-wider mb-1.5 block">
                                 Obal (auto)
                               </label>
-                              <div className="h-9 px-3 border border-[#e2e8f0] rounded-md bg-[#f8fafc] flex items-center text-[13px] text-[#64748b]">
+                              <div className="h-9 px-3 border border-[#cbd5e1] rounded-md bg-[#f8fafc] flex items-center text-[13px] text-[#64748b]">
                                 {currentItem?.packaging_volume_ml ? `${currentItem.packaging_volume_ml}ml` : 'auto'}
                               </div>
                             </div>
                             <div>
-                              <label className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">
+                              <label className="text-[10px] font-semibold text-[#475569] font-bold uppercase tracking-wider mb-1.5 block">
                                 Cena / ks (€)
                               </label>
                               <Input
@@ -2774,22 +2774,22 @@ export default function OrdersPage() {
                           {/* Sekundárne polia v rozbaľovacom riadku */}
                           <div className="grid grid-cols-3 gap-3">
                             <div>
-                              <label className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">Forma</label>
+                              <label className="text-[10px] font-semibold text-[#475569] font-bold uppercase tracking-wider mb-1.5 block">Forma</label>
                               <select
                                 value={currentItem?.delivery_form || 'rezana'}
                                 onChange={(e) => setCurrentItem(prev => ({ ...prev, delivery_form: e.target.value }))}
-                                className="w-full h-9 px-3 border border-[#e2e8f0] rounded-md text-[13px] bg-white text-[#374151]"
+                                className="w-full h-9 px-3 border border-[#cbd5e1] rounded-md text-[13px] bg-white text-[#374151]"
                               >
                                 <option value="rezana">Zrezaná</option>
                                 <option value="ziva">Živá</option>
                               </select>
                             </div>
                             <div>
-                              <label className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">Typ obalu</label>
+                              <label className="text-[10px] font-semibold text-[#475569] font-bold uppercase tracking-wider mb-1.5 block">Typ obalu</label>
                               <select
                                 value={currentItem?.packaging_type || 'rPET'}
                                 onChange={(e) => setCurrentItem(prev => ({ ...prev, packaging_type: e.target.value }))}
-                                className="w-full h-9 px-3 border border-[#e2e8f0] rounded-md text-[13px] bg-white text-[#374151]"
+                                className="w-full h-9 px-3 border border-[#cbd5e1] rounded-md text-[13px] bg-white text-[#374151]"
                               >
                                 <option value="rPET">rPET</option>
                                 <option value="PET">PET</option>
@@ -2837,7 +2837,7 @@ export default function OrdersPage() {
 
                       {/* Medzisúčet */}
                       {(orderItems || []).length > 0 && (
-                        <div className="flex items-center justify-between px-4 py-3 bg-white border border-[#e2e8f0] rounded-xl">
+                        <div className="flex items-center justify-between px-4 py-3 bg-white border border-[#cbd5e1] rounded-xl">
                           <span className="text-[12px] font-semibold text-[#374151]">
                             Medzisúčet · {orderItems.reduce((s, i) => s + (i?.quantity || 0), 0)} ks
                           </span>
@@ -2853,11 +2853,11 @@ export default function OrdersPage() {
                   {wizardStep === 3 && (
                     <div className="space-y-4">
                       <div>
-                        <Label className="text-xs font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">Poznámky k objednávke</Label>
-                        <textarea value={orderNotes || ''} onChange={(e) => setOrderNotes(e.target.value)} placeholder="Špeciálne pokyny pre objednávku..." className="w-full px-3 py-2 border border-[#e2e8f0] rounded-lg text-sm min-h-[72px] resize-none" />
+                        <Label className="text-xs font-semibold text-[#475569] font-bold uppercase tracking-wider mb-1.5 block">Poznámky k objednávke</Label>
+                        <textarea value={orderNotes || ''} onChange={(e) => setOrderNotes(e.target.value)} placeholder="Špeciálne pokyny pre objednávku..." className="w-full px-3 py-2 border border-[#cbd5e1] rounded-lg text-sm min-h-[72px] resize-none" />
                       </div>
 
-                      <div className="border border-[#e2e8f0] rounded-xl p-4 space-y-3 bg-[#fafafa]">
+                      <div className="border border-[#cbd5e1] rounded-xl p-4 space-y-3 bg-[#fafafa]">
                         <h3 className="text-xs font-semibold text-[#374151] uppercase tracking-wider">Nastavenia dopravy</h3>
                         <div className="flex items-center gap-3">
                           <Switch id="free-delivery-wiz" checked={freeDelivery} onCheckedChange={(v) => { setFreeDelivery(v); if (v) setManualDeliveryAmount(''); }} />

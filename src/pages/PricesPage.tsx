@@ -213,7 +213,7 @@ const PricesPage = () => {
   return (
     <MainLayout hideMobileHeader>
       {/* Header */}
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-5 pr-24 md:pr-28">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-[#f0fdf4] border border-[#bbf7d0] flex items-center justify-center">
             <Euro className="h-5 w-5 text-[#16a34a]" />
@@ -254,7 +254,7 @@ const PricesPage = () => {
       </div>
 
       {/* Customer type tabs */}
-      <div className="flex gap-1 bg-[#f1f5f9] p-1 rounded-xl border border-[#e2e8f0] mb-3">
+      <div className="flex gap-1 bg-[#f1f5f9] p-1 rounded-xl border border-[#cbd5e1] mb-3">
         {CUSTOMER_TYPES.map(ct => {
           const Icon = ct.icon;
           const active = listCustomerTab === ct.value;
@@ -298,13 +298,13 @@ const PricesPage = () => {
           <Loader2 className="h-6 w-6 animate-spin text-[#16a34a]" />
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm overflow-hidden">
+        <div className="bg-white rounded-xl border border-[#cbd5e1] shadow-sm overflow-hidden">
           {/* Table header */}
-          <div className="grid grid-cols-[220px_1fr_72px] bg-[#f8fafc] border-b border-[#f1f5f9]">
-            <div className="px-4 py-2.5 text-[11px] font-bold text-[#94a3b8] uppercase tracking-wide">
+          <div className="grid grid-cols-[220px_1fr_72px] bg-[#f8fafc] border-b border-[#e2e8f0]">
+            <div className="px-4 py-2.5 text-[11px] font-bold text-[#475569] font-bold uppercase tracking-wide">
               {mainTab === 'crops' ? 'Plodina' : 'Mix'}
             </div>
-            <div className="px-4 py-2.5 text-[11px] font-bold text-[#94a3b8] uppercase tracking-wide">
+            <div className="px-4 py-2.5 text-[11px] font-bold text-[#475569] font-bold uppercase tracking-wide">
               Ceny — {currentCt.label}
             </div>
             <div />
@@ -312,7 +312,7 @@ const PricesPage = () => {
 
           {itemsWithPrices.length === 0 ? (
             <div className="py-12 flex flex-col items-center text-center">
-              <div className="w-12 h-12 rounded-xl bg-[#f1f5f9] border border-[#e2e8f0] flex items-center justify-center mb-3">
+              <div className="w-12 h-12 rounded-xl bg-[#f1f5f9] border border-[#cbd5e1] flex items-center justify-center mb-3">
                 <Euro className="h-6 w-6 text-[#94a3b8]" />
               </div>
               <p className="text-sm text-[#64748b]">Žiadne ceny</p>
@@ -343,7 +343,7 @@ const PricesPage = () => {
                   </div>
                   <div className="flex items-center justify-end gap-1.5 px-3 py-3 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button onClick={() => openDialog(item.id, item.name, item.isCrop)}
-                      className="w-7 h-7 rounded-lg border border-[#e2e8f0] bg-white flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors">
+                      className="w-7 h-7 rounded-lg border border-[#cbd5e1] bg-white flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors">
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
                     {item.prices.length > 0 && (
@@ -391,7 +391,7 @@ const PricesPage = () => {
             )}
 
             {/* Customer tabs in dialog */}
-            <div className="flex gap-1 bg-[#f1f5f9] p-1 rounded-xl border border-[#e2e8f0]">
+            <div className="flex gap-1 bg-[#f1f5f9] p-1 rounded-xl border border-[#cbd5e1]">
               {CUSTOMER_TYPES.map(ct => {
                 const Icon = ct.icon;
                 const active = dialogCustomerTab === ct.value;
@@ -440,7 +440,7 @@ const PricesPage = () => {
                           updateEntry(dialogCustomerTab, idx, 'price', v);
                         }}
                         placeholder="0.00"
-                        className="w-full h-8 rounded-lg border border-[#e2e8f0] bg-white text-sm px-3 pr-7 text-[#0f172a] focus:outline-none focus:border-[#16a34a]"
+                        className="w-full h-8 rounded-lg border border-[#cbd5e1] bg-white text-sm px-3 pr-7 text-[#0f172a] focus:outline-none focus:border-[#16a34a]"
                       />
                       <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[#94a3b8]">€</span>
                     </div>
@@ -464,7 +464,7 @@ const PricesPage = () => {
 
           <div className="flex justify-end gap-2 pt-4 border-t border-[#f1f5f9]">
             <button onClick={() => { setIsDialogOpen(false); setNewItemId(''); }}
-              className="h-9 px-4 rounded-xl border border-[#e2e8f0] bg-white text-sm font-medium text-[#475569] hover:bg-[#f8fafc]">
+              className="h-9 px-4 rounded-xl border border-[#cbd5e1] bg-white text-sm font-medium text-[#475569] hover:bg-[#f8fafc]">
               Zrušiť
             </button>
             <button onClick={handleSave} disabled={saving}
