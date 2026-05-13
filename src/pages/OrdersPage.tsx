@@ -243,6 +243,7 @@ export default function OrdersPage() {
   const [filterRoute, setFilterRoute] = useState('all');
   const [showArchive, setShowArchive] = useState(false);
   const [showCancelled, setShowCancelled] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -599,6 +600,14 @@ export default function OrdersPage() {
           break;
         }
       }
+    }
+
+    // Vyhľadávanie podľa čísla objednávky alebo mena zákazníka
+    if (searchQuery && searchQuery.trim() !== '') {
+      const q = searchQuery.trim().toLowerCase();
+      const orderNum = ((order as any).order_number || '').toLowerCase();
+      const custName = (order.customer_name || '').toLowerCase();
+      if (!orderNum.includes(q) && !custName.includes(q)) return false;
     }
 
     return true;
@@ -2267,6 +2276,8 @@ export default function OrdersPage() {
           onShowArchiveChange={setShowArchive}
           showCancelled={showCancelled}
           onShowCancelledChange={setShowCancelled}
+          searchQuery={searchQuery}
+          onSearchQueryChange={setSearchQuery}
         />
 
         <OrdersFilterBar

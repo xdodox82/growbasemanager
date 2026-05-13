@@ -1,4 +1,4 @@
-import { Plus, Grid3x3, List, FileSpreadsheet, FileText, Calendar as CalendarIcon } from 'lucide-react';
+import { Plus, Grid3x3, List, FileSpreadsheet, FileText, Calendar as CalendarIcon, Search, X } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 
@@ -11,16 +11,36 @@ interface Props {
   onShowArchiveChange: (v: boolean) => void;
   showCancelled: boolean;
   onShowCancelledChange: (v: boolean) => void;
+  searchQuery: string;
+  onSearchQueryChange: (v: string) => void;
 }
 
 export function OrdersTopBar({
   viewMode, onViewModeChange, onNewOrder, onBulkDateChange,
   showArchive, onShowArchiveChange,
   showCancelled, onShowCancelledChange,
+  searchQuery, onSearchQueryChange,
 }: Props) {
   return (
-    <div className="bg-white rounded-xl border border-[#e2e8f0] px-4 py-3 flex items-center gap-2 mb-4">
+    <div className="bg-white rounded-xl border border-[#e2e8f0] px-4 py-3 flex items-center gap-2 mb-4 flex-wrap">
       <span className="text-xl font-bold text-[#0f172a] mr-auto">Objednávky</span>
+
+      {/* Vyhľadávanie podľa čísla objednávky */}
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#94a3b8]" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={e => onSearchQueryChange(e.target.value)}
+          placeholder="MR-001..."
+          className="h-9 pl-8 pr-7 rounded-lg border border-[#e2e8f0] text-sm text-[#0f172a] placeholder:text-[#94a3b8] focus:outline-none focus:border-[#16a34a] w-[120px] focus:w-[160px] transition-all"
+        />
+        {searchQuery && (
+          <button onClick={() => onSearchQueryChange('')} className="absolute right-2 top-1/2 -translate-y-1/2">
+            <X className="h-3.5 w-3.5 text-[#94a3b8] hover:text-[#475569]" />
+          </button>
+        )}
+      </div>
 
       <button
         onClick={onBulkDateChange}
@@ -67,7 +87,6 @@ export function OrdersTopBar({
 
       <div className="w-px h-5 bg-[#e2e8f0]" />
 
-      {/* Archive + Cancelled toggles */}
       <div className="hidden md:flex items-center gap-3 border-l border-[#e2e8f0] pl-3">
         <div className="flex items-center gap-1.5">
           <Switch id="topbar-archive" checked={showArchive} onCheckedChange={onShowArchiveChange} />

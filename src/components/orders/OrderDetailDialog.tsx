@@ -61,7 +61,14 @@ export function OrderDetailDialog({
     <Dialog open={open} onOpenChange={(isOpen) => { onOpenChange(isOpen); if (!isOpen) onTabChange('detail'); }}>
       <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="pb-0">
-          <DialogTitle className="text-[16px] font-700 text-[#0f172a]">Detail objednávky</DialogTitle>
+          <DialogTitle className="text-[16px] font-700 text-[#0f172a] flex items-center gap-2">
+            Detail objednávky
+            {(order as any).order_number && (
+              <span className="text-[13px] font-bold px-2 py-0.5 rounded-lg bg-[#f1f5f9] border border-[#e2e8f0] text-[#475569]">
+                {(order as any).order_number}
+              </span>
+            )}
+          </DialogTitle>
           {/* Badges */}
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             {((order as any).order_source === 'app' || (order as any).source === 'app') && (
