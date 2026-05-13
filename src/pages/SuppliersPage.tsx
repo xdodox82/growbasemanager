@@ -124,7 +124,7 @@ const SuppliersPage = () => {
 
   const inp = (label: string, id: string, value: string, onChange: (v: string) => void, opts: { placeholder?: string; type?: string } = {}) => (
     <div>
-      <label className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">{label}</label>
+      <label className="text-[11px] font-bold text-[#475569] uppercase tracking-wider mb-1.5 block">{label}</label>
       <Input id={id} type={opts.type || 'text'} value={value} onChange={e => onChange(e.target.value)}
         placeholder={opts.placeholder || ''} className="h-9 border-[#e2e8f0] text-[13px] bg-white" />
     </div>
@@ -174,7 +174,7 @@ const SuppliersPage = () => {
           {!filtersCollapsed && (
             <div className="border-t border-[#f1f5f9]">
               <div className="flex items-center gap-2 flex-wrap py-2.5">
-                <span className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider min-w-[85px] shrink-0">Typ</span>
+                <span className="text-[11px] font-bold text-[#475569] uppercase tracking-wider min-w-[85px] shrink-0">Typ</span>
                 {(['all', 'seeds', 'packaging', 'substrate', 'other'] as const).map(t => {
                   const active = typeFilter === t;
                   const ti = typeInfo(t);
@@ -258,20 +258,20 @@ const SuppliersPage = () => {
         ) : (
           <div className="bg-white rounded-xl border border-[#e2e8f0] overflow-hidden">
             <table className="w-full">
-              <thead className="bg-[#fafafa] border-b border-[#e2e8f0]">
+              <thead className="bg-[#f8fafc] border-b-2 border-[#e2e8f0]">
                 <tr>
-                  <th className="px-4 py-3 text-left text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider">Dodávateľ</th>
-                  <th className="px-4 py-3 text-left text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider">Kontakt</th>
-                  <th className="px-4 py-3 text-left text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider">Adresa</th>
-                  <th className="px-4 py-3 text-left text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider">IČO</th>
-                  <th className="px-4 py-3 text-right text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider">Akcie</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wider">Dodávateľ</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wider">Kontakt</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wider">Adresa</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wider">IČO</th>
+                  <th className="px-4 py-3 text-right text-[10px] font-bold text-[#475569] uppercase tracking-wider">Akcie</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#f1f5f9]">
+              <tbody className="divide-y divide-[#e2e8f0]">
                 {filteredSuppliers.map(s => {
                   const ti = typeInfo(s.supplier_type);
                   return (
-                    <tr key={s.id} className="hover:bg-[#fafafa] cursor-pointer transition-colors" onClick={() => { setDetailSupplier(s); setDetailOpen(true); }}>
+                    <tr key={s.id} className="hover:bg-[#f8fafc] cursor-pointer transition-colors" onClick={() => { setDetailSupplier(s); setDetailOpen(true); }}>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2.5">
                           <div className={"w-8 h-8 rounded-full flex items-center justify-center shrink-0 " + (ti ? ti.bg : 'bg-[#f8fafc]')}>
@@ -317,7 +317,7 @@ const SuppliersPage = () => {
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <label className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-2 block">Typ dodávateľa</label>
+                <label className="text-[11px] font-bold text-[#475569] uppercase tracking-wider mb-2 block">Typ dodávateľa</label>
                 <div className="grid grid-cols-4 gap-2">
                   {typeButtons.map(([t,l,Icon,color,bg]) => (
                     <button key={t} type="button" onClick={() => setFormData({...formData, supplier_type: t})}
@@ -334,7 +334,7 @@ const SuppliersPage = () => {
                 {inp('Kontaktná osoba', 'contact_name', formData.contact_name, v => setFormData({...formData, contact_name: v}), {placeholder: 'Ján Novák'})}
               </div>
               <div>
-                <label className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">Názov *</label>
+                <label className="text-[11px] font-bold text-[#475569] uppercase tracking-wider mb-1.5 block">Názov *</label>
                 <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="Krátky názov" className="h-9 border-[#e2e8f0] text-[13px] bg-white" />
               </div>
               <div className="grid grid-cols-3 gap-3">
@@ -347,12 +347,12 @@ const SuppliersPage = () => {
                 {inp('Telefón', 'phone', formData.phone, v => setFormData({...formData, phone: v}), {placeholder: '+421 900 123 456'})}
               </div>
               <div>
-                <label className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">Adresa</label>
+                <label className="text-[11px] font-bold text-[#475569] uppercase tracking-wider mb-1.5 block">Adresa</label>
                 <Textarea value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} placeholder="Ulica, Mesto, PSČ" rows={2} className="border-[#e2e8f0] text-[13px] resize-none" />
               </div>
               {inp('Bankový účet', 'bank_account', formData.bank_account, v => setFormData({...formData, bank_account: v}), {placeholder: 'SK12 3456 7890...'})}
               <div>
-                <label className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1.5 block">Poznámky</label>
+                <label className="text-[11px] font-bold text-[#475569] uppercase tracking-wider mb-1.5 block">Poznámky</label>
                 <Textarea value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} placeholder="Interné poznámky..." rows={2} className="border-[#e2e8f0] text-[13px] resize-none" />
               </div>
             </div>
@@ -388,15 +388,15 @@ const SuppliersPage = () => {
                 </DialogHeader>
                 <div className="space-y-4 pt-2">
                   <div className="grid grid-cols-2 gap-px bg-[#f1f5f9] border border-[#f1f5f9] rounded-xl overflow-hidden">
-                    {s.phone && <div className="bg-white px-4 py-3"><div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1">Telefón</div><a href={"tel:" + s.phone} className="text-[13px] font-semibold text-[#16a34a] flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" />{s.phone}</a></div>}
-                    {s.email && <div className="bg-white px-4 py-3"><div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1">Email</div><a href={"mailto:" + s.email} className="text-[13px] font-semibold text-[#16a34a] flex items-center gap-1.5 truncate"><Mail className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{s.email}</span></a></div>}
-                    {s.ico && <div className="bg-white px-4 py-3"><div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1">IČO</div><div className="text-[13px] font-semibold text-[#0f172a]">{s.ico}</div></div>}
-                    {s.dic && <div className="bg-white px-4 py-3"><div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1">DIČ</div><div className="text-[13px] font-semibold text-[#0f172a]">{s.dic}</div></div>}
-                    {s.ic_dph && <div className="bg-white px-4 py-3 col-span-2"><div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1">IČ DPH</div><div className="text-[13px] font-semibold text-[#0f172a]">{s.ic_dph}</div></div>}
-                    {s.bank_account && <div className="bg-white px-4 py-3 col-span-2"><div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1">Bankový účet</div><div className="text-[13px] font-semibold text-[#0f172a]">{s.bank_account}</div></div>}
+                    {s.phone && <div className="bg-white px-4 py-3"><div className="text-[10px] font-bold text-[#475569] uppercase tracking-wider mb-1">Telefón</div><a href={"tel:" + s.phone} className="text-[13px] font-semibold text-[#16a34a] flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" />{s.phone}</a></div>}
+                    {s.email && <div className="bg-white px-4 py-3"><div className="text-[10px] font-bold text-[#475569] uppercase tracking-wider mb-1">Email</div><a href={"mailto:" + s.email} className="text-[13px] font-semibold text-[#16a34a] flex items-center gap-1.5 truncate"><Mail className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{s.email}</span></a></div>}
+                    {s.ico && <div className="bg-white px-4 py-3"><div className="text-[10px] font-bold text-[#475569] uppercase tracking-wider mb-1">IČO</div><div className="text-[13px] font-bold text-[#0f172a]">{s.ico}</div></div>}
+                    {s.dic && <div className="bg-white px-4 py-3"><div className="text-[10px] font-bold text-[#475569] uppercase tracking-wider mb-1">DIČ</div><div className="text-[13px] font-bold text-[#0f172a]">{s.dic}</div></div>}
+                    {s.ic_dph && <div className="bg-white px-4 py-3 col-span-2"><div className="text-[10px] font-bold text-[#475569] uppercase tracking-wider mb-1">IČ DPH</div><div className="text-[13px] font-bold text-[#0f172a]">{s.ic_dph}</div></div>}
+                    {s.bank_account && <div className="bg-white px-4 py-3 col-span-2"><div className="text-[10px] font-bold text-[#475569] uppercase tracking-wider mb-1">Bankový účet</div><div className="text-[13px] font-bold text-[#0f172a]">{s.bank_account}</div></div>}
                   </div>
                   {s.address && (
-                    <div className="flex items-start justify-between gap-3 px-4 py-3 bg-white border border-[#e2e8f0] rounded-xl">
+                    <div className="flex items-start justify-between gap-3 px-4 py-3 bg-white border border-[#cbd5e1] rounded-xl">
                       <div className="flex items-start gap-2"><MapPin className="h-4 w-4 text-[#94a3b8] mt-0.5 shrink-0" /><span className="text-[13px] text-[#475569]">{s.address}</span></div>
                       <a href={"https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(s.address)} target="_blank" rel="noopener noreferrer" className="shrink-0 flex items-center gap-1 text-[12px] text-[#16a34a] font-medium hover:underline"><Navigation className="h-3.5 w-3.5" />Navigovať</a>
                     </div>

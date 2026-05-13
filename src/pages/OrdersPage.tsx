@@ -2462,7 +2462,7 @@ export default function OrdersPage() {
                               />
                             </PopoverContent>
                           </Popover>
-                          {deliveryDayHint && <p className="text-[11px] text-[#64748b] mt-1">{deliveryDayHint}</p>}
+                          {deliveryDayHint && <p className="text-[11px] text-[#475569] mt-1">{deliveryDayHint}</p>}
                         </div>
                         <div>
                           {editingOrder && (
@@ -2529,7 +2529,7 @@ export default function OrdersPage() {
                       {/* Zoznam pridaných položiek */}
                       {(orderItems || []).length > 0 && (
                         <div className="bg-white border border-[#cbd5e1] rounded-xl overflow-hidden">
-                          <div className="px-4 py-2 bg-[#fafafa] border-b border-[#e2e8f0] flex items-center justify-between">
+                          <div className="px-4 py-2 bg-[#f8fafc] border-b-2 border-[#e2e8f0] flex items-center justify-between">
                             <span className="text-[10px] font-semibold text-[#475569] font-bold uppercase tracking-wider">
                               Pridané položky ({orderItems.length})
                             </span>
@@ -2553,8 +2553,8 @@ export default function OrdersPage() {
                               return (
                                 <div key={idx} className="px-4 py-3 flex items-center justify-between gap-3 hover:bg-[#f8fafc]">
                                   <div className="flex-1 min-w-0">
-                                    <div className="text-[13px] font-semibold text-[#0f172a]">{item.crop_name}</div>
-                                    <div className="text-[11px] text-[#64748b] mt-0.5">
+                                    <div className="text-[13px] font-bold text-[#0f172a]">{item.crop_name}</div>
+                                    <div className="text-[11px] text-[#475569] mt-0.5">
                                       {item.quantity} × {item.packaging_size} · {item.packaging_volume_ml}ml {item.packaging_type}
                                       {item.has_label ? ' · Etiketa' : ''}
                                     </div>
@@ -2738,7 +2738,7 @@ export default function OrdersPage() {
                                     if (!e.target.value || parseInt(e.target.value) < 1)
                                       setCurrentItem(prev => ({ ...prev, quantity: 1 }));
                                   }}
-                                  className="w-12 h-9 text-center border border-[#cbd5e1] rounded-md text-[13px] font-semibold text-[#0f172a] bg-white"
+                                  className="w-12 h-9 text-center border border-[#cbd5e1] rounded-md text-[13px] font-bold text-[#0f172a] bg-white"
                                 />
                                 <button
                                   type="button"
@@ -2751,7 +2751,7 @@ export default function OrdersPage() {
                               <label className="text-[10px] font-semibold text-[#475569] font-bold uppercase tracking-wider mb-1.5 block">
                                 Obal (auto)
                               </label>
-                              <div className="h-9 px-3 border border-[#cbd5e1] rounded-md bg-[#f8fafc] flex items-center text-[13px] text-[#64748b]">
+                              <div className="h-9 px-3 border border-[#cbd5e1] rounded-md bg-[#f8fafc] flex items-center text-[13px] text-[#475569]">
                                 {currentItem?.packaging_volume_ml ? `${currentItem.packaging_volume_ml}ml` : 'auto'}
                               </div>
                             </div>
@@ -2857,7 +2857,7 @@ export default function OrdersPage() {
                         <textarea value={orderNotes || ''} onChange={(e) => setOrderNotes(e.target.value)} placeholder="Špeciálne pokyny pre objednávku..." className="w-full px-3 py-2 border border-[#cbd5e1] rounded-lg text-sm min-h-[72px] resize-none" />
                       </div>
 
-                      <div className="border border-[#cbd5e1] rounded-xl p-4 space-y-3 bg-[#fafafa]">
+                      <div className="border border-[#cbd5e1] rounded-xl p-4 space-y-3 bg-[#f8fafc]">
                         <h3 className="text-xs font-semibold text-[#374151] uppercase tracking-wider">Nastavenia dopravy</h3>
                         <div className="flex items-center gap-3">
                           <Switch id="free-delivery-wiz" checked={freeDelivery} onCheckedChange={(v) => { setFreeDelivery(v); if (v) setManualDeliveryAmount(''); }} />
@@ -2908,7 +2908,7 @@ export default function OrdersPage() {
                   )}
 
                   {/* Navigation footer */}
-                  <div className="flex items-center justify-between pt-4 mt-2 border-t border-[#f1f5f9]">
+                  <div className="flex items-center justify-between pt-4 mt-2 border-t border-[#e2e8f0]">
                     <div>
                       {wizardStep === 1 ? (
                         <Button variant="outline" className="h-9 px-4 text-sm border-[#e2e8f0]" onClick={() => { setIsDialogOpen(false); setWizardStep(1); }}>Zrušiť</Button>

@@ -82,8 +82,6 @@ const CustomersPage = () => {
     free_delivery: false, uses_returnable_containers: false,
     default_packaging_type: 'rPET',
     company_name: '', contact_name: '', ico: '', dic: '', ic_dph: '', bank_account: '',
-    custom_delivery_fee: '' as string,
-    custom_min_free_delivery: '' as string,
   };
   const [formData, setFormData] = useState(emptyForm);
 
@@ -104,8 +102,6 @@ const CustomersPage = () => {
       contact_name: (customer as any).contact_name || '',
       ico: (customer as any).ico || '', dic: (customer as any).dic || '',
       ic_dph: (customer as any).ic_dph || '', bank_account: (customer as any).bank_account || '',
-      custom_delivery_fee: (customer as any).custom_delivery_fee != null ? String((customer as any).custom_delivery_fee) : '',
-      custom_min_free_delivery: (customer as any).custom_min_free_delivery != null ? String((customer as any).custom_min_free_delivery) : '',
     });
     setIsDialogOpen(true);
   };
@@ -134,8 +130,6 @@ const CustomersPage = () => {
       company_name: formData.company_name || null, contact_name: formData.contact_name || null,
       ico: formData.ico || null, dic: formData.dic || null,
       ic_dph: formData.ic_dph || null, bank_account: formData.bank_account || null,
-      custom_delivery_fee: formData.custom_delivery_fee !== '' ? parseFloat(formData.custom_delivery_fee) : null,
-      custom_min_free_delivery: formData.custom_min_free_delivery !== '' ? parseFloat(formData.custom_min_free_delivery) : null,
     };
     if (editingCustomer) {
       const { error } = await update(editingCustomer.id, data);
@@ -185,7 +179,7 @@ const CustomersPage = () => {
   // Input helper
   const inp = (label: string, id: string, value: string, onChange: (v: string) => void, opts: { placeholder?: string; type?: string; required?: boolean } = {}) => (
     <div>
-      <label className="text-[11px] font-semibold text-[#475569] font-bold uppercase tracking-wider mb-1.5 block">{label}{opts.required && ' *'}</label>
+      <label className="text-[11px] font-bold text-[#475569] uppercase tracking-wider mb-1.5 block">{label}{opts.required && ' *'}</label>
       <Input id={id} type={opts.type || 'text'} value={value} onChange={e => onChange(e.target.value)}
         placeholder={opts.placeholder || ''} className="h-9 border-[#e2e8f0] text-[13px] bg-white" />
     </div>
@@ -195,7 +189,7 @@ const CustomersPage = () => {
   if (loading) return (
     <MainLayout hideMobileHeader>
       <div className="p-6 space-y-4">
-        <div className="h-10 bg-white rounded-xl border border-[#cbd5e1] animate-pulse" />
+        <div className="h-10 bg-white rounded-xl border border-[#e2e8f0] animate-pulse" />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-40 rounded-xl" />)}
         </div>
@@ -208,7 +202,7 @@ const CustomersPage = () => {
       <div className="p-6 space-y-4">
 
         {/* ── TOPBAR ── */}
-        <div className="bg-white rounded-xl border border-[#cbd5e1] px-4 py-3 flex items-center gap-2 mb-4">
+        <div className="bg-white rounded-xl border border-[#e2e8f0] px-4 py-3 flex items-center gap-2 mb-4">
           <span className="text-xl font-bold text-[#0f172a] mr-auto">Zákazníci</span>
 
           {/* View toggle */}
@@ -233,7 +227,7 @@ const CustomersPage = () => {
         </div>
 
         {/* ── FILTER BAR ── */}
-        <div className="bg-white rounded-xl border border-[#cbd5e1] px-4 mb-4">
+        <div className="bg-white rounded-xl border border-[#e2e8f0] px-4 mb-4">
           {/* Header */}
           <div className="flex items-center gap-2 py-2.5 cursor-pointer select-none" onClick={() => setFiltersCollapsed(v => !v)}>
             <ChevronDown className={`w-3.5 h-3.5 text-[#94a3b8] transition-transform duration-200 ${filtersCollapsed ? '-rotate-90' : ''}`} />
@@ -250,7 +244,7 @@ const CustomersPage = () => {
             <div className="border-t border-[#f1f5f9]">
               {/* Riadok 1: Typ zákazníka + hľadanie */}
               <div className="flex items-center gap-2 flex-wrap py-2.5">
-                <span className="text-[11px] font-semibold text-[#475569] font-bold uppercase tracking-wider min-w-[85px] shrink-0">Zákazník</span>
+                <span className="text-[11px] font-bold text-[#475569] uppercase tracking-wider min-w-[85px] shrink-0">Zákazník</span>
                 {['all', 'home', 'gastro', 'wholesale'].map(t => {
                   const active = typeFilter === t;
                   const chip = typeChip(t);
@@ -279,7 +273,7 @@ const CustomersPage = () => {
 
               {/* Riadok 2: Trasa */}
               <div className="flex items-center gap-2 flex-wrap py-2.5">
-                <span className="text-[11px] font-semibold text-[#475569] font-bold uppercase tracking-wider min-w-[85px] shrink-0">Trasa</span>
+                <span className="text-[11px] font-bold text-[#475569] uppercase tracking-wider min-w-[85px] shrink-0">Trasa</span>
                 <button onClick={() => setRouteFilter('all')}
                   className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md border-[1.5px] text-[12px] font-medium cursor-pointer transition-colors ${routeFilter === 'all' ? 'bg-[#16a34a] border-[#16a34a] text-white' : 'border-[#e2e8f0] text-[#374151] bg-white hover:border-[#bbf7d0] hover:text-[#16a34a] hover:bg-[#f0fdf4]'}`}>
                   Všetky
@@ -297,9 +291,9 @@ const CustomersPage = () => {
 
         {/* ── CONTENT ── */}
         {customers.length === 0 ? (
-          <div className="bg-white rounded-xl border border-[#cbd5e1] p-12 text-center">
+          <div className="bg-white rounded-xl border border-[#e2e8f0] p-12 text-center">
             <Users className="h-10 w-10 text-[#cbd5e1] mx-auto mb-3" />
-            <div className="text-[15px] font-bold text-[#0f172a] mb-1">Žiadni zákazníci</div>
+            <div className="text-[15px] font-semibold text-[#0f172a] mb-1">Žiadni zákazníci</div>
             <div className="text-[13px] text-[#94a3b8] mb-4">Začnite pridaním vášho prvého zákazníka.</div>
             <button onClick={() => setIsDialogOpen(true)}
               className="inline-flex items-center gap-2 bg-[#16a34a] text-white rounded-lg px-4 py-2 text-sm font-semibold">
@@ -307,9 +301,9 @@ const CustomersPage = () => {
             </button>
           </div>
         ) : filteredCustomers.length === 0 ? (
-          <div className="bg-white rounded-xl border border-[#cbd5e1] p-12 text-center">
+          <div className="bg-white rounded-xl border border-[#e2e8f0] p-12 text-center">
             <Search className="h-10 w-10 text-[#cbd5e1] mx-auto mb-3" />
-            <div className="text-[15px] font-bold text-[#0f172a] mb-1">Žiadne výsledky</div>
+            <div className="text-[15px] font-semibold text-[#0f172a] mb-1">Žiadne výsledky</div>
             <div className="text-[13px] text-[#94a3b8]">Skúste zmeniť filtre alebo vyhľadávanie.</div>
           </div>
         ) : effectiveViewMode === 'grid' ? (
@@ -403,7 +397,7 @@ const CustomersPage = () => {
 
                   {/* Footer */}
                   <div className="border-t border-[#f1f5f9] px-4 py-2.5 flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-[12px] text-[#64748b]">
+                    <div className="flex items-center gap-1.5 text-[12px] text-[#475569]">
                       <ShoppingCart className="h-3.5 w-3.5" />
                       <span>{stats} obj.</span>
                     </div>
@@ -420,16 +414,16 @@ const CustomersPage = () => {
         ) : (
 
           /* ── LIST VIEW ── */
-          <div className="bg-white rounded-xl border border-[#cbd5e1] overflow-hidden">
+          <div className="bg-white rounded-xl border border-[#e2e8f0] overflow-hidden">
             <table className="w-full">
               <thead className="bg-[#f8fafc] border-b-2 border-[#e2e8f0]">
                 <tr>
-                  <th className="px-4 py-3 text-left text-[10px] font-semibold text-[#475569] font-bold uppercase tracking-wider">Zákazník</th>
-                  <th className="px-4 py-3 text-left text-[10px] font-semibold text-[#475569] font-bold uppercase tracking-wider">Kontakt</th>
-                  <th className="px-4 py-3 text-left text-[10px] font-semibold text-[#475569] font-bold uppercase tracking-wider">Trasa</th>
-                  <th className="px-4 py-3 text-left text-[10px] font-semibold text-[#475569] font-bold uppercase tracking-wider">Platba</th>
-                  <th className="px-4 py-3 text-center text-[10px] font-semibold text-[#475569] font-bold uppercase tracking-wider">Obj.</th>
-                  <th className="px-4 py-3 text-right text-[10px] font-semibold text-[#475569] font-bold uppercase tracking-wider">Akcie</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wider">Zákazník</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wider">Kontakt</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wider">Trasa</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wider">Platba</th>
+                  <th className="px-4 py-3 text-center text-[10px] font-bold text-[#475569] uppercase tracking-wider">Obj.</th>
+                  <th className="px-4 py-3 text-right text-[10px] font-bold text-[#475569] uppercase tracking-wider">Akcie</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e2e8f0]">
@@ -514,7 +508,7 @@ const CustomersPage = () => {
             <div className="space-y-4">
               {/* Typ zákazníka */}
               <div>
-                <label className="text-[11px] font-semibold text-[#475569] font-bold uppercase tracking-wider mb-2 block">Typ zákazníka *</label>
+                <label className="text-[11px] font-bold text-[#475569] uppercase tracking-wider mb-2 block">Typ zákazníka *</label>
                 <div className="grid grid-cols-3 gap-2">
                   {([['home', 'Domáci', House, '#16a34a', '#f0fdf4'], ['gastro', 'Gastro', Utensils, '#2563eb', '#eff6ff'], ['wholesale', 'VO', Store, '#d97706', '#fff7ed']] as const).map(([t, l, Icon, color, bg]) => (
                     <button key={t} type="button" onClick={() => setFormData({ ...formData, customer_type: t })}
@@ -557,7 +551,7 @@ const CustomersPage = () => {
 
               {/* Adresa */}
               <div>
-                <label className="text-[11px] font-semibold text-[#475569] font-bold uppercase tracking-wider mb-1.5 block">Adresa</label>
+                <label className="text-[11px] font-bold text-[#475569] uppercase tracking-wider mb-1.5 block">Adresa</label>
                 <Textarea value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })}
                   placeholder="Ulica, Mesto, PSČ" rows={2} className="border-[#e2e8f0] text-[13px] resize-none" />
               </div>
@@ -568,12 +562,12 @@ const CustomersPage = () => {
               )}
 
               {/* Nastavenia */}
-              <div className="bg-[#f8fafc] rounded-xl border border-[#cbd5e1] p-4 space-y-3">
-                <div className="text-[10px] font-semibold text-[#475569] font-bold uppercase tracking-wider mb-1">Nastavenia doručenia</div>
+              <div className="bg-[#f8fafc] rounded-xl border border-[#e2e8f0] p-4 space-y-3">
+                <div className="text-[10px] font-bold text-[#475569] uppercase tracking-wider mb-1">Nastavenia doručenia</div>
 
                 {/* Trasa */}
                 <div>
-                  <label className="text-[11px] font-semibold text-[#475569] font-bold uppercase tracking-wider mb-1.5 block">Rozvozová trasa</label>
+                  <label className="text-[11px] font-bold text-[#475569] uppercase tracking-wider mb-1.5 block">Rozvozová trasa</label>
                   <Select value={formData.delivery_route_id || 'none'} onValueChange={v => setFormData({ ...formData, delivery_route_id: v === 'none' ? null : v })}>
                     <SelectTrigger className="h-9 border-[#e2e8f0] bg-white text-[13px]"><SelectValue placeholder="Vyberte trasu" /></SelectTrigger>
                     <SelectContent className="bg-white z-[9999]">
@@ -586,7 +580,7 @@ const CustomersPage = () => {
                 <div className="grid grid-cols-2 gap-3">
                   {/* Platba */}
                   <div>
-                    <label className="text-[11px] font-semibold text-[#475569] font-bold uppercase tracking-wider mb-1.5 block">Spôsob platby</label>
+                    <label className="text-[11px] font-bold text-[#475569] uppercase tracking-wider mb-1.5 block">Spôsob platby</label>
                     <Select value={formData.payment_method} onValueChange={(v: 'cash'|'card'|'invoice') => setFormData({ ...formData, payment_method: v })}>
                       <SelectTrigger className="h-9 border-[#e2e8f0] bg-white text-[13px]"><SelectValue /></SelectTrigger>
                       <SelectContent className="bg-white z-[9999]">
@@ -599,7 +593,7 @@ const CustomersPage = () => {
 
                   {/* Obal */}
                   <div>
-                    <label className="text-[11px] font-semibold text-[#475569] font-bold uppercase tracking-wider mb-1.5 block">Predvolený obal</label>
+                    <label className="text-[11px] font-bold text-[#475569] uppercase tracking-wider mb-1.5 block">Predvolený obal</label>
                     <Select value={formData.default_packaging_type} onValueChange={v => setFormData({ ...formData, default_packaging_type: v })}>
                       <SelectTrigger className="h-9 border-[#e2e8f0] bg-white text-[13px]"><SelectValue /></SelectTrigger>
                       <SelectContent className="bg-white z-[9999]">
@@ -623,56 +617,11 @@ const CustomersPage = () => {
                     <Label htmlFor="returnable" className="text-[13px] cursor-pointer">Vratné obaly</Label>
                   </div>
                 </div>
-
-                {/* Individuálna cena dopravy */}
-                {!formData.free_delivery && (
-                  <div className="bg-[#f8fafc] border border-[#cbd5e1] rounded-lg p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[11px] font-semibold text-[#475569] font-bold uppercase tracking-wider">Individuálna cena dopravy</label>
-                      <button type="button"
-                        onClick={() => setFormData({ ...formData, custom_delivery_fee: '', custom_min_free_delivery: '' })}
-                        className="text-[10px] text-[#94a3b8] hover:text-[#dc2626] transition-colors">
-                        Zrušiť individuálnu
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-[11px] text-[#64748b] mb-1 block">Cena dopravy (€)</label>
-                        <input
-                          type="number" min="0" step="0.01"
-                          placeholder="napr. 1.50"
-                          value={formData.custom_delivery_fee}
-                          onChange={e => setFormData({ ...formData, custom_delivery_fee: e.target.value })}
-                          className="w-full h-9 px-3 border border-[#cbd5e1] rounded-md text-[13px] bg-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[11px] text-[#64748b] mb-1 block">Min. pre zdarma (€)</label>
-                        <input
-                          type="number" min="0" step="0.01"
-                          placeholder="napr. 15.00"
-                          value={formData.custom_min_free_delivery}
-                          onChange={e => setFormData({ ...formData, custom_min_free_delivery: e.target.value })}
-                          className="w-full h-9 px-3 border border-[#cbd5e1] rounded-md text-[13px] bg-white"
-                        />
-                      </div>
-                    </div>
-                    {formData.custom_delivery_fee !== '' && (
-                      <p className="text-[11px] text-[#16a34a]">
-                        Doprava: {parseFloat(formData.custom_delivery_fee || '0').toFixed(2)} €
-                        {formData.custom_min_free_delivery !== '' && ` · Zdarma od ${parseFloat(formData.custom_min_free_delivery || '0').toFixed(2)} €`}
-                      </p>
-                    )}
-                    {formData.custom_delivery_fee === '' && (
-                      <p className="text-[11px] text-[#94a3b8]">Nevyplnené = použijú sa štandardné limity trasy</p>
-                    )}
-                  </div>
-                )}
               </div>
 
               {/* Poznámky */}
               <div>
-                <label className="text-[11px] font-semibold text-[#475569] font-bold uppercase tracking-wider mb-1.5 block">Poznámky k dodaniu</label>
+                <label className="text-[11px] font-bold text-[#475569] uppercase tracking-wider mb-1.5 block">Poznámky k dodaniu</label>
                 <Textarea value={formData.delivery_notes} onChange={e => setFormData({ ...formData, delivery_notes: e.target.value })}
                   placeholder="Špeciálne požiadavky, dodacie inštrukcie..." rows={2} className="border-[#e2e8f0] text-[13px] resize-none" />
               </div>
@@ -681,7 +630,7 @@ const CustomersPage = () => {
             {/* Footer */}
             <div className="flex justify-end gap-2 pt-5 border-t border-[#f1f5f9] mt-5">
               <button type="button" onClick={() => { setIsDialogOpen(false); resetForm(); }}
-                className="px-4 py-2 rounded-lg border border-[#cbd5e1] text-[13px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
+                className="px-4 py-2 rounded-lg border border-[#e2e8f0] text-[13px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
                 Zrušiť
               </button>
               <button type="submit" disabled={saving}
@@ -728,7 +677,7 @@ const CustomersPage = () => {
                   <div className="grid grid-cols-2 gap-px bg-[#f1f5f9] border border-[#f1f5f9] rounded-xl overflow-hidden">
                     {c.phone && (
                       <div className="bg-white px-4 py-3">
-                        <div className="text-[10px] font-semibold text-[#475569] font-bold uppercase tracking-wider mb-1">Telefón</div>
+                        <div className="text-[10px] font-bold text-[#475569] uppercase tracking-wider mb-1">Telefón</div>
                         <a href={`tel:${c.phone}`} className="text-[13px] font-semibold text-[#16a34a] flex items-center gap-1.5">
                           <Phone className="h-3.5 w-3.5" />{c.phone}
                         </a>
@@ -736,7 +685,7 @@ const CustomersPage = () => {
                     )}
                     {c.email && (
                       <div className="bg-white px-4 py-3">
-                        <div className="text-[10px] font-semibold text-[#475569] font-bold uppercase tracking-wider mb-1">Email</div>
+                        <div className="text-[10px] font-bold text-[#475569] uppercase tracking-wider mb-1">Email</div>
                         <a href={`mailto:${c.email}`} className="text-[13px] font-semibold text-[#16a34a] flex items-center gap-1.5 truncate">
                           <Mail className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{c.email}</span>
                         </a>
@@ -744,25 +693,25 @@ const CustomersPage = () => {
                     )}
                     {getRouteName(c.delivery_route_id) && (
                       <div className="bg-white px-4 py-3">
-                        <div className="text-[10px] font-semibold text-[#475569] font-bold uppercase tracking-wider mb-1">Trasa</div>
+                        <div className="text-[10px] font-bold text-[#475569] uppercase tracking-wider mb-1">Trasa</div>
                         <div className="text-[13px] font-bold text-[#0f172a] flex items-center gap-1.5">
                           <Route className="h-3.5 w-3.5 text-[#94a3b8]" />{getRouteName(c.delivery_route_id)}
                         </div>
                       </div>
                     )}
                     <div className="bg-white px-4 py-3">
-                      <div className="text-[10px] font-semibold text-[#475569] font-bold uppercase tracking-wider mb-1">Platba</div>
+                      <div className="text-[10px] font-bold text-[#475569] uppercase tracking-wider mb-1">Platba</div>
                       <div className="text-[13px] font-bold text-[#0f172a]">{paymentLabel((c as any).payment_method || 'cash')}</div>
                     </div>
                     <div className="bg-white px-4 py-3">
-                      <div className="text-[10px] font-semibold text-[#475569] font-bold uppercase tracking-wider mb-1">Objednávky</div>
+                      <div className="text-[10px] font-bold text-[#475569] uppercase tracking-wider mb-1">Objednávky</div>
                       <div className="text-[13px] font-bold text-[#0f172a] flex items-center gap-1.5">
                         <ShoppingCart className="h-3.5 w-3.5 text-[#94a3b8]" />{customerStats[c.id] || 0} obj.
                       </div>
                     </div>
                     {(c as any).ico && (
                       <div className="bg-white px-4 py-3">
-                        <div className="text-[10px] font-semibold text-[#475569] font-bold uppercase tracking-wider mb-1">IČO</div>
+                        <div className="text-[10px] font-bold text-[#475569] uppercase tracking-wider mb-1">IČO</div>
                         <div className="text-[13px] font-bold text-[#0f172a]">{(c as any).ico}</div>
                       </div>
                     )}
@@ -819,7 +768,7 @@ const CustomersPage = () => {
 
                 <div className="flex justify-end gap-2 pt-4 border-t border-[#f1f5f9] mt-4">
                   <button onClick={() => setDetailOpen(false)}
-                    className="px-4 py-2 rounded-lg border border-[#cbd5e1] text-[13px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
+                    className="px-4 py-2 rounded-lg border border-[#e2e8f0] text-[13px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
                     Zavrieť
                   </button>
                   <button onClick={() => { setDetailOpen(false); openEdit(c); }}

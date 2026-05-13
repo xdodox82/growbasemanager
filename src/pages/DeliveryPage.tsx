@@ -109,7 +109,7 @@ function SortableOrderRow({
       style={style}
       className={cn(
         isDragging ? 'relative z-50' : '',
-        'cursor-pointer hover:bg-[#f8fafc] transition-colors h-11 border-b border-[#f1f5f9]'
+        'cursor-pointer hover:bg-[#f8fafc] transition-colors h-11 border-b border-[#e2e8f0]'
       )}
       onClick={() => onOrderClick(order)}
     >
@@ -122,7 +122,7 @@ function SortableOrderRow({
       {/* ZÁKAZNÍK */}
       <TableCell className="py-2">
         <div className="flex flex-col gap-0.5">
-          <span className="font-semibold text-sm text-[#0f172a]">{order.customerName}</span>
+          <span className="font-bold text-sm text-[#0f172a]">{order.customerName}</span>
           {order.deliveryNotes && (
             <div className="flex items-center gap-1 text-xs text-[#f59e0b]">
               <Navigation className="h-3 w-3" />
@@ -130,7 +130,7 @@ function SortableOrderRow({
             </div>
           )}
           {order.notes && (
-            <div className="text-xs text-[#64748b]">{order.notes}</div>
+            <div className="text-xs text-[#475569]">{order.notes}</div>
           )}
         </div>
       </TableCell>
@@ -138,7 +138,7 @@ function SortableOrderRow({
       {/* ADRESA */}
       <TableCell className="hidden lg:table-cell py-2">
         {order.customerAddress && (
-          <span className="text-xs text-[#64748b]">{order.customerAddress}</span>
+          <span className="text-xs text-[#475569]">{order.customerAddress}</span>
         )}
       </TableCell>
 
@@ -1485,8 +1485,8 @@ function DeliveryPage() {
               <div className="w-14 h-14 rounded-2xl bg-[#f0fdf4] flex items-center justify-center mb-4">
                 <Wallet className="h-7 w-7 text-[#16a34a]" />
               </div>
-              <h3 className="text-base font-semibold text-[#0f172a] mb-1">Žiadne nezaplatené dlhy</h3>
-              <p className="text-sm text-[#64748b]">Všetky objednávky sú uhradené.</p>
+              <h3 className="text-base font-bold text-[#0f172a] mb-1">Žiadne nezaplatené dlhy</h3>
+              <p className="text-sm text-[#475569]">Všetky objednávky sú uhradené.</p>
             </div>
           ) : (() => {
             // Group debts by customer
@@ -1520,19 +1520,19 @@ function DeliveryPage() {
                     <AlertCircle className="h-5 w-5 text-[#dc2626] shrink-0" />
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-[#0f172a]">{customer?.name || 'Neznámy'}</span>
+                        <span className="font-bold text-[#0f172a]">{customer?.name || 'Neznámy'}</span>
                         <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md border ${typeColors[custType as keyof typeof typeColors] || typeColors.home}`}>
                           {typeLabels[custType as keyof typeof typeLabels] || custType}
                         </span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-[11px] text-[#64748b]">Celkový dlh</div>
+                      <div className="text-[11px] text-[#475569]">Celkový dlh</div>
                       <div className="text-lg font-bold text-[#dc2626]">{totalRemaining.toFixed(2)} €</div>
                     </div>
                   </div>
                   {/* Individual debts */}
-                  <div className="divide-y divide-[#f1f5f9]">
+                  <div className="divide-y divide-[#e2e8f0]">
                     {custDebts.map(debt => {
                       const remaining = (debt.amount_owed || 0) - (debt.amount_paid || 0);
                       return (
@@ -1551,8 +1551,8 @@ function DeliveryPage() {
                                   {debt.status === 'partial' ? 'Čiastočne' : 'Nezaplatené'}
                                 </span>
                               </div>
-                              <div className="text-xs text-[#64748b] mt-0.5">
-                                Dlžná suma: <span className="font-semibold text-[#0f172a]">{(debt.amount_owed || 0).toFixed(2)} €</span>
+                              <div className="text-xs text-[#475569] mt-0.5">
+                                Dlžná suma: <span className="font-bold text-[#0f172a]">{(debt.amount_owed || 0).toFixed(2)} €</span>
                                 {(debt.amount_paid || 0) > 0 && (
                                   <> · Zaplatené: <span className="font-semibold text-[#16a34a]">{(debt.amount_paid || 0).toFixed(2)} €</span></>
                                 )}
@@ -1593,7 +1593,7 @@ function DeliveryPage() {
           {debtDialog.order && (
             <div className="space-y-4 pt-2">
               <div className="bg-[#fef2f2] rounded-lg p-3 text-sm">
-                <div className="font-semibold text-[#0f172a]">{customers.find(c => c.id === debtDialog.order?.customer_id)?.name}</div>
+                <div className="font-bold text-[#0f172a]">{customers.find(c => c.id === debtDialog.order?.customer_id)?.name}</div>
                 <div className="text-[#64748b]">
                   {debtDialog.order?.delivery_date ? format(new Date(debtDialog.order.delivery_date), 'd. MMMM yyyy', { locale: sk }) : ''}
                   {' · '}celková suma: <span className="font-semibold">{debtDialog.order?.totalPrice?.toFixed(2)} €</span>
@@ -1645,13 +1645,13 @@ function DeliveryPage() {
           {paymentDialog.debt && (
             <div className="space-y-4 pt-2">
               <div className="bg-[#f0fdf4] rounded-lg p-3 text-sm space-y-1">
-                <div className="font-semibold text-[#0f172a]">{paymentDialog.debt.customer?.name}</div>
-                <div className="flex justify-between text-xs text-[#64748b]">
+                <div className="font-bold text-[#0f172a]">{paymentDialog.debt.customer?.name}</div>
+                <div className="flex justify-between text-xs text-[#475569]">
                   <span>Dlžná suma:</span>
-                  <span className="font-semibold text-[#0f172a]">{(paymentDialog.debt.amount_owed || 0).toFixed(2)} €</span>
+                  <span className="font-bold text-[#0f172a]">{(paymentDialog.debt.amount_owed || 0).toFixed(2)} €</span>
                 </div>
                 {(paymentDialog.debt.amount_paid || 0) > 0 && (
-                  <div className="flex justify-between text-xs text-[#64748b]">
+                  <div className="flex justify-between text-xs text-[#475569]">
                     <span>Už zaplatené:</span>
                     <span className="font-semibold text-[#16a34a]">{(paymentDialog.debt.amount_paid || 0).toFixed(2)} €</span>
                   </div>
@@ -1748,7 +1748,7 @@ function DeliveryPage() {
 
         {/* Filter card */}
         <div className="mx-6 mb-4 bg-white rounded-xl border border-[#cbd5e1] shadow-sm overflow-hidden">
-          <div className="px-4 py-3 flex flex-wrap gap-4 items-center border-b border-[#f1f5f9]">
+          <div className="px-4 py-3 flex flex-wrap gap-4 items-center border-b border-[#e2e8f0]">
             {/* Dátum */}
             <div className="flex items-center gap-2">
               <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
@@ -1766,7 +1766,7 @@ function DeliveryPage() {
             <div className="w-px h-5 bg-[#e2e8f0]" />
             {/* Zákazník typ chips */}
             <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-bold text-[#94a3b8] uppercase tracking-wide shrink-0">Zákazník</span>
+              <span className="text-[11px] font-bold text-[#475569] uppercase tracking-wide shrink-0">Zákazník</span>
               {(['all','home','gastro','wholesale'] as const).map(t => {
                 const labels = { all: 'Všetci', home: 'Domáci', gastro: 'Gastro', wholesale: 'VO' };
                 const icons: Record<string,any> = { all: null, home: <House className="h-3 w-3" />, gastro: <Utensils className="h-3 w-3" />, wholesale: <Store className="h-3 w-3" /> };
@@ -1783,7 +1783,7 @@ function DeliveryPage() {
             <div className="w-px h-5 bg-[#e2e8f0]" />
             {/* Trasa chips */}
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-[11px] font-bold text-[#94a3b8] uppercase tracking-wide shrink-0">Trasa</span>
+              <span className="text-[11px] font-bold text-[#475569] uppercase tracking-wide shrink-0">Trasa</span>
               <button onClick={() => setRouteFilter('all')}
                 className={`inline-flex items-center gap-1 px-3 h-7 rounded-full border text-xs font-medium transition-colors ${
                   routeFilter === 'all' ? 'bg-[#0f172a] border-[#0f172a] text-white' : 'bg-white border-[#e2e8f0] text-[#475569] hover:border-[#cbd5e1]'
@@ -1814,8 +1814,8 @@ function DeliveryPage() {
             <div className="px-4 py-3 flex items-center gap-6">
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-wide">Priebeh rozvozu</span>
-                  <span className="text-xs font-semibold text-[#0f172a]">{deliveredCount} / {totalItemsCount} doručených</span>
+                  <span className="text-[10px] font-bold text-[#475569] uppercase tracking-wide">Priebeh rozvozu</span>
+                  <span className="text-xs font-bold text-[#0f172a]">{deliveredCount} / {totalItemsCount} doručených</span>
                 </div>
                 <div className="h-1.5 bg-[#f1f5f9] rounded-full overflow-hidden">
                   <div className="h-full bg-[#16a34a] rounded-full transition-all duration-500"
@@ -1857,7 +1857,7 @@ function DeliveryPage() {
                 <Euro className="h-4 w-4 text-[#16a34a]" />
               </div>
               <div className="flex-1 text-left">
-                <div className="text-sm font-semibold text-[#0f172a]">Finančné zúčtovanie rozvozu</div>
+                <div className="text-sm font-bold text-[#0f172a]">Finančné zúčtovanie rozvozu</div>
                 <div className="text-xs text-[#94a3b8]">{format(selectedDate, 'd. MMMM yyyy', { locale: sk })} · {totalItemsCount} objednávok · {pendingCount} na rozvoz · {deliveredCount} doručených</div>
               </div>
               <ChevronRight className="h-4 w-4 text-[#94a3b8]" />
@@ -1872,15 +1872,15 @@ function DeliveryPage() {
               <div className="w-14 h-14 rounded-2xl bg-[#f1f5f9] flex items-center justify-center mb-4">
                 <Truck className="h-7 w-7 text-[#94a3b8]" />
               </div>
-              <h3 className="text-base font-semibold text-[#0f172a] mb-1">Žiadne objednávky</h3>
-              <p className="text-sm text-[#64748b]">Na tento deň nie sú naplánované žiadne rozvozy.</p>
+              <h3 className="text-base font-bold text-[#0f172a] mb-1">Žiadne objednávky</h3>
+              <p className="text-sm text-[#475569]">Na tento deň nie sú naplánované žiadne rozvozy.</p>
             </div>
           ) : (
             <>
               {/* Na rozvoz */}
               {sortedPendingOrders.length > 0 && (
                 <div className="bg-white rounded-xl border border-[#cbd5e1] shadow-sm overflow-hidden">
-                  <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#f1f5f9] bg-gradient-to-r from-[#f0fdf4] to-[#f8fafc]">
+                  <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#e2e8f0] bg-gradient-to-r from-[#f0fdf4] to-[#f8fafc]">
                     <div className="flex items-center gap-2.5">
                       <Truck className="h-4 w-4 text-[#16a34a]" />
                       <span className="font-semibold text-[#14532d] text-sm">Na rozvoz</span>
@@ -1927,7 +1927,7 @@ function DeliveryPage() {
               {/* Doručené */}
               {sortedDeliveredOrders.length > 0 && (
                 <div className="bg-white rounded-xl border border-[#cbd5e1] shadow-sm overflow-hidden">
-                  <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#f1f5f9] bg-gradient-to-r from-[#dcfce7] to-[#f0fdf4]">
+                  <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#e2e8f0] bg-gradient-to-r from-[#dcfce7] to-[#f0fdf4]">
                     <div className="flex items-center gap-2.5">
                       <CheckCircle2 className="h-4 w-4 text-[#16a34a]" />
                       <span className="font-semibold text-[#14532d] text-sm">Doručené dnes</span>
@@ -1956,7 +1956,7 @@ function DeliveryPage() {
                                 <span className="font-semibold text-sm text-[#166534]">{order.customerName}</span>
                                 {order.deliveryNotes && <div className="text-xs text-[#94a3b8] italic"><MapPin className="h-3 w-3 inline mr-0.5" />{order.deliveryNotes}</div>}
                               </TableCell>
-                              <TableCell className="hidden lg:table-cell py-2 text-sm text-[#64748b]">{order.customerAddress}</TableCell>
+                              <TableCell className="hidden lg:table-cell py-2 text-sm text-[#475569]">{order.customerAddress}</TableCell>
                               <TableCell className="hidden lg:table-cell py-2" onClick={e => e.stopPropagation()}>
                                 <div className="flex flex-col gap-1">
                                   {order.customerPhone && (
@@ -2077,7 +2077,7 @@ function DeliveryPage() {
           <div className="bg-white border-b border-[#e2e8f0] px-4 py-3 flex flex-col gap-3">
             {/* Zákazník typ */}
             <div className="flex flex-wrap gap-1.5 items-center">
-              <span className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-wide w-14 shrink-0">Zákazník</span>
+              <span className="text-[10px] font-bold text-[#475569] uppercase tracking-wide w-14 shrink-0">Zákazník</span>
               {(['all','home','gastro','wholesale'] as const).map(t => {
                 const labels = { all: 'Všetci', home: 'Domáci', gastro: 'Gastro', wholesale: 'VO' };
                 const icons = { all: null, home: <House className="h-3 w-3" />, gastro: <Utensils className="h-3 w-3" />, wholesale: <Store className="h-3 w-3" /> };
@@ -2094,7 +2094,7 @@ function DeliveryPage() {
             {/* Trasa */}
             {routes.length > 0 && (
               <div className="flex flex-wrap gap-1.5 items-center">
-                <span className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-wide w-14 shrink-0">Trasa</span>
+                <span className="text-[10px] font-bold text-[#475569] uppercase tracking-wide w-14 shrink-0">Trasa</span>
                 <button onClick={() => setRouteFilter('all')}
                   className={`inline-flex items-center gap-1 px-2.5 h-6 rounded-full border text-[11px] font-medium transition-colors ${
                     routeFilter === 'all' ? 'bg-[#0f172a] border-[#0f172a] text-white' : 'bg-white border-[#e2e8f0] text-[#475569]'
@@ -2111,7 +2111,7 @@ function DeliveryPage() {
             )}
             {/* Zákazník search */}
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-wide w-14 shrink-0">Klient</span>
+              <span className="text-[10px] font-bold text-[#475569] uppercase tracking-wide w-14 shrink-0">Klient</span>
               <div className="flex-1">
                 <SearchableCustomerSelect customers={customers} value={customerFilter} onValueChange={setCustomerFilter} placeholder="Všetci zákazníci" filterByType={selectedCustomerType} allowAll={true} />
               </div>
@@ -2119,7 +2119,7 @@ function DeliveryPage() {
             {(selectedCustomerType !== 'all' || routeFilter !== 'all' || customerFilter !== 'all') && (
               <div className="flex justify-end">
                 <button onClick={() => { setSelectedCustomerType('all'); setRouteFilter('all'); setCustomerFilter('all'); }}
-                  className="text-xs text-[#64748b] hover:text-[#dc2626] flex items-center gap-1">
+                  className="text-xs text-[#475569] hover:text-[#dc2626] flex items-center gap-1">
                   <X className="h-3 w-3" /> Zrušiť filtre
                 </button>
               </div>
@@ -2131,8 +2131,8 @@ function DeliveryPage() {
         {ordersForDate.length > 0 && (
           <div className="bg-white px-4 py-3 border-b border-[#e2e8f0]">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-wide">Priebeh rozvozu</span>
-              <span className="text-xs font-semibold text-[#0f172a]">{deliveredCount} / {totalItemsCount} doručených</span>
+              <span className="text-[10px] font-bold text-[#475569] uppercase tracking-wide">Priebeh rozvozu</span>
+              <span className="text-xs font-bold text-[#0f172a]">{deliveredCount} / {totalItemsCount} doručených</span>
             </div>
             <div className="h-1.5 bg-[#f1f5f9] rounded-full overflow-hidden mb-2">
               <div className="h-full bg-[#16a34a] rounded-full transition-all duration-500"
@@ -2174,8 +2174,8 @@ function DeliveryPage() {
             <div className="w-14 h-14 rounded-2xl bg-[#f1f5f9] flex items-center justify-center mb-4">
               <Truck className="h-7 w-7 text-[#94a3b8]" />
             </div>
-            <h3 className="text-base font-semibold text-[#0f172a] mb-1">Žiadne objednávky</h3>
-            <p className="text-sm text-[#64748b]">Na tento deň nie sú naplánované žiadne rozvozy.</p>
+            <h3 className="text-base font-bold text-[#0f172a] mb-1">Žiadne objednávky</h3>
+            <p className="text-sm text-[#475569]">Na tento deň nie sú naplánované žiadne rozvozy.</p>
           </div>
         ) : (
           <div className="px-3 pt-3 pb-32 space-y-2">
@@ -2187,7 +2187,7 @@ function DeliveryPage() {
                   <Euro className="h-4 w-4 text-[#16a34a]" />
                 </div>
                 <div className="flex-1 text-left">
-                  <div className="text-sm font-semibold text-[#0f172a]">Finančné zúčtovanie</div>
+                  <div className="text-sm font-bold text-[#0f172a]">Finančné zúčtovanie</div>
                   <div className="text-xs text-[#94a3b8]">{format(selectedDate, 'd. MMMM yyyy', { locale: sk })} · {totalItemsCount} obj.</div>
                 </div>
                 <ChevronRight className="h-4 w-4 text-[#94a3b8]" />
@@ -2242,7 +2242,7 @@ function DeliveryPage() {
                             {typeIcons[ct] || typeIcons.home}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-base text-[#0f172a] truncate">{order.customerName}</div>
+                            <div className="font-bold text-base text-[#0f172a] truncate">{order.customerName}</div>
                             <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                               {order.customerAddress && <span className="text-xs text-[#94a3b8] truncate max-w-[140px]">{order.customerAddress}</span>}
                               {routeName && <span className="text-[10px] font-medium px-1.5 py-0.5 bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe] rounded-md shrink-0">{routeName}</span>}
@@ -2359,8 +2359,8 @@ function DeliveryPage() {
               <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 pb-24">
                 {/* Adresa + navigácia */}
                 <div className="bg-white rounded-xl border border-[#cbd5e1] p-3">
-                  <div className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-wide mb-1">Adresa zastávky</div>
-                  <div className="font-semibold text-sm text-[#0f172a] mb-3">{order.customerAddress || 'Adresa nie je zadaná'}</div>
+                  <div className="text-[10px] font-bold text-[#475569] uppercase tracking-wide mb-1">Adresa zastávky</div>
+                  <div className="font-bold text-sm text-[#0f172a] mb-3">{order.customerAddress || 'Adresa nie je zadaná'}</div>
                   <div className="flex gap-2">
                     {order.customerAddress && (
                       <a href={`https://waze.com/ul?q=${encodeURIComponent(order.customerAddress)}`} target="_blank" rel="noopener noreferrer"
@@ -2380,7 +2380,7 @@ function DeliveryPage() {
                 {/* Zákazník blok */}
                 <div className="bg-white rounded-xl border border-[#cbd5e1] overflow-hidden">
                   {/* Hlavička */}
-                  <div className="flex items-center gap-2.5 px-3 py-3 border-b border-[#f1f5f9]">
+                  <div className="flex items-center gap-2.5 px-3 py-3 border-b border-[#e2e8f0]">
                     <div className={`w-9 h-9 rounded-lg border flex items-center justify-center shrink-0 ${typeColors[ct] || typeColors.home}`}>
                       {typeIcons[ct] || typeIcons.home}
                     </div>
@@ -2392,32 +2392,32 @@ function DeliveryPage() {
                   </div>
 
                   {/* Položky */}
-                  <div className="px-3 py-2.5 border-b border-[#f1f5f9]">
-                    <div className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-wide mb-2">Položky objednávky</div>
+                  <div className="px-3 py-2.5 border-b border-[#e2e8f0]">
+                    <div className="text-[10px] font-bold text-[#475569] uppercase tracking-wide mb-2">Položky objednávky</div>
                     <div className="space-y-2">
                       {order.itemsDetail?.length > 0 ? order.itemsDetail.map((item: any, idx: number) => (
                         <div key={idx} className="flex items-start justify-between gap-2">
                           <div>
-                            <div className="text-sm font-semibold text-[#0f172a]">{item.name}</div>
+                            <div className="text-sm font-bold text-[#0f172a]">{item.name}</div>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="text-xs text-[#64748b]">{item.quantity} × {item.size}</span>
+                              <span className="text-xs text-[#475569]">{item.quantity} × {item.size}</span>
                               {item.package_type && <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-[#16a34a] text-white rounded">{item.package_type}</span>}
                             </div>
                           </div>
-                          <span className="text-sm font-semibold text-[#0f172a] shrink-0">{item.price.toFixed(2)} €</span>
+                          <span className="text-sm font-bold text-[#0f172a] shrink-0">{item.price.toFixed(2)} €</span>
                         </div>
                       )) : (
-                        <div className="text-sm text-[#64748b]">Objednávka</div>
+                        <div className="text-sm text-[#475569]">Objednávka</div>
                       )}
                     </div>
                   </div>
 
                   {/* Cenový súhrn */}
-                  <div className="px-3 py-2.5 bg-[#f8fafc] border-b border-[#f1f5f9] space-y-1">
-                    <div className="flex justify-between text-xs text-[#64748b]">
+                  <div className="px-3 py-2.5 bg-[#f8fafc] border-b border-[#e2e8f0] space-y-1">
+                    <div className="flex justify-between text-xs text-[#475569]">
                       <span>Medzisúčet</span><span>{(order.totalPrice - (order.deliveryFee || 0)).toFixed(2)} €</span>
                     </div>
-                    <div className="flex justify-between text-xs text-[#64748b]">
+                    <div className="flex justify-between text-xs text-[#475569]">
                       <span>Doprava</span>
                       <span className={(order.deliveryFee || 0) === 0 ? 'text-[#16a34a] font-medium' : ''}>
                         {(order.deliveryFee || 0) === 0 ? 'Zdarma' : `${(order.deliveryFee || 0).toFixed(2)} €`}
@@ -2523,7 +2523,7 @@ function DeliveryPage() {
       {/* Detail Dialog */}
       <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-0">
-          <DialogHeader className="px-5 pt-5 pb-4 border-b border-[#f1f5f9]">
+          <DialogHeader className="px-5 pt-5 pb-4 border-b border-[#e2e8f0]">
             <DialogTitle className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-[#dcfce7] border border-[#bbf7d0] flex items-center justify-center shrink-0">
                 <Truck className="h-5 w-5 text-[#16a34a]" />
@@ -2541,8 +2541,8 @@ function DeliveryPage() {
               <div className="grid grid-cols-2 gap-3">
                 {selectedOrderDetail.customerAddress && (
                   <div className="col-span-2 bg-[#f8fafc] rounded-xl border border-[#cbd5e1] px-4 py-3">
-                    <div className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-wide mb-1">Adresa</div>
-                    <div className="text-sm font-semibold text-[#0f172a]">{selectedOrderDetail.customerAddress}</div>
+                    <div className="text-[10px] font-bold text-[#475569] uppercase tracking-wide mb-1">Adresa</div>
+                    <div className="text-sm font-bold text-[#0f172a]">{selectedOrderDetail.customerAddress}</div>
                     {selectedOrderDetail.customerAddress && (
                       <a href={`https://waze.com/ul?q=${encodeURIComponent(selectedOrderDetail.customerAddress)}`}
                         target="_blank" rel="noopener noreferrer"
@@ -2554,15 +2554,15 @@ function DeliveryPage() {
                 )}
                 {selectedOrderDetail.customerPhone && (
                   <div className="bg-[#f8fafc] rounded-xl border border-[#cbd5e1] px-4 py-3">
-                    <div className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-wide mb-1">Telefón</div>
+                    <div className="text-[10px] font-bold text-[#475569] uppercase tracking-wide mb-1">Telefón</div>
                     <a href={`tel:${selectedOrderDetail.customerPhone}`} className="text-sm font-semibold text-[#2563eb] hover:underline flex items-center gap-1">
                       <Phone className="h-3.5 w-3.5" />{selectedOrderDetail.customerPhone}
                     </a>
                   </div>
                 )}
                 <div className="bg-[#f8fafc] rounded-xl border border-[#cbd5e1] px-4 py-3">
-                  <div className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-wide mb-1">Platba</div>
-                  <div className="text-sm font-semibold text-[#0f172a]">
+                  <div className="text-[10px] font-bold text-[#475569] uppercase tracking-wide mb-1">Platba</div>
+                  <div className="text-sm font-bold text-[#0f172a]">
                     {selectedOrderDetail.paymentMethod === 'cash' ? 'Hotovosť' :
                      selectedOrderDetail.paymentMethod === 'invoice' ? 'Faktúra' : 'Iné'}
                   </div>
@@ -2578,15 +2578,15 @@ function DeliveryPage() {
 
               {/* Položky */}
               <div className="bg-white rounded-xl border border-[#cbd5e1] overflow-hidden">
-                <div className="px-4 py-2.5 border-b border-[#f1f5f9] bg-[#f8fafc]">
-                  <span className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-wide">Položky objednávky</span>
+                <div className="px-4 py-2.5 border-b border-[#e2e8f0] bg-[#f8fafc]">
+                  <span className="text-[10px] font-bold text-[#475569] uppercase tracking-wide">Položky objednávky</span>
                 </div>
-                <div className="divide-y divide-[#f1f5f9]">
+                <div className="divide-y divide-[#e2e8f0]">
                   {selectedOrderDetail.itemsDetail.sort((a, b) => b.price - a.price).map((item, idx) => (
                     <div key={idx} className="flex items-center justify-between px-4 py-3">
                       <div>
-                        <div className="text-sm font-semibold text-[#0f172a]">{item.name}</div>
-                        <div className="text-xs text-[#64748b]">{item.quantity} × {item.size}g</div>
+                        <div className="text-sm font-bold text-[#0f172a]">{item.name}</div>
+                        <div className="text-xs text-[#475569]">{item.quantity} × {item.size}g</div>
                       </div>
                       <div className="font-bold text-sm text-[#16a34a]">{item.price.toFixed(2)} €</div>
                     </div>
@@ -2596,11 +2596,11 @@ function DeliveryPage() {
 
               {/* Cenový súhrn */}
               <div className="bg-[#f8fafc] rounded-xl border border-[#cbd5e1] px-4 py-3 space-y-2">
-                <div className="flex justify-between text-sm text-[#64748b]">
+                <div className="flex justify-between text-sm text-[#475569]">
                   <span>Medzisúčet</span>
                   <span>{(selectedOrderDetail.totalPrice - (selectedOrderDetail.deliveryFee || 0)).toFixed(2)} €</span>
                 </div>
-                <div className="flex justify-between text-sm text-[#64748b]">
+                <div className="flex justify-between text-sm text-[#475569]">
                   <span className="flex items-center gap-1"><Truck className="h-3.5 w-3.5" /> Doprava</span>
                   <span className={(selectedOrderDetail.deliveryFee || 0) === 0 ? 'text-[#16a34a] font-medium' : ''}>
                     {(selectedOrderDetail.deliveryFee || 0) === 0 ? 'Zdarma' : `${(selectedOrderDetail.deliveryFee || 0).toFixed(2)} €`}
