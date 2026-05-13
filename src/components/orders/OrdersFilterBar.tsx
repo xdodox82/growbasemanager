@@ -35,7 +35,7 @@ const chip = (active: boolean, activeClass: string) =>
   `inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md border-[1.5px] text-[12px] font-medium cursor-pointer transition-colors ${
     active
       ? activeClass
-      : 'border-[#e2e8f0] text-[#374151] bg-white hover:border-[#bbf7d0] hover:text-[#16a34a] hover:bg-[#f0fdf4]'
+      : 'border-[#cbd5e1] text-[#374151] bg-white hover:border-[#bbf7d0] hover:text-[#16a34a] hover:bg-[#f0fdf4]'
   }`;
 
 export function OrdersFilterBar({
@@ -85,11 +85,11 @@ export function OrdersFilterBar({
     return (
       <div className="w-[300px] p-4">
         <div className="flex items-center justify-between mb-3">
-          <button onClick={goToPreviousMonth} className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center hover:bg-[#f0fdf4]">
+          <button onClick={goToPreviousMonth} className="w-7 h-7 rounded-lg border border-[#cbd5e1] flex items-center justify-center hover:bg-[#f0fdf4]">
             <ChevronLeft className="h-3.5 w-3.5 text-[#64748b]" />
           </button>
           <span className="text-[13px] font-semibold text-[#0f172a]">{format(calendarMonth, 'MMMM yyyy', { locale: sk })}</span>
-          <button onClick={goToNextMonth} className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center hover:bg-[#f0fdf4]">
+          <button onClick={goToNextMonth} className="w-7 h-7 rounded-lg border border-[#cbd5e1] flex items-center justify-center hover:bg-[#f0fdf4]">
             <ChevronRight className="h-3.5 w-3.5 text-[#64748b]" />
           </button>
         </div>
@@ -133,11 +133,11 @@ export function OrdersFilterBar({
   };
 
   const rowLabel = (text: string) => (
-    <span className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider min-w-[85px] shrink-0">{text}</span>
+    <span className="text-[11px] font-bold text-[#475569] uppercase tracking-wider min-w-[85px] shrink-0">{text}</span>
   );
 
   return (
-    <div className="bg-white rounded-xl border border-[#e2e8f0] px-4 mb-4">
+    <div className="bg-white rounded-xl border border-[#cbd5e1] px-4 mb-4">
 
       {/* Collapse header */}
       <div
@@ -152,7 +152,7 @@ export function OrdersFilterBar({
       </div>
 
       {!collapsed && (
-        <div className="border-t border-[#f1f5f9]">
+        <div className="border-t border-[#e2e8f0]">
 
           {/* Riadok 1: Typ zákazníka + zákazník selector */}
           <div className="flex items-center gap-2 flex-wrap py-2">
@@ -167,7 +167,7 @@ export function OrdersFilterBar({
             <button onClick={() => onFilterCustomerTypeChange('wholesale')} className={chip(filterCustomerType === 'wholesale', 'bg-[#fff7ed] border-[#d97706] text-[#d97706]')}>
               <Store className="w-3 h-3" />VO
             </button>
-            <div className="ml-1 w-[200px] [&_button]:h-7 [&_button]:text-[11px] [&_button]:font-medium [&_button]:text-[#374151] [&_button]:border-[#e2e8f0] [&_button]:rounded-md">
+            <div className="ml-1 w-[200px] [&_button]:h-7 [&_button]:text-[11px] [&_button]:font-medium [&_button]:text-[#374151] [&_button]:border-[#cbd5e1] [&_button]:rounded-md">
               <SearchableCustomerSelect
                 value={customerFilter}
                 onValueChange={onCustomerFilterChange}
@@ -178,7 +178,7 @@ export function OrdersFilterBar({
             </div>
           </div>
 
-          <div className="border-t border-[#f8fafc]" />
+          <div className="border-t border-[#e2e8f0]" />
 
           {/* Riadok 2: Kategória chips + plodina selector */}
           <div className="flex items-center gap-2 flex-wrap py-2">
@@ -198,7 +198,7 @@ export function OrdersFilterBar({
             </button>
             <div className="ml-1">
               <Select value={filterCrop} onValueChange={onFilterCropChange}>
-                <SelectTrigger className="h-8 text-[12px] font-medium text-[#374151] w-[160px] border-[#e2e8f0]">
+                <SelectTrigger className="h-8 text-[12px] font-medium text-[#374151] w-[160px] border-[#cbd5e1]">
                   <SelectValue placeholder="Plodina" />
                 </SelectTrigger>
                 <SelectContent className="max-h-[260px] overflow-y-auto z-[100]">
@@ -212,7 +212,7 @@ export function OrdersFilterBar({
             </div>
           </div>
 
-          <div className="border-t border-[#f8fafc]" />
+          <div className="border-t border-[#e2e8f0]" />
 
           {/* Riadok 3: Stav chips */}
           <div className="flex items-center gap-2 flex-wrap py-2">
