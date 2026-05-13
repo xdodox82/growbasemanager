@@ -1,4 +1,5 @@
 import { useState } from 'react';
+type ViewMode = 'grid' | 'list';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { PageHeader, EmptyState } from '@/components/ui/page-components';
 import { useBlends, useCrops, DbBlend, CropPercentage } from '@/hooks/useSupabaseData';
@@ -10,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ViewToggle, ViewMode } from '@/components/ui/view-toggle';
+
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
@@ -264,14 +265,22 @@ const BlendsPage = () => {
   if (loading || cropsLoading) {
     return (
       <MainLayout hideMobileHeader>
-        <PageHeader title="Mixy" description="Vytvárajte kombinácie mikrozelenín" />
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-9 h-9 rounded-xl bg-[#f0fdf4] border border-[#bbf7d0] flex items-center justify-center">
+            <BlendIcon className="h-5 w-5 text-[#16a34a]" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-[#0f172a]">Mixy</h1>
+            <p className="text-xs text-[#64748b]">Načítavam...</p>
+          </div>
+        </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
-            <Card key={i} className="p-5">
+            <div key={i} className="bg-white rounded-xl border border-[#cbd5e1] p-5">
               <Skeleton className="h-12 w-12 rounded-xl" />
               <Skeleton className="h-5 w-32 mt-3" />
               <Skeleton className="h-4 w-20 mt-2" />
-            </Card>
+            </div>
           ))}
         </div>
       </MainLayout>
@@ -280,20 +289,40 @@ const BlendsPage = () => {
 
   return (
     <MainLayout hideMobileHeader>
-      <PageHeader
-        title="Mixy"
-        description="Vytvárajte kombinácie mikrozelenín"
-      >
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open) resetForm();
-        }}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Nový mix
-            </Button>
-          </DialogTrigger>
+      {/* GrowBase Header */}
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-[#f0fdf4] border border-[#bbf7d0] flex items-center justify-center">
+            <BlendIcon className="h-5 w-5 text-[#16a34a]" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-[#0f172a]">Mixy</h1>
+            <p className="text-xs text-[#64748b]">{blends.length} mixov</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="hidden md:flex gap-0.5">
+            <button onClick={() => setViewMode('grid')}
+              className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-[#f0fdf4] text-[#16a34a]' : 'text-[#94a3b8] hover:bg-[#f8fafc]'}`}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="3" width="7" height="7" strokeWidth="2"/><rect x="14" y="3" width="7" height="7" strokeWidth="2"/><rect x="3" y="14" width="7" height="7" strokeWidth="2"/><rect x="14" y="14" width="7" height="7" strokeWidth="2"/></svg>
+            </button>
+            <button onClick={() => setViewMode('list')}
+              className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors ${viewMode === 'list' ? 'bg-[#f0fdf4] text-[#16a34a]' : 'text-[#94a3b8] hover:bg-[#f8fafc]'}`}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><line x1="3" y1="6" x2="21" y2="6" strokeWidth="2"/><line x1="3" y1="12" x2="21" y2="12" strokeWidth="2"/><line x1="3" y1="18" x2="21" y2="18" strokeWidth="2"/></svg>
+            </button>
+          </div>
+          <button onClick={() => setIsDialogOpen(true)}
+            className="flex items-center gap-1.5 h-9 px-4 rounded-xl bg-[#16a34a] text-white text-sm font-semibold hover:bg-[#15803d] transition-colors">
+            <Plus className="h-4 w-4" /> Nový mix
+          </button>
+        </div>
+      </div>
+
+      {/* Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={(open) => {
+        setIsDialogOpen(open);
+        if (!open) resetForm();
+      }}>
           <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
             <form onSubmit={handleSubmit}>
               <DialogHeader>
@@ -326,7 +355,7 @@ const BlendsPage = () => {
                     maxLength={10}
                     className="uppercase font-mono"
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-[#475569]">
                     3-4 znaky. Len pre štandardné mixy určené do e-shopu.
                   </p>
                 </div>
@@ -342,37 +371,23 @@ const BlendsPage = () => {
                         <Percent className="h-3 w-3" />
                         {getTotalPercentage()}%
                       </Badge>
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={addCropToBlend}
-                        disabled={crops.length === 0}
-                        className="gap-1"
-                      >
+                      <button type="button" onClick={addCropToBlend} disabled={crops.length === 0} className="flex items-center gap-1 h-8 px-3 rounded-lg border border-[#cbd5e1] bg-white text-xs font-medium text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] disabled:opacity-50 transition-colors">
                         <Plus className="h-3 w-3" />
                         Plodina
-                      </Button>
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={addBlendToBlend}
-                        disabled={blends.filter(b => b.id !== editingBlend?.id).length === 0}
-                        className="gap-1"
-                      >
+                      </button>
+                      <button type="button" onClick={addBlendToBlend} className="flex items-center gap-1 h-8 px-3 rounded-lg border border-[#cbd5e1] bg-white text-xs font-medium text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors">
                         <BlendIcon className="h-3 w-3" />
                         Mix
-                      </Button>
+                      </button>
                     </div>
                   </div>
 
                   {crops.length === 0 && blends.length === 0 ? (
-                    <div className="text-center py-6 text-muted-foreground border border-dashed rounded-lg">
+                    <div className="text-center py-6 text-[#475569] border border-dashed rounded-lg">
                       Najprv pridajte plodiny v sekcii "Plodiny".
                     </div>
                   ) : formData.crops.length === 0 ? (
-                    <div className="text-center py-6 text-muted-foreground border border-dashed rounded-lg">
+                    <div className="text-center py-6 text-[#475569] border border-dashed rounded-lg">
                       Pridajte aspoň 2 položky (plodiny alebo mixy).
                     </div>
                   ) : (
@@ -444,16 +459,10 @@ const BlendsPage = () => {
                               placeholder="0"
                             />
                           </div>
-                          <span className="text-sm text-muted-foreground">%</span>
-                          <Button 
-                            type="button" 
-                            variant="ghost" 
-                            size="icon"
-                            className="h-8 w-8 text-destructive"
-                            onClick={() => removeCropFromBlend(index)}
-                          >
+                          <span className="text-sm text-[#475569]">%</span>
+                          <button type="button" onClick={() => removeCropFromBlend(index)} className="w-7 h-7 rounded-lg flex items-center justify-center text-[#dc2626] hover:bg-[#fef2f2] transition-colors">
                             <X className="h-4 w-4" />
-                          </Button>
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -473,38 +482,36 @@ const BlendsPage = () => {
               </div>
 
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                <button type="button" onClick={() => setIsDialogOpen(false)}
+                  className="h-9 px-4 rounded-xl border border-[#cbd5e1] bg-white text-sm font-medium text-[#475569] hover:bg-[#f8fafc]">
                   Zrušiť
-                </Button>
-                <Button type="submit" disabled={saving}>
+                </button>
+                <button type="submit" disabled={saving}
+                  className="h-9 px-5 rounded-xl bg-[#16a34a] text-white text-sm font-semibold hover:bg-[#15803d] disabled:opacity-50 flex items-center gap-2">
                   {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {editingBlend ? 'Uložiť zmeny' : 'Vytvoriť mix'}
-                </Button>
+                </button>
               </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
-        <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} className="hidden md:flex" />
-      </PageHeader>
 
       {blends.length === 0 ? (
-        <EmptyState
-          icon={<BlendIcon className="h-8 w-8" />}
-          title="Žiadne mixy"
-          description="Vytvorte vlastné mixy kombinovaním rôznych mikrozelenín."
-          action={
-            crops.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Najprv pridajte plodiny v sekcii "Plodiny".
-              </p>
-            ) : (
-              <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
-                <Plus className="h-4 w-4" />
-                Vytvoriť mix
-              </Button>
-            )
-          }
-        />
+        <div className="bg-white rounded-xl border border-[#cbd5e1] py-16 flex flex-col items-center text-center">
+          <div className="w-14 h-14 rounded-2xl bg-[#f0fdf4] border border-[#bbf7d0] flex items-center justify-center mb-4">
+            <BlendIcon className="h-7 w-7 text-[#16a34a]" />
+          </div>
+          <h3 className="text-base font-bold text-[#0f172a] mb-1">Žiadne mixy</h3>
+          <p className="text-sm text-[#475569] mb-4">Vytvorte vlastné mixy kombinovaním rôznych mikrozelenín.</p>
+          {crops.length === 0 ? (
+            <p className="text-sm text-[#475569]">Najprv pridajte plodiny v sekcii "Plodiny".</p>
+          ) : (
+            <button onClick={() => setIsDialogOpen(true)}
+              className="flex items-center gap-1.5 h-9 px-4 rounded-xl bg-[#16a34a] text-white text-sm font-semibold hover:bg-[#15803d] transition-colors">
+              <Plus className="h-4 w-4" /> Vytvoriť mix
+            </button>
+          )}
+        </div>
       ) : effectiveViewMode === 'grid' ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {blends.map((blend) => {
@@ -512,9 +519,9 @@ const BlendsPage = () => {
             const isExpanded = expandedCards.has(blend.id);
 
             return (
-              <Card
+              <div
                 key={blend.id}
-                className="p-5 transition-all hover:shadow-lg cursor-pointer overflow-hidden"
+                className="bg-white rounded-xl border border-[#cbd5e1] p-5 transition-all hover:shadow-md cursor-pointer overflow-hidden"
                 onClick={() => {
                   if (window.innerWidth >= 768) {
                     setSelectedBlendDetail(blend);
@@ -527,12 +534,12 @@ const BlendsPage = () => {
                 {/* ===== COLLAPSED VIEW - vždy viditeľné ===== */}
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-gradient-to-br from-success/20 to-info/20 flex-shrink-0">
+                    <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-[#f0fdf4] flex-shrink-0">
                       <BlendIcon className="h-6 w-6 text-success" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <h3 className="font-semibold text-base break-words leading-tight">{blend.name}</h3>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-[#475569]">
                         {blendCrops.length} položiek
                       </p>
                     </div>
@@ -540,13 +547,13 @@ const BlendsPage = () => {
 
                   {/* Desktop: Edit/Delete ikony */}
                   <div className="hidden md:flex gap-1" onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" onClick={() => openEditDialog(blend)}>
+                    <button onClick={() => openEditDialog(blend)} className="w-7 h-7 rounded-lg border border-[#cbd5e1] bg-white flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors">
                       <Pencil className="h-4 w-4" />
-                    </Button>
+                    </button>
                     {isAdmin && (
-                      <Button variant="ghost" size="icon" onClick={() => setDeleteId(blend.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      <button onClick={() => setDeleteId(blend.id)} className="w-7 h-7 rounded-lg border border-[#fecaca] bg-[#fef2f2] flex items-center justify-center text-[#dc2626] hover:bg-[#fee2e2] transition-colors">
+                        <Trash2 className="h-4 w-4 text-[#dc2626]" />
+                      </button>
                     )}
                   </div>
 
@@ -683,13 +690,13 @@ const BlendsPage = () => {
                     </div>
 
                     {(blend as any).notes && (
-                      <p className="mt-4 text-sm text-muted-foreground border-t border-border pt-3 break-words">
+                      <p className="mt-4 text-sm text-[#475569] border-t border-border pt-3 break-words">
                         {(blend as any).notes}
                       </p>
                     )}
                   </>
                 )}
-              </Card>
+              </div>
             );
           })}
         </div>
@@ -715,7 +722,7 @@ const BlendsPage = () => {
                   >
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-gradient-to-br from-success/20 to-info/20">
+                        <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-[#f0fdf4]">
                           <BlendIcon className="h-4 w-4 text-success" />
                         </div>
                         {blend.name}
@@ -742,21 +749,13 @@ const BlendsPage = () => {
                     </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEditDialog(blend)}
-                        >
+                        <button onClick={() => openEditDialog(blend)} className="w-7 h-7 rounded-lg border border-[#cbd5e1] bg-white flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors">
                           <Pencil className="h-4 w-4" />
-                        </Button>
+                        </button>
                         {isAdmin && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setDeleteId(blend.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          <button onClick={() => setDeleteId(blend.id)} className="w-7 h-7 rounded-lg border border-[#fecaca] bg-[#fef2f2] flex items-center justify-center text-[#dc2626] hover:bg-[#fee2e2] transition-colors">
+                            <Trash2 className="h-4 w-4 text-[#dc2626]" />
+                          </button>
                         )}
                       </div>
                     </TableCell>
@@ -777,12 +776,12 @@ const BlendsPage = () => {
           {selectedBlendDetail && (
             <div className="space-y-6">
               <div className="flex items-center gap-4">
-                <div className="h-16 w-16 rounded-xl flex items-center justify-center bg-gradient-to-br from-success/20 to-info/20">
+                <div className="h-16 w-16 rounded-xl flex items-center justify-center bg-[#f0fdf4]">
                   <BlendIcon className="h-8 w-8 text-success" />
                 </div>
                 <div>
                   <h3 className="text-2xl font-bold">{selectedBlendDetail.name}</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-[#475569]">
                     {getBlendCrops(selectedBlendDetail).length} položiek
                   </p>
                 </div>
@@ -825,27 +824,21 @@ const BlendsPage = () => {
 
               {(selectedBlendDetail as any).notes && (
                 <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Poznámky</div>
+                  <div className="text-sm text-[#475569]">Poznámky</div>
                   <div className="text-sm whitespace-pre-wrap">{(selectedBlendDetail as any).notes}</div>
                 </div>
               )}
 
               <div className="flex gap-2 justify-end pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setDetailModalOpen(false)}
-                >
+                <button onClick={() => setDetailModalOpen(false)}
+                  className="h-9 px-4 rounded-xl border border-[#cbd5e1] bg-white text-sm font-medium text-[#475569] hover:bg-[#f8fafc]">
                   Zavrieť
-                </Button>
-                <Button
-                  onClick={() => {
-                    setDetailModalOpen(false);
-                    openEditDialog(selectedBlendDetail);
-                  }}
-                >
-                  <Pencil className="h-4 w-4 mr-2" />
+                </button>
+                <button onClick={() => { setDetailModalOpen(false); openEditDialog(selectedBlendDetail); }}
+                  className="h-9 px-5 rounded-xl bg-[#16a34a] text-white text-sm font-semibold hover:bg-[#15803d] flex items-center gap-2">
+                  <Pencil className="h-4 w-4" />
                   Upraviť
-                </Button>
+                </button>
               </div>
             </div>
           )}
@@ -862,7 +855,7 @@ const BlendsPage = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Zrušiť</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-[#dc2626]-foreground hover:bg-destructive/90">
               Odstrániť
             </AlertDialogAction>
           </AlertDialogFooter>

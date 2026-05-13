@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+type ViewMode = 'grid' | 'list';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { PageHeader, EmptyState } from '@/components/ui/page-components';
 import { useCrops, DbCrop } from '@/hooks/useSupabaseData';
@@ -11,8 +12,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableHeader } from '@/components/ui/table';
-import { MobileTableRow, MobileTableCell, MobileTableHead, ExpandedDetail } from '@/components/ui/mobile-table';
-import { ViewToggle, ViewMode } from '@/components/ui/view-toggle';
+
+
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
@@ -259,14 +260,22 @@ const CropsPage = () => {
   if (loading) {
     return (
       <MainLayout hideMobileHeader>
-        <PageHeader title="Plodiny" description="Spravujte katalóg plodín" />
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-9 h-9 rounded-xl bg-[#f0fdf4] border border-[#bbf7d0] flex items-center justify-center">
+            <Leaf className="h-5 w-5 text-[#16a34a]" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-[#0f172a]">Plodiny</h1>
+            <p className="text-xs text-[#64748b]">Načítavam...</p>
+          </div>
+        </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="p-4">
+            <div key={i} className="bg-white rounded-xl border border-[#cbd5e1] p-4">
               <Skeleton className="h-10 w-10 rounded-lg" />
               <Skeleton className="h-4 w-24 mt-3" />
               <Skeleton className="h-3 w-16 mt-2" />
-            </Card>
+            </div>
           ))}
         </div>
       </MainLayout>
@@ -275,38 +284,64 @@ const CropsPage = () => {
 
   return (
     <MainLayout hideMobileHeader>
-      <PageHeader 
-        title="Plodiny" 
-        description="Spravujte katalóg vašich mikrozelenín"
-      >
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open) resetForm();
-        }}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Pridať plodinu
-            </Button>
-          </DialogTrigger>
-        <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} className="hidden md:flex" />
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Všetky kategórie" />
-          </SelectTrigger>
-          <SelectContent position="popper" sideOffset={5} className="max-h-[300px]">
-            <SelectItem value="all">Všetky kategórie</SelectItem>
-            <SelectItem value="microgreens">
-              <Leaf className="h-4 w-4 text-green-600 mr-2 inline" />Mikrozelenina
-            </SelectItem>
-            <SelectItem value="microherbs">
-              <Sprout className="h-4 w-4 text-green-600 mr-2 inline" />Mikrobylinky
-            </SelectItem>
-            <SelectItem value="edible_flowers">
-              <Flower className="h-4 w-4 text-green-600 mr-2 inline" />Jedlé kvety
-            </SelectItem>
-          </SelectContent>
-        </Select>
+      {/* GrowBase Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-[#f0fdf4] border border-[#bbf7d0] flex items-center justify-center">
+            <Leaf className="h-5 w-5 text-[#16a34a]" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-[#0f172a]">Plodiny</h1>
+            <p className="text-xs text-[#64748b]">{filteredCrops.length} plodín</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {/* View toggle */}
+          <div className="hidden md:flex gap-0.5">
+            <button onClick={() => setViewMode('grid')}
+              className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-[#f0fdf4] text-[#16a34a]' : 'text-[#94a3b8] hover:bg-[#f8fafc]'}`}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="3" width="7" height="7" strokeWidth="2"/><rect x="14" y="3" width="7" height="7" strokeWidth="2"/><rect x="3" y="14" width="7" height="7" strokeWidth="2"/><rect x="14" y="14" width="7" height="7" strokeWidth="2"/></svg>
+            </button>
+            <button onClick={() => setViewMode('list')}
+              className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors ${viewMode === 'list' ? 'bg-[#f0fdf4] text-[#16a34a]' : 'text-[#94a3b8] hover:bg-[#f8fafc]'}`}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><line x1="3" y1="6" x2="21" y2="6" strokeWidth="2"/><line x1="3" y1="12" x2="21" y2="12" strokeWidth="2"/><line x1="3" y1="18" x2="21" y2="18" strokeWidth="2"/></svg>
+            </button>
+          </div>
+          <button onClick={() => setIsDialogOpen(true)}
+            className="flex items-center gap-1.5 h-9 px-4 rounded-xl bg-[#16a34a] text-white text-sm font-semibold hover:bg-[#15803d] transition-colors">
+            <Plus className="h-4 w-4" /> Pridať plodinu
+          </button>
+        </div>
+      </div>
+
+      {/* Category chips */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        {[
+          { value: 'all', label: 'Všetky', icon: null },
+          { value: 'microgreens', label: 'Mikrozelenina', icon: Leaf },
+          { value: 'microherbs', label: 'Mikrobylinky', icon: Sprout },
+          { value: 'edible_flowers', label: 'Jedlé kvety', icon: Flower },
+        ].map(cat => {
+          const Icon = cat.icon;
+          return (
+            <button key={cat.value} onClick={() => setCategoryFilter(cat.value)}
+              className={`inline-flex items-center gap-1.5 px-3 h-8 rounded-lg border text-xs font-semibold transition-colors ${
+                categoryFilter === cat.value
+                  ? 'bg-[#0f172a] border-[#0f172a] text-white'
+                  : 'bg-white border-[#cbd5e1] text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a]'
+              }`}>
+              {Icon && <Icon className="h-3.5 w-3.5" />}
+              {cat.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={(open) => {
+        setIsDialogOpen(open);
+        if (!open) resetForm();
+      }}>
           <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
             <form onSubmit={handleSubmit}>
               <DialogHeader>
@@ -371,7 +406,7 @@ const CropsPage = () => {
                     maxLength={10}
                     className="uppercase font-mono"
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-[#475569]">
                     3-4 znaky pre jednoznačnú identifikáciu. Použije sa v e-shope.
                   </p>
                 </div>
@@ -479,7 +514,7 @@ const CropsPage = () => {
                       <div key={size} className="grid grid-cols-[60px_1fr_1fr] gap-3 items-center">
                         <Label className="font-semibold">{size}</Label>
                         <div className="grid gap-1">
-                          <Label className="text-xs text-muted-foreground">Hustota (g)</Label>
+                          <Label className="text-xs text-[#475569]">Hustota (g)</Label>
                           <Input
                             type="number"
                             min="0"
@@ -499,7 +534,7 @@ const CropsPage = () => {
                           />
                         </div>
                         <div className="grid gap-1">
-                          <Label className="text-xs text-muted-foreground">Výnos (g)</Label>
+                          <Label className="text-xs text-[#475569]">Výnos (g)</Label>
                           <Input
                             type="number"
                             min="0"
@@ -685,113 +720,101 @@ const CropsPage = () => {
               </div>
 
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                <button type="button" onClick={() => setIsDialogOpen(false)}
+                  className="h-9 px-4 rounded-xl border border-[#cbd5e1] bg-white text-sm font-medium text-[#475569] hover:bg-[#f8fafc]">
                   Zrušiť
-                </Button>
-                <Button type="submit" disabled={saving}>
+                </button>
+                <button type="submit" disabled={saving}
+                  className="h-9 px-5 rounded-xl bg-[#16a34a] text-white text-sm font-semibold hover:bg-[#15803d] disabled:opacity-50 flex items-center gap-2">
                   {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {editingCrop ? 'Uložiť zmeny' : 'Pridať plodinu'}
-                </Button>
+                </button>
               </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
-      </PageHeader>
 
       {crops.length === 0 ? (
-        <EmptyState
-          icon={<Leaf className="h-8 w-8" />}
-          title="Žiadne plodiny"
-          description="Začnite pridaním vašej prvej plodiny."
-          action={
-            <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Pridať plodinu
-            </Button>
-          }
-        />
+        <div className="bg-white rounded-xl border border-[#cbd5e1] py-16 flex flex-col items-center text-center">
+          <div className="w-14 h-14 rounded-2xl bg-[#f0fdf4] border border-[#bbf7d0] flex items-center justify-center mb-4">
+            <Leaf className="h-7 w-7 text-[#16a34a]" />
+          </div>
+          <h3 className="text-base font-bold text-[#0f172a] mb-1">Žiadne plodiny</h3>
+          <p className="text-sm text-[#475569] mb-4">Začnite pridaním vašej prvej plodiny.</p>
+          <button onClick={() => setIsDialogOpen(true)}
+            className="flex items-center gap-1.5 h-9 px-4 rounded-xl bg-[#16a34a] text-white text-sm font-semibold hover:bg-[#15803d] transition-colors">
+            <Plus className="h-4 w-4" /> Pridať plodinu
+          </button>
+        </div>
       ) : filteredCrops.length === 0 ? (
-        <EmptyState
-          icon={<Leaf className="h-8 w-8" />}
-          title="Žiadne výsledky"
-          description="Skúste zmeniť filter kategórie."
-        />
+        <div className="bg-white rounded-xl border border-[#cbd5e1] py-16 flex flex-col items-center text-center">
+          <div className="w-14 h-14 rounded-2xl bg-[#f1f5f9] border border-[#e2e8f0] flex items-center justify-center mb-4">
+            <Leaf className="h-7 w-7 text-[#94a3b8]" />
+          </div>
+          <h3 className="text-base font-bold text-[#0f172a] mb-1">Žiadne výsledky</h3>
+          <p className="text-sm text-[#475569]">Skúste zmeniť filter kategórie.</p>
+        </div>
       ) : effectiveViewMode === 'grid' && !isMobile ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredCrops.map((crop) => (
-            <Card
+            <div
               key={crop.id}
-              className="p-4 transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer"
-              onClick={() => {
-                setSelectedCropDetail(crop);
-                setDetailModalOpen(true);
-              }}
+              className="bg-white rounded-xl border border-[#cbd5e1] p-4 transition-all hover:border-[#16a34a] hover:shadow-md cursor-pointer"
+              onClick={() => { setSelectedCropDetail(crop); setDetailModalOpen(true); }}
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div
-                    className="h-10 w-10 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: `${crop.color}20`, color: crop.color || '#22c55e' }}
-                  >
+                  <div className="h-10 w-10 rounded-lg flex items-center justify-center"
+                    style={{ backgroundColor: `${crop.color}20`, color: crop.color || '#22c55e' }}>
                     <Leaf className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="font-semibold">{crop.name}</h3>
-                    {crop.variety && (
-                      <p className="text-xs text-muted-foreground">{crop.variety}</p>
-                    )}
+                    <h3 className="font-bold text-[#0f172a]">{crop.name}</h3>
+                    {crop.variety && <p className="text-xs text-[#475569]">{crop.variety}</p>}
                     {crop.category && (
-                      <Badge variant="secondary" className="mt-1 text-xs">
+                      <span className="mt-1 inline-flex items-center px-2 py-0.5 rounded-md border border-[#cbd5e1] text-[#475569] text-[10px] font-semibold bg-[#f8fafc]">
                         {CROP_CATEGORIES[crop.category as keyof typeof CROP_CATEGORIES] || crop.category}
-                      </Badge>
+                      </span>
                     )}
                   </div>
                 </div>
                 <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => openEditDialog(crop)}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
+                  <button onClick={() => openEditDialog(crop)}
+                    className="w-7 h-7 rounded-lg border border-[#cbd5e1] bg-white flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors">
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
                   {isAdmin && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => setDeleteId(crop.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    <button onClick={() => setDeleteId(crop.id)}
+                      className="w-7 h-7 rounded-lg border border-[#fecaca] bg-[#fef2f2] flex items-center justify-center text-[#dc2626] hover:bg-[#fee2e2] transition-colors">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
                   )}
                 </div>
               </div>
 
               <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
+                <div className="flex items-center gap-2 text-[#475569]">
                   <Clock className="h-4 w-4" />
                   <span>{crop.days_to_harvest} dní</span>
                 </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
+                <div className="flex items-center gap-2 text-[#475569]">
                   <Droplets className="h-4 w-4" />
                   <span>{(crop as any).tray_configs?.XL?.seed_density || crop.seed_density} g/tác</span>
                 </div>
                 {((crop as any).tray_configs?.XL?.expected_yield || crop.expected_yield) && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
+                  <div className="flex items-center gap-2 text-[#475569]">
                     <Scissors className="h-4 w-4" />
                     <span>{(crop as any).tray_configs?.XL?.expected_yield || crop.expected_yield} g výnos</span>
                   </div>
                 )}
                 {crop.germination_type && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
+                  <div className="flex items-center gap-2 text-[#475569]">
                     {crop.germination_type === 'warm' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                     <span>{GERMINATION_TYPES[crop.germination_type as keyof typeof GERMINATION_TYPES]}</span>
                   </div>
                 )}
                 {crop.needs_weight && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
+                  <div className="flex items-center gap-2 text-[#475569]">
                     <Weight className="h-4 w-4" />
                     <span>Zaťaženie</span>
                   </div>
@@ -800,16 +823,16 @@ const CropsPage = () => {
 
               <div className="mt-3 flex flex-wrap gap-1">
                 {crop.seed_soaking && (
-                  <Badge variant="outline" className="text-xs">Namáčanie</Badge>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-md border border-[#cbd5e1] text-[#475569] text-[10px] font-semibold bg-[#f8fafc]">Namáčanie</span>
                 )}
                 {crop.can_be_cut && (
-                  <Badge variant="outline" className="text-xs">Rezaná</Badge>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-md border border-[#cbd5e1] text-[#475569] text-[10px] font-semibold bg-[#f8fafc]">Rezaná</span>
                 )}
                 {crop.can_be_live && (
-                  <Badge variant="outline" className="text-xs">Živá</Badge>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-md border border-[#cbd5e1] text-[#475569] text-[10px] font-semibold bg-[#f8fafc]">Živá</span>
                 )}
               </div>
-            </Card>
+            </div>
           ))}
         </div>
       ) : effectiveViewMode === 'grid' && isMobile ? (
@@ -828,9 +851,9 @@ const CropsPage = () => {
             };
 
             return (
-              <Card
+              <div
                 key={crop.id}
-                className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                className="bg-white rounded-xl border border-[#cbd5e1] overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
                 onClick={toggleExpand}
               >
                 {/* HEADER - ALWAYS VISIBLE */}
@@ -846,29 +869,29 @@ const CropsPage = () => {
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold truncate">{crop.name}</h3>
                         {crop.variety && (
-                          <p className="text-xs text-muted-foreground truncate">{crop.variety}</p>
+                          <p className="text-xs text-[#475569] truncate">{crop.variety}</p>
                         )}
-                        <Badge variant="secondary" className="mt-1 text-xs">
+                        <Badge className="mt-1 inline-flex items-center px-2 py-0.5 rounded-md border border-[#cbd5e1] text-[#475569] text-[10px] font-semibold bg-[#f8fafc]">
                           {CROP_CATEGORIES[crop.category as keyof typeof CROP_CATEGORIES] || crop.category}
-                        </Badge>
+                        </span>
                       </div>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
                       {isExpanded ? (
-                        <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                        <ChevronUp className="h-5 w-5 text-[#475569]" />
                       ) : (
-                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                        <ChevronDown className="h-5 w-5 text-[#475569]" />
                       )}
                     </div>
                   </div>
 
                   {/* QUICK INFO - ALWAYS VISIBLE */}
                   <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                    <div className="flex items-center gap-2 text-muted-foreground">
+                    <div className="flex items-center gap-2 text-[#475569]">
                       <Clock className="h-4 w-4" />
                       <span>{crop.days_to_harvest} dní</span>
                     </div>
-                    <div className="flex items-center gap-2 text-muted-foreground">
+                    <div className="flex items-center gap-2 text-[#475569]">
                       <Droplets className="h-4 w-4" />
                       <span>{(crop as any).tray_configs?.XL?.seed_density || crop.seed_density} g/tác</span>
                     </div>
@@ -881,25 +904,25 @@ const CropsPage = () => {
                     {/* ČASOVÉ ÚDAJE */}
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <div className="text-xs text-muted-foreground mb-1">Dni klíčenia</div>
+                        <div className="text-xs text-[#475569] mb-1">Dni klíčenia</div>
                         <div className="text-sm font-medium flex items-center gap-1">
                           <Sprout className="h-3 w-3" />
                           {crop.days_to_germination} dní
                         </div>
                       </div>
                       <div>
-                        <div className="text-xs text-muted-foreground mb-1">Typ klíčenia</div>
+                        <div className="text-xs text-[#475569] mb-1">Typ klíčenia</div>
                         <div className="text-sm font-medium flex items-center gap-1">
                           {crop.germination_type === 'warm' ? <Sun className="h-3 w-3" /> : <Moon className="h-3 w-3" />}
                           {GERMINATION_TYPES[crop.germination_type as keyof typeof GERMINATION_TYPES] || crop.germination_type}
                         </div>
                       </div>
                       <div>
-                        <div className="text-xs text-muted-foreground mb-1">Dni v tme</div>
+                        <div className="text-xs text-[#475569] mb-1">Dni v tme</div>
                         <div className="text-sm font-medium">{crop.days_in_darkness} dní</div>
                       </div>
                       <div>
-                        <div className="text-xs text-muted-foreground mb-1">Dni na svetle</div>
+                        <div className="text-xs text-[#475569] mb-1">Dni na svetle</div>
                         <div className="text-sm font-medium">{crop.days_on_light} dní</div>
                       </div>
                     </div>
@@ -908,14 +931,14 @@ const CropsPage = () => {
                     <div className="pt-2 border-t">
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <div className="text-xs text-muted-foreground mb-1">Výnos</div>
+                          <div className="text-xs text-[#475569] mb-1">Výnos</div>
                           <div className="text-sm font-medium flex items-center gap-1">
                             <Scissors className="h-3 w-3" />
                             {(crop as any).tray_configs?.XL?.expected_yield || crop.expected_yield || '-'} g
                           </div>
                         </div>
                         <div>
-                          <div className="text-xs text-muted-foreground mb-1">Zaťaženie</div>
+                          <div className="text-xs text-[#475569] mb-1">Zaťaženie</div>
                           <div className="text-sm font-medium flex items-center gap-1">
                             <Weight className="h-3 w-3" />
                             {crop.needs_weight ? 'Áno' : 'Nie'}
@@ -926,7 +949,7 @@ const CropsPage = () => {
 
                     {/* VLASTNOSTI */}
                     <div className="pt-2 border-t">
-                      <div className="text-xs text-muted-foreground mb-2">Vlastnosti</div>
+                      <div className="text-xs text-[#475569] mb-2">Vlastnosti</div>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-sm">
                           <span>Namáčanie osiva</span>
@@ -937,7 +960,7 @@ const CropsPage = () => {
                             {(crop as any).soaking_duration_hours > 0 && (
                               <Badge variant="secondary" className="text-xs">
                                 {(crop as any).soaking_duration_hours}h
-                              </Badge>
+                              </span>
                             )}
                           </div>
                         </div>
@@ -955,60 +978,43 @@ const CropsPage = () => {
                     {/* POZNÁMKY */}
                     {crop.notes && (
                       <div className="pt-2 border-t">
-                        <div className="text-xs text-muted-foreground mb-1">Poznámky</div>
+                        <div className="text-xs text-[#475569] mb-1">Poznámky</div>
                         <div className="text-sm whitespace-pre-wrap">{crop.notes}</div>
                       </div>
                     )}
 
                     {/* AKCIE */}
                     <div className="pt-3 border-t flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedCropDetail(crop);
-                          setDetailModalOpen(true);
-                        }}
-                      >
+                      <button type="button"
+                        className="flex-1 h-8 rounded-lg border border-[#cbd5e1] bg-white text-xs font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors"
+                        onClick={(e) => { e.stopPropagation(); setSelectedCropDetail(crop); setDetailModalOpen(true); }}>
                         Detail
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEditDialog(crop);
-                        }}
-                      >
-                        <Pencil className="h-3 w-3 mr-1" />
-                        Upraviť
-                      </Button>
+                      </button>
+                      <button type="button"
+                        className="flex-1 h-8 rounded-lg border border-[#cbd5e1] bg-white text-xs font-medium text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] flex items-center justify-center gap-1 transition-colors"
+                        onClick={(e) => { e.stopPropagation(); openEditDialog(crop); }}>
+                        <Pencil className="h-3 w-3" />Upraviť
+                      </button>
                       {isAdmin && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-destructive hover:bg-destructive hover:text-white"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteId(crop.id);
-                          }}
-                        >
+                        <button type="button"
+                          className="h-8 px-3 rounded-lg border border-[#fecaca] bg-[#fef2f2] text-xs font-medium text-[#dc2626] hover:bg-[#fee2e2] transition-colors"
+                          onClick={(e) => { e.stopPropagation(); setDeleteId(crop.id); }}>
                           <Trash2 className="h-3 w-3" />
-                        </Button>
+                        </button>
+                      )}
+                          <Trash2 className="h-3 w-3" />
+                        </button>
                       )}
                     </div>
                   </div>
                 )}
-              </Card>
+              </div>
             );
           })}
         </div>
       ) : (
         <PullToRefresh onRefresh={handleRefresh}>
-          <Card className="hidden md:block">
+          <div className="hidden md:block bg-white rounded-xl border border-[#cbd5e1] overflow-hidden">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -1051,14 +1057,14 @@ const CropsPage = () => {
                           </div>
                           <div>
                             <p className="font-medium">{crop.name}</p>
-                            {crop.variety && <p className="text-xs text-muted-foreground">{crop.variety}</p>}
+                            {crop.variety && <p className="text-xs text-[#475569]">{crop.variety}</p>}
                           </div>
                         </div>
                       </MobileTableCell>
                       <MobileTableCell>
                         <Badge variant="secondary" className="text-xs">
                           {CROP_CATEGORIES[crop.category as keyof typeof CROP_CATEGORIES] || crop.category}
-                        </Badge>
+                        </span>
                       </MobileTableCell>
                       <MobileTableCell hideOnMobile>{crop.days_to_harvest} dní</MobileTableCell>
                       <MobileTableCell hideOnMobile>{(crop as any).tray_configs?.XL?.seed_density || crop.seed_density} g/tác</MobileTableCell>
@@ -1070,18 +1076,18 @@ const CropsPage = () => {
                             <span>Áno</span>
                           </div>
                         ) : (
-                          <span className="text-muted-foreground">Nie</span>
+                          <span className="text-[#475569]">Nie</span>
                         )}
                       </MobileTableCell>
                       <MobileTableCell onClick={(e) => e.stopPropagation()}>
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(crop)}>
+                          <button onClick={() => openEditDialog(crop)} className="w-7 h-7 rounded-lg border border-[#cbd5e1] bg-white flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors">
                             <Pencil className="h-4 w-4" />
-                          </Button>
+                          </button>
                           {isAdmin && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteId(crop.id)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
+                            <button onClick={() => setDeleteId(crop.id)} className="w-7 h-7 rounded-lg border border-[#fecaca] bg-[#fef2f2] flex items-center justify-center text-[#dc2626] hover:bg-[#fee2e2] transition-colors">
+                              <Trash2 className="h-4 w-4 text-[#dc2626]" />
+                            </button>
                           )}
                         </div>
                       </MobileTableCell>
@@ -1090,7 +1096,7 @@ const CropsPage = () => {
                 </TableBody>
               </Table>
             </div>
-          </Card>
+          </div>
         </PullToRefresh>
       )}
 
@@ -1104,7 +1110,7 @@ const CropsPage = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Zrušiť</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-[#dc2626]-foreground hover:bg-destructive/90">
               Odstrániť
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1129,49 +1135,49 @@ const CropsPage = () => {
                 <div>
                   <h3 className="text-2xl font-bold">{selectedCropDetail.name}</h3>
                   {selectedCropDetail.variety && (
-                    <p className="text-sm text-muted-foreground">{selectedCropDetail.variety}</p>
+                    <p className="text-sm text-[#475569]">{selectedCropDetail.variety}</p>
                   )}
                   {selectedCropDetail.category && (
                     <Badge variant="secondary" className="mt-1">
                       {CROP_CATEGORIES[selectedCropDetail.category as keyof typeof CROP_CATEGORIES] || selectedCropDetail.category}
-                    </Badge>
+                    </span>
                   )}
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Dni do zberu</div>
+                  <div className="text-sm text-[#475569]">Dni do zberu</div>
                   <div className="font-medium">{selectedCropDetail.days_to_harvest} dní</div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Dni klíčenia</div>
+                  <div className="text-sm text-[#475569]">Dni klíčenia</div>
                   <div className="font-medium">{selectedCropDetail.days_to_germination} dní</div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Typ klíčenia</div>
+                  <div className="text-sm text-[#475569]">Typ klíčenia</div>
                   <div className="font-medium">
                     {GERMINATION_TYPES[selectedCropDetail.germination_type as keyof typeof GERMINATION_TYPES] || selectedCropDetail.germination_type}
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Hustota osiva</div>
+                  <div className="text-sm text-[#475569]">Hustota osiva</div>
                   <div className="font-medium">{(selectedCropDetail as any).tray_configs?.XL?.seed_density || selectedCropDetail.seed_density} g/tác</div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Očakávaný výnos</div>
+                  <div className="text-sm text-[#475569]">Očakávaný výnos</div>
                   <div className="font-medium">{(selectedCropDetail as any).tray_configs?.XL?.expected_yield || selectedCropDetail.expected_yield || '-'} g</div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Dni v tme</div>
+                  <div className="text-sm text-[#475569]">Dni v tme</div>
                   <div className="font-medium">{selectedCropDetail.days_in_darkness} dní</div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Dni na svetle</div>
+                  <div className="text-sm text-[#475569]">Dni na svetle</div>
                   <div className="font-medium">{selectedCropDetail.days_on_light} dní</div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Namáčanie osiva</div>
+                  <div className="text-sm text-[#475569]">Namáčanie osiva</div>
                   <div className="font-medium">
                     {((selectedCropDetail as any).soaking || selectedCropDetail.seed_soaking) ? (
                       <div className="flex items-center gap-2">
@@ -1179,7 +1185,7 @@ const CropsPage = () => {
                         {(selectedCropDetail as any).soaking_duration_hours > 0 && (
                           <Badge variant="secondary" className="text-xs">
                             {(selectedCropDetail as any).soaking_duration_hours}h
-                          </Badge>
+                          </span>
                         )}
                       </div>
                     ) : (
@@ -1188,42 +1194,35 @@ const CropsPage = () => {
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Zaťaženie</div>
+                  <div className="text-sm text-[#475569]">Zaťaženie</div>
                   <div className="font-medium">{selectedCropDetail.needs_weight ? 'Áno' : 'Nie'}</div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Rezaná forma</div>
+                  <div className="text-sm text-[#475569]">Rezaná forma</div>
                   <div className="font-medium">{selectedCropDetail.can_be_cut ? 'Áno' : 'Nie'}</div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Živá forma</div>
+                  <div className="text-sm text-[#475569]">Živá forma</div>
                   <div className="font-medium">{selectedCropDetail.can_be_live ? 'Áno' : 'Nie'}</div>
                 </div>
               </div>
 
               {selectedCropDetail.notes && (
                 <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Poznámky</div>
+                  <div className="text-sm text-[#475569]">Poznámky</div>
                   <div className="text-sm whitespace-pre-wrap">{selectedCropDetail.notes}</div>
                 </div>
               )}
 
               <div className="flex gap-2 justify-end pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setDetailModalOpen(false)}
-                >
+                <button onClick={() => setDetailModalOpen(false)}
+                  className="h-9 px-4 rounded-xl border border-[#cbd5e1] bg-white text-sm font-medium text-[#475569] hover:bg-[#f8fafc]">
                   Zavrieť
-                </Button>
-                <Button
-                  onClick={() => {
-                    setDetailModalOpen(false);
-                    openEditDialog(selectedCropDetail);
-                  }}
-                >
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Upraviť
-                </Button>
+                </button>
+                <button onClick={() => { setDetailModalOpen(false); openEditDialog(selectedCropDetail); }}
+                  className="h-9 px-5 rounded-xl bg-[#16a34a] text-white text-sm font-semibold hover:bg-[#15803d] flex items-center gap-2">
+                  <Pencil className="h-4 w-4" />Upraviť
+                </button>
               </div>
             </div>
           )}
