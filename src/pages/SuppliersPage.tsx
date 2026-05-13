@@ -133,7 +133,7 @@ const SuppliersPage = () => {
   if (loading) return (
     <MainLayout hideMobileHeader>
       <div className="p-6 space-y-4">
-        <div className="h-14 bg-white rounded-xl border border-[#e2e8f0] animate-pulse" />
+        <div className="h-14 bg-white rounded-xl border border-[#cbd5e1] animate-pulse" />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-36 rounded-xl" />)}
         </div>
@@ -152,7 +152,7 @@ const SuppliersPage = () => {
     <MainLayout hideMobileHeader>
       <div className="p-6 space-y-4">
 
-        <div className="bg-white rounded-xl border border-[#e2e8f0] px-4 py-3 flex items-center gap-2">
+        <div className="bg-white rounded-xl border border-[#cbd5e1] px-4 py-3 flex items-center gap-2">
           <span className="text-xl font-bold text-[#0f172a] mr-auto">Dodávatelia</span>
           <div className="hidden md:flex items-center gap-0.5">
             <button onClick={() => setViewMode('grid')} className={"w-9 h-9 flex items-center justify-center rounded-lg transition-colors " + (viewMode === 'grid' ? 'bg-[#f0fdf4] text-[#16a34a]' : 'text-[#94a3b8] hover:bg-[#f8fafc]')}><Grid3x3 className="w-5 h-5" /></button>
@@ -164,7 +164,7 @@ const SuppliersPage = () => {
           </button>
         </div>
 
-        <div className="bg-white rounded-xl border border-[#e2e8f0] px-4">
+        <div className="bg-white rounded-xl border border-[#cbd5e1] px-4">
           <div className="flex items-center gap-2 py-2.5 cursor-pointer select-none" onClick={() => setFiltersCollapsed(v => !v)}>
             <ChevronDown className={"w-3.5 h-3.5 text-[#94a3b8] transition-transform duration-200 " + (filtersCollapsed ? '-rotate-90' : '')} />
             <span className="text-[12px] font-semibold text-[#374151] uppercase tracking-wider">Filtre</span>
@@ -197,16 +197,16 @@ const SuppliersPage = () => {
         </div>
 
         {suppliers.length === 0 ? (
-          <div className="bg-white rounded-xl border border-[#e2e8f0] p-12 text-center">
+          <div className="bg-white rounded-xl border border-[#cbd5e1] p-12 text-center">
             <Building2 className="h-10 w-10 text-[#cbd5e1] mx-auto mb-3" />
-            <div className="text-[15px] font-semibold text-[#0f172a] mb-1">Žiadni dodávatelia</div>
+            <div className="text-[15px] font-bold text-[#0f172a] mb-1">Žiadni dodávatelia</div>
             <div className="text-[13px] text-[#94a3b8] mb-4">Začnite pridaním vášho prvého dodávateľa.</div>
             <button onClick={() => setIsDialogOpen(true)} className="inline-flex items-center gap-2 bg-[#16a34a] text-white rounded-lg px-4 py-2 text-sm font-semibold"><Plus className="w-4 h-4" />Pridať dodávateľa</button>
           </div>
         ) : filteredSuppliers.length === 0 ? (
-          <div className="bg-white rounded-xl border border-[#e2e8f0] p-12 text-center">
+          <div className="bg-white rounded-xl border border-[#cbd5e1] p-12 text-center">
             <Search className="h-10 w-10 text-[#cbd5e1] mx-auto mb-3" />
-            <div className="text-[15px] font-semibold text-[#0f172a] mb-1">Žiadne výsledky</div>
+            <div className="text-[15px] font-bold text-[#0f172a] mb-1">Žiadne výsledky</div>
             <div className="text-[13px] text-[#94a3b8]">Skúste zmeniť filtre.</div>
           </div>
         ) : effectiveViewMode === 'grid' ? (
@@ -222,7 +222,7 @@ const SuppliersPage = () => {
                         {ti ? <ti.Icon className={"h-5 w-5 " + ti.text} /> : <Building2 className="h-5 w-5 text-[#94a3b8]" />}
                       </div>
                       <div className="min-w-0">
-                        <div className="font-semibold text-[14px] text-[#0f172a] truncate">{s.company_name || s.name}</div>
+                        <div className="font-bold text-[14px] text-[#0f172a] truncate">{s.company_name || s.name}</div>
                         {s.contact_name && <div className="text-[11px] text-[#94a3b8] truncate">{s.contact_name}</div>}
                         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                           {ti && <span className={"inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10px] font-semibold " + ti.bg + ' ' + ti.border + ' ' + ti.text}><ti.Icon className="w-2.5 h-2.5" />{ti.label}</span>}
@@ -256,7 +256,7 @@ const SuppliersPage = () => {
             })}
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-[#e2e8f0] overflow-hidden">
+          <div className="bg-white rounded-xl border border-[#cbd5e1] overflow-hidden">
             <table className="w-full">
               <thead className="bg-[#f8fafc] border-b-2 border-[#e2e8f0]">
                 <tr>
@@ -278,7 +278,7 @@ const SuppliersPage = () => {
                             {ti ? <ti.Icon className={"h-4 w-4 " + ti.text} /> : <Building2 className="h-4 w-4 text-[#94a3b8]" />}
                           </div>
                           <div>
-                            <div className="font-semibold text-[13px] text-[#0f172a]">{s.company_name || s.name}</div>
+                            <div className="font-bold text-[13px] text-[#0f172a]">{s.company_name || s.name}</div>
                             <div className="flex items-center gap-1.5 mt-0.5">
                               {ti && <span className={"inline-flex items-center gap-0.5 px-1.5 py-0 rounded text-[10px] font-medium " + ti.bg + ' border ' + ti.border + ' ' + ti.text}><ti.Icon className="w-2.5 h-2.5" />{ti.label}</span>}
                               {s.contact_name && <span className="text-[10px] text-[#94a3b8]">{s.contact_name}</span>}
@@ -357,7 +357,7 @@ const SuppliersPage = () => {
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-5 border-t border-[#f1f5f9] mt-5">
-              <button type="button" onClick={() => { setIsDialogOpen(false); resetForm(); }} className="px-4 py-2 rounded-lg border border-[#e2e8f0] text-[13px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">Zrušiť</button>
+              <button type="button" onClick={() => { setIsDialogOpen(false); resetForm(); }} className="px-4 py-2 rounded-lg border border-[#cbd5e1] text-[13px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">Zrušiť</button>
               <button type="submit" disabled={saving} className="flex items-center gap-2 px-5 py-2 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-[13px] font-semibold transition-colors disabled:opacity-60">
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />}
                 {editingSupplier ? 'Uložiť zmeny' : 'Pridať dodávateľa'}
@@ -409,7 +409,7 @@ const SuppliersPage = () => {
                   )}
                 </div>
                 <div className="flex justify-end gap-2 pt-4 border-t border-[#f1f5f9] mt-4">
-                  <button onClick={() => setDetailOpen(false)} className="px-4 py-2 rounded-lg border border-[#e2e8f0] text-[13px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">Zavrieť</button>
+                  <button onClick={() => setDetailOpen(false)} className="px-4 py-2 rounded-lg border border-[#cbd5e1] text-[13px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">Zavrieť</button>
                   <button onClick={() => { setDetailOpen(false); openEdit(s); }} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-[13px] font-semibold transition-colors"><Pencil className="h-4 w-4" />Upraviť</button>
                 </div>
               </>

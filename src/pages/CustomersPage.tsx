@@ -189,7 +189,7 @@ const CustomersPage = () => {
   if (loading) return (
     <MainLayout hideMobileHeader>
       <div className="p-6 space-y-4">
-        <div className="h-10 bg-white rounded-xl border border-[#e2e8f0] animate-pulse" />
+        <div className="h-10 bg-white rounded-xl border border-[#cbd5e1] animate-pulse" />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-40 rounded-xl" />)}
         </div>
@@ -202,7 +202,7 @@ const CustomersPage = () => {
       <div className="p-6 space-y-4">
 
         {/* ── TOPBAR ── */}
-        <div className="bg-white rounded-xl border border-[#e2e8f0] px-4 py-3 flex items-center gap-2 mb-4">
+        <div className="bg-white rounded-xl border border-[#cbd5e1] px-4 py-3 flex items-center gap-2 mb-4">
           <span className="text-xl font-bold text-[#0f172a] mr-auto">Zákazníci</span>
 
           {/* View toggle */}
@@ -227,7 +227,7 @@ const CustomersPage = () => {
         </div>
 
         {/* ── FILTER BAR ── */}
-        <div className="bg-white rounded-xl border border-[#e2e8f0] px-4 mb-4">
+        <div className="bg-white rounded-xl border border-[#cbd5e1] px-4 mb-4">
           {/* Header */}
           <div className="flex items-center gap-2 py-2.5 cursor-pointer select-none" onClick={() => setFiltersCollapsed(v => !v)}>
             <ChevronDown className={`w-3.5 h-3.5 text-[#94a3b8] transition-transform duration-200 ${filtersCollapsed ? '-rotate-90' : ''}`} />
@@ -291,9 +291,9 @@ const CustomersPage = () => {
 
         {/* ── CONTENT ── */}
         {customers.length === 0 ? (
-          <div className="bg-white rounded-xl border border-[#e2e8f0] p-12 text-center">
+          <div className="bg-white rounded-xl border border-[#cbd5e1] p-12 text-center">
             <Users className="h-10 w-10 text-[#cbd5e1] mx-auto mb-3" />
-            <div className="text-[15px] font-semibold text-[#0f172a] mb-1">Žiadni zákazníci</div>
+            <div className="text-[15px] font-bold text-[#0f172a] mb-1">Žiadni zákazníci</div>
             <div className="text-[13px] text-[#94a3b8] mb-4">Začnite pridaním vášho prvého zákazníka.</div>
             <button onClick={() => setIsDialogOpen(true)}
               className="inline-flex items-center gap-2 bg-[#16a34a] text-white rounded-lg px-4 py-2 text-sm font-semibold">
@@ -301,9 +301,9 @@ const CustomersPage = () => {
             </button>
           </div>
         ) : filteredCustomers.length === 0 ? (
-          <div className="bg-white rounded-xl border border-[#e2e8f0] p-12 text-center">
+          <div className="bg-white rounded-xl border border-[#cbd5e1] p-12 text-center">
             <Search className="h-10 w-10 text-[#cbd5e1] mx-auto mb-3" />
-            <div className="text-[15px] font-semibold text-[#0f172a] mb-1">Žiadne výsledky</div>
+            <div className="text-[15px] font-bold text-[#0f172a] mb-1">Žiadne výsledky</div>
             <div className="text-[13px] text-[#94a3b8]">Skúste zmeniť filtre alebo vyhľadávanie.</div>
           </div>
         ) : effectiveViewMode === 'grid' ? (
@@ -332,7 +332,7 @@ const CustomersPage = () => {
                         {tc ? <tc.Icon className={`h-5 w-5 ${tc.text}`} /> : <Users className="h-5 w-5 text-[#94a3b8]" />}
                       </div>
                       <div className="min-w-0">
-                        <div className="font-semibold text-[14px] text-[#0f172a] truncate">{dn || 'Bez mena'}</div>
+                        <div className="font-bold text-[14px] text-[#0f172a] truncate">{dn || 'Bez mena'}</div>
                         {(customer.customer_type === 'gastro' || customer.customer_type === 'wholesale') && (customer as any).company_name && customer.name !== (customer as any).company_name && (
                           <div className="text-[11px] text-[#94a3b8] truncate">{customer.name}</div>
                         )}
@@ -414,7 +414,7 @@ const CustomersPage = () => {
         ) : (
 
           /* ── LIST VIEW ── */
-          <div className="bg-white rounded-xl border border-[#e2e8f0] overflow-hidden">
+          <div className="bg-white rounded-xl border border-[#cbd5e1] overflow-hidden">
             <table className="w-full">
               <thead className="bg-[#f8fafc] border-b-2 border-[#e2e8f0]">
                 <tr>
@@ -442,7 +442,7 @@ const CustomersPage = () => {
                             {tc ? <tc.Icon className={`h-4 w-4 ${tc.text}`} /> : <Users className="h-4 w-4 text-[#94a3b8]" />}
                           </div>
                           <div>
-                            <div className="font-semibold text-[13px] text-[#0f172a]">{dn}</div>
+                            <div className="font-bold text-[13px] text-[#0f172a]">{dn}</div>
                             <div className="flex items-center gap-1.5 mt-0.5">
                               {tc && (
                                 <span className={`inline-flex items-center gap-0.5 px-1.5 py-0 rounded text-[10px] font-medium ${tc.bg} border ${tc.border} ${tc.text}`}>
@@ -562,7 +562,7 @@ const CustomersPage = () => {
               )}
 
               {/* Nastavenia */}
-              <div className="bg-[#f8fafc] rounded-xl border border-[#e2e8f0] p-4 space-y-3">
+              <div className="bg-[#f8fafc] rounded-xl border border-[#cbd5e1] p-4 space-y-3">
                 <div className="text-[10px] font-bold text-[#475569] uppercase tracking-wider mb-1">Nastavenia doručenia</div>
 
                 {/* Trasa */}
@@ -630,7 +630,7 @@ const CustomersPage = () => {
             {/* Footer */}
             <div className="flex justify-end gap-2 pt-5 border-t border-[#f1f5f9] mt-5">
               <button type="button" onClick={() => { setIsDialogOpen(false); resetForm(); }}
-                className="px-4 py-2 rounded-lg border border-[#e2e8f0] text-[13px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
+                className="px-4 py-2 rounded-lg border border-[#cbd5e1] text-[13px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
                 Zrušiť
               </button>
               <button type="submit" disabled={saving}
@@ -768,7 +768,7 @@ const CustomersPage = () => {
 
                 <div className="flex justify-end gap-2 pt-4 border-t border-[#f1f5f9] mt-4">
                   <button onClick={() => setDetailOpen(false)}
-                    className="px-4 py-2 rounded-lg border border-[#e2e8f0] text-[13px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
+                    className="px-4 py-2 rounded-lg border border-[#cbd5e1] text-[13px] font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors">
                     Zavrieť
                   </button>
                   <button onClick={() => { setDetailOpen(false); openEdit(c); }}
