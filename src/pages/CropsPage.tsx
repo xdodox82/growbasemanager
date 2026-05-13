@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableHeader } from '@/components/ui/table';
 import { MobileTableRow, MobileTableCell, MobileTableHead, ExpandedDetail } from '@/components/ui/mobile-table';
+import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Select,
