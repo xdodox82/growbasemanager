@@ -65,7 +65,7 @@ export function OrderDetailDialog({
             Detail objednávky
             {(order as any).order_number && (
               <span className="text-[13px] font-bold px-2 py-0.5 rounded-lg bg-[#f1f5f9] border border-[#e2e8f0] text-[#475569]">
-                {(order as any).order_number}
+                MR-{String((order as any).order_number).padStart(3, '0')}
               </span>
             )}
           </DialogTitle>
