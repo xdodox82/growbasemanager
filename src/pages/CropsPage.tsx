@@ -167,6 +167,7 @@ const CropsPage = () => {
       needs_weight: crop.needs_weight || false,
       days_in_darkness: crop.days_in_darkness || 2,
       days_on_light: crop.days_on_light || 5,
+      stacking_height: (crop as any).stacking_height || 4,
       seed_density: crop.seed_density || 30,
       seed_soaking: crop.seed_soaking || false,
       soaking: soaking,
@@ -210,7 +211,8 @@ const CropsPage = () => {
     const dataToSave = {
       ...formData,
       seed_soaking: formData.soaking,
-      soaking_duration_hours: formData.soaking ? formData.soaking_duration_hours : 0
+      soaking_duration_hours: formData.soaking ? formData.soaking_duration_hours : 0,
+      stacking_height: (formData as any).stacking_height || 4
     };
 
     if (editingCrop) {
@@ -497,6 +499,18 @@ const CropsPage = () => {
                         <SelectItem value="no">Nie</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Stohovanie pri klíčení (tácky na seba)</Label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={10}
+                      value={(formData as any).stacking_height || 4}
+                      onChange={e => setFormData({ ...formData, stacking_height: parseInt(e.target.value) || 4 } as any)}
+                      className="h-9 rounded-lg border border-[#e2e8f0] px-3 text-sm text-[#0f172a] focus:outline-none focus:border-[#16a34a]"
+                    />
+                    <p className="text-xs text-[#475569]">Koľko tácok sa stohuje na seba počas klíčenia (default: 4)</p>
                   </div>
                 </div>
 
