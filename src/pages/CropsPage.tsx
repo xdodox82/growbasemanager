@@ -1168,7 +1168,7 @@ const CropsPage = () => {
                 </div>
                 <div className="space-y-1">
                   <div className="text-sm text-[#475569]">Hustota osiva</div>
-                  <div className="font-bold text-[#0f172a]">{(selectedCropDetail as any).tray_configs?.XL?.seed_density || selectedCropDetail.seed_density} g/tác</div>
+                  <div className="font-bold text-[#0f172a]">{(selectedCropDetail as any).tray_configs?.XL?.seed_density || selectedCropDetail.seed_density} g/tácku</div>
                 </div>
                 <div className="space-y-1">
                   <div className="text-sm text-[#475569]">Očakávaný výnos</div>
@@ -1205,12 +1205,22 @@ const CropsPage = () => {
                 </div>
                 <div className="space-y-1">
                   <div className="text-sm text-[#475569]">Stohovanie pri klíčení</div>
-                  <div className="font-bold text-[#0f172a]">{(selectedCropDetail as any).stacking_height || 4} tácok na seba</div>
+                  <div className="font-bold text-[#0f172a]">
+                    {(() => {
+                      const n = (selectedCropDetail as any).stacking_height || 4;
+                      return `${n} ${n === 1 ? 'tácka' : n < 5 ? 'tácky' : 'tácok'} na seba`;
+                    })()}
+                  </div>
                 </div>
                 {(selectedCropDetail as any).blackout_days > 0 && (
                   <div className="space-y-1">
-                    <div className="text-sm text-[#475569]">Blackout dni</div>
-                    <div className="font-bold text-[#0f172a]">{(selectedCropDetail as any).blackout_days} dní</div>
+                    <div className="text-sm text-[#475569]">Blackout</div>
+                    <div className="font-bold text-[#0f172a]">
+                      {(() => {
+                        const n = (selectedCropDetail as any).blackout_days;
+                        return `${n} ${n === 1 ? 'deň' : n < 5 ? 'dni' : 'dní'}`;
+                      })()}
+                    </div>
                   </div>
                 )}
                 <div className="space-y-1">
