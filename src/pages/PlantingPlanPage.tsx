@@ -592,7 +592,13 @@ const PlantingPlanPage = () => {
   // ===================== TODAY'S SOWING WIDGET =====================
 
   const todaysSowing = useMemo<TodaysSowingItem[]>(() => {
-    const todayPlans = groupedPlans.filter(p => p.sow_date === today && p.status !== 'cancelled');
+    // Zobrazíme len plány so status='planned' — keď user označí výsev ako
+    // posadený (in_progress) alebo dokončený (completed), widget ho skryje.
+    // 'cancelled' je tiež vynechané. Žiadne ďalšie statusy by sa nemali objaviť
+    // pred zberom, ale pre istotu filtrujeme striktne na 'planned'.
+    const todayPlans = groupedPlans.filter(p =>
+      p.sow_date === today && p.status === 'planned'
+    );
     return todayPlans.map(p => ({
       cropId: p.crop_id,
       cropName: p.crops?.name || 'Neznáma',
@@ -886,7 +892,7 @@ const PlantingPlanPage = () => {
         .select(`
           id, delivery_date, status,
           order_items (
-            crop_id, quantity, packaging_size,
+            crop_id, blend_id, quantity, packaging_size,
             crops:crop_id ( id, name, days_to_harvest, tray_configs, reserved_percentage )
           )
         `)
@@ -897,7 +903,43 @@ const PlantingPlanPage = () => {
       if (ordersError) throw ordersError;
       if (!orders || orders.length === 0) return 0;
 
-      const grouped = groupOrdersByCropAndHarvestDate(orders);
+      // Expand blends — fetchni všetky blend_ids použité v objednávkach a ich plodiny.
+      // Mixy nemajú crop_id na order_items úrovni, ale blend_id, ktorý ukazuje
+      // na blends tabuľku obsahujúcu crop_ids[] a crop_percentages jsonb.
+      const blendIds = Array.from(new Set(
+        orders.flatMap((o: any) =>
+          (o.order_items || [])
+            .filter((i: any) => i.blend_id)
+            .map((i: any) => i.blend_id as string)
+        )
+      ));
+
+      const blendsMap: Record<string, any> = {};
+      const blendCropsMap: Record<string, any> = {};
+
+      if (blendIds.length > 0) {
+        const { data: blends, error: blendsError } = await supabase
+          .from('blends')
+          .select('id, crop_ids, crop_percentages')
+          .in('id', blendIds);
+        if (blendsError) throw blendsError;
+        (blends || []).forEach((b: any) => { blendsMap[b.id] = b; });
+
+        // Fetchni products pre všetky plodiny v mixoch
+        const allBlendCropIds = Array.from(new Set(
+          Object.values(blendsMap).flatMap((b: any) => b.crop_ids || [])
+        ));
+        if (allBlendCropIds.length > 0) {
+          const { data: blendCrops, error: blendCropsError } = await supabase
+            .from('products')
+            .select('id, name, days_to_harvest, tray_configs, reserved_percentage')
+            .in('id', allBlendCropIds);
+          if (blendCropsError) throw blendCropsError;
+          (blendCrops || []).forEach((c: any) => { blendCropsMap[c.id] = c; });
+        }
+      }
+
+      const grouped = groupOrdersByCropAndHarvestDate(orders, blendsMap, blendCropsMap);
       if (grouped.length === 0) return 0;
 
       let createdCount = 0;
@@ -1008,7 +1050,11 @@ const PlantingPlanPage = () => {
   };
 
 
-  function groupOrdersByCropAndHarvestDate(orders: any[]) {
+  function groupOrdersByCropAndHarvestDate(
+    orders: any[],
+    blendsMap: Record<string, any> = {},
+    blendCropsMap: Record<string, any> = {}
+  ) {
     const groups = new Map<string, {
       crop: any;
       harvestDate: string;
@@ -1019,20 +1065,61 @@ const PlantingPlanPage = () => {
     orders.forEach(order => {
       const harvestDate = getHarvestDateForDelivery(order.delivery_date);
       order.order_items?.forEach((item: any) => {
-        if (!item.crop_id || !item.crops) return;
-        const key = `${item.crop_id}_${harvestDate}`;
-        if (!groups.has(key)) {
-          groups.set(key, {
-            crop: item.crops,
-            harvestDate,
-            totalRequired: 0,
-            orderIds: [],
+        // Vetva 1: priama plodina (crop_id != null)
+        if (item.crop_id && item.crops) {
+          const key = `${item.crop_id}_${harvestDate}`;
+          if (!groups.has(key)) {
+            groups.set(key, {
+              crop: item.crops,
+              harvestDate,
+              totalRequired: 0,
+              orderIds: [],
+            });
+          }
+          const g = groups.get(key)!;
+          const grams = parseFloat(item.packaging_size?.replace(/[^0-9.]/g, '') || '0');
+          g.totalRequired += grams * (item.quantity || 0);
+          if (!g.orderIds.includes(order.id)) g.orderIds.push(order.id);
+          return;
+        }
+
+        // Vetva 2: mix (blend_id != null) — expanduj na jednotlivé plodiny podľa percent
+        if (item.blend_id && blendsMap[item.blend_id]) {
+          const blend = blendsMap[item.blend_id];
+          const totalGrams = parseFloat(
+            item.packaging_size?.replace(/[^0-9.]/g, '') || '0'
+          ) * (item.quantity || 0);
+
+          // crop_percentages je jsonb: [{cropId, percentage}]
+          const percentages = Array.isArray(blend.crop_percentages)
+            ? blend.crop_percentages
+            : (typeof blend.crop_percentages === 'string'
+              ? (() => { try { return JSON.parse(blend.crop_percentages); } catch { return []; } })()
+              : []);
+
+          percentages.forEach((cp: any) => {
+            const crop = blendCropsMap[cp.cropId];
+            if (!crop) return;
+
+            const pct = typeof cp.percentage === 'number' ? cp.percentage : parseFloat(cp.percentage || '0');
+            if (!pct || pct <= 0) return;
+
+            const cropGrams = totalGrams * (pct / 100);
+            const key = `${cp.cropId}_${harvestDate}`;
+
+            if (!groups.has(key)) {
+              groups.set(key, {
+                crop,
+                harvestDate,
+                totalRequired: 0,
+                orderIds: [],
+              });
+            }
+            const g = groups.get(key)!;
+            g.totalRequired += cropGrams;
+            if (!g.orderIds.includes(order.id)) g.orderIds.push(order.id);
           });
         }
-        const g = groups.get(key)!;
-        const grams = parseFloat(item.packaging_size?.replace(/[^0-9.]/g, '') || '0');
-        g.totalRequired += grams * (item.quantity || 0);
-        if (!g.orderIds.includes(order.id)) g.orderIds.push(order.id);
       });
     });
 
@@ -1054,14 +1141,16 @@ const PlantingPlanPage = () => {
     const reserve = reservePercent / 100;
     const withReserve = totalRequired * (1 + reserve);
 
-    // Vymaž len AUTO-generované plány pre túto kombináciu, neher sa manuálnych
+    // Vymaž len AUTO-generované PLANNED plány pre túto kombináciu.
+    // NIKDY nemaž in_progress/completed (už posadené výsevy) ani manuálne plány.
     const { error: deleteError } = await supabase
       .from('planting_plans')
       .delete()
       .eq('crop_id', crop.id)
       .eq('expected_harvest_date', harvestDate)
       .not('source_orders', 'is', null)
-      .eq('is_manual', false);
+      .eq('is_manual', false)
+      .eq('status', 'planned');
 
     if (deleteError) console.error('Chyba pri mazaní:', deleteError);
 
@@ -1090,46 +1179,79 @@ const PlantingPlanPage = () => {
 
   function optimizeTrayConfiguration(crop: any, requiredYield: number) {
     const trayConfigs = crop.tray_configs || {};
-    const sizes = [
+
+    // Zoradené od NAJMENŠEJ po najväčšiu — pre malé objednávky uprednostníme malú tácku
+    // namiesto plytvania veľkou XL pri 50g objednávke.
+    const sizesAsc = [
+      { name: 'S',  seeds: trayConfigs.S?.seed_density_grams  || trayConfigs.S?.seed_density  || 0, yield: trayConfigs.S?.yield_grams  || trayConfigs.S?.expected_yield  || 0 },
+      { name: 'M',  seeds: trayConfigs.M?.seed_density_grams  || trayConfigs.M?.seed_density  || 0, yield: trayConfigs.M?.yield_grams  || trayConfigs.M?.expected_yield  || 0 },
+      { name: 'L',  seeds: trayConfigs.L?.seed_density_grams  || trayConfigs.L?.seed_density  || 0, yield: trayConfigs.L?.yield_grams  || trayConfigs.L?.expected_yield  || 0 },
       { name: 'XL', seeds: trayConfigs.XL?.seed_density_grams || trayConfigs.XL?.seed_density || 0, yield: trayConfigs.XL?.yield_grams || trayConfigs.XL?.expected_yield || 0 },
-      { name: 'L', seeds: trayConfigs.L?.seed_density_grams || trayConfigs.L?.seed_density || 0, yield: trayConfigs.L?.yield_grams || trayConfigs.L?.expected_yield || 0 },
-      { name: 'M', seeds: trayConfigs.M?.seed_density_grams || trayConfigs.M?.seed_density || 0, yield: trayConfigs.M?.yield_grams || trayConfigs.M?.expected_yield || 0 },
-      { name: 'S', seeds: trayConfigs.S?.seed_density_grams || trayConfigs.S?.seed_density || 0, yield: trayConfigs.S?.yield_grams || trayConfigs.S?.expected_yield || 0 },
     ].filter(s => s.seeds > 0 && s.yield > 0);
 
-    if (sizes.length === 0) return [];
+    if (sizesAsc.length === 0) return [];
 
     const result: Array<{ size: string; count: number; seedsPerTray: number; yieldPerTray: number }> = [];
-    let remaining = requiredYield;
 
-    if (remaining <= sizes[0].yield) {
-      const perfect = sizes.find(s => s.yield >= remaining);
-      if (perfect) {
-        result.push({ size: perfect.name, count: 1, seedsPerTray: perfect.seeds, yieldPerTray: perfect.yield });
-        return result;
-      }
+    // Prípad 1: požadované množstvo sa zmestí do jednej tácky — nájdi NAJMENŠIU vhodnú
+    const smallestFit = sizesAsc.find(s => s.yield >= requiredYield);
+    if (smallestFit) {
+      result.push({
+        size: smallestFit.name,
+        count: 1,
+        seedsPerTray: smallestFit.seeds,
+        yieldPerTray: smallestFit.yield,
+      });
+      return result;
     }
 
-    const xl = sizes.find(s => s.name === 'XL');
-    if (xl && xl.yield > 0) {
-      const xlCount = Math.floor(remaining / xl.yield);
-      if (xlCount > 0) {
-        result.push({ size: 'XL', count: xlCount, seedsPerTray: xl.seeds, yieldPerTray: xl.yield });
-        remaining -= xlCount * xl.yield;
-      }
+    // Prípad 2: požadované množstvo presahuje aj najväčšiu (XL) tácku.
+    // Stratégia: čo najviac XL tácok, zvyšok pokry najmenšou vhodnou táckou (alebo XL ak nič menšie nestačí).
+    const xl = sizesAsc[sizesAsc.length - 1]; // najväčšia
+    const xlCount = Math.floor(requiredYield / xl.yield);
+    let remaining = requiredYield - xlCount * xl.yield;
+
+    if (xlCount > 0) {
+      result.push({
+        size: xl.name,
+        count: xlCount,
+        seedsPerTray: xl.seeds,
+        yieldPerTray: xl.yield,
+      });
     }
 
     if (remaining > 0) {
-      const others = sizes.filter(s => s.name !== 'XL');
-      let selected = null;
-      for (const s of others) {
-        if (s.yield >= remaining) { selected = s; break; }
-      }
-      if (!selected && others.length > 0) selected = others[0];
-      if (selected) {
-        result.push({ size: selected.name, count: 1, seedsPerTray: selected.seeds, yieldPerTray: selected.yield });
+      // Pre zvyšok znova preferuj najmenšiu vhodnú tácku
+      const remainderFit = sizesAsc.find(s => s.yield >= remaining);
+      if (remainderFit) {
+        // Ak je to rovnaká veľkosť ako už pridaná (XL), zlúč to do jedného záznamu
+        const existing = result.find(r => r.size === remainderFit.name);
+        if (existing) {
+          existing.count += 1;
+        } else {
+          result.push({
+            size: remainderFit.name,
+            count: 1,
+            seedsPerTray: remainderFit.seeds,
+            yieldPerTray: remainderFit.yield,
+          });
+        }
+      } else {
+        // Zvyšok je väčší ako akákoľvek dostupná tácka — pridaj ďalšiu XL (fallback)
+        const existing = result.find(r => r.size === xl.name);
+        if (existing) {
+          existing.count += 1;
+        } else {
+          result.push({
+            size: xl.name,
+            count: 1,
+            seedsPerTray: xl.seeds,
+            yieldPerTray: xl.yield,
+          });
+        }
       }
     }
+
     return result;
   }
 
