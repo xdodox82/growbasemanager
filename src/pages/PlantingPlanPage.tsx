@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useHarvestDays } from '@/hooks/useHarvestDays';
@@ -254,6 +255,8 @@ const PlantingPlanPage = () => {
   const { getHarvestDateForDelivery } = useHarvestDays();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const planIdFromUrl = searchParams.get('planId');
 
   // Core state
   const [plans, setPlans] = useState<PlantingPlan[]>([]);
@@ -896,9 +899,11 @@ const PlantingPlanPage = () => {
         createdCount += created;
       }
 
+      const created1Word = createdCount === 1 ? 'výsev' : (createdCount >= 2 && createdCount <= 4 ? 'výsevy' : 'výsevov');
+      const created2Word = createdCount === 1 ? 'Vytvorený' : (createdCount >= 2 && createdCount <= 4 ? 'Vytvorené' : 'Vytvorených');
       toast({
         title: 'Plán vygenerovaný',
-        description: `Vytvorených ${createdCount} výsevov.`,
+        description: `${created2Word} ${createdCount} ${created1Word}.`,
       });
       await fetchPlans();
       await fetchFutureOrders();
@@ -1414,6 +1419,37 @@ const PlantingPlanPage = () => {
       fetchHistoricalOrders().finally(() => setLoadingPrediction(false));
     }
   }, [activeTab, historicalOrders.length, loadingPrediction, fetchHistoricalOrders]);
+
+  // Query param ?planId= — automaticky otvor detail dialog pre konkrétny plán.
+  // Volá sa zo stránky Dnešné úlohy cez navigate('/planting-plan?planId={id}').
+  // planId v URL je individuálne planting_plans.id; nájdeme zodpovedajúci grouped plán
+  // (lebo openDetailDialog pracuje s GroupedPlantingPlan).
+  useEffect(() => {
+    if (!planIdFromUrl) return;
+    if (plans.length === 0) return; // čakáme na načítanie plánov
+    if (isDetailDialogOpen) return; // už otvorený, nedupli
+
+    const individualPlan = plans.find(p => p.id === planIdFromUrl);
+    if (!individualPlan) {
+      // Plán neexistuje (možno mimo dátumového rozsahu) — odstráň query param ticho
+      const params = new URLSearchParams(searchParams);
+      params.delete('planId');
+      setSearchParams(params, { replace: true });
+      return;
+    }
+
+    // Nájdi grouped plán s rovnakým crop_id + sow_date
+    const groupedPlan = groupedPlans.find(
+      gp => gp.crop_id === individualPlan.crop_id && gp.sow_date === individualPlan.sow_date
+    );
+    if (groupedPlan) {
+      openDetailDialog(groupedPlan);
+      // Odstráň query param po otvorení (aby pri reload-i sa znova neotvoril nečakane)
+      const params = new URLSearchParams(searchParams);
+      params.delete('planId');
+      setSearchParams(params, { replace: true });
+    }
+  }, [planIdFromUrl, plans, groupedPlans, isDetailDialogOpen, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!sowDate) {
@@ -1994,7 +2030,11 @@ const PlantingPlanPage = () => {
                 Upraviť výsev — {groupedEditDialog.plan?.crops?.name}
               </DialogTitle>
               <DialogDescription className="text-[#475569]">
-                Tento výsev má {groupedEditDialog.plan?.trays?.length} tácok. Vyberte ktorú chcete upraviť:
+                {(() => {
+                  const n = groupedEditDialog.plan?.trays?.length || 0;
+                  const word = n === 1 ? 'tácku' : (n >= 2 && n <= 4 ? 'tácky' : 'tácok');
+                  return `Tento výsev má ${n} ${word}. Vyberte ktorú chcete upraviť:`;
+                })()}
               </DialogDescription>
             </DialogHeader>
 
@@ -2446,7 +2486,7 @@ const TodaysSowingWidget = ({ items, onItemClick, formatDate, formatGrams }: Tod
           <h3 className="text-sm font-bold text-[#0f172a]">Dnes sadíš</h3>
         </div>
         <div className="text-xs text-[#475569] font-semibold whitespace-nowrap">
-          {items.length} {items.length === 1 ? 'plodina' : 'plodín'} • {totalTrays} {totalTrays === 1 ? 'tácka' : 'tácok'} • {formatGrams(totalGrams)}g
+          {items.length} {items.length === 1 ? 'plodina' : (items.length >= 2 && items.length <= 4 ? 'plodiny' : 'plodín')} • {totalTrays} {totalTrays === 1 ? 'tácka' : (totalTrays >= 2 && totalTrays <= 4 ? 'tácky' : 'tácok')} • {formatGrams(totalGrams)}g
         </div>
       </div>
       <div className="divide-y divide-[#e2e8f0]">
@@ -2561,7 +2601,7 @@ const LateOrdersBanner = ({ lateOrders, formatDate }: LateOrdersBannerProps) => 
         <div className="flex items-center gap-2 min-w-0">
           <AlertTriangle className="h-4 w-4 text-[#dc2626] flex-shrink-0" />
           <span className="text-sm font-bold text-[#0f172a]">
-            {lateOrders.length} {lateOrders.length === 1 ? 'objednávku' : 'objednávok'} nestihneš vypestovať
+            {lateOrders.length} {lateOrders.length === 1 ? 'objednávku' : (lateOrders.length >= 2 && lateOrders.length <= 4 ? 'objednávky' : 'objednávok')} nestihneš vypestovať
           </span>
         </div>
         {expanded ? <ChevronUp className="h-4 w-4 text-[#dc2626]" /> : <ChevronDown className="h-4 w-4 text-[#dc2626]" />}
@@ -3011,7 +3051,7 @@ const DynamicCalendarView = ({
     <div>
       <div className="flex items-center justify-between mb-3">
         <p className="text-xs text-[#475569]">
-          <span className="font-bold text-[#0f172a]">{dayPlans.length}</span> {dayPlans.length === 1 ? 'deň' : 'dní'} v pláne
+          <span className="font-bold text-[#0f172a]">{dayPlans.length}</span> {dayPlans.length === 1 ? 'deň' : (dayPlans.length >= 2 && dayPlans.length <= 4 ? 'dni' : 'dní')} v pláne
         </p>
         <button
           onClick={onToggleOnlySow}
@@ -3087,7 +3127,7 @@ const DynamicCalendarView = ({
                 <div className="pt-2 border-t border-[#e2e8f0] space-y-1">
                   <div className="flex items-center gap-1.5">
                     <Moon className="h-2.5 w-2.5 text-[#475569]" />
-                    <span className="text-[10px] text-[#475569] w-12">Klíč:</span>
+                    <span className="text-[10px] text-[#475569] w-12">Klíčenie:</span>
                     <div className="flex-1 h-1.5 rounded-full bg-[#f1f5f9] overflow-hidden">
                       <div className={cn('h-full', darkColor.bar)} style={{ width: `${Math.min(100, darkPct)}%` }} />
                     </div>
@@ -3416,9 +3456,9 @@ const PlanDetailContent = ({
         <div className="bg-[#fef2f2] border border-[#fecaca] rounded-lg p-3 flex items-start gap-2">
           <AlertTriangle className="h-4 w-4 text-[#dc2626] flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-xs font-bold text-[#0f172a]">Riziko nestihnúť zber</p>
+            <p className="text-xs font-bold text-[#0f172a]">Riziko: nestihneš zber</p>
             <p className="text-xs text-[#475569]">
-              Do plánovaného zberu zostáva {daysUntilHarvest} dní, plodina potrebuje {daysToHarvest} dní.
+              Do zberu zostáva {daysUntilHarvest} {daysUntilHarvest === 1 ? 'deň' : (daysUntilHarvest >= 2 && daysUntilHarvest <= 4 ? 'dni' : 'dní')}, ale plodina potrebuje {daysToHarvest} {daysToHarvest === 1 ? 'deň' : (daysToHarvest >= 2 && daysToHarvest <= 4 ? 'dni' : 'dní')}.
             </p>
           </div>
         </div>
@@ -3436,7 +3476,7 @@ const PlanDetailContent = ({
         </div>
         <div className="bg-[#f8fafc] rounded-lg border border-[#e2e8f0] p-2.5">
           <p className="text-[10px] uppercase tracking-wide text-[#475569] font-semibold mb-0.5">Dni rastu</p>
-          <p className="text-sm font-bold text-[#0f172a]">{daysToHarvest} dní</p>
+          <p className="text-sm font-bold text-[#0f172a]">{daysToHarvest} {daysToHarvest === 1 ? 'deň' : (daysToHarvest >= 2 && daysToHarvest <= 4 ? 'dni' : 'dní')}</p>
         </div>
         <div className="bg-[#f8fafc] rounded-lg border border-[#e2e8f0] p-2.5">
           <p className="text-[10px] uppercase tracking-wide text-[#475569] font-semibold mb-0.5">Klíčenie / Svetlo</p>
