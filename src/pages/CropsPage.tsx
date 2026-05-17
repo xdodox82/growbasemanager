@@ -1256,8 +1256,6 @@ const CropsPage = () => {
                         </div>
                       );
                     })}
-
-                    })}
                   </div>
                 </div>
               )}
