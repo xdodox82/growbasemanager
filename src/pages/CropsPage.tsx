@@ -1204,6 +1204,16 @@ const CropsPage = () => {
                   <div className="font-bold text-[#0f172a]">{selectedCropDetail.needs_weight ? 'Áno' : 'Nie'}</div>
                 </div>
                 <div className="space-y-1">
+                  <div className="text-sm text-[#475569]">Stohovanie pri klíčení</div>
+                  <div className="font-bold text-[#0f172a]">{(selectedCropDetail as any).stacking_height || 4} tácok na seba</div>
+                </div>
+                {(selectedCropDetail as any).blackout_days > 0 && (
+                  <div className="space-y-1">
+                    <div className="text-sm text-[#475569]">Blackout dni</div>
+                    <div className="font-bold text-[#0f172a]">{(selectedCropDetail as any).blackout_days} dní</div>
+                  </div>
+                )}
+                <div className="space-y-1">
                   <div className="text-sm text-[#475569]">Rezaná forma</div>
                   <div className="font-bold text-[#0f172a]">{selectedCropDetail.can_be_cut ? 'Áno' : 'Nie'}</div>
                 </div>
@@ -1211,7 +1221,46 @@ const CropsPage = () => {
                   <div className="text-sm text-[#475569]">Živá forma</div>
                   <div className="font-bold text-[#0f172a]">{selectedCropDetail.can_be_live ? 'Áno' : 'Nie'}</div>
                 </div>
+                {(selectedCropDetail as any).sku_prefix && (
+                  <div className="space-y-1">
+                    <div className="text-sm text-[#475569]">SKU prefix</div>
+                    <div className="font-bold text-[#0f172a]">{(selectedCropDetail as any).sku_prefix}</div>
+                  </div>
+                )}
+                {(selectedCropDetail as any).default_substrate && (
+                  <div className="space-y-1">
+                    <div className="text-sm text-[#475569]">Predvolený substrát</div>
+                    <div className="font-bold text-[#0f172a]">{(selectedCropDetail as any).default_substrate}</div>
+                  </div>
+                )}
               </div>
+
+              {/* Konfigurácia tácok */}
+              {(selectedCropDetail as any).tray_configs && Object.keys((selectedCropDetail as any).tray_configs).length > 0 && (
+                <div className="space-y-2">
+                  <div className="text-sm font-bold text-[#475569] uppercase tracking-wide">Konfigurácia tácok</div>
+                  <div className="bg-[#f8fafc] rounded-xl border border-[#cbd5e1] overflow-hidden">
+                    <div className="grid grid-cols-3 bg-[#f1f5f9] border-b border-[#e2e8f0] px-4 py-2">
+                      <div className="text-[11px] font-bold text-[#475569] uppercase">Veľkosť</div>
+                      <div className="text-[11px] font-bold text-[#475569] uppercase">Hustota (g)</div>
+                      <div className="text-[11px] font-bold text-[#475569] uppercase">Výnos (g)</div>
+                    </div>
+                    {(['XL', 'L', 'M', 'S'] as const).map(size => {
+                      const config = (selectedCropDetail as any).tray_configs?.[size];
+                      if (!config) return null;
+                      return (
+                        <div key={size} className="grid grid-cols-3 px-4 py-2 border-b border-[#f1f5f9] last:border-0">
+                          <div className="text-sm font-bold text-[#0f172a]">{size}</div>
+                          <div className="text-sm text-[#475569]">{config.seed_density || config.seed_density_grams || '-'} g</div>
+                          <div className="text-sm text-[#475569]">{config.expected_yield || config.yield_grams || '-'} g</div>
+                        </div>
+                      );
+                    })}
+
+                    })}
+                  </div>
+                </div>
+              )}
 
               {selectedCropDetail.notes && (
                 <div className="space-y-1">
