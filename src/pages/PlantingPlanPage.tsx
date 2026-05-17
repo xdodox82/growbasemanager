@@ -52,7 +52,6 @@ import {
   Info,
   Beaker,
   RotateCcw,
-  Sparkles,
   Package,
   Layers,
   TreePine,
@@ -88,6 +87,7 @@ interface Crop {
   growth_days?: number;
   category?: string;
   reserved_percentage?: number;
+  stacking_height?: number;
   tray_configs?: Record<string, { seed_density?: number; seed_density_grams?: number; expected_yield?: number; yield_grams?: number }>;
 }
 
@@ -240,6 +240,13 @@ const calcPositions = (trays: TrayDetail[]): number => {
   return trays.reduce((sum, t) => sum + (TRAY_POSITION_VALUE[t.size] || 1) * t.count, 0);
 };
 
+// Pre KLÍČENIE: tácky sú stohnuté na sebe — 1 pozícia v regáli pojme `stackingHeight` tácok.
+// Pre SVETLO/zber: použij štandardný TRAY_POSITION_VALUE (XL=1, L=1, M=1/3, S=1/3).
+const calcPositionsForGermination = (trays: TrayDetail[], stackingHeight: number): number => {
+  const stack = Math.max(1, stackingHeight); // safety: ak by bolo 0/null
+  return trays.reduce((sum, t) => sum + t.count / stack, 0);
+};
+
 const SK_WEEKDAYS = ['nedeľa', 'pondelok', 'utorok', 'streda', 'štvrtok', 'piatok', 'sobota'];
 
 const formatOrderNumber = (n: number): string => `MR-${String(n).padStart(3, '0')}`;
@@ -275,7 +282,6 @@ const PlantingPlanPage = () => {
   const [activeTab, setActiveTab] = useState<Tab>('plan');
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [generateCardOpen, setGenerateCardOpen] = useState(false);
   const [onlySowDays, setOnlySowDays] = useState(true);
 
   // Dialog state
@@ -388,7 +394,7 @@ const PlantingPlanPage = () => {
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, days_to_harvest, days_in_darkness, days_on_light, tray_configs, color, category, reserved_percentage')
+        .select('id, name, days_to_harvest, days_in_darkness, days_on_light, tray_configs, color, category, reserved_percentage, stacking_height')
         .order('name');
       if (error) throw error;
       setCrops(data || []);
@@ -474,7 +480,7 @@ const PlantingPlanPage = () => {
         .from('planting_plans')
         .select(`
           *,
-          crops:crop_id(id, name, color, days_to_harvest, days_in_darkness, days_on_light, tray_configs)
+          crops:crop_id(id, name, color, days_to_harvest, days_in_darkness, days_on_light, tray_configs, stacking_height)
         `)
         .gte('expected_harvest_date', startDate)
         .lte('expected_harvest_date', endDate)
@@ -663,11 +669,16 @@ const PlantingPlanPage = () => {
       const sow = parseISO(p.sow_date);
       const darkDays = p.crops?.days_in_darkness ?? 2;
       const totalDays = p.crops?.days_to_harvest ?? 10;
+      const stackingHeight = p.crops?.stacking_height ?? 4;
       const darkEnd = addDays(sow, darkDays);
       const harvest = addDays(sow, totalDays);
-      const positions = calcPositions(p.trays);
-      if (date >= sow && date < darkEnd) darkUsed += positions;
-      else if (date >= darkEnd && date <= harvest) lightUsed += positions;
+      if (date >= sow && date < darkEnd) {
+        // Klíčenie — tácky sú stohnuté, takže pozícií zaberú menej
+        darkUsed += calcPositionsForGermination(p.trays, stackingHeight);
+      } else if (date >= darkEnd && date <= harvest) {
+        // Svetlo — štandardné pozície
+        lightUsed += calcPositions(p.trays);
+      }
     });
     return {
       darkUsed: Math.round(darkUsed * 10) / 10,
@@ -858,8 +869,17 @@ const PlantingPlanPage = () => {
 
   // ===================== GENERATE / OPTIMIZE / CRUD =====================
 
-  const handleGenerate = async () => {
-    setGenerating(true);
+  // Core syncing logika — používa sa manuálnou aj automatickou cestou.
+  // Vracia počet vytvorených výsevov (re-vytvorenie cez delete-and-insert
+  // mechanizmus v createPlantingTasksForGroup; manuálne výsevy sú chránené).
+  // Parametre:
+  //   - dateFrom/dateTo: rozsah delivery_date pre filter objednávok
+  //   - silent: true = žiadne toast hlášky, len console.warn pri chybách
+  const syncPlansFromOrders = useCallback(async (
+    dateFrom: string,
+    dateTo: string,
+    silent: boolean = false
+  ): Promise<number> => {
     try {
       const { data: orders, error: ordersError } = await supabase
         .from('orders')
@@ -870,33 +890,101 @@ const PlantingPlanPage = () => {
             crops:crop_id ( id, name, days_to_harvest, tray_configs, reserved_percentage )
           )
         `)
-        .gte('delivery_date', startDate)
-        .lte('delivery_date', endDate)
+        .gte('delivery_date', dateFrom)
+        .lte('delivery_date', dateTo)
         .in('status', ['growing', 'packed', 'on_the_way', 'pending', 'pending_approval', 'confirmed', 'cakajuca', 'potvrdena', 'pripravena']);
 
       if (ordersError) throw ordersError;
-
-      if (!orders || orders.length === 0) {
-        toast({
-          title: 'Žiadne objednávky',
-          description: 'V danom období neboli nájdené žiadne aktívne objednávky.',
-        });
-        return;
-      }
+      if (!orders || orders.length === 0) return 0;
 
       const grouped = groupOrdersByCropAndHarvestDate(orders);
-      if (grouped.length === 0) {
-        toast({
-          title: 'Žiadne položky',
-          description: 'Objednávky neobsahujú žiadne plodiny na sadenie.',
-        });
-        return;
-      }
+      if (grouped.length === 0) return 0;
 
       let createdCount = 0;
       for (const g of grouped) {
         const created = await createPlantingTasksForGroup(g);
         createdCount += created;
+      }
+      return createdCount;
+    } catch (err) {
+      if (silent) {
+        console.warn('syncPlansFromOrders failed:', err);
+        return 0;
+      }
+      throw err;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Tichá automatická synchronizácia — beží pri načítaní stránky.
+  // Pozerá sa od dneška -7 dní (buffer pre nedávno vytvorené plány)
+  // do konca aktuálneho dátumového rozsahu (endDate stránky).
+  const autoSyncPlantingPlans = useCallback(async () => {
+    try {
+      const today = new Date();
+      const bufferDate = addDays(today, -7).toISOString().split('T')[0];
+      // Použijeme endDate stránky ako horný limit, aby sme nepokrývali celú DB
+      const created = await syncPlansFromOrders(bufferDate, endDate, true);
+      if (created > 0) {
+        // Tichý refresh — bez celostranového loading skeleton.
+        // fetchPlans() spôsobí setLoading(true), preto refresh robíme inline.
+        try {
+          const { data: refreshedPlans, error: refreshError } = await supabase
+            .from('planting_plans')
+            .select(`
+              *,
+              crops:crop_id(id, name, color, days_to_harvest, days_in_darkness, days_on_light, tray_configs, stacking_height)
+            `)
+            .gte('expected_harvest_date', startDate)
+            .lte('expected_harvest_date', endDate)
+            .order('sow_date');
+
+          if (!refreshError && refreshedPlans) {
+            const plansWithConfig = refreshedPlans.map((plan: any) => {
+              let trayConfig: TrayConfig | null = null;
+              if (plan.crops?.tray_configs) {
+                const configs = plan.crops.tray_configs;
+                if (configs[plan.tray_size]) {
+                  const sizeConfig = configs[plan.tray_size];
+                  trayConfig = {
+                    seed_density_grams: sizeConfig.seed_density_grams || sizeConfig.seed_density || 0,
+                    yield_grams: sizeConfig.yield_grams || sizeConfig.expected_yield || 0,
+                  };
+                }
+              }
+              return {
+                ...plan,
+                tray_config: trayConfig || {
+                  seed_density_grams: plan.seed_amount_grams || 0,
+                  yield_grams: 0,
+                },
+              };
+            });
+            setPlans(plansWithConfig);
+          }
+        } catch (refreshErr) {
+          console.warn('autoSyncPlantingPlans refresh failed:', refreshErr);
+        }
+      }
+    } catch (err) {
+      console.warn('autoSyncPlantingPlans failed:', err);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [syncPlansFromOrders, startDate, endDate]);
+
+  // Manuálne generovanie — ZACHOVANÉ ale UI tlačidlo bolo odstránené.
+  // Zostáva ako internal API pre prípadné použitie.
+  const handleGenerate = async () => {
+    setGenerating(true);
+    try {
+      const createdCount = await syncPlansFromOrders(startDate, endDate, false);
+
+      if (createdCount === 0) {
+        toast({
+          title: 'Žiadne nové výsevy',
+          description: 'V danom období nie sú žiadne objednávky alebo všetky výsevy už existujú.',
+        });
+        return;
       }
 
       const created1Word = createdCount === 1 ? 'výsev' : (createdCount >= 2 && createdCount <= 4 ? 'výsevy' : 'výsevov');
@@ -918,6 +1006,7 @@ const PlantingPlanPage = () => {
       setGenerating(false);
     }
   };
+
 
   function groupOrdersByCropAndHarvestDate(orders: any[]) {
     const groups = new Map<string, {
@@ -1412,6 +1501,16 @@ const PlantingPlanPage = () => {
     fetchFutureOrders();
   }, [fetchPlans, fetchCrops, fetchShelves, fetchHarvestDays, fetchFutureOrders]);
 
+  // Automatická synchronizácia plánov sadenia s objednávkami — beží ticho na pozadí.
+  // Spúšťa sa po každom načítaní budúcich objednávok (fetchFutureOrders).
+  // Žiadny loading spinner, žiadny error toast — len console.warn pri chybe.
+  useEffect(() => {
+    // Čakáme kým sa načítajú objednávky — bez nich nemáme čo synchronizovať
+    if (futureOrders.length === 0) return;
+    autoSyncPlantingPlans();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [futureOrders.length]);
+
   // Predikcia — lazy load len keď user otvorí tab
   useEffect(() => {
     if ((activeTab === 'prediction' || activeTab === 'analysis') && historicalOrders.length === 0 && !loadingPrediction) {
@@ -1656,55 +1755,6 @@ const PlantingPlanPage = () => {
                       </button>
                     ))}
                   </div>
-                </div>
-
-                {/* Generovanie — kolapsovateľná karta */}
-                <div className="border-b border-[#e2e8f0]">
-                  <button
-                    onClick={() => setGenerateCardOpen(!generateCardOpen)}
-                    className="w-full px-3 md:px-4 py-3 flex items-center justify-between hover:bg-[#f8fafc] transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-[#16a34a]" />
-                      <span className="text-sm font-bold text-[#0f172a]">Generovať plán z objednávok</span>
-                    </div>
-                    {generateCardOpen ? <ChevronUp className="h-4 w-4 text-[#475569]" /> : <ChevronDown className="h-4 w-4 text-[#475569]" />}
-                  </button>
-
-                  {generateCardOpen && (
-                    <div className="px-3 md:px-4 pb-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div>
-                          <label className="block text-xs font-semibold text-[#475569] mb-1.5">Dátum od</label>
-                          <input
-                            type="date"
-                            value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
-                            className="w-full h-9 px-3 rounded-md border border-[#e2e8f0] text-sm text-[#0f172a] bg-white focus:outline-none focus:border-[#16a34a]"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-[#475569] mb-1.5">Dátum do</label>
-                          <input
-                            type="date"
-                            value={endDate}
-                            onChange={(e) => setEndDate(e.target.value)}
-                            className="w-full h-9 px-3 rounded-md border border-[#e2e8f0] text-sm text-[#0f172a] bg-white focus:outline-none focus:border-[#16a34a]"
-                          />
-                        </div>
-                        <div className="flex flex-col justify-end">
-                          <button
-                            onClick={handleGenerate}
-                            disabled={generating}
-                            className="w-full h-9 rounded-md bg-[#16a34a] hover:bg-[#15803d] disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
-                          >
-                            {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                            Vygenerovať plán
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 {/* View mode switcher */}
@@ -1971,7 +2021,7 @@ const PlantingPlanPage = () => {
                     <SelectTrigger className="h-9 text-sm mt-1.5 border-[#e2e8f0]">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-[200]">
                       <SelectItem value="XL">XL</SelectItem>
                       <SelectItem value="L">L</SelectItem>
                       <SelectItem value="M">M</SelectItem>
@@ -2168,7 +2218,7 @@ const PlantingPlanPage = () => {
                       <SelectTrigger id="crop" className="h-9 text-sm mt-1.5 border-[#e2e8f0]">
                         <SelectValue placeholder="Vyberte plodinu" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="z-[200]">
                         {filteredCrops.map(crop => (
                           <SelectItem key={crop.id} value={crop.id}>{crop.name}</SelectItem>
                         ))}
@@ -2203,7 +2253,7 @@ const PlantingPlanPage = () => {
                             <SelectTrigger className="h-9 text-sm flex-1 border-[#e2e8f0] bg-white">
                               <SelectValue placeholder="Plodina" />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent className="z-[200]">
                               {filteredCrops.map(crop => (
                                 <SelectItem key={crop.id} value={crop.id}>{crop.name}</SelectItem>
                               ))}
@@ -2257,7 +2307,7 @@ const PlantingPlanPage = () => {
                       <SelectTrigger id="traySize" className="h-9 text-sm mt-1.5 border-[#e2e8f0]">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="z-[200]">
                         <SelectItem value="XL">XL</SelectItem>
                         <SelectItem value="L">L</SelectItem>
                         <SelectItem value="M">M</SelectItem>
