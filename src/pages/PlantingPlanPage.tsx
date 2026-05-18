@@ -1232,14 +1232,18 @@ const PlantingPlanPage = () => {
   function optimizeTrayConfiguration(crop: any, requiredYield: number) {
     const trayConfigs = crop.tray_configs || {};
 
-    // Zoradené od NAJMENŠEJ po najväčšiu — pre malé objednávky uprednostníme malú tácku
-    // namiesto plytvania veľkou XL pri 50g objednávke.
+    // Normalizuj kľúče — DB môže vrátiť "m"/"l"/"xl" malými písmenami
+    const tc: Record<string, any> = {};
+    Object.keys(trayConfigs).forEach(k => { tc[k.toUpperCase()] = trayConfigs[k]; });
+
     // Veľkosť S sa NIKDY nenavrhuje automaticky — len manuálne zadanie.
     const sizesAsc = [
-      { name: 'M',  seeds: trayConfigs.M?.seed_density_grams  || trayConfigs.M?.seed_density  || 0, yield: trayConfigs.M?.yield_grams  || trayConfigs.M?.expected_yield  || 0 },
-      { name: 'L',  seeds: trayConfigs.L?.seed_density_grams  || trayConfigs.L?.seed_density  || 0, yield: trayConfigs.L?.yield_grams  || trayConfigs.L?.expected_yield  || 0 },
-      { name: 'XL', seeds: trayConfigs.XL?.seed_density_grams || trayConfigs.XL?.seed_density || 0, yield: trayConfigs.XL?.yield_grams || trayConfigs.XL?.expected_yield || 0 },
+      { name: 'M',  seeds: tc.M?.seed_density_grams  ?? tc.M?.seed_density  ?? 0, yield: tc.M?.yield_grams  ?? tc.M?.expected_yield  ?? 0 },
+      { name: 'L',  seeds: tc.L?.seed_density_grams  ?? tc.L?.seed_density  ?? 0, yield: tc.L?.yield_grams  ?? tc.L?.expected_yield  ?? 0 },
+      { name: 'XL', seeds: tc.XL?.seed_density_grams ?? tc.XL?.seed_density ?? 0, yield: tc.XL?.yield_grams ?? tc.XL?.expected_yield ?? 0 },
     ].filter(s => s.seeds > 0 && s.yield > 0);
+
+    console.debug(`[optimizeTray] ${crop.name} | required=${requiredYield.toFixed(1)}g | sizes=`, sizesAsc.map(s => `${s.name}(yield=${s.yield})`).join(', ') || 'ŽIADNE');
 
     if (sizesAsc.length === 0) return [];
 
