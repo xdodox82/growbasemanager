@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useHarvestDays } from '@/hooks/useHarvestDays';
@@ -68,6 +68,7 @@ import {
   Scale,
   Sun,
   Moon,
+  ExternalLink,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -161,6 +162,8 @@ interface OrderForPlanning {
   delivery_date: string;
   status: string;
   customer_name?: string;
+  customer_id?: string;
+  customers?: { id: string; customer_type?: string | null } | null;
   order_items?: any[];
 }
 
@@ -436,9 +439,10 @@ const PlantingPlanPage = () => {
       const { data, error } = await supabase
         .from('orders')
         .select(`
-          id, order_number, customer_name, delivery_date, status,
+          id, order_number, customer_name, customer_id, delivery_date, status,
+          customers:customer_id ( id, customer_type ),
           order_items (
-            crop_id, quantity, packaging_size,
+            crop_id, blend_id, quantity, packaging_size,
             crops:crop_id ( id, name, days_to_harvest, days_in_darkness, days_on_light, tray_configs, reserved_percentage, color, category )
           )
         `)
@@ -944,6 +948,13 @@ const PlantingPlanPage = () => {
 
       let createdCount = 0;
       for (const g of grouped) {
+        // Diagnostické logovanie — pomáha overiť že totalRequired sa správne sčítava
+        // pre každú plodinu + harvest_date kombináciu. Tichý log, len pre dev/diagnose.
+        const reservePct = g.crop.reserved_percentage || 5;
+        const withReserveDbg = g.totalRequired * (1 + reservePct / 100);
+        console.debug(
+          `[autoSync] ${g.crop.name || g.crop.id} | harvest=${g.harvestDate} | required=${g.totalRequired.toFixed(1)}g | +rezerva ${reservePct}%=${withReserveDbg.toFixed(1)}g | orders=${g.orderIds.length}`
+        );
         const created = await createPlantingTasksForGroup(g);
         createdCount += created;
       }
@@ -3918,36 +3929,13 @@ const PlanDetailContent = ({
         </div>
       )}
 
-      {/* Source orders */}
+      {/* Source orders — záložky podľa customer_type + klik = link na /orders */}
       {sourceOrderDetails.length > 0 && (
-        <div className="bg-white rounded-lg border border-[#e2e8f0] p-3">
-          <h3 className="text-xs font-bold text-[#0f172a] mb-2 flex items-center gap-1.5">
-            <Package className="h-3.5 w-3.5 text-[#16a34a]" />
-            Zdroj objednávok ({sourceOrderDetails.length})
-          </h3>
-          <div className="space-y-1.5">
-            {sourceOrderDetails.map((order, idx) => {
-              const grams = (order.order_items || []).reduce((sum: number, it: any) => {
-                const g = parseFloat((it.packaging_size || '').replace(/[^0-9.]/g, '') || '0') * (it.quantity || 0);
-                return sum + g;
-              }, 0);
-              return (
-                <div key={idx} className="flex items-center justify-between text-xs border-b border-[#e2e8f0] last:border-0 pb-1.5 last:pb-0">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="font-mono font-bold text-[#16a34a] flex-shrink-0">
-                      {formatOrderNumber(order.order_number)}
-                    </span>
-                    <span className="text-[#0f172a] font-semibold truncate">{order.customer_name || 'Neznámy'}</span>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <span className="text-[#475569]">{formatDate(order.delivery_date)}</span>
-                    {grams > 0 && <span className="text-[#0f172a] font-bold ml-1.5">{Math.round(grams)}g</span>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <SourceOrdersSection
+          orders={sourceOrderDetails}
+          cropId={plan.crop_id}
+          formatDate={formatDate}
+        />
       )}
 
       {/* Notes */}
@@ -4007,6 +3995,186 @@ const PlanDetailContent = ({
               Pridať tácku
             </button>
           </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ===================== SOURCE ORDERS SECTION =====================
+
+interface SourceOrdersSectionProps {
+  orders: OrderForPlanning[];
+  cropId: string;
+  formatDate: (d: string) => string;
+}
+
+type CustomerTypeFilter = 'all' | 'home' | 'gastro' | 'wholesale';
+
+const CUSTOMER_TYPE_TABS: Array<{ id: CustomerTypeFilter; label: string }> = [
+  { id: 'all', label: 'Všetky' },
+  { id: 'home', label: 'Domáci' },
+  { id: 'gastro', label: 'Gastro' },
+  { id: 'wholesale', label: 'VO' },
+];
+
+// Zistí gramáž objednávky pre konkrétnu plodinu — sčíta order_items kde crop_id sedí.
+// Mixy (blend_id != null) sa do tejto sumy nezarátajú, lebo ich obsah by sa musel rozpočítať
+// cez crop_percentages a nemáme tu blends data; rátame ich len ako "súčasť mixu".
+const calcOrderGramsForCrop = (order: OrderForPlanning, cropId: string): number => {
+  return (order.order_items || []).reduce((sum: number, it: any) => {
+    if (it.crop_id !== cropId) return sum;
+    const g = parseFloat((it.packaging_size || '').replace(/[^0-9.]/g, '') || '0');
+    return sum + g * (it.quantity || 0);
+  }, 0);
+};
+
+// Mapuje customer_type string z DB na 1 z 3 kategórií.
+// Podporuje rôzne varianty (case-insensitive, anglické aj slovenské skratky).
+const normalizeCustomerType = (raw: string | null | undefined): 'home' | 'gastro' | 'wholesale' => {
+  if (!raw) return 'home';
+  const t = raw.toLowerCase().trim();
+  if (t === 'gastro' || t === 'restaurant' || t === 'reštaurácia') return 'gastro';
+  if (t === 'wholesale' || t === 'vo' || t === 'veľkoodber' || t === 'velkoodber' || t === 'b2b') return 'wholesale';
+  return 'home';
+};
+
+const SourceOrdersSection = ({ orders, cropId, formatDate }: SourceOrdersSectionProps) => {
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<CustomerTypeFilter>('all');
+
+  // Klasifikuj objednávky podľa customer_type
+  const classified = useMemo(() => {
+    const home: OrderForPlanning[] = [];
+    const gastro: OrderForPlanning[] = [];
+    const wholesale: OrderForPlanning[] = [];
+    orders.forEach(o => {
+      const type = normalizeCustomerType(o.customers?.customer_type);
+      if (type === 'home') home.push(o);
+      else if (type === 'gastro') gastro.push(o);
+      else wholesale.push(o);
+    });
+    return { home, gastro, wholesale };
+  }, [orders]);
+
+  // Súhrn gramov podľa typu — len pre danú plodinu (cropId)
+  const totals = useMemo(() => {
+    const sumGrams = (list: OrderForPlanning[]) =>
+      list.reduce((acc, o) => acc + calcOrderGramsForCrop(o, cropId), 0);
+    return {
+      home: Math.round(sumGrams(classified.home)),
+      gastro: Math.round(sumGrams(classified.gastro)),
+      wholesale: Math.round(sumGrams(classified.wholesale)),
+      all: Math.round(sumGrams(orders)),
+    };
+  }, [classified, orders, cropId]);
+
+  // Filtrovaný zoznam podľa aktívnej záložky
+  const filteredOrders = useMemo(() => {
+    if (activeTab === 'all') return orders;
+    return classified[activeTab];
+  }, [activeTab, classified, orders]);
+
+  // Počty pre badge v záložkách
+  const counts: Record<CustomerTypeFilter, number> = {
+    all: orders.length,
+    home: classified.home.length,
+    gastro: classified.gastro.length,
+    wholesale: classified.wholesale.length,
+  };
+
+  const handleOrderClick = (orderId: string) => {
+    navigate(`/orders?orderId=${orderId}`);
+  };
+
+  return (
+    <div className="bg-white rounded-lg border border-[#e2e8f0] p-3">
+      <h3 className="text-xs font-bold text-[#0f172a] mb-2 flex items-center gap-1.5">
+        <Package className="h-3.5 w-3.5 text-[#16a34a]" />
+        Zdroj objednávok ({orders.length})
+      </h3>
+
+      {/* Tabs */}
+      <div className="flex items-center gap-1 mb-2 border-b border-[#e2e8f0] overflow-x-auto">
+        {CUSTOMER_TYPE_TABS.map(tab => {
+          const active = activeTab === tab.id;
+          const c = counts[tab.id];
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                'flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold border-b-2 transition-colors whitespace-nowrap',
+                active
+                  ? 'border-[#16a34a] text-[#16a34a]'
+                  : 'border-transparent text-[#475569] hover:text-[#0f172a]'
+              )}
+            >
+              {tab.label}
+              <span className={cn(
+                'inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold',
+                active ? 'bg-[#f0fdf4] text-[#16a34a]' : 'bg-[#f1f5f9] text-[#475569]'
+              )}>
+                {c}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Summary by type — vždy viditeľný */}
+      <div className="grid grid-cols-4 gap-1.5 mb-2">
+        <div className="bg-[#f8fafc] rounded-md border border-[#e2e8f0] p-1.5 text-center">
+          <p className="text-[9px] text-[#475569] uppercase tracking-wide font-semibold">Spolu</p>
+          <p className="text-xs font-bold text-[#0f172a]">{totals.all}g</p>
+        </div>
+        <div className="bg-[#f8fafc] rounded-md border border-[#e2e8f0] p-1.5 text-center">
+          <p className="text-[9px] text-[#475569] uppercase tracking-wide font-semibold">Domáci</p>
+          <p className="text-xs font-bold text-[#0f172a]">{totals.home}g</p>
+        </div>
+        <div className="bg-[#f8fafc] rounded-md border border-[#e2e8f0] p-1.5 text-center">
+          <p className="text-[9px] text-[#475569] uppercase tracking-wide font-semibold">Gastro</p>
+          <p className="text-xs font-bold text-[#0f172a]">{totals.gastro}g</p>
+        </div>
+        <div className="bg-[#f8fafc] rounded-md border border-[#e2e8f0] p-1.5 text-center">
+          <p className="text-[9px] text-[#475569] uppercase tracking-wide font-semibold">VO</p>
+          <p className="text-xs font-bold text-[#0f172a]">{totals.wholesale}g</p>
+        </div>
+      </div>
+
+      {/* Orders list */}
+      <div className="space-y-1.5">
+        {filteredOrders.length === 0 ? (
+          <p className="text-xs text-[#475569] text-center py-3">Žiadne objednávky v tejto kategórii.</p>
+        ) : (
+          filteredOrders.map((order, idx) => {
+            const grams = calcOrderGramsForCrop(order, cropId);
+            const hasMix = (order.order_items || []).some((it: any) => it.blend_id && it.crop_id !== cropId);
+            return (
+              <button
+                key={order.id || idx}
+                onClick={() => handleOrderClick(order.id)}
+                className="w-full flex items-center justify-between text-xs border-b border-[#e2e8f0] last:border-0 pb-1.5 last:pb-0 hover:bg-[#f8fafc] rounded-md px-1.5 -mx-1.5 py-1 transition-colors text-left"
+              >
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <span className="font-mono font-bold text-[#16a34a] flex-shrink-0">
+                    {formatOrderNumber(order.order_number)}
+                  </span>
+                  <span className="text-[#0f172a] font-semibold truncate">{order.customer_name || 'Neznámy'}</span>
+                  {hasMix && (
+                    <span className="inline-flex items-center h-4 px-1 rounded text-[9px] font-bold bg-[#fef3c7] text-[#92400e] flex-shrink-0">
+                      +MIX
+                    </span>
+                  )}
+                </div>
+                <div className="text-right flex-shrink-0 flex items-center gap-1.5">
+                  <span className="text-[#475569]">{formatDate(order.delivery_date)}</span>
+                  {grams > 0 && <span className="text-[#0f172a] font-bold">{Math.round(grams)}g</span>}
+                  <ExternalLink className="h-3 w-3 text-[#94a3b8]" />
+                </div>
+              </button>
+            );
+          })
         )}
       </div>
     </div>
