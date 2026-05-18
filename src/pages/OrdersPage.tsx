@@ -1,5 +1,6 @@
 ﻿// IMPORTANT: Use 'House' not 'Home' - Home is Chrome browser icon, House is home icon
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
@@ -278,6 +279,7 @@ export default function OrdersPage() {
   const [calculatedDeliveryPrice, setCalculatedDeliveryPrice] = useState(0); // Display-only calculated delivery
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailActiveTab, setDetailActiveTab] = useState<'detail' | 'history'>('detail');
   const [bulkDateChangeOpen, setBulkDateChangeOpen] = useState(false);
@@ -306,6 +308,21 @@ export default function OrdersPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Automaticky otvorí detail objednávky ak je v URL ?orderId=
+  useEffect(() => {
+    const orderIdFromUrl = searchParams.get('orderId');
+    if (!orderIdFromUrl || orders.length === 0) return;
+    const order = orders.find(o => o.id === orderIdFromUrl);
+    if (order) {
+      setSelectedOrderDetail(order);
+      setDetailModalOpen(true);
+      // Odstráň query param z URL po otvorení
+      const params = new URLSearchParams(searchParams);
+      params.delete('orderId');
+      setSearchParams(params, { replace: true });
+    }
+  }, [searchParams, orders]);
 
   // Sledovanie zmien pre kontrolu kapacity
   useEffect(() => {
