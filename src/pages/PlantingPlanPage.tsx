@@ -1823,6 +1823,17 @@ const PlantingPlanPage = () => {
             onMarkDone={(item) => {
               handleMarkComplete(item.planIds[0] || '', item.cropId, today);
             }}
+            onEdit={(item) => {
+              const plan = groupedPlans.find(p => p.crop_id === item.cropId && p.sow_date === today);
+              if (plan) openEditDialog(plan);
+            }}
+            onAddTray={(item) => {
+              const plan = groupedPlans.find(p => p.crop_id === item.cropId && p.sow_date === today);
+              if (plan) setAddTrayDialog({ open: true, plan });
+            }}
+            onDelete={(item) => {
+              if (item.planIds[0]) setDeleteId(item.planIds[0]);
+            }}
             formatDate={formatDate}
             formatGrams={formatGrams}
             isAdmin={isAdmin}
@@ -2329,7 +2340,13 @@ const PlantingPlanPage = () => {
                       checked={isMixedPlanting}
                       onCheckedChange={(checked) => {
                         setIsMixedPlanting(checked === true);
-                        if (checked === false) {
+                        if (checked === true) {
+                          // Predvyplniť prvú plodinu z aktuálne vybranej
+                          setMixCrops([
+                            { cropId: selectedCropId || '', percentage: 50 },
+                            { cropId: '', percentage: 50 },
+                          ]);
+                        } else {
                           setMixCrops([
                             { cropId: '', percentage: 50 },
                             { cropId: '', percentage: 50 },
@@ -2648,12 +2665,15 @@ interface TodaysSowingSectionProps {
   items: TodaysSowingItem[];
   onItemClick: (item: TodaysSowingItem) => void;
   onMarkDone: (item: TodaysSowingItem) => void;
+  onEdit: (item: TodaysSowingItem) => void;
+  onAddTray: (item: TodaysSowingItem) => void;
+  onDelete: (item: TodaysSowingItem) => void;
   formatDate: (d: string) => string;
   formatGrams: (g: number) => number;
   isAdmin: boolean;
 }
 
-const TodaysSowingSection = ({ items, onItemClick, onMarkDone, formatDate, formatGrams, isAdmin }: TodaysSowingSectionProps) => {
+const TodaysSowingSection = ({ items, onItemClick, onMarkDone, onEdit, onAddTray, onDelete, formatDate, formatGrams, isAdmin }: TodaysSowingSectionProps) => {
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
 
   if (items.length === 0) {
@@ -2746,14 +2766,36 @@ const TodaysSowingSection = ({ items, onItemClick, onMarkDone, formatDate, forma
                 <span className="text-[#475569]">Semená:</span>
                 <span className="font-bold text-[#16a34a]">{formatGrams(item.totalGrams)}g</span>
               </div>
-              <div onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-1 pt-3 border-t border-[#e2e8f0]" onClick={(e) => e.stopPropagation()}>
                 <button
                   onClick={() => onMarkDone(item)}
                   disabled={!isAdmin}
-                  className="w-full h-9 rounded-md border-2 border-[#16a34a] text-[#16a34a] hover:bg-[#f0fdf4] text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+                  className="flex-1 h-9 rounded-md border-2 border-[#16a34a] text-[#16a34a] hover:bg-[#f0fdf4] text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
                 >
                   <Circle className="h-3.5 w-3.5" />
                   Hotovo
+                </button>
+                <button
+                  onClick={() => onAddTray(item)}
+                  disabled={!isAdmin}
+                  title="Pridať tácku"
+                  className="h-9 w-9 rounded-md border border-[#e2e8f0] text-[#475569] hover:border-[#bbf7d0] hover:text-[#16a34a] disabled:opacity-50 flex items-center justify-center transition-colors"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => onEdit(item)}
+                  disabled={!isAdmin}
+                  className="h-9 w-9 rounded-md border border-[#e2e8f0] text-[#475569] hover:border-[#bbf7d0] hover:text-[#16a34a] disabled:opacity-50 flex items-center justify-center transition-colors"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => onDelete(item)}
+                  disabled={!isAdmin}
+                  className="h-9 w-9 rounded-md border border-[#e2e8f0] text-[#dc2626] hover:border-[#fecaca] hover:bg-[#fef2f2] disabled:opacity-50 flex items-center justify-center transition-colors"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
             </div>
