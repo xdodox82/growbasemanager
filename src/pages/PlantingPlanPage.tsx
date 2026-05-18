@@ -1,5 +1,5 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useHarvestDays } from '@/hooks/useHarvestDays';
@@ -64,6 +64,7 @@ import {
   BarChart3,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
   Target,
   Scale,
   Sun,
@@ -267,6 +268,10 @@ const PlantingPlanPage = () => {
   const isMobile = useIsMobile();
   const [searchParams, setSearchParams] = useSearchParams();
   const planIdFromUrl = searchParams.get('planId');
+
+  // Jednorázový cleanup flag — zmaž staré planned+auto S-tácky pri prvom načítaní stránky
+  // (pred opravou Bug 4 sa autogeneroval S, teraz sa S vytvára len manuálne).
+  const sCleanupDoneRef = useRef(false);
 
   // Core state
   const [plans, setPlans] = useState<PlantingPlan[]>([]);
@@ -480,6 +485,29 @@ const PlantingPlanPage = () => {
   const fetchPlans = useCallback(async () => {
     try {
       setLoading(true);
+
+      // Jednorázový cleanup (raz za session) — zmaž auto-generované planned plány s tray_size='S'.
+      // Pred opravou Bug 4 sa S auto-navrhovalo; teraz sa S vytvára len manuálne.
+      // Manuálne (is_manual=true) plány sú chránené.
+      if (!sCleanupDoneRef.current) {
+        sCleanupDoneRef.current = true;
+        try {
+          const { error: cleanupError, count } = await supabase
+            .from('planting_plans')
+            .delete({ count: 'exact' })
+            .eq('tray_size', 'S')
+            .eq('is_manual', false)
+            .eq('status', 'planned');
+          if (cleanupError) {
+            console.warn('[S-cleanup] failed:', cleanupError);
+          } else if (count && count > 0) {
+            console.info(`[S-cleanup] removed ${count} legacy auto-generated S-tray planned plans`);
+          }
+        } catch (cleanupErr) {
+          console.warn('[S-cleanup] exception:', cleanupErr);
+        }
+      }
+
       const { data: plansData, error } = await supabase
         .from('planting_plans')
         .select(`
@@ -2272,7 +2300,14 @@ const PlantingPlanPage = () => {
                     className="bg-white rounded-lg border border-[#e2e8f0] p-3 flex items-center justify-between hover:border-[#bbf7d0] hover:bg-[#f0fdf4] transition-colors"
                   >
                     <div>
-                      <p className="font-bold text-[#0f172a]">{tray.count} × {tray.size}</p>
+                      <p className="font-bold text-[#0f172a] flex items-center gap-2">
+                        {tray.count} × {tray.size}
+                        {tray.size === 'S' && tray.is_manual && (
+                          <span className="inline-flex items-center h-4 px-1 rounded text-[9px] font-bold bg-[#fef3c7] text-[#92400e]">
+                            S-tácka (manuálna)
+                          </span>
+                        )}
+                      </p>
                       <p className="text-xs text-[#475569]">{tray.seeds_per_tray}g/tácka • {tray.total_seeds}g celkom</p>
                     </div>
                     <button
@@ -3153,8 +3188,13 @@ const PlanCardsView = ({
               <div className="space-y-1 mb-3">
                 {sortTrayCombinations(plan.trays).map((tray, idx) => (
                   <div key={idx} className="flex items-center justify-between text-xs">
-                    <span className={cn('font-bold', tray.is_manual ? 'text-[#d97706]' : 'text-[#0f172a]')}>
+                    <span className={cn('font-bold flex items-center gap-1.5', tray.is_manual ? 'text-[#d97706]' : 'text-[#0f172a]')}>
                       {tray.is_manual && '✎ '}{tray.count} × {tray.size}
+                      {tray.size === 'S' && tray.is_manual && (
+                        <span className="inline-flex items-center h-4 px-1 rounded text-[9px] font-bold bg-[#fef3c7] text-[#92400e]">
+                          S-tácka (manuálna)
+                        </span>
+                      )}
                     </span>
                     <span className="text-[#475569]">{formatGrams(tray.seeds_per_tray)}g/tácka</span>
                   </div>
@@ -4054,6 +4094,8 @@ const normalizeCustomerType = (raw: string | null | undefined): 'home' | 'gastro
 
 const SourceOrdersSection = ({ orders, cropId, formatDate }: SourceOrdersSectionProps) => {
   const [activeTab, setActiveTab] = useState<CustomerTypeFilter>('all');
+  // Order detail dialog state — interný v sekcii, otvára sa pri kliknutí na riadok
+  const [openOrderId, setOpenOrderId] = useState<string | null>(null);
 
   // Klasifikuj objednávky podľa customer_type
   const classified = useMemo(() => {
@@ -4096,7 +4138,7 @@ const SourceOrdersSection = ({ orders, cropId, formatDate }: SourceOrdersSection
   };
 
   const handleOrderClick = (orderId: string) => {
-    window.open(`/orders?orderId=${orderId}`, '_blank');
+    setOpenOrderId(orderId);
   };
 
   return (
@@ -4182,14 +4224,280 @@ const SourceOrdersSection = ({ orders, cropId, formatDate }: SourceOrdersSection
                 <div className="text-right flex-shrink-0 flex items-center gap-1.5">
                   <span className="text-[#475569]">{formatDate(order.delivery_date)}</span>
                   {grams > 0 && <span className="text-[#0f172a] font-bold">{Math.round(grams)}g</span>}
-                  <ExternalLink className="h-3 w-3 text-[#94a3b8]" />
+                  <ChevronRight className="h-3.5 w-3.5 text-[#94a3b8]" />
                 </div>
               </button>
             );
           })
         )}
       </div>
+
+      {/* Order detail dialog — interný v sekcii */}
+      <OrderDetailDialog
+        orderId={openOrderId}
+        onClose={() => setOpenOrderId(null)}
+        formatDate={formatDate}
+      />
     </div>
+  );
+};
+
+// ===================== ORDER DETAIL DIALOG =====================
+
+interface OrderDetailDialogProps {
+  orderId: string | null;
+  onClose: () => void;
+  formatDate: (d: string) => string;
+}
+
+interface OrderDetailData {
+  id: string;
+  order_number: number;
+  customer_name: string | null;
+  customer_id: string | null;
+  delivery_date: string;
+  status: string;
+  delivery_form?: string | null;
+  notes?: string | null;
+  customers?: { id: string; customer_type: string | null } | null;
+  order_items: Array<{
+    id: string;
+    crop_id: string | null;
+    blend_id: string | null;
+    quantity: number;
+    packaging_size: string | null;
+    crops?: { id: string; name: string; color: string | null } | null;
+    blends?: { id: string; name: string } | null;
+  }>;
+}
+
+const ORDER_STATUS_LABELS: Record<string, { label: string; bg: string; fg: string }> = {
+  pending: { label: 'Čaká na potvrdenie', bg: '#fef3c7', fg: '#92400e' },
+  pending_approval: { label: 'Čaká na potvrdenie', bg: '#fef3c7', fg: '#92400e' },
+  cakajuca: { label: 'Čaká na potvrdenie', bg: '#fef3c7', fg: '#92400e' },
+  confirmed: { label: 'Potvrdená', bg: '#dbeafe', fg: '#1e40af' },
+  potvrdena: { label: 'Potvrdená', bg: '#dbeafe', fg: '#1e40af' },
+  growing: { label: 'Pestuje sa', bg: '#dcfce7', fg: '#166534' },
+  packed: { label: 'Zabalená', bg: '#dcfce7', fg: '#166534' },
+  pripravena: { label: 'Pripravená', bg: '#dcfce7', fg: '#166534' },
+  on_the_way: { label: 'Na ceste', bg: '#dbeafe', fg: '#1e40af' },
+  delivered: { label: 'Doručená', bg: '#d1fae5', fg: '#064e3b' },
+  cancelled: { label: 'Zrušená', bg: '#fee2e2', fg: '#991b1b' },
+};
+
+const OrderDetailDialog = ({ orderId, onClose, formatDate }: OrderDetailDialogProps) => {
+  const navigate = useNavigate();
+  const [order, setOrder] = useState<OrderDetailData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!orderId) {
+      setOrder(null);
+      setError(null);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    (async () => {
+      try {
+        const { data, error: fetchError } = await supabase
+          .from('orders')
+          .select(`
+            id, order_number, customer_name, customer_id, delivery_date, status, delivery_form, notes,
+            customers:customer_id ( id, customer_type ),
+            order_items (
+              id, crop_id, blend_id, quantity, packaging_size,
+              crops:crop_id ( id, name, color ),
+              blends:blend_id ( id, name )
+            )
+          `)
+          .eq('id', orderId)
+          .single();
+
+        if (cancelled) return;
+        if (fetchError) throw fetchError;
+        setOrder(data as unknown as OrderDetailData);
+      } catch (err: any) {
+        if (cancelled) return;
+        console.error('Order fetch error:', err);
+        setError(err?.message || 'Nepodarilo sa načítať objednávku.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [orderId]);
+
+  const isOpen = orderId !== null;
+
+  // Sumár — celková gramáž
+  const totalGrams = useMemo(() => {
+    if (!order) return 0;
+    return order.order_items.reduce((sum, it) => {
+      const g = parseFloat((it.packaging_size || '').replace(/[^0-9.]/g, '') || '0');
+      return sum + g * (it.quantity || 0);
+    }, 0);
+  }, [order]);
+
+  const statusStyle = order ? (ORDER_STATUS_LABELS[order.status] || { label: order.status, bg: '#f1f5f9', fg: '#475569' }) : null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto bg-white">
+        <DialogHeader>
+          <DialogTitle className="text-[#0f172a] flex items-center gap-2">
+            <Package className="h-5 w-5 text-[#16a34a]" />
+            {order ? (
+              <>
+                <span className="font-mono">{formatOrderNumber(order.order_number)}</span>
+                <span className="text-sm font-normal text-[#475569]">— {order.customer_name || 'Neznámy'}</span>
+              </>
+            ) : (
+              'Detail objednávky'
+            )}
+          </DialogTitle>
+        </DialogHeader>
+
+        {loading && (
+          <div className="py-8 flex flex-col items-center justify-center gap-2">
+            <Loader2 className="h-6 w-6 animate-spin text-[#16a34a]" />
+            <p className="text-xs text-[#475569]">Načítavam objednávku...</p>
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-[#fef2f2] border border-[#fecaca] rounded-lg p-3 flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-[#dc2626] flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-[#0f172a]">{error}</p>
+          </div>
+        )}
+
+        {!loading && !error && order && (
+          <div className="space-y-3">
+            {/* Stav + dátum doručenia */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-[#f8fafc] rounded-lg border border-[#e2e8f0] p-2.5">
+                <p className="text-[10px] uppercase tracking-wide text-[#475569] font-semibold mb-1">Stav</p>
+                {statusStyle && (
+                  <span
+                    className="inline-flex items-center h-5 px-1.5 rounded-full text-[10px] font-bold"
+                    style={{ backgroundColor: statusStyle.bg, color: statusStyle.fg }}
+                  >
+                    {statusStyle.label}
+                  </span>
+                )}
+              </div>
+              <div className="bg-[#f8fafc] rounded-lg border border-[#e2e8f0] p-2.5">
+                <p className="text-[10px] uppercase tracking-wide text-[#475569] font-semibold mb-1">Doručenie</p>
+                <p className="text-sm font-bold text-[#0f172a]">{formatDate(order.delivery_date)}</p>
+              </div>
+            </div>
+
+            {/* Forma doručenia + zákazník typ */}
+            {(order.delivery_form || order.customers?.customer_type) && (
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                {order.delivery_form && (
+                  <span className="inline-flex items-center h-5 px-1.5 rounded-full bg-[#dbeafe] text-[#1e40af] font-bold">
+                    {order.delivery_form === 'cut' ? 'Zrezaná' : (order.delivery_form === 'live' ? 'Živá' : order.delivery_form)}
+                  </span>
+                )}
+                {order.customers?.customer_type && (
+                  <span className="inline-flex items-center h-5 px-1.5 rounded-full bg-[#ede9fe] text-[#7c3aed] font-bold">
+                    {normalizeCustomerType(order.customers.customer_type) === 'home' ? 'Domáci'
+                      : normalizeCustomerType(order.customers.customer_type) === 'gastro' ? 'Gastro' : 'VO'}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Položky objednávky */}
+            <div>
+              <h3 className="text-xs font-bold text-[#0f172a] mb-2 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Package className="h-3.5 w-3.5 text-[#16a34a]" />
+                  Položky ({order.order_items.length})
+                </span>
+                <span className="text-[10px] text-[#475569] font-semibold">
+                  Spolu: <span className="text-[#0f172a] font-bold">{Math.round(totalGrams)}g</span>
+                </span>
+              </h3>
+              <div className="space-y-1.5">
+                {order.order_items.map(item => {
+                  const gPerPack = parseFloat((item.packaging_size || '').replace(/[^0-9.]/g, '') || '0');
+                  const totalG = gPerPack * (item.quantity || 0);
+                  const name = item.crops?.name || item.blends?.name || 'Neznámy';
+                  const isBlend = !!item.blend_id;
+                  const color = item.crops?.color || '#16a34a';
+                  return (
+                    <div key={item.id} className="bg-[#f8fafc] rounded-lg border border-[#e2e8f0] p-2 flex items-center gap-2">
+                      <div
+                        className="flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center border"
+                        style={{ backgroundColor: `${color}15`, borderColor: `${color}30` }}
+                      >
+                        {isBlend ? (
+                          <Layers className="h-3.5 w-3.5" style={{ color }} />
+                        ) : (
+                          <Sprout className="h-3.5 w-3.5" style={{ color }} />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-bold text-[#0f172a] truncate">{name}</span>
+                          {isBlend && (
+                            <span className="inline-flex items-center h-4 px-1 rounded text-[9px] font-bold bg-[#fef3c7] text-[#92400e] flex-shrink-0">
+                              MIX
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-[#475569]">
+                          {item.quantity}× {item.packaging_size || '?'}
+                          {totalG > 0 && <span className="text-[#0f172a] font-bold ml-1.5">= {Math.round(totalG)}g</span>}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Poznámka */}
+            {order.notes && (
+              <div className="bg-[#fffbeb] border border-[#fde68a] rounded-lg p-2.5">
+                <h4 className="text-[10px] font-bold text-[#0f172a] mb-1 flex items-center gap-1">
+                  <StickyNote className="h-3 w-3 text-[#d97706]" />
+                  Poznámka
+                </h4>
+                <p className="text-xs text-[#475569] whitespace-pre-wrap">{order.notes}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        <DialogFooter className="mt-4 gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-9 px-4 rounded-md border border-[#e2e8f0] bg-white text-[#475569] hover:bg-[#f8fafc] text-sm font-semibold transition-colors"
+          >
+            Zavrieť
+          </button>
+          {order && (
+            <button
+              type="button"
+              onClick={() => navigate(`/orders?orderId=${order.id}`)}
+              className="h-9 px-4 rounded-md bg-[#16a34a] hover:bg-[#15803d] text-white text-sm font-semibold flex items-center gap-2 transition-colors"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Otvoriť v Objednávkach
+            </button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 
