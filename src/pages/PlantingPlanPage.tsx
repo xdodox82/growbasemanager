@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useHarvestDays } from '@/hooks/useHarvestDays';
@@ -1164,6 +1164,19 @@ const PlantingPlanPage = () => {
       .eq('status', 'planned');
 
     if (deleteError) console.error('Chyba pri mazaní:', deleteError);
+
+    // Vymaž aj staré auto-plány s táckou S pre túto plodinu — S sa už nikdy auto-nenavrhuje.
+    // Toto čistí pozostatky z pred opravy algoritmu.
+    const { error: deleteSError } = await supabase
+      .from('planting_plans')
+      .delete()
+      .eq('crop_id', crop.id)
+      .eq('expected_harvest_date', harvestDate)
+      .eq('tray_size', 'S')
+      .eq('is_manual', false)
+      .eq('status', 'planned');
+
+    if (deleteSError) console.error('Chyba pri mazaní S tácok:', deleteSError);
 
     const trayConfig = optimizeTrayConfiguration(crop, withReserve);
 
@@ -4040,7 +4053,6 @@ const normalizeCustomerType = (raw: string | null | undefined): 'home' | 'gastro
 };
 
 const SourceOrdersSection = ({ orders, cropId, formatDate }: SourceOrdersSectionProps) => {
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<CustomerTypeFilter>('all');
 
   // Klasifikuj objednávky podľa customer_type
@@ -4084,7 +4096,7 @@ const SourceOrdersSection = ({ orders, cropId, formatDate }: SourceOrdersSection
   };
 
   const handleOrderClick = (orderId: string) => {
-    navigate(`/orders?orderId=${orderId}`);
+    window.open(`/orders?orderId=${orderId}`, '_blank');
   };
 
   return (
