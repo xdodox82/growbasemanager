@@ -27,7 +27,14 @@
       "Bash(Get-ChildItem *)",
       "Bash(Select-Object FullName)",
       "Bash(git restore *)",
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(npm run *)",
+      "PowerShell(Copy-Item *)",
+      "Bash(cp src/App.tsx src/App.tsx.backup)",
+      "Bash(cp src/components/layout/Sidebar.tsx src/components/layout/Sidebar.tsx.backup)",
+      "Bash(cp /mnt/user-data/outputs/src/App.tsx src/App.tsx)",
+      "Bash(cp /mnt/user-data/outputs/src/components/layout/Sidebar.tsx src/components/layout/Sidebar.tsx)",
+      "Bash(cp /mnt/user-data/outputs/src/pages/InventoryPage.tsx src/pages/InventoryPage.tsx)"
     ]
   }
 }

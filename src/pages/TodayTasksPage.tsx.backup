@@ -35,7 +35,6 @@ import {
   FlaskConical,
   Layers,
   Package,
-  RefreshCw,
 } from 'lucide-react';
 import { format, addDays, parseISO, subHours, startOfDay, isSameDay, differenceInDays } from 'date-fns';
 import { sk } from 'date-fns/locale';
@@ -101,7 +100,7 @@ interface Order {
   order_items: OrderItem[];
 }
 
-type TaskCategoryKey = 'soaking' | 'sowing' | 'weight' | 'blackout' | 'light' | 'harvest' | 'delivery';
+type TaskCategoryKey = 'soaking' | 'sowing' | 'weight' | 'cover_bo' | 'light' | 'harvest' | 'delivery';
 
 interface BaseTaskItem {
   id: string;
@@ -159,13 +158,13 @@ const CATEGORY_CONFIG: Record<TaskCategoryKey, CategoryConfig> = {
     iconColor: '#7c3aed',
     emptyText: 'Dnes nie je potrebné odťažiť',
   },
-  blackout: {
-    key: 'blackout',
-    title: 'Rast v tme "Blackout"',
+  cover_bo: {
+    key: 'cover_bo',
+    title: 'Zakrytie pre BO',
     icon: Moon,
     bgColor: '#f1f5f9',
     iconColor: '#475569',
-    emptyText: 'Dnes nie je potrebné prikrývať pre blackout',
+    emptyText: 'Dnes nie je potrebné zakrývať',
   },
   light: {
     key: 'light',
@@ -286,19 +285,6 @@ const TodayTasksPage = () => {
   // Saving state per action (aby sa nedalo dvakrát kliknúť)
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
 
-  // Čas poslednej aktualizácie + refresh tlačidlo
-  const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
-
-  // Poznámky k výsevom — keyed by planId, lokálny state
-  const [sowNotes, setSowNotes] = useState<Record<string, string>>({});
-
-  // Sekcie ktoré boli práve dokončené (pre auto-collapse na mobile + zošedivenie na desktop)
-  const [completedCategories, setCompletedCategories] = useState<Set<TaskCategoryKey>>(new Set());
-
-  // Počet úloh ktoré boli pôvodne dnes (na začiatku dňa / refresh) — pre progress bar
-  const [initialTodayCount, setInitialTodayCount] = useState<number>(0);
-  const [completedToday, setCompletedToday] = useState<number>(0);
-
   // Today reference
   const today = useMemo(() => startOfDay(new Date()), []);
   const todayStr = useMemo(() => format(today, 'yyyy-MM-dd'), [today]);
@@ -371,22 +357,8 @@ const TodayTasksPage = () => {
   const refreshAll = useCallback(async () => {
     setLoading(true);
     await Promise.all([fetchCrops(), fetchPlans(), fetchOrders()]);
-    setLastRefreshed(new Date());
     setLoading(false);
   }, [fetchCrops, fetchPlans, fetchOrders]);
-
-  // Manuálny refresh — nezobrazí veľký loading skeleton, len aktualizuje dáta
-  const [refreshing, setRefreshing] = useState(false);
-  const handleManualRefresh = useCallback(async () => {
-    if (refreshing) return;
-    setRefreshing(true);
-    try {
-      await Promise.all([fetchCrops(), fetchPlans(), fetchOrders()]);
-      setLastRefreshed(new Date());
-    } finally {
-      setRefreshing(false);
-    }
-  }, [refreshing, fetchCrops, fetchPlans, fetchOrders]);
 
   useEffect(() => {
     refreshAll();
@@ -490,7 +462,7 @@ const TodayTasksPage = () => {
   // AND weight_removed_at IS NOT NULL AND weight_removed_at::date = today
   // AND blackout_started_at IS NULL
   // POZN: pre plány bez záťaže ale s BO — kryjú sa hneď po days_in_darkness
-  const blackoutTasks = useMemo<BaseTaskItem[]>(() => {
+  const coverBoTasks = useMemo<BaseTaskItem[]>(() => {
     const result: BaseTaskItem[] = [];
     for (const plan of plans) {
       if (plan.status !== 'in_progress') continue;
@@ -504,9 +476,9 @@ const TodayTasksPage = () => {
       if (plan.weight_removed_at) {
         const removedDate = dateOnlyFromTimestamp(plan.weight_removed_at);
         if (removedDate === todayStr) {
-          result.push(planToTaskItem(plan, 'blackout', false));
+          result.push(planToTaskItem(plan, 'cover_bo', false));
         } else if (removedDate && removedDate < todayStr) {
-          result.push(planToTaskItem(plan, 'blackout', true, parseISO(removedDate)));
+          result.push(planToTaskItem(plan, 'cover_bo', true, parseISO(removedDate)));
         }
       } else {
         // Variant B: nemá záťaž (needs_weight=false na všetkých plodinách)
@@ -516,9 +488,9 @@ const TodayTasksPage = () => {
         const maxDarkness = Math.max(...planCrops.map(c => c.days_in_darkness || 2));
         const targetDate = addDays(parseISO(plan.sow_date), maxDarkness);
         if (isSameDay(targetDate, today)) {
-          result.push(planToTaskItem(plan, 'blackout', false));
+          result.push(planToTaskItem(plan, 'cover_bo', false));
         } else if (targetDate < today) {
-          result.push(planToTaskItem(plan, 'blackout', true, targetDate));
+          result.push(planToTaskItem(plan, 'cover_bo', true, targetDate));
         }
       }
     }
@@ -642,8 +614,8 @@ const TodayTasksPage = () => {
 
   // Všetky úlohy z kategórií 1-6 v jednom poli (pre overdue banner + counts)
   const allTaskItems = useMemo<BaseTaskItem[]>(() => {
-    return [...soakingTasks, ...sowingTasks, ...weightTasks, ...blackoutTasks, ...lightTasks, ...harvestTasks, ...deliveryTasks];
-  }, [soakingTasks, sowingTasks, weightTasks, blackoutTasks, lightTasks, harvestTasks, deliveryTasks]);
+    return [...soakingTasks, ...sowingTasks, ...weightTasks, ...coverBoTasks, ...lightTasks, ...harvestTasks, ...deliveryTasks];
+  }, [soakingTasks, sowingTasks, weightTasks, coverBoTasks, lightTasks, harvestTasks, deliveryTasks]);
 
   // Meškajúce úlohy (samostatne pre banner hore)
   const overdueTasks = useMemo<BaseTaskItem[]>(() => {
@@ -660,11 +632,11 @@ const TodayTasksPage = () => {
     soaking: soakingTasks.filter(t => !t.isOverdue),
     sowing: sowingTasks.filter(t => !t.isOverdue),
     weight: weightTasks.filter(t => !t.isOverdue),
-    blackout: blackoutTasks.filter(t => !t.isOverdue),
+    cover_bo: coverBoTasks.filter(t => !t.isOverdue),
     light: lightTasks.filter(t => !t.isOverdue),
     harvest: harvestTasks.filter(t => !t.isOverdue),
     delivery: deliveryTasks.filter(t => !t.isOverdue),
-  }), [soakingTasks, sowingTasks, weightTasks, blackoutTasks, lightTasks, harvestTasks, deliveryTasks]);
+  }), [soakingTasks, sowingTasks, weightTasks, coverBoTasks, lightTasks, harvestTasks, deliveryTasks]);
 
   // Counts pre header
   const totalTaskCount = todayOnlyTasks.length;
@@ -707,35 +679,17 @@ const TodayTasksPage = () => {
     toast({ title: 'Namočené', description: 'Označené ako hotové.' });
   };
 
-  // 2. Výsev — status='planned' → 'in_progress' + optionally append note
+  // 2. Výsev — status='planned' → 'in_progress'
   const handleMarkSown = async (planId: string) => {
     if (savingIds.has(planId)) return;
     markSavingStart(planId);
     try {
-      const note = (sowNotes[planId] || '').trim();
-      const updates: any = { status: 'in_progress' };
-
-      if (note) {
-        // Append k existujúcej poznámke (nie prepísanie)
-        const plan = plans.find(p => p.id === planId);
-        const existing = (plan?.notes || '').trim();
-        updates.notes = existing ? `${existing}\n${note}` : note;
-      }
-
       const { error } = await supabase
         .from('planting_plans')
-        .update(updates)
+        .update({ status: 'in_progress' })
         .eq('id', planId);
       if (error) throw error;
       toast({ title: 'Posadené', description: 'Výsev označený ako prebieha.' });
-      // Vyčisti lokálnu poznámku po úspechu
-      if (note) {
-        setSowNotes(prev => {
-          const next = { ...prev };
-          delete next[planId];
-          return next;
-        });
-      }
       await fetchPlans();
     } catch (err: any) {
       console.error('handleMarkSown error:', err);
@@ -765,7 +719,7 @@ const TodayTasksPage = () => {
     }
   };
 
-  // 4. Blackout (vloženie tácky do BO fázy) — blackout_started_at = now
+  // 4. Zakrytie BO — blackout_started_at = now
   const handleMarkBlackoutStarted = async (planId: string) => {
     if (savingIds.has(planId)) return;
     markSavingStart(planId);
@@ -775,7 +729,7 @@ const TodayTasksPage = () => {
         .update({ blackout_started_at: new Date().toISOString() })
         .eq('id', planId);
       if (error) throw error;
-      toast({ title: 'Vložené do BO', description: 'Tácka je v blackout fáze.' });
+      toast({ title: 'Zakryté', description: 'Tácka je v blackout fáze.' });
       await fetchPlans();
     } catch (err: any) {
       console.error('handleMarkBlackoutStarted error:', err);
@@ -873,7 +827,7 @@ const TodayTasksPage = () => {
       case 'weight':
         handleMarkWeightRemoved(item.planId);
         break;
-      case 'blackout':
+      case 'cover_bo':
         handleMarkBlackoutStarted(item.planId);
         break;
       case 'light':
@@ -887,7 +841,7 @@ const TodayTasksPage = () => {
   };
 
   const handleOpenPlan = (planId: string) => {
-    navigate(`/planting?planId=${planId}`);
+    navigate(`/planting-plan?planId=${planId}`);
   };
 
   // ===================== UI HELPERS =====================
@@ -906,7 +860,7 @@ const TodayTasksPage = () => {
       case 'soaking': return 'Namočené';
       case 'sowing': return 'Posadené';
       case 'weight': return 'Odťažené';
-      case 'blackout': return 'Vložené do BO';
+      case 'cover_bo': return 'Zakryté';
       case 'light': return 'Na svetlo';
       case 'harvest': return 'Zozbierané';
       case 'delivery': return '';
@@ -914,94 +868,16 @@ const TodayTasksPage = () => {
   };
 
   // Zoznam všetkých kategórií v poradí
-  const orderedCategories: TaskCategoryKey[] = ['soaking', 'sowing', 'weight', 'blackout', 'light', 'harvest', 'delivery'];
+  const orderedCategories: TaskCategoryKey[] = ['soaking', 'sowing', 'weight', 'cover_bo', 'light', 'harvest', 'delivery'];
 
-  // ===================== PROGRESS TRACKING =====================
-  //
-  // Logika: pri prvom načítaní (a pri každom manuálnom refreshi) si zapamätáme pôvodný počet
-  // dnešných úloh. Hotové = pôvodný_počet - aktuálne_zostávajúce + lokálne_namočené.
-  // Týmto sa progress bar plní postupne ako sa úlohy odškrtávajú.
-  //
-  // POZN: delivery je read-only, takže nepočítame ho do "úloh ktoré sa dajú odškrtnúť".
-
-  const trackableToday = useMemo(() => {
-    // Úlohy ktoré sa dajú odškrtnúť (bez delivery)
-    return todayOnlyTasks.filter(t => t.category !== 'delivery').length;
-  }, [todayOnlyTasks]);
-
-  // Pri prvom načítaní (loading false poprvýkrát) nastav initialTodayCount.
-  // Pri manuálnom refreshi NEzmeníme initialTodayCount — chceme aby pestovateľ videl
-  // koľko za deň reálne urobil. Reset až pri prepnutí na ďalší deň (nastane po refresh-i
-  // s iným dátumom — pre jednoduchosť spravíme len pri prvom load).
-  useEffect(() => {
-    if (!loading && initialTodayCount === 0 && trackableToday > 0) {
-      setInitialTodayCount(trackableToday);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading]);
-
-  // Hotové za deň = initialTodayCount - aktuálne zostávajúce + lokálne soaked
-  // (soaked zostávajú v zozname, lebo DB nevie o lokálnom stave)
-  useEffect(() => {
-    if (initialTodayCount === 0) {
-      setCompletedToday(0);
-      return;
-    }
-    const remainingNonSoaked = trackableToday - soakedIds.size;
-    const done = Math.max(0, initialTodayCount - remainingNonSoaked);
-    setCompletedToday(Math.min(done, initialTodayCount));
-  }, [trackableToday, soakedIds, initialTodayCount]);
-
-  // Detekuj kategórie ktoré sú práve "vyčistené" (boli neprázdne, teraz prázdne)
-  const prevTaskCountsRef = useMemo(() => {
-    const m: Record<TaskCategoryKey, number> = {
-      soaking: 0, sowing: 0, weight: 0, blackout: 0,
-      light: 0, harvest: 0, delivery: 0,
-    };
-    return m;
-  }, []);
-
-  // useEffect — keď kategória prejde z >0 na 0, pridaj do completedCategories
-  useEffect(() => {
-    orderedCategories.forEach(catKey => {
-      if (catKey === 'delivery') return;
-      const prev = prevTaskCountsRef[catKey];
-      const curr = tasksByCategory[catKey].length;
-      // Soaking je špeciálny — všetky úlohy sú "hotové" keď sú v soakedIds
-      const isFullyDone = catKey === 'soaking'
-        ? (curr > 0 && tasksByCategory.soaking.every(t => t.planId && soakedIds.has(t.planId)))
-        : (prev > 0 && curr === 0);
-
-      if (isFullyDone) {
-        setCompletedCategories(prevSet => {
-          if (prevSet.has(catKey)) return prevSet;
-          const next = new Set(prevSet);
-          next.add(catKey);
-          // Mobile: auto-collapse po 1 sekunde
-          if (isMobile) {
-            setTimeout(() => {
-              setExpandedSections(es => ({ ...es, [catKey]: false }));
-            }, 1000);
-          }
-          return next;
-        });
-      } else if (curr > 0 && completedCategories.has(catKey) && catKey !== 'soaking') {
-        // Ak sa kategória znova vyplnila (napr. po refreshi pribudla úloha), zruš complete
-        setCompletedCategories(prevSet => {
-          if (!prevSet.has(catKey)) return prevSet;
-          const next = new Set(prevSet);
-          next.delete(catKey);
-          return next;
-        });
-      }
-      prevTaskCountsRef[catKey] = curr;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tasksByCategory, soakedIds, isMobile]);
-
-  const progressPercent = initialTodayCount > 0
-    ? Math.round((completedToday / initialTodayCount) * 100)
-    : 0;
+  // Súhrn (progress) - bezpečnejší výpočet
+  const progressData = useMemo(() => {
+    const remaining = todayOnlyTasks.length;
+    const soaked = Array.from(soakedIds).length;
+    // "Hotové" za deň ako proxy: soaked + (orderedCategories spočítané refresh-mi nevidíme retroaktívne)
+    // Realisticky zobrazujeme len: "Zostáva X úloh"
+    return { remaining, soaked };
+  }, [todayOnlyTasks, soakedIds]);
 
 
   // ===================== RENDER =====================
@@ -1033,45 +909,7 @@ const TodayTasksPage = () => {
                 </p>
               </div>
             </div>
-
-            {/* Refresh tlačidlo + čas aktualizácie */}
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <span className="hidden sm:inline text-xs text-[#475569] normal-case">
-                Aktualizované o {format(lastRefreshed, 'HH:mm')}
-              </span>
-              <button
-                onClick={handleManualRefresh}
-                disabled={refreshing}
-                title={`Aktualizované o ${format(lastRefreshed, 'HH:mm:ss')}`}
-                className="h-10 w-10 rounded-lg border border-[#e2e8f0] bg-white text-[#475569] hover:border-[#bbf7d0] hover:text-[#16a34a] flex items-center justify-center transition-colors disabled:opacity-50"
-              >
-                <RefreshCw className={cn('h-4 w-4', refreshing && 'animate-spin')} />
-              </button>
-            </div>
           </div>
-
-          {/* Progress bar pod headerom */}
-          {initialTodayCount > 0 && (
-            <div className="container mx-auto mt-3">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-semibold text-[#475569]">
-                  Hotové dnes: <span className="font-bold text-[#0f172a]">{completedToday} / {initialTodayCount}</span> úloh
-                </span>
-                <span className={cn(
-                  'text-xs font-bold',
-                  progressPercent === 100 ? 'text-[#16a34a]' : 'text-[#475569]'
-                )}>
-                  {progressPercent}%
-                </span>
-              </div>
-              <div className="h-2 rounded-full bg-[#f1f5f9] overflow-hidden">
-                <div
-                  className="h-full bg-[#16a34a] transition-all duration-300"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="container mx-auto px-4 md:px-6 py-4 md:py-6 space-y-4">
@@ -1091,7 +929,21 @@ const TodayTasksPage = () => {
             </div>
           ) : (
             <>
-              {/* CATEGORY GRID — dnešné úlohy hore */}
+              {/* OVERDUE BANNER */}
+              {overdueTasks.length > 0 && (
+                <OverdueBanner
+                  tasks={overdueTasks}
+                  isMobile={isMobile}
+                  isAdmin={isAdmin}
+                  savingIds={savingIds}
+                  soakedIds={soakedIds}
+                  onAction={handleTaskAction}
+                  onOpenPlan={handleOpenPlan}
+                  getActionLabel={getActionLabel}
+                />
+              )}
+
+              {/* CATEGORY GRID */}
               <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                 {orderedCategories.map(catKey => (
                   <TaskCard
@@ -1102,10 +954,7 @@ const TodayTasksPage = () => {
                     isAdmin={isAdmin}
                     savingIds={savingIds}
                     soakedIds={soakedIds}
-                    sowNotes={sowNotes}
-                    onSowNoteChange={(planId, note) => setSowNotes(prev => ({ ...prev, [planId]: note }))}
                     isExpanded={isSectionExpanded(catKey, !isMobile)}
-                    isCategoryComplete={completedCategories.has(catKey)}
                     onToggle={() => toggleSection(catKey)}
                     onAction={handleTaskAction}
                     onOpenPlan={handleOpenPlan}
@@ -1114,7 +963,7 @@ const TodayTasksPage = () => {
                 ))}
               </div>
 
-              {/* EMPTY STATE — žiadne dnešné úlohy A ani žiadne meškajúce */}
+              {/* EMPTY STATE */}
               {totalTaskCount === 0 && overdueTasks.length === 0 && (
                 <div className="bg-white rounded-xl border border-[#cbd5e1] shadow-sm p-12 flex flex-col items-center justify-center text-center">
                   <div className="w-14 h-14 rounded-xl bg-[#f0fdf4] border border-[#bbf7d0] flex items-center justify-center mb-3">
@@ -1125,22 +974,6 @@ const TodayTasksPage = () => {
                     Pekný deň — nemáš naplánované žiadne výsevy, presuny ani zbery.
                   </p>
                 </div>
-              )}
-
-              {/* OVERDUE BANNER — meškajúce úlohy na konci stránky */}
-              {overdueTasks.length > 0 && (
-                <OverdueBanner
-                  tasks={overdueTasks}
-                  isMobile={isMobile}
-                  isAdmin={isAdmin}
-                  savingIds={savingIds}
-                  soakedIds={soakedIds}
-                  sowNotes={sowNotes}
-                  onSowNoteChange={(planId, note) => setSowNotes(prev => ({ ...prev, [planId]: note }))}
-                  onAction={handleTaskAction}
-                  onOpenPlan={handleOpenPlan}
-                  getActionLabel={getActionLabel}
-                />
               )}
             </>
           )}
@@ -1239,8 +1072,6 @@ interface TaskItemProps {
   isSaving: boolean;
   isCompleted: boolean; // soaking - lokálne hotové
   isOverdueRow?: boolean; // pre overdue banner - jemne iné štýly
-  sowNoteValue?: string;
-  onSowNoteChange?: (planId: string, note: string) => void;
   onAction: (item: BaseTaskItem) => void;
   onOpenPlan: (planId: string) => void;
   getActionLabel: (category: TaskCategoryKey) => string;
@@ -1252,15 +1083,12 @@ const TaskItem = ({
   isSaving,
   isCompleted,
   isOverdueRow,
-  sowNoteValue,
-  onSowNoteChange,
   onAction,
   onOpenPlan,
   getActionLabel,
 }: TaskItemProps) => {
   const Icon = CATEGORY_CONFIG[task.category].icon;
   const isDelivery = task.category === 'delivery';
-  const isSowing = task.category === 'sowing';
 
   return (
     <div
@@ -1357,19 +1185,6 @@ const TaskItem = ({
           </button>
         )}
       </div>
-
-      {/* Poznámka pri výseve — input pole pod tlačidlami */}
-      {isSowing && task.planId && !isCompleted && onSowNoteChange && (
-        <div className="pl-12 mt-1.5">
-          <input
-            type="text"
-            value={sowNoteValue || ''}
-            onChange={(e) => onSowNoteChange(task.planId!, e.target.value)}
-            placeholder="Poznámka k výsevu..."
-            className="h-8 text-xs border border-[#cbd5e1] rounded-lg px-2 w-full bg-white focus:outline-none focus:border-[#16a34a]"
-          />
-        </div>
-      )}
     </div>
   );
 };
@@ -1382,10 +1197,7 @@ interface TaskCardProps {
   isAdmin: boolean;
   savingIds: Set<string>;
   soakedIds: Set<string>;
-  sowNotes: Record<string, string>;
-  onSowNoteChange: (planId: string, note: string) => void;
   isExpanded: boolean;
-  isCategoryComplete: boolean;
   onToggle: () => void;
   onAction: (item: BaseTaskItem) => void;
   onOpenPlan: (planId: string) => void;
@@ -1399,10 +1211,7 @@ const TaskCard = ({
   isAdmin,
   savingIds,
   soakedIds,
-  sowNotes,
-  onSowNoteChange,
   isExpanded,
-  isCategoryComplete,
   onToggle,
   onAction,
   onOpenPlan,
@@ -1413,61 +1222,33 @@ const TaskCard = ({
   const showExpanded = !isMobile || isExpanded; // Desktop/tablet vždy rozbalené
 
   return (
-    <div
-      className={cn(
-        'bg-white rounded-xl border shadow-sm overflow-hidden flex flex-col transition-colors',
-        isCategoryComplete ? 'border-[#bbf7d0]' : 'border-[#cbd5e1]'
-      )}
-    >
+    <div className="bg-white rounded-xl border border-[#cbd5e1] shadow-sm overflow-hidden flex flex-col">
       {/* Header */}
       <button
         onClick={isMobile ? onToggle : undefined}
         disabled={!isMobile}
         className={cn(
-          'flex items-center gap-3 px-4 py-3 border-b-2 transition-colors',
-          isCategoryComplete ? 'border-[#bbf7d0]' : 'border-[#e2e8f0]',
-          isMobile && hasContent && !isCategoryComplete && 'cursor-pointer hover:bg-[#f8fafc] transition-colors',
+          'flex items-center gap-3 px-4 py-3 border-b-2 border-[#e2e8f0]',
+          isMobile && hasContent && 'cursor-pointer hover:bg-[#f8fafc] transition-colors',
           !isMobile && 'cursor-default'
         )}
-        style={{
-          backgroundColor: isCategoryComplete ? '#f0fdf4' : '#f8fafc',
-        }}
+        style={{ backgroundColor: '#f8fafc' }}
       >
         <div
           className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center"
-          style={{
-            backgroundColor: isCategoryComplete ? '#dcfce7' : config.bgColor,
-          }}
+          style={{ backgroundColor: config.bgColor }}
         >
-          {isCategoryComplete ? (
-            <CheckCircle2 className="h-4 w-4 text-[#16a34a]" />
-          ) : (
-            <Icon className="h-4 w-4" style={{ color: config.iconColor }} />
-          )}
+          <Icon className="h-4 w-4" style={{ color: config.iconColor }} />
         </div>
         <div className="flex-1 min-w-0 text-left">
-          <h3
-            className={cn(
-              'text-sm font-bold truncate',
-              isCategoryComplete ? 'text-[#166534]' : 'text-[#0f172a]'
-            )}
-          >
-            {config.title}
-          </h3>
+          <h3 className="text-sm font-bold text-[#0f172a] truncate">{config.title}</h3>
           {hasContent && (
-            <p
-              className={cn(
-                'text-[11px]',
-                isCategoryComplete ? 'text-[#16a34a] font-semibold' : 'text-[#475569]'
-              )}
-            >
-              {isCategoryComplete
-                ? 'Všetko hotové'
-                : `${tasks.length} ${tasks.length === 1 ? 'úloha' : (tasks.length >= 2 && tasks.length <= 4 ? 'úlohy' : 'úloh')}`}
+            <p className="text-[11px] text-[#475569]">
+              {tasks.length} {tasks.length === 1 ? 'úloha' : (tasks.length >= 2 && tasks.length <= 4 ? 'úlohy' : 'úloh')}
             </p>
           )}
         </div>
-        {hasContent && !isCategoryComplete && (
+        {hasContent && (
           <span
             className="inline-flex items-center justify-center min-w-[24px] h-6 px-2 rounded-full text-[11px] font-bold"
             style={{ backgroundColor: config.bgColor, color: config.iconColor }}
@@ -1475,10 +1256,7 @@ const TaskCard = ({
             {tasks.length}
           </span>
         )}
-        {hasContent && isCategoryComplete && (
-          <CheckCircle2 className="h-5 w-5 text-[#16a34a] flex-shrink-0" />
-        )}
-        {isMobile && hasContent && !isCategoryComplete && (
+        {isMobile && hasContent && (
           isExpanded
             ? <ChevronUp className="h-4 w-4 text-[#475569] flex-shrink-0" />
             : <ChevronDown className="h-4 w-4 text-[#475569] flex-shrink-0" />
@@ -1499,8 +1277,6 @@ const TaskCard = ({
                   isAdmin={isAdmin}
                   isSaving={task.planId ? savingIds.has(task.planId) : false}
                   isCompleted={task.category === 'soaking' && !!task.planId && soakedIds.has(task.planId)}
-                  sowNoteValue={task.planId ? (sowNotes[task.planId] || '') : ''}
-                  onSowNoteChange={onSowNoteChange}
                   onAction={onAction}
                   onOpenPlan={onOpenPlan}
                   getActionLabel={getActionLabel}
@@ -1521,8 +1297,6 @@ interface OverdueBannerProps {
   isAdmin: boolean;
   savingIds: Set<string>;
   soakedIds: Set<string>;
-  sowNotes: Record<string, string>;
-  onSowNoteChange: (planId: string, note: string) => void;
   onAction: (item: BaseTaskItem) => void;
   onOpenPlan: (planId: string) => void;
   getActionLabel: (category: TaskCategoryKey) => string;
@@ -1534,8 +1308,6 @@ const OverdueBanner = ({
   isAdmin,
   savingIds,
   soakedIds,
-  sowNotes,
-  onSowNoteChange,
   onAction,
   onOpenPlan,
   getActionLabel,
@@ -1590,8 +1362,6 @@ const OverdueBanner = ({
                     isSaving={task.planId ? savingIds.has(task.planId) : false}
                     isCompleted={task.category === 'soaking' && !!task.planId && soakedIds.has(task.planId)}
                     isOverdueRow
-                    sowNoteValue={task.planId ? (sowNotes[task.planId] || '') : ''}
-                    onSowNoteChange={onSowNoteChange}
                     onAction={onAction}
                     onOpenPlan={onOpenPlan}
                     getActionLabel={getActionLabel}
