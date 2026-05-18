@@ -65,6 +65,7 @@ import {
   ChevronDown,
   ChevronUp,
   ChevronRight,
+  ChevronLeft,
   Target,
   Scale,
   Sun,
@@ -255,7 +256,7 @@ const SK_WEEKDAYS = ['nedeľa', 'pondelok', 'utorok', 'streda', 'štvrtok', 'pia
 
 const formatOrderNumber = (n: number): string => `MR-${String(n).padStart(3, '0')}`;
 
-type ViewMode = 'cards' | 'list' | 'calendar';
+type ViewMode = 'cards' | 'list' | 'week' | 'calendar';
 type StatusFilter = 'all' | 'planned' | 'in_progress' | 'completed';
 type Tab = 'plan' | 'prediction' | 'analysis';
 
@@ -2013,6 +2014,7 @@ const PlantingPlanPage = () => {
                     {[
                       { value: 'cards', label: 'Karty', icon: LayoutGrid },
                       { value: 'list', label: 'Zoznam', icon: List, hideMobile: true },
+                      { value: 'week', label: 'Týždeň', icon: CalendarDays },
                       { value: 'calendar', label: 'Kalendár', icon: Calendar },
                     ].map(v => {
                       const Icon = v.icon;
@@ -2090,6 +2092,18 @@ const PlantingPlanPage = () => {
                       getStatusBadgeStyle={getStatusBadgeStyle}
                       getStatusLabel={getStatusLabel}
                       getAbcBadgeStyle={getAbcBadgeStyle}
+                    />
+                  ) : viewMode === 'week' ? (
+                    <WeekTimelineView
+                      plans={groupedPlans}
+                      isAdmin={isAdmin}
+                      onOpenDetail={openDetailDialog}
+                      onMarkComplete={handleMarkComplete}
+                      onEdit={openEditDialog}
+                      onDelete={(id) => setDeleteId(id)}
+                      onAddTray={(plan) => setAddTrayDialog({ open: true, plan })}
+                      formatDate={formatDate}
+                      formatGrams={formatGrams}
                     />
                   ) : (
                     <DynamicCalendarView
@@ -2858,11 +2872,19 @@ const TodaysSowingSection = ({ items, onItemClick, onMarkDone, onEdit, onAddTray
                     <h3 className="text-sm font-bold text-[#0f172a] truncate">{item.cropName}</h3>
                     {item.isManual && <Pencil className="h-3 w-3 text-[#f59e0b] flex-shrink-0" />}
                   </div>
-                  <p className="text-xs text-[#475569]">
-                    {sortTrayCombinations(item.trays).map(t => `${t.count}×${t.size}`).join(', ')}
-                  </p>
                 </div>
               </div>
+
+              {/* Tácky — každá na vlastnom riadku s gramážou vpravo */}
+              <div className="space-y-1 mb-3">
+                {sortTrayCombinations(item.trays).map((t, tIdx) => (
+                  <div key={tIdx} className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-[#0f172a]">{t.count} × {t.size}</span>
+                    <span className="text-[#475569]">{formatGrams(t.seeds_per_tray)}g/tácka</span>
+                  </div>
+                ))}
+              </div>
+
               <div className="flex items-center justify-between text-xs mb-3">
                 <span className="text-[#475569]">Zber:</span>
                 <span className="font-semibold text-[#0f172a]">{item.harvestDate ? formatDate(item.harvestDate) : '—'}</span>
@@ -2927,14 +2949,21 @@ const TodaysSowingSection = ({ items, onItemClick, onMarkDone, onEdit, onAddTray
                 <Sprout className="h-5 w-5" style={{ color: item.cropColor }} />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 mb-0.5">
                   <span className="font-bold text-sm text-[#0f172a] truncate">{item.cropName}</span>
                   {item.isManual && <Pencil className="h-3 w-3 text-[#f59e0b] flex-shrink-0" />}
                 </div>
-                <p className="text-xs text-[#475569] truncate">
-                  {sortTrayCombinations(item.trays).map(t => `${t.count}×${t.size}`).join(', ')}
-                  {item.harvestDate && ` • zber ${formatDate(item.harvestDate)}`}
-                </p>
+                <div className="space-y-0.5">
+                  {sortTrayCombinations(item.trays).map((t, tIdx) => (
+                    <div key={tIdx} className="flex items-center gap-2 text-xs">
+                      <span className="font-bold text-[#0f172a]">{t.count} × {t.size}</span>
+                      <span className="text-[#475569]">· {formatGrams(t.seeds_per_tray)}g/tácka</span>
+                    </div>
+                  ))}
+                  {item.harvestDate && (
+                    <p className="text-[11px] text-[#475569]">zber {formatDate(item.harvestDate)}</p>
+                  )}
+                </div>
               </div>
               <div className="text-right flex-shrink-0 mr-3">
                 <p className="text-xs font-bold text-[#16a34a]">{formatGrams(item.totalGrams)}g</p>
@@ -3065,6 +3094,360 @@ const LateOrdersBanner = ({ lateOrders, formatDate }: LateOrdersBannerProps) => 
 };
 
 
+// ===================== WEEK TIMELINE VIEW =====================
+
+interface WeekTimelineViewProps {
+  plans: GroupedPlantingPlan[];
+  isAdmin: boolean;
+  onOpenDetail: (plan: GroupedPlantingPlan) => void;
+  onMarkComplete: (planId: string, cropId?: string, sowDate?: string) => void;
+  onEdit: (plan: GroupedPlantingPlan) => void;
+  onDelete: (id: string) => void;
+  onAddTray: (plan: GroupedPlantingPlan) => void;
+  formatDate: (d: string) => string;
+  formatGrams: (n: number) => string;
+}
+
+const SK_DAYS_SHORT = ['Ne', 'Po', 'Ut', 'St', 'Št', 'Pi', 'So'];
+const SK_MONTHS_GEN = [
+  'januára', 'februára', 'marca', 'apríla', 'mája', 'júna',
+  'júla', 'augusta', 'septembra', 'októbra', 'novembra', 'decembra'
+];
+
+// Vráti dátum pondelka týždňa pre daný dátum (ISO týždeň — pondelok ako prvý deň)
+const getMonday = (d: Date): Date => {
+  const date = new Date(d);
+  date.setHours(0, 0, 0, 0);
+  const day = date.getDay();
+  // getDay: 0=Ne, 1=Po, ..., 6=So → posun na pondelok
+  const diff = day === 0 ? -6 : 1 - day;
+  date.setDate(date.getDate() + diff);
+  return date;
+};
+
+const formatWeekRange = (monday: Date): string => {
+  const sunday = new Date(monday);
+  sunday.setDate(sunday.getDate() + 6);
+  const sameMonth = monday.getMonth() === sunday.getMonth();
+  const sameYear = monday.getFullYear() === sunday.getFullYear();
+  if (sameMonth && sameYear) {
+    return `${monday.getDate()}. – ${sunday.getDate()}. ${SK_MONTHS_GEN[monday.getMonth()]} ${monday.getFullYear()}`;
+  }
+  if (sameYear) {
+    return `${monday.getDate()}. ${SK_MONTHS_GEN[monday.getMonth()]} – ${sunday.getDate()}. ${SK_MONTHS_GEN[sunday.getMonth()]} ${monday.getFullYear()}`;
+  }
+  return `${monday.getDate()}. ${SK_MONTHS_GEN[monday.getMonth()]} ${monday.getFullYear()} – ${sunday.getDate()}. ${SK_MONTHS_GEN[sunday.getMonth()]} ${sunday.getFullYear()}`;
+};
+
+const WeekTimelineView = ({
+  plans, isAdmin, onOpenDetail, onMarkComplete, onEdit, onDelete, onAddTray, formatDate, formatGrams,
+}: WeekTimelineViewProps) => {
+  const [weekOffset, setWeekOffset] = useState(0);
+
+  // Pondelok aktuálneho zobrazeného týždňa
+  const monday = useMemo(() => {
+    const today = new Date();
+    const m = getMonday(today);
+    m.setDate(m.getDate() + weekOffset * 7);
+    return m;
+  }, [weekOffset]);
+
+  const todayStr = useMemo(() => {
+    const t = new Date();
+    t.setHours(0, 0, 0, 0);
+    return t.toISOString().split('T')[0];
+  }, []);
+
+  // 7 dní týždňa (Po–Ne) ako ISO dátum stringy
+  const weekDays = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday);
+      d.setDate(d.getDate() + i);
+      d.setHours(0, 0, 0, 0);
+      return d.toISOString().split('T')[0];
+    });
+  }, [monday]);
+
+  // Skupiny plánov po dňoch sow_date
+  // Filtrujeme: len planned + in_progress (nie completed)
+  const plansByDay = useMemo(() => {
+    const acc: Record<string, GroupedPlantingPlan[]> = {};
+    weekDays.forEach(d => { acc[d] = []; });
+    plans.forEach(p => {
+      if (p.status === 'completed' || p.status === 'cancelled') return;
+      if (acc[p.sow_date]) {
+        acc[p.sow_date].push(p);
+      }
+    });
+    return acc;
+  }, [plans, weekDays]);
+
+  // Súhrn za týždeň
+  const weekSummary = useMemo(() => {
+    let totalPlans = 0;
+    let totalGrams = 0;
+    const harvestDates = new Set<string>();
+    weekDays.forEach(d => {
+      plansByDay[d].forEach(p => {
+        totalPlans++;
+        totalGrams += p.total_seed_grams || 0;
+        if (p.expected_harvest_date) harvestDates.add(p.expected_harvest_date);
+      });
+    });
+    // Najbližší zber z týchto plánov
+    const sortedHarvest = Array.from(harvestDates).sort();
+    const nextHarvest = sortedHarvest[0];
+    return { totalPlans, totalGrams, nextHarvest };
+  }, [plansByDay, weekDays]);
+
+  // Dni s výsevmi vs. prázdne
+  const daysWithPlans = weekDays.filter(d => plansByDay[d].length > 0);
+  const emptyDays = weekDays.filter(d => plansByDay[d].length === 0);
+
+  // Dnešok zostatok
+  const todayRemaining = useMemo(() => {
+    const todayPlans = plansByDay[todayStr] || [];
+    return todayPlans.filter(p => p.status === 'planned').length;
+  }, [plansByDay, todayStr]);
+
+  const formatNextHarvest = (dateStr: string | undefined): string => {
+    if (!dateStr) return '—';
+    const d = new Date(dateStr);
+    return `${d.getDate()}. ${SK_MONTHS_GEN[d.getMonth()]}`;
+  };
+
+  return (
+    <div className="space-y-3">
+      {/* Navigácia */}
+      <div className="flex items-center justify-between gap-2 bg-white rounded-lg border border-[#e2e8f0] px-3 py-2">
+        <button
+          onClick={() => setWeekOffset(weekOffset - 1)}
+          className="h-9 px-3 rounded-md border border-[#e2e8f0] text-[#475569] hover:border-[#bbf7d0] hover:text-[#16a34a] text-xs font-semibold flex items-center gap-1.5 transition-colors"
+        >
+          <ChevronLeft className="h-3.5 w-3.5" />
+          Predchádzajúci
+        </button>
+        <div className="flex flex-col items-center min-w-0">
+          <span className="text-sm font-bold text-[#0f172a] truncate">{formatWeekRange(monday)}</span>
+          {weekOffset !== 0 && (
+            <button
+              onClick={() => setWeekOffset(0)}
+              className="text-[11px] text-[#16a34a] hover:underline"
+            >
+              Späť na tento týždeň
+            </button>
+          )}
+        </div>
+        <button
+          onClick={() => setWeekOffset(weekOffset + 1)}
+          className="h-9 px-3 rounded-md border border-[#e2e8f0] text-[#475569] hover:border-[#bbf7d0] hover:text-[#16a34a] text-xs font-semibold flex items-center gap-1.5 transition-colors"
+        >
+          Nasledujúci
+          <ChevronRight className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {/* Summary bar */}
+      <div className="bg-[#f0fdf4] border border-[#bbf7d0] rounded-lg px-3 py-2.5">
+        <p className="text-xs text-[#0f172a]">
+          <span className="font-bold">Tento týždeň</span> <span className="font-bold text-[#16a34a]">{weekSummary.totalPlans}</span> {weekSummary.totalPlans === 1 ? 'výsev' : weekSummary.totalPlans >= 2 && weekSummary.totalPlans <= 4 ? 'výsevy' : 'výsevov'}
+          {' · '}
+          <span>Celkom <span className="font-bold text-[#16a34a]">{formatGrams(weekSummary.totalGrams)}g</span> semien</span>
+          {weekOffset === 0 && todayRemaining > 0 && (
+            <>{' · '}<span>Dnes zostatok <span className="font-bold text-[#16a34a]">{todayRemaining}</span></span></>
+          )}
+          {weekSummary.nextHarvest && (
+            <>{' · '}<span>Zber z týchto: <span className="font-bold text-[#16a34a]">{formatNextHarvest(weekSummary.nextHarvest)}</span></span></>
+          )}
+        </p>
+      </div>
+
+      {/* Timeline */}
+      {daysWithPlans.length === 0 ? (
+        <div className="bg-white rounded-xl border border-[#cbd5e1] shadow-sm p-12 flex flex-col items-center justify-center text-center">
+          <div className="w-12 h-12 rounded-xl bg-[#f1f5f9] flex items-center justify-center mb-3">
+            <CalendarDays className="h-6 w-6 text-[#94a3b8]" />
+          </div>
+          <h3 className="text-sm font-bold text-[#0f172a] mb-1">Žiadne výsevy v tomto týždni</h3>
+          <p className="text-xs text-[#475569]">Skús iný týždeň alebo pridaj nový výsev.</p>
+        </div>
+      ) : (
+        <div className="relative pl-8">
+          {/* Vertikálna čiara */}
+          <div className="absolute left-3 top-2 bottom-2 w-0.5 bg-[#e2e8f0]" />
+
+          <div className="space-y-4">
+            {daysWithPlans.map(dayStr => {
+              const dayPlans = plansByDay[dayStr];
+              const date = new Date(dayStr);
+              const isToday = dayStr === todayStr;
+              const dayName = SK_DAYS_SHORT[date.getDay()];
+              const totalDayGrams = dayPlans.reduce((sum, p) => sum + (p.total_seed_grams || 0), 0);
+
+              return (
+                <div key={dayStr} className="relative">
+                  {/* Bodka na osi */}
+                  <div
+                    className={cn(
+                      'absolute -left-[26px] top-1 w-4 h-4 rounded-full border-2 z-10',
+                      isToday
+                        ? 'bg-[#16a34a] border-[#16a34a] ring-4 ring-[#bbf7d0]'
+                        : 'bg-white border-[#cbd5e1]'
+                    )}
+                  />
+
+                  {/* Hlavička dňa */}
+                  <div className="flex items-baseline gap-2 mb-2">
+                    <span className={cn(
+                      'text-xs font-bold uppercase tracking-wide',
+                      isToday ? 'text-[#16a34a]' : 'text-[#475569]'
+                    )}>
+                      {dayName}
+                    </span>
+                    <span className={cn(
+                      'text-lg font-bold',
+                      isToday ? 'text-[#16a34a]' : 'text-[#0f172a]'
+                    )}>
+                      {date.getDate()}.
+                    </span>
+                    {totalDayGrams > 0 && (
+                      <span className="text-[11px] text-[#475569]">
+                        {formatGrams(totalDayGrams)}g semien
+                      </span>
+                    )}
+                    {isToday && (
+                      <span className="inline-flex items-center h-5 px-1.5 rounded-full bg-[#16a34a] text-white text-[10px] font-bold">
+                        DNES
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Crop pills pre tento deň */}
+                  <div className="space-y-2">
+                    {dayPlans.map(plan => {
+                      const cropColor = plan.crops?.color || '#16a34a';
+                      const isCompleted = plan.status === 'completed';
+                      const isInProgress = plan.status === 'in_progress';
+                      const planGrams = plan.total_seed_grams || 0;
+
+                      return (
+                        <div
+                          key={plan.id}
+                          onClick={() => onOpenDetail(plan)}
+                          className={cn(
+                            'bg-white rounded-lg border shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-all flex',
+                            isToday ? 'border-[#bbf7d0]' : 'border-[#e2e8f0] hover:border-[#bbf7d0]',
+                            plan.is_manual && 'ring-1 ring-[#fcd34d]'
+                          )}
+                        >
+                          {/* Farebný pruh vľavo */}
+                          <div
+                            className="w-1 flex-shrink-0"
+                            style={{ backgroundColor: cropColor }}
+                          />
+
+                          <div className="flex-1 min-w-0 p-3 flex items-center gap-3">
+                            {/* Info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 mb-1.5">
+                                <Sprout className="h-3.5 w-3.5 flex-shrink-0" style={{ color: cropColor }} />
+                                <span className="text-sm font-bold text-[#0f172a] truncate">
+                                  {plan.crops?.name || 'Neznáma'}
+                                </span>
+                                {plan.is_manual && <Pencil className="h-3 w-3 text-[#f59e0b] flex-shrink-0" />}
+                                {isInProgress && (
+                                  <span className="inline-flex items-center h-4 px-1 rounded text-[9px] font-bold bg-[#dcfce7] text-[#166534]">
+                                    POSADENÉ
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Tray chips */}
+                              <div className="flex flex-wrap gap-1.5">
+                                {sortTrayCombinations(plan.trays).map((t, idx) => (
+                                  <span
+                                    key={idx}
+                                    className="inline-flex items-center h-6 px-2 rounded-full bg-[#f8fafc] border border-[#e2e8f0] text-[11px]"
+                                  >
+                                    <span className="font-bold text-[#0f172a]">{t.count} × {t.size}</span>
+                                    <span className="text-[#475569] ml-1.5">· {formatGrams(t.seeds_per_tray)}g</span>
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Pravý súhrn + akcie */}
+                            <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                              <span className="text-sm font-bold text-[#16a34a] whitespace-nowrap">
+                                {formatGrams(planGrams)}g
+                              </span>
+                              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  onClick={() => onMarkComplete(plan.id, plan.crop_id, plan.sow_date)}
+                                  disabled={!isAdmin || isCompleted}
+                                  title={isInProgress ? 'Posadené' : 'Hotovo'}
+                                  className={cn(
+                                    'min-h-[32px] h-8 px-3 rounded-full border-2 flex items-center justify-center gap-1 text-[11px] font-semibold transition-colors disabled:opacity-50',
+                                    isInProgress
+                                      ? 'border-[#16a34a] bg-[#dcfce7] text-[#166534]'
+                                      : 'border-[#16a34a] bg-white text-[#16a34a] hover:bg-[#f0fdf4]'
+                                  )}
+                                >
+                                  {isInProgress ? <CheckCircle className="h-3 w-3" /> : <Circle className="h-3 w-3" />}
+                                  {isInProgress ? 'Prebieha' : 'Hotovo'}
+                                </button>
+                                <button
+                                  onClick={() => onAddTray(plan)}
+                                  disabled={!isAdmin}
+                                  title="Pridať tácku"
+                                  className="h-7 w-7 rounded-md border border-[#e2e8f0] text-[#475569] hover:border-[#bbf7d0] hover:text-[#16a34a] disabled:opacity-50 flex items-center justify-center transition-colors"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </button>
+                                <button
+                                  onClick={() => onEdit(plan)}
+                                  disabled={!isAdmin}
+                                  title="Upraviť"
+                                  className="h-7 w-7 rounded-md border border-[#e2e8f0] text-[#475569] hover:border-[#bbf7d0] hover:text-[#16a34a] disabled:opacity-50 flex items-center justify-center transition-colors"
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </button>
+                                <button
+                                  onClick={() => onDelete(plan.id)}
+                                  disabled={!isAdmin}
+                                  title="Zmazať"
+                                  className="h-7 w-7 rounded-md border border-[#fecaca] bg-[#fef2f2] text-[#dc2626] hover:bg-[#fee2e2] disabled:opacity-50 flex items-center justify-center transition-colors"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Súhrnný riadok prázdnych dní */}
+            {emptyDays.length > 0 && (
+              <div className="relative">
+                <div className="absolute -left-[24px] top-1 w-2.5 h-2.5 rounded-full bg-[#cbd5e1]" />
+                <div className="text-xs text-[#94a3b8] italic pt-0.5">
+                  {emptyDays.map(d => SK_DAYS_SHORT[new Date(d).getDay()]).join(', ')} — žiadne výsevy
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
 // --- View: Plan Cards ---
 interface ViewProps {
   plans: GroupedPlantingPlan[];
@@ -3139,8 +3522,8 @@ const PlanCardsView = ({
                 <div className="flex items-center gap-1.5 mt-0.5 text-xs text-[#475569]">
                   <span>{formatDate(plan.sow_date)}</span>
                   <span className="text-[#cbd5e1]">•</span>
-                  <span className="truncate">
-                    {sortTrayCombinations(plan.trays).map(t => `${t.count}×${t.size}`).join(', ')}
+                  <span className="truncate font-bold text-[#0f172a]">
+                    {sortTrayCombinations(plan.trays).map(t => `${t.count} × ${t.size}`).join(', ')}
                   </span>
                 </div>
                 <span className={cn('inline-flex items-center h-4 px-1.5 mt-1 rounded text-[9px] font-bold', getStatusBadgeStyle(plan.status))}>
@@ -3395,7 +3778,7 @@ const PlanListView = ({
                 <td className="px-3 py-3 text-center">
                   <div className="flex flex-col gap-0.5">
                     {sortTrayCombinations(plan.trays).map((tray, idx) => (
-                      <span key={idx} className="text-[#0f172a] font-semibold text-xs">{tray.count}×{tray.size}</span>
+                      <span key={idx} className="text-[#0f172a] font-bold text-xs">{tray.count} × {tray.size}</span>
                     ))}
                   </div>
                 </td>
@@ -3415,7 +3798,7 @@ const PlanListView = ({
                   </span>
                 </td>
                 <td className="px-3 md:px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center justify-end gap-1">
+                  <div className="flex items-center justify-end gap-1.5">
                     <button
                       onClick={() =>
                         plan.status === 'completed'
@@ -3424,12 +3807,12 @@ const PlanListView = ({
                       }
                       disabled={!isAdmin}
                       className={cn(
-                        'h-9 px-3 rounded-md flex items-center justify-center gap-1.5 text-xs font-semibold transition-colors disabled:opacity-50',
+                        'min-h-[36px] h-9 px-4 rounded-full border-2 flex items-center justify-center gap-1.5 text-xs font-semibold transition-colors disabled:opacity-50',
                         plan.status === 'completed'
-                          ? 'bg-[#16a34a] text-white hover:bg-[#15803d]'
+                          ? 'border-[#16a34a] bg-[#16a34a] text-white hover:bg-[#15803d]'
                           : plan.status === 'in_progress'
-                          ? 'bg-[#dcfce7] text-[#166534] border border-[#bbf7d0] hover:bg-[#bbf7d0]'
-                          : 'border border-[#e2e8f0] text-[#475569] hover:border-[#bbf7d0] hover:text-[#16a34a] hover:bg-[#f0fdf4]'
+                          ? 'border-[#16a34a] bg-[#dcfce7] text-[#166534] hover:bg-[#bbf7d0]'
+                          : 'border-[#16a34a] bg-white text-[#16a34a] hover:bg-[#f0fdf4]'
                       )}
                     >
                       {plan.status === 'completed'
@@ -3567,7 +3950,7 @@ const DynamicCalendarView = ({
                           {item.isManual && <Pencil className="h-2.5 w-2.5 text-[#f59e0b]" />}
                         </p>
                         <p className="text-[10px] text-[#475569]">
-                          {sortTrayCombinations(item.trays).map(t => `${t.count}×${t.size}`).join(', ')}
+                          {sortTrayCombinations(item.trays).map(t => `${t.count} × ${t.size}`).join(', ')}
                         </p>
                       </div>
                     </div>
