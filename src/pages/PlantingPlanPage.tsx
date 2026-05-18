@@ -273,6 +273,12 @@ const PlantingPlanPage = () => {
   // (pred opravou Bug 4 sa autogeneroval S, teraz sa S vytvára len manuálne).
   const sCleanupDoneRef = useRef(false);
 
+  // Flag pre autoSync — zabraňuje opakovanému spusteniu pri refresh-i stránky.
+  // futureOrders.length sa môže nemeniť pri reload-e, takže useEffect dep [futureOrders.length]
+  // nezachytí druhé spustenie. Tento ref zabezpečí že autoSync prebehne pri prvom načítaní
+  // dát, nezávisle od počtu objednávok.
+  const autoSyncRanRef = useRef(false);
+
   // Core state
   const [plans, setPlans] = useState<PlantingPlan[]>([]);
   const [crops, setCrops] = useState<Crop[]>([]);
@@ -523,12 +529,15 @@ const PlantingPlanPage = () => {
       const plansWithConfig = (plansData || []).map((plan) => {
         let trayConfig: TrayConfig | null = null;
         if (plan.crops?.tray_configs) {
-          const configs = plan.crops.tray_configs;
+          // Normalizuj kľúče: DB ich má lowercase ("m"/"l"/"xl") ale plan.tray_size je uppercase.
+          const rawConfigs = plan.crops.tray_configs;
+          const configs: Record<string, any> = {};
+          Object.keys(rawConfigs).forEach(k => { configs[k.toUpperCase()] = rawConfigs[k]; });
           if (configs[plan.tray_size]) {
             const sizeConfig = configs[plan.tray_size];
             trayConfig = {
-              seed_density_grams: sizeConfig.seed_density_grams || sizeConfig.seed_density || 0,
-              yield_grams: sizeConfig.yield_grams || sizeConfig.expected_yield || 0,
+              seed_density_grams: sizeConfig.seed_density_grams ?? sizeConfig.seed_density ?? 0,
+              yield_grams: sizeConfig.yield_grams ?? sizeConfig.expected_yield ?? 0,
             };
           }
         }
@@ -918,6 +927,7 @@ const PlantingPlanPage = () => {
     dateTo: string,
     silent: boolean = false
   ): Promise<number> => {
+    console.info(`[syncPlansFromOrders] START dateFrom=${dateFrom} dateTo=${dateTo} silent=${silent}`);
     try {
       const { data: orders, error: ordersError } = await supabase
         .from('orders')
@@ -933,7 +943,11 @@ const PlantingPlanPage = () => {
         .in('status', ['growing', 'packed', 'on_the_way', 'pending', 'pending_approval', 'confirmed', 'cakajuca', 'potvrdena', 'pripravena']);
 
       if (ordersError) throw ordersError;
-      if (!orders || orders.length === 0) return 0;
+      if (!orders || orders.length === 0) {
+        console.info(`[syncPlansFromOrders] Žiadne objednávky v rozsahu ${dateFrom} až ${dateTo}`);
+        return 0;
+      }
+      console.info(`[syncPlansFromOrders] Načítaných ${orders.length} objednávok`);
 
       // Expand blends — fetchni všetky blend_ids použité v objednávkach a ich plodiny.
       // Mixy nemajú crop_id na order_items úrovni, ale blend_id, ktorý ukazuje
@@ -974,11 +988,13 @@ const PlantingPlanPage = () => {
       const grouped = groupOrdersByCropAndHarvestDate(orders, blendsMap, blendCropsMap);
       if (grouped.length === 0) return 0;
 
+      console.info(`[syncPlansFromOrders] Po grupovaní: ${grouped.length} skupín (crop × harvest_date) na spracovanie`);
+
       let createdCount = 0;
       for (const g of grouped) {
         // Diagnostické logovanie — pomáha overiť že totalRequired sa správne sčítava
         // pre každú plodinu + harvest_date kombináciu. Tichý log, len pre dev/diagnose.
-        const reservePct = g.crop.reserved_percentage || 5;
+        const reservePct = g.crop.reserved_percentage ?? 5;
         const withReserveDbg = g.totalRequired * (1 + reservePct / 100);
         console.debug(
           `[autoSync] ${g.crop.name || g.crop.id} | harvest=${g.harvestDate} | required=${g.totalRequired.toFixed(1)}g | +rezerva ${reservePct}%=${withReserveDbg.toFixed(1)}g | orders=${g.orderIds.length}`
@@ -986,6 +1002,7 @@ const PlantingPlanPage = () => {
         const created = await createPlantingTasksForGroup(g);
         createdCount += created;
       }
+      console.info(`[syncPlansFromOrders] DONE — vytvorených ${createdCount} výsevov`);
       return createdCount;
     } catch (err) {
       if (silent) {
@@ -1024,12 +1041,15 @@ const PlantingPlanPage = () => {
             const plansWithConfig = refreshedPlans.map((plan: any) => {
               let trayConfig: TrayConfig | null = null;
               if (plan.crops?.tray_configs) {
-                const configs = plan.crops.tray_configs;
+                // Normalizuj kľúče lowercase → uppercase
+                const rawConfigs = plan.crops.tray_configs;
+                const configs: Record<string, any> = {};
+                Object.keys(rawConfigs).forEach(k => { configs[k.toUpperCase()] = rawConfigs[k]; });
                 if (configs[plan.tray_size]) {
                   const sizeConfig = configs[plan.tray_size];
                   trayConfig = {
-                    seed_density_grams: sizeConfig.seed_density_grams || sizeConfig.seed_density || 0,
-                    yield_grams: sizeConfig.yield_grams || sizeConfig.expected_yield || 0,
+                    seed_density_grams: sizeConfig.seed_density_grams ?? sizeConfig.seed_density ?? 0,
+                    yield_grams: sizeConfig.yield_grams ?? sizeConfig.expected_yield ?? 0,
                   };
                 }
               }
@@ -1041,6 +1061,7 @@ const PlantingPlanPage = () => {
                 },
               };
             });
+            console.info(`[autoSync] Silent refresh — načítaných ${plansWithConfig.length} plánov`);
             setPlans(plansWithConfig);
           }
         } catch (refreshErr) {
@@ -1176,37 +1197,43 @@ const PlantingPlanPage = () => {
     plantingDate.setDate(plantingDate.getDate() - (crop.days_to_harvest || 10));
     const plantingDateStr = plantingDate.toISOString().split('T')[0];
 
-    const reservePercent = crop.reserved_percentage || 5;
+    // ?? namiesto || — 0% rezerva má byť rešpektovaná, nie nahradená 5%.
+    const reservePercent = crop.reserved_percentage ?? 5;
     const reserve = reservePercent / 100;
     const withReserve = totalRequired * (1 + reserve);
 
-    // Vymaž len AUTO-generované PLANNED plány pre túto kombináciu.
-    // NIKDY nemaž in_progress/completed (už posadené výsevy) ani manuálne plány.
-    const { error: deleteError } = await supabase
+    console.info(
+      `[createPlanningTasks] ${crop?.name || crop.id} | harvest=${harvestDate} | totalRequired=${totalRequired.toFixed(1)}g | rezerva=${reservePercent}% | withReserve=${withReserve.toFixed(1)}g`
+    );
+
+    // Vymaž VŠETKY auto-generované planned plány pre túto kombináciu (crop × harvest_date).
+    // Pôvodne sme mali aj .not('source_orders', 'is', null) — to ale vylúčilo legacy záznamy
+    // s source_orders=NULL, čo viedlo k duplicitám pri každom autoSync-u.
+    // Teraz mažeme všetky is_manual=false + status=planned bez ohľadu na source_orders.
+    const { error: deleteError, count: deletedCount } = await supabase
       .from('planting_plans')
-      .delete()
+      .delete({ count: 'exact' })
       .eq('crop_id', crop.id)
       .eq('expected_harvest_date', harvestDate)
-      .not('source_orders', 'is', null)
       .eq('is_manual', false)
       .eq('status', 'planned');
 
-    if (deleteError) console.error('Chyba pri mazaní:', deleteError);
+    if (deleteError) {
+      console.error('[createPlanningTasks] Chyba pri mazaní:', deleteError);
+    } else if (deletedCount && deletedCount > 0) {
+      console.info(`[createPlanningTasks] Zmazaných ${deletedCount} starých auto-plánov pre ${crop?.name}`);
+    }
 
-    // Vymaž aj staré auto-plány s táckou S pre túto plodinu — S sa už nikdy auto-nenavrhuje.
-    // Toto čistí pozostatky z pred opravy algoritmu.
-    const { error: deleteSError } = await supabase
-      .from('planting_plans')
-      .delete()
-      .eq('crop_id', crop.id)
-      .eq('expected_harvest_date', harvestDate)
-      .eq('tray_size', 'S')
-      .eq('is_manual', false)
-      .eq('status', 'planned');
-
-    if (deleteSError) console.error('Chyba pri mazaní S tácok:', deleteSError);
+    // Pozn.: extra S delete bol odstránený — hlavný DELETE vyššie už pokrýva všetky veľkosti tácok
+    // pre auto-generated planned plány. S-cleanup pri štarte stránky (sCleanupDoneRef) rieši
+    // legacy záznamy z celej DB.
 
     const trayConfig = optimizeTrayConfiguration(crop, withReserve);
+
+    if (trayConfig.length === 0) {
+      console.warn(`[createPlanningTasks] ${crop?.name || crop.id} — optimizeTrayConfiguration vrátil prázdne pole! Žiadny plán nebude vytvorený.`);
+      return 0;
+    }
 
     let created = 0;
     for (const tray of trayConfig) {
@@ -1224,17 +1251,23 @@ const PlantingPlanPage = () => {
         notes: `Auto z objednávok (${Math.round(totalRequired)}g požadovaných, výnos ${Math.round(tray.yieldPerTray * tray.count)}g)`,
       });
       if (!insertError) created++;
-      else console.error(`Chyba pri vytváraní plánu ${tray.size}:`, insertError);
+      else console.error(`[createPlanningTasks] Chyba pri vytváraní plánu ${tray.size}:`, insertError);
     }
+    console.info(`[createPlanningTasks] ${crop?.name || crop.id} — vytvorených ${created}/${trayConfig.length} plánov: ${trayConfig.map(t => `${t.count}×${t.size}`).join('+')}`);
     return created;
   }
 
   function optimizeTrayConfiguration(crop: any, requiredYield: number) {
     const trayConfigs = crop.tray_configs || {};
 
-    // Normalizuj kľúče — DB môže vrátiť "m"/"l"/"xl" malými písmenami
+    // KRITICKÉ: tray_configs kľúče v DB sú lowercase ("m","l","xl") — normalizuj na uppercase.
+    // Bez tejto normalizácie by tc.M bolo undefined a algoritmus by vrátil prázdne pole.
     const tc: Record<string, any> = {};
     Object.keys(trayConfigs).forEach(k => { tc[k.toUpperCase()] = trayConfigs[k]; });
+
+    // DEBUG: vypíš RAW + normalizovaný objekt aby sme videli čo prišlo z DB
+    console.debug(`[optimizeTray] ${crop.name} | RAW tray_configs:`, trayConfigs);
+    console.debug(`[optimizeTray] ${crop.name} | normalized keys: [${Object.keys(tc).join(', ')}]`);
 
     // Veľkosť S sa NIKDY nenavrhuje automaticky — len manuálne zadanie.
     const sizesAsc = [
@@ -1243,9 +1276,12 @@ const PlantingPlanPage = () => {
       { name: 'XL', seeds: tc.XL?.seed_density_grams ?? tc.XL?.seed_density ?? 0, yield: tc.XL?.yield_grams ?? tc.XL?.expected_yield ?? 0 },
     ].filter(s => s.seeds > 0 && s.yield > 0);
 
-    console.debug(`[optimizeTray] ${crop.name} | required=${requiredYield.toFixed(1)}g | sizes=`, sizesAsc.map(s => `${s.name}(yield=${s.yield})`).join(', ') || 'ŽIADNE');
+    console.debug(`[optimizeTray] ${crop.name} | required=${requiredYield.toFixed(1)}g | sizes=`, sizesAsc.map(s => `${s.name}(yield=${s.yield}, seeds=${s.seeds})`).join(', ') || 'ŽIADNE');
 
-    if (sizesAsc.length === 0) return [];
+    if (sizesAsc.length === 0) {
+      console.warn(`[optimizeTray] ${crop.name} — žiadne tácky M/L/XL nakonfigurované v tray_configs! Skontroluj DB.`);
+      return [];
+    }
 
     const result: Array<{ size: string; count: number; seedsPerTray: number; yieldPerTray: number }> = [];
 
@@ -1258,6 +1294,7 @@ const PlantingPlanPage = () => {
         seedsPerTray: smallestFit.seeds,
         yieldPerTray: smallestFit.yield,
       });
+      console.debug(`[optimizeTray] ${crop.name} | smallestFit=${smallestFit.name} (yield=${smallestFit.yield}g ≥ required=${requiredYield.toFixed(1)}g) → result=1×${smallestFit.name}`);
       return result;
     }
 
@@ -1308,6 +1345,7 @@ const PlantingPlanPage = () => {
       }
     }
 
+    console.debug(`[optimizeTray] ${crop.name} | Case 2 (required ${requiredYield.toFixed(1)}g > max ${xl.yield}g) → result=${result.map(r => `${r.count}×${r.size}`).join('+')}`);
     return result;
   }
 
@@ -1695,14 +1733,18 @@ const PlantingPlanPage = () => {
   }, [fetchPlans, fetchCrops, fetchShelves, fetchHarvestDays, fetchFutureOrders]);
 
   // Automatická synchronizácia plánov sadenia s objednávkami — beží ticho na pozadí.
-  // Spúšťa sa po každom načítaní budúcich objednávok (fetchFutureOrders).
-  // Žiadny loading spinner, žiadny error toast — len console.warn pri chybe.
+  // Spúšťa sa raz po prvom načítaní dát (plans + futureOrders). Použijeme ref aby sa nespúšťal
+  // opakovane pri každom re-rendere.
   useEffect(() => {
-    // Čakáme kým sa načítajú objednávky — bez nich nemáme čo synchronizovať
-    if (futureOrders.length === 0) return;
+    // Čakáme kým sa načítajú aj plány aj objednávky
+    if (loading) return;
+    if (autoSyncRanRef.current) return;
+
+    autoSyncRanRef.current = true;
+    console.info('[autoSync] Spúšťam automatickú synchronizáciu plánov...');
     autoSyncPlantingPlans();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [futureOrders.length]);
+  }, [loading, futureOrders.length]);
 
   // Predikcia — lazy load len keď user otvorí tab
   useEffect(() => {
