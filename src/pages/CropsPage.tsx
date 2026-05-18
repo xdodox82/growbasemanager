@@ -162,11 +162,11 @@ const CropsPage = () => {
       category: crop.category || 'microgreens',
       sku_prefix: (crop as any).sku_prefix || '',
       days_to_harvest: crop.days_to_harvest,
-      days_to_germination: crop.days_to_germination || 2,
+      days_to_germination: crop.days_to_germination ?? 0,
       germination_type: crop.germination_type || 'warm',
       needs_weight: crop.needs_weight || false,
-      days_in_darkness: crop.days_in_darkness || 2,
-      days_on_light: crop.days_on_light || 5,
+      days_in_darkness: crop.days_in_darkness ?? 2,
+      days_on_light: crop.days_on_light ?? 5,
       stacking_height: (crop as any).stacking_height || 4,
       seed_density: crop.seed_density || 30,
       seed_soaking: crop.seed_soaking || false,
@@ -415,7 +415,7 @@ const CropsPage = () => {
                       id="germination"
                       type="number"
                       min="0"
-                      value={formData.days_to_germination || ''}
+                      value={formData.days_to_germination ?? ''}
                       onChange={(e) => {
                         const value = e.target.value === '' ? 0 : parseInt(e.target.value);
                         setFormData(prev => ({ 
@@ -432,7 +432,7 @@ const CropsPage = () => {
                       id="darkness"
                       type="number"
                       min="0"
-                      value={formData.days_in_darkness || ''}
+                      value={formData.days_in_darkness ?? ''}
                       onChange={(e) => {
                         const value = e.target.value === '' ? 0 : parseInt(e.target.value);
                         setFormData(prev => ({ 
@@ -449,7 +449,7 @@ const CropsPage = () => {
                       id="light"
                       type="number"
                       min="0"
-                      value={formData.days_on_light || ''}
+                      value={formData.days_on_light ?? ''}
                       onChange={(e) => {
                         const value = e.target.value === '' ? 0 : parseInt(e.target.value);
                         setFormData(prev => ({ 
@@ -466,7 +466,7 @@ const CropsPage = () => {
                       id="harvest"
                       type="number"
                       min="0"
-                      value={formData.days_to_harvest || ''}
+                      value={formData.days_to_harvest ?? ''}
                       readOnly
                       className="bg-muted cursor-not-allowed"
                     />
