@@ -4321,16 +4321,10 @@ const PlanDetailContent = ({
           <p className="text-sm font-bold text-[#0f172a]">{daysToHarvest} {daysToHarvest === 1 ? 'deň' : (daysToHarvest >= 2 && daysToHarvest <= 4 ? 'dni' : 'dní')}</p>
         </div>
         <div className="bg-[#f8fafc] rounded-lg border border-[#e2e8f0] p-2.5">
-          <p className="text-[10px] uppercase tracking-wide text-[#475569] font-semibold mb-0.5">Klíčenie</p>
-          <p className="text-sm font-bold text-[#0f172a]">{plan.crops?.days_to_germination ?? 0}d</p>
-        </div>
-        <div className="bg-[#f8fafc] rounded-lg border border-[#e2e8f0] p-2.5">
-          <p className="text-[10px] uppercase tracking-wide text-[#475569] font-semibold mb-0.5">Tma</p>
-          <p className="text-sm font-bold text-[#0f172a]">{plan.crops?.days_in_darkness ?? 0}d</p>
-        </div>
-        <div className="bg-[#f8fafc] rounded-lg border border-[#e2e8f0] p-2.5">
-          <p className="text-[10px] uppercase tracking-wide text-[#475569] font-semibold mb-0.5">Svetlo</p>
-          <p className="text-sm font-bold text-[#0f172a]">{plan.crops?.days_on_light ?? 0}d</p>
+          <p className="text-[10px] uppercase tracking-wide text-[#475569] font-semibold mb-0.5">Klíčenie / Tma / Svetlo</p>
+          <p className="text-sm font-bold text-[#0f172a]">
+            {plan.crops?.days_to_germination ?? 0}d / {plan.crops?.days_in_darkness ?? 0}d / {plan.crops?.days_on_light ?? 0}d
+          </p>
         </div>
       </div>
 
