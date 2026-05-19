@@ -145,10 +145,9 @@ const parseGrams = (size: string | null | undefined): number => {
   return m ? parseFloat(m[1]) : 0;
 };
 
-// Extract unit price from order_item (supporting both price_per_unit and unit_price field names)
+// Extract unit price from order_item
 const itemUnitPrice = (item: any): number => {
   if (typeof item.price_per_unit === 'number') return item.price_per_unit;
-  if (typeof item.unit_price === 'number') return item.unit_price;
   if (typeof item.price === 'number') return item.price;
   return 0;
 };
@@ -312,7 +311,7 @@ const Dashboard = () => {
         .select(`
           id, delivery_date, status, customer_id,
           customers:customer_id ( id, customer_type ),
-          order_items ( id, crop_id, quantity, packaging_size, price_per_unit, unit_price, price )
+          order_items ( id, crop_id, quantity, packaging_size, price_per_unit )
         `)
         .gte('delivery_date', sparkRange.startStr)
         .lte('delivery_date', sparkRange.endStr);
