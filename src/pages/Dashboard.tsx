@@ -1,655 +1,982 @@
-import { useState, useMemo } from 'react';
-import { MainLayout } from '@/components/layout/MainLayout';
-import { PageHeader, StatCard, EmptyState } from '@/components/ui/page-components';
-import { useCrops, useCustomers, useOrders, usePlantingPlans, useTasks, useOrderItems } from '@/hooks/useSupabaseData';
-import { useLanguage } from '@/i18n/LanguageContext';
-import { Leaf, Users, ShoppingCart, CircleCheck as CheckCircle2, Clock, Sprout, Scissors, Package, History, ChevronDown, ChevronUp, Bell, Truck, Calendar } from 'lucide-react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { format, isSameDay, isToday, startOfDay, addDays, differenceInDays, isBefore, isAfter } from 'date-fns';
-import { sk, cs, enUS, de } from 'date-fns/locale';
-import { LowStockAlerts, OrdersChart, ProductionOverview, PlantingStats } from '@/components/dashboard';
-import SoakingReminders from '@/components/dashboard/SoakingReminders';
+import { MainLayout } from '@/components/layout/MainLayout';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  ShoppingCart,
+  Euro,
+  Activity,
+  AlertTriangle,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Sprout,
+  Package,
+  Tag,
+  Layers,
+  ShoppingBag,
+  ArrowRight,
+  Users,
+  Truck,
+  Sun,
+  Loader2,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-const locales = {
-  sk,
-  cz: cs,
-  en: enUS,
-  de,
+// ===================== TYPES =====================
+
+interface RevenueByType {
+  home: number;
+  gastro: number;
+  wholesale: number;
+  total: number;
+}
+
+interface OrdersByType {
+  home: number;
+  gastro: number;
+  wholesale: number;
+  total: number;
+}
+
+interface DailyPoint {
+  date: string;
+  revenue: number;
+  orders: number;
+}
+
+interface StatusCount {
+  status: string;
+  count: number;
+}
+
+interface HarvestPlan {
+  id: string;
+  crop_id: string;
+  cropName: string;
+  cropColor: string;
+  sow_date: string;
+  expected_harvest_date: string;
+  status: string;
+  tray_size: string;
+  tray_count: number;
+  yieldGrams: number;
+}
+
+interface LowStockItem {
+  id: string;
+  name: string;
+  category: 'seeds' | 'packaging' | 'substrate' | 'labels' | 'consumable';
+  quantity: number;
+  minStock: number;
+  unit: string;
+}
+
+// ===================== HELPERS =====================
+
+const SK_MONTHS_GEN = [
+  'januára', 'februára', 'marca', 'apríla', 'mája', 'júna',
+  'júla', 'augusta', 'septembra', 'októbra', 'novembra', 'decembra'
+];
+
+const STATUS_LABELS: Record<string, { label: string; bg: string; fg: string }> = {
+  pending: { label: 'Čakajúce', bg: '#fef3c7', fg: '#92400e' },
+  pending_approval: { label: 'Čaká schválenie', bg: '#fef3c7', fg: '#92400e' },
+  cakajuca: { label: 'Čakajúce', bg: '#fef3c7', fg: '#92400e' },
+  confirmed: { label: 'Potvrdené', bg: '#dbeafe', fg: '#1e40af' },
+  potvrdena: { label: 'Potvrdené', bg: '#dbeafe', fg: '#1e40af' },
+  growing: { label: 'Pestuje sa', bg: '#dcfce7', fg: '#166534' },
+  packed: { label: 'Zabalené', bg: '#dcfce7', fg: '#166534' },
+  pripravena: { label: 'Pripravené', bg: '#dcfce7', fg: '#166534' },
+  on_the_way: { label: 'Na ceste', bg: '#dbeafe', fg: '#1e40af' },
+  delivered: { label: 'Doručené', bg: '#d1fae5', fg: '#064e3b' },
+  cancelled: { label: 'Zrušené', bg: '#fee2e2', fg: '#991b1b' },
 };
 
-const TASK_TYPE_LABELS: Record<string, string> = {
-  sow: 'Výsev',
-  water: 'Zalievanie',
-  harvest: 'Zber',
-  deliver: 'Doručenie',
-  pack: 'Balenie',
+const getMonday = (d: Date): Date => {
+  const date = new Date(d);
+  date.setHours(0, 0, 0, 0);
+  const day = date.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  date.setDate(date.getDate() + diff);
+  return date;
 };
+
+const formatWeekRange = (monday: Date): string => {
+  const sunday = new Date(monday);
+  sunday.setDate(sunday.getDate() + 6);
+  const sameMonth = monday.getMonth() === sunday.getMonth();
+  const sameYear = monday.getFullYear() === sunday.getFullYear();
+  if (sameMonth && sameYear) {
+    return `${monday.getDate()}. – ${sunday.getDate()}. ${SK_MONTHS_GEN[monday.getMonth()]} ${monday.getFullYear()}`;
+  }
+  if (sameYear) {
+    return `${monday.getDate()}. ${SK_MONTHS_GEN[monday.getMonth()]} – ${sunday.getDate()}. ${SK_MONTHS_GEN[sunday.getMonth()]} ${monday.getFullYear()}`;
+  }
+  return `${monday.getDate()}. ${SK_MONTHS_GEN[monday.getMonth()]} ${monday.getFullYear()} – ${sunday.getDate()}. ${SK_MONTHS_GEN[sunday.getMonth()]} ${sunday.getFullYear()}`;
+};
+
+const formatEur = (n: number): string => {
+  return n.toLocaleString('sk-SK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+};
+
+const toIsoDate = (d: Date): string => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+// Normalize customer type to 3 categories
+const normCustomerType = (raw: string | null | undefined): 'home' | 'gastro' | 'wholesale' => {
+  if (!raw) return 'home';
+  const t = raw.toLowerCase().trim();
+  if (t === 'gastro' || t === 'restaurant' || t === 'reštaurácia') return 'gastro';
+  if (t === 'wholesale' || t === 'vo' || t === 'veľkoodber' || t === 'velkoodber' || t === 'b2b') return 'wholesale';
+  return 'home';
+};
+
+// Extract grams from packaging_size string like "250ml", "500g", "100"
+const parseGrams = (size: string | null | undefined): number => {
+  if (!size) return 0;
+  const m = String(size).match(/(\d+(\.\d+)?)/);
+  return m ? parseFloat(m[1]) : 0;
+};
+
+// Extract unit price from order_item (supporting both price_per_unit and unit_price field names)
+const itemUnitPrice = (item: any): number => {
+  if (typeof item.price_per_unit === 'number') return item.price_per_unit;
+  if (typeof item.unit_price === 'number') return item.unit_price;
+  if (typeof item.price === 'number') return item.price;
+  return 0;
+};
+
+// ===================== SPARKLINE =====================
+
+interface SparklineProps {
+  data: number[];
+  color?: string;
+  width?: number;
+  height?: number;
+}
+
+const Sparkline = ({ data, color = '#16a34a', width = 120, height = 32 }: SparklineProps) => {
+  if (!data || data.length === 0) {
+    return <div style={{ width, height }} className="opacity-20" />;
+  }
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const stepX = data.length > 1 ? width / (data.length - 1) : 0;
+
+  const points = data.map((v, i) => {
+    const x = i * stepX;
+    const y = height - ((v - min) / range) * (height - 4) - 2;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+
+  // Area pod čiarou — pre subtle pozadie
+  const areaPoints = `0,${height} ${points} ${width},${height}`;
+
+  return (
+    <svg width={width} height={height} className="overflow-visible">
+      <polygon points={areaPoints} fill={color} opacity={0.1} />
+      <polyline
+        points={points}
+        fill="none"
+        stroke={color}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+};
+
+// ===================== COMPARISON BADGE =====================
+
+interface ComparisonBadgeProps {
+  current: number;
+  previous: number;
+  formatAbs?: (n: number) => string;
+  // ak je hodnota peniaze → formatEur, inak default na číslo
+}
+
+const ComparisonBadge = ({ current, previous, formatAbs }: ComparisonBadgeProps) => {
+  if (previous === 0 && current === 0) {
+    return <span className="inline-flex items-center text-[11px] text-[#94a3b8]"><Minus className="h-3 w-3 mr-0.5" />bez zmeny</span>;
+  }
+  const diff = current - previous;
+  const pct = previous === 0 ? 100 : Math.round((diff / previous) * 100);
+  const isUp = diff > 0;
+  const isDown = diff < 0;
+  const color = isUp ? 'text-[#16a34a]' : isDown ? 'text-[#dc2626]' : 'text-[#94a3b8]';
+  const Icon = isUp ? TrendingUp : isDown ? TrendingDown : Minus;
+  const formatted = formatAbs ? formatAbs(Math.abs(diff)) : String(Math.abs(diff));
+  return (
+    <span className={cn('inline-flex items-center gap-0.5 text-[11px] font-semibold', color)}>
+      <Icon className="h-3 w-3" />
+      {isUp ? '+' : isDown ? '−' : ''}{Math.abs(pct)}% · {formatted}
+    </span>
+  );
+};
+
+// ===================== MAIN COMPONENT =====================
 
 const Dashboard = () => {
-  const { data: crops } = useCrops();
-  const { data: customers } = useCustomers();
-  const { data: orders } = useOrders();
-  const { data: plantingPlans } = usePlantingPlans();
-  const { data: orderItems } = useOrderItems();
-  const { data: tasks, update: updateTask, add: addTask, toggleComplete } = useTasks();
-  const { t, language } = useLanguage();
-  const [showHistory, setShowHistory] = useState(false);
+  const { user } = useAuth();
 
-  const activeOrders = orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled');
+  // Loading + data state
+  const [loading, setLoading] = useState(true);
+  const [revenueWeek, setRevenueWeek] = useState<RevenueByType>({ home: 0, gastro: 0, wholesale: 0, total: 0 });
+  const [revenuePrevWeek, setRevenuePrevWeek] = useState<RevenueByType>({ home: 0, gastro: 0, wholesale: 0, total: 0 });
+  const [ordersWeek, setOrdersWeek] = useState<OrdersByType>({ home: 0, gastro: 0, wholesale: 0, total: 0 });
+  const [ordersPrevWeek, setOrdersPrevWeek] = useState<OrdersByType>({ home: 0, gastro: 0, wholesale: 0, total: 0 });
+  const [dailyPoints14, setDailyPoints14] = useState<DailyPoint[]>([]);
+  const [statusCounts, setStatusCounts] = useState<StatusCount[]>([]);
+  const [activeCustomers, setActiveCustomers] = useState<number>(0);
+  const [nextDeliveryToday, setNextDeliveryToday] = useState<string | null>(null);
+  const [harvestPlans, setHarvestPlans] = useState<HarvestPlan[]>([]);
+  const [orderedGramsThisWeek, setOrderedGramsThisWeek] = useState<number>(0);
+  const [lowStock, setLowStock] = useState<LowStockItem[]>([]);
 
-  // Calculate active customers (unique customers with active orders)
-  const activeCustomerIds = new Set(
-    activeOrders.map(o => o.customer_id).filter(Boolean)
-  );
-  const activeCustomersCount = activeCustomerIds.size;
+  // ===================== DATE RANGE =====================
 
-  // Calculate trays in growth (sown + growing status)
-  const traysInGrowth = plantingPlans
-    .filter(p => p.status === 'sown' || p.status === 'growing')
-    .reduce((sum, p) => sum + (p.tray_count || 0), 0);
+  const today = useMemo(() => {
+    const t = new Date();
+    t.setHours(0, 0, 0, 0);
+    return t;
+  }, []);
 
-  // Helper function to parse packaging size to grams
-  const parsePackagingSize = (size: string): number => {
-    if (!size) return 0;
-    const match = size.match(/(\d+)/);
-    return match ? parseInt(match[1]) : 0;
-  };
-
-  // Helper function to get yield per tray based on tray size
-  const getYieldPerTray = (crop: any, traySize: string): number => {
-    if (!crop || !traySize) return 80; // Default 80g
-
-    const trayConfigs = crop.tray_configs || {};
-    const config = trayConfigs[traySize];
-
-    if (config) {
-      return config.yield_grams || config.expected_yield || 80;
-    }
-
-    // Default yields by tray size
-    const defaults: Record<string, number> = {
-      XL: 80,
-      L: 65,
-      M: 48,
-      S: 32
+  const weekRange = useMemo(() => {
+    const mon = getMonday(today);
+    const sun = new Date(mon);
+    sun.setDate(sun.getDate() + 6);
+    return {
+      monday: mon,
+      sunday: sun,
+      mondayStr: toIsoDate(mon),
+      sundayStr: toIsoDate(sun),
     };
+  }, [today]);
 
-    return defaults[traySize] || 80;
-  };
+  const prevWeekRange = useMemo(() => {
+    const mon = new Date(weekRange.monday);
+    mon.setDate(mon.getDate() - 7);
+    const sun = new Date(mon);
+    sun.setDate(sun.getDate() + 6);
+    return {
+      monday: mon,
+      sunday: sun,
+      mondayStr: toIsoDate(mon),
+      sundayStr: toIsoDate(sun),
+    };
+  }, [weekRange]);
 
-  // Calculate harvest capacity for next 7 days
-  const calculateHarvestCapacity = () => {
+  // 14 dní (predchádzajúce + tento týždeň)
+  const sparkRange = useMemo(() => {
+    const start = new Date(prevWeekRange.monday);
+    return {
+      start,
+      startStr: toIsoDate(start),
+      endStr: weekRange.sundayStr,
+    };
+  }, [prevWeekRange, weekRange]);
 
-    // Get next 7 days
-    const today = new Date();
-    const next7Days: string[] = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(today);
-      date.setDate(date.getDate() + i);
-      next7Days.push(date.toISOString().split('T')[0]);
-    }
+  // ===================== USER NAME =====================
 
-    // Capacity by harvest date and crop+package key
-    const capacityByDate: Record<string, Record<string, {
-      cropName: string;
-      cropId: string;
-      packageSize: number;
-      capacity: number;
-      ordered: number;
-      free: number;
-    }>> = {};
+  const userName = useMemo(() => {
+    if (!user) return null;
+    const meta: any = user.user_metadata || {};
+    return meta.name || meta.full_name || meta.first_name || (user.email ? user.email.split('@')[0] : null);
+  }, [user]);
 
-    next7Days.forEach(harvestDate => {
-      capacityByDate[harvestDate] = {};
+  const greeting = useMemo(() => {
+    const h = new Date().getHours();
+    if (h < 11) return 'Dobré ráno';
+    if (h < 18) return 'Dobrý deň';
+    return 'Dobrý večer';
+  }, []);
 
-      // Find plantings with this harvest date that are active
-      const plantingsForDate = plantingPlans.filter(p => {
-        if (!p.expected_harvest_date) return false;
-        const pHarvestDate = new Date(p.expected_harvest_date).toISOString().split('T')[0];
-        return pHarvestDate === harvestDate &&
-               (p.status === 'sown' || p.status === 'growing' || p.status === 'planned');
-      });
+  // ===================== FETCHING =====================
 
-      // Calculate capacity for each planting
-      plantingsForDate.forEach(p => {
-        const crop = crops.find(c => c.id === p.crop_id);
-        if (!crop) return;
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
 
-        const trayCount = p.tray_count || 0;
-        const traySize = p.tray_size || 'XL';
-        const yieldPerTray = getYieldPerTray(crop, traySize);
-        const totalCapacity = trayCount * yieldPerTray;
+      // 1) Tržby + objednávky za 14 dní (prev week + this week)
+      const { data: orders14, error: ordersErr } = await supabase
+        .from('orders')
+        .select(`
+          id, delivery_date, status, customer_id,
+          customers:customer_id ( id, customer_type ),
+          order_items ( id, crop_id, quantity, packaging_size, price_per_unit, unit_price, price )
+        `)
+        .gte('delivery_date', sparkRange.startStr)
+        .lte('delivery_date', sparkRange.endStr);
 
-        // Store capacity by crop (we'll add package sizes later when processing orders)
-        const cropKey = p.crop_id || '';
-        if (!capacityByDate[harvestDate][cropKey]) {
-          capacityByDate[harvestDate][cropKey] = {
-            cropName: crop.name || 'Neznáma plodina',
-            cropId: cropKey,
-            packageSize: 0, // Will be set per package size variant
-            capacity: totalCapacity,
-            ordered: 0,
-            free: totalCapacity
-          };
-        } else {
-          capacityByDate[harvestDate][cropKey].capacity += totalCapacity;
-          capacityByDate[harvestDate][cropKey].free += totalCapacity;
-        }
-      });
+      if (ordersErr) {
+        console.error('Dashboard orders fetch:', ordersErr);
+      }
 
-      // Find orders that will be delivered on this date or next day
-      // (harvest can be day before delivery)
-      const deliveryDate1 = harvestDate;
-      const deliveryDate2 = new Date(harvestDate);
-      deliveryDate2.setDate(deliveryDate2.getDate() + 1);
-      const deliveryDate2Str = deliveryDate2.toISOString().split('T')[0];
+      // Per-day buckets
+      const dayMap: Record<string, DailyPoint> = {};
+      for (let i = 0; i < 14; i++) {
+        const d = new Date(sparkRange.start);
+        d.setDate(d.getDate() + i);
+        const key = toIsoDate(d);
+        dayMap[key] = { date: key, revenue: 0, orders: 0 };
+      }
 
-      const ordersForDate = orders.filter(o => {
-        if (o.status === 'delivered' || o.status === 'cancelled') return false;
-        const deliveryDate = (o.delivery_date || '').split('T')[0];
-        return deliveryDate === deliveryDate1 || deliveryDate === deliveryDate2Str;
-      });
+      // Týždenné súhrny
+      const rev = { week: { home: 0, gastro: 0, wholesale: 0, total: 0 }, prev: { home: 0, gastro: 0, wholesale: 0, total: 0 } };
+      const ord = { week: { home: 0, gastro: 0, wholesale: 0, total: 0 }, prev: { home: 0, gastro: 0, wholesale: 0, total: 0 } };
 
-      // First pass: collect all package sizes for each crop
-      const packageSizesByCrop: Record<string, Set<number>> = {};
-      ordersForDate.forEach(order => {
-        const items = orderItems.filter(item => item.order_id === order.id);
+      // Stav objednávok (len pre tento týždeň)
+      const statusMap: Record<string, number> = {};
 
-        items.forEach(item => {
-          if (!item.crop_id) return;
-          const packageSize = parsePackagingSize(item.packaging_size || '50g');
-          if (!packageSizesByCrop[item.crop_id]) {
-            packageSizesByCrop[item.crop_id] = new Set();
+      // Aktívni zákazníci tento týždeň
+      const activeCustomerIds = new Set<string>();
+
+      // Najbližšia dodávka dnes
+      const todayStr = toIsoDate(today);
+      let nextToday: string | null = null;
+
+      // Objednané gramy tento týždeň (na výpočet kapacity)
+      let orderedG = 0;
+
+      (orders14 || []).forEach((o: any) => {
+        const deliveryStr = (o.delivery_date || '').split('T')[0];
+        const dayPoint = dayMap[deliveryStr];
+        if (!dayPoint) return;
+
+        const cType = normCustomerType(o.customers?.customer_type);
+
+        const orderRevenue = (o.order_items || []).reduce((sum: number, it: any) => {
+          return sum + itemUnitPrice(it) * (it.quantity || 0);
+        }, 0);
+
+        dayPoint.revenue += orderRevenue;
+        dayPoint.orders += 1;
+
+        const inThisWeek = deliveryStr >= weekRange.mondayStr && deliveryStr <= weekRange.sundayStr;
+        const inPrevWeek = deliveryStr >= prevWeekRange.mondayStr && deliveryStr <= prevWeekRange.sundayStr;
+
+        if (inThisWeek) {
+          rev.week[cType] += orderRevenue;
+          rev.week.total += orderRevenue;
+          ord.week[cType] += 1;
+          ord.week.total += 1;
+
+          const st = o.status || 'unknown';
+          statusMap[st] = (statusMap[st] || 0) + 1;
+
+          if (o.customer_id) activeCustomerIds.add(o.customer_id);
+
+          if (deliveryStr === todayStr && o.status !== 'delivered' && o.status !== 'cancelled') {
+            if (!nextToday) nextToday = o.customers?.customer_type ? '' : null; // placeholder
           }
-          packageSizesByCrop[item.crop_id].add(packageSize);
-        });
-      });
 
-      // Create package size variants for crops that have capacity
-      const newCapacityEntries: Record<string, typeof capacityByDate[string][string]> = {};
-      Object.keys(capacityByDate[harvestDate]).forEach(cropId => {
-        const baseEntry = capacityByDate[harvestDate][cropId];
-        const packageSizes = packageSizesByCrop[cropId];
-
-        if (packageSizes && packageSizes.size > 0) {
-          // Create variant for each package size
-          packageSizes.forEach(packageSize => {
-            const key = `${cropId}_${packageSize}`;
-            newCapacityEntries[key] = {
-              ...baseEntry,
-              packageSize: packageSize,
-              ordered: 0
-            };
+          // Objednané gramy = sum(packaging_size_g × quantity) cez order_items
+          (o.order_items || []).forEach((it: any) => {
+            const g = parseGrams(it.packaging_size);
+            orderedG += g * (it.quantity || 0);
           });
-          // Remove the base entry
-          delete capacityByDate[harvestDate][cropId];
+        } else if (inPrevWeek) {
+          rev.prev[cType] += orderRevenue;
+          rev.prev.total += orderRevenue;
+          ord.prev[cType] += 1;
+          ord.prev.total += 1;
         }
       });
 
-      // Add new entries
-      Object.assign(capacityByDate[harvestDate], newCapacityEntries);
+      // Najbližšia dodávka dnes — meno zákazníka (najnižší čas)
+      const todayOrders = (orders14 || []).filter((o: any) =>
+        (o.delivery_date || '').startsWith(todayStr) &&
+        o.status !== 'delivered' && o.status !== 'cancelled'
+      );
+      if (todayOrders.length > 0) {
+        // Vyber prvého (najbližší alebo prvý v zozname)
+        const first = todayOrders[0];
+        const { data: cust } = await supabase
+          .from('customers')
+          .select('name')
+          .eq('id', first.customer_id)
+          .single();
+        nextToday = cust?.name || `Objednávka ${todayOrders.length}×`;
+      }
 
-      // Second pass: calculate ordered amounts
-      ordersForDate.forEach(order => {
-        const items = orderItems.filter(item => item.order_id === order.id);
+      setRevenueWeek(rev.week);
+      setRevenuePrevWeek(rev.prev);
+      setOrdersWeek(ord.week);
+      setOrdersPrevWeek(ord.prev);
+      setDailyPoints14(Object.values(dayMap).sort((a, b) => a.date.localeCompare(b.date)));
+      setStatusCounts(Object.entries(statusMap).map(([status, count]) => ({ status, count })));
+      setActiveCustomers(activeCustomerIds.size);
+      setNextDeliveryToday(nextToday);
+      setOrderedGramsThisWeek(orderedG);
 
-        items.forEach(item => {
-          if (!item.crop_id) return;
+      // 2) Planting plans — harvest tento týždeň
+      const { data: plans, error: plansErr } = await supabase
+        .from('planting_plans')
+        .select(`
+          id, crop_id, sow_date, expected_harvest_date, status, tray_size, tray_count,
+          crops:crop_id ( id, name, color, tray_configs )
+        `)
+        .gte('expected_harvest_date', weekRange.mondayStr)
+        .lte('expected_harvest_date', weekRange.sundayStr)
+        .in('status', ['planned', 'in_progress'])
+        .order('expected_harvest_date', { ascending: true });
 
-          const packageSize = parsePackagingSize(item.packaging_size || '50g');
-          const quantity = item.quantity || 0;
-          const totalGrams = quantity * packageSize;
+      if (plansErr) console.error('Dashboard plans fetch:', plansErr);
 
-          const key = `${item.crop_id}_${packageSize}`;
+      const harvestList: HarvestPlan[] = (plans || []).map((p: any) => {
+        // Normalize tray_configs (DB má lowercase: m/l/xl/s)
+        const rawConfigs = p.crops?.tray_configs || {};
+        const configs: Record<string, any> = {};
+        Object.keys(rawConfigs).forEach(k => { configs[k.toUpperCase()] = rawConfigs[k]; });
+        const sizeCfg = configs[p.tray_size] || {};
+        const yieldPerTray = sizeCfg.yield_grams ?? sizeCfg.expected_yield ?? 0;
+        return {
+          id: p.id,
+          crop_id: p.crop_id,
+          cropName: p.crops?.name || 'Neznáma',
+          cropColor: p.crops?.color || '#16a34a',
+          sow_date: p.sow_date,
+          expected_harvest_date: p.expected_harvest_date,
+          status: p.status,
+          tray_size: p.tray_size,
+          tray_count: p.tray_count || 0,
+          yieldGrams: yieldPerTray * (p.tray_count || 0),
+        };
+      });
+      setHarvestPlans(harvestList);
 
-          if (capacityByDate[harvestDate][key]) {
-            capacityByDate[harvestDate][key].ordered += totalGrams;
+      // 3) Low stock — 5 inventory tabuliek (seeds, packagings, substrates, labels, consumable_inventory)
+      const lowStockList: LowStockItem[] = [];
+
+      // Seeds
+      const { data: seedsData } = await supabase
+        .from('seeds')
+        .select('id, quantity, unit, min_stock, crop_id, crops:crop_id(name)')
+        .order('quantity');
+      (seedsData || []).forEach((s: any) => {
+        if (s.min_stock != null && s.quantity < s.min_stock) {
+          lowStockList.push({
+            id: s.id,
+            name: s.crops?.name || 'Osivo',
+            category: 'seeds',
+            quantity: s.quantity || 0,
+            minStock: s.min_stock,
+            unit: s.unit || 'g',
+          });
+        }
+      });
+
+      // Packagings
+      const { data: packData } = await supabase
+        .from('packagings')
+        .select('id, name, quantity, min_stock');
+      (packData || []).forEach((p: any) => {
+        if (p.min_stock != null && p.quantity < p.min_stock) {
+          lowStockList.push({
+            id: p.id,
+            name: p.name || 'Obal',
+            category: 'packaging',
+            quantity: p.quantity || 0,
+            minStock: p.min_stock,
+            unit: 'ks',
+          });
+        }
+      });
+
+      // Substrates
+      try {
+        const { data: subData } = await supabase
+          .from('substrates')
+          .select('id, name, quantity, current_stock, unit, min_stock');
+        (subData || []).forEach((s: any) => {
+          const cur = s.current_stock != null && s.current_stock !== '' ? parseFloat(s.current_stock) : (s.quantity || 0);
+          if (s.min_stock != null && cur < s.min_stock) {
+            lowStockList.push({
+              id: s.id,
+              name: s.name || 'Substrát',
+              category: 'substrate',
+              quantity: cur,
+              minStock: s.min_stock,
+              unit: s.unit || 'kg',
+            });
           }
         });
-      });
+      } catch (e) { /* table môže byť pomenovaná inak */ }
 
-      // Calculate free capacity
-      Object.values(capacityByDate[harvestDate]).forEach(crop => {
-        crop.free = crop.capacity - crop.ordered;
-      });
-    });
-
-    return capacityByDate;
-  };
-
-  // Generate daily tasks from planting plans and orders
-  const dailyTasks = useMemo(() => {
-    const today = startOfDay(new Date());
-    const generatedTasks: Array<{
-      id: string;
-      type: 'sow' | 'harvest' | 'deliver' | 'pack';
-      title: string;
-      subtitle?: string;
-      cropId?: string | null;
-      orderId?: string | null;
-      planId?: string;
-      completed: boolean;
-    }> = [];
-
-    // Tasks from planting plans - sowing today
-    plantingPlans
-      .filter(plan => isSameDay(new Date(plan.sow_date), today) && plan.status === 'planned')
-      .forEach(plan => {
-        const crop = crops.find(c => c.id === plan.crop_id);
-        generatedTasks.push({
-          id: `sow-${plan.id}`,
-          type: 'sow',
-          title: `Zasiať ${crop?.name || 'plodinu'}`,
-          subtitle: `${plan.tray_count || 1} ${(plan.tray_count || 1) === 1 ? 'tác' : (plan.tray_count || 1) < 5 ? 'tácy' : 'tácov'}`,
-          cropId: plan.crop_id,
-          planId: plan.id,
-          completed: plan.status !== 'planned',
+      // Labels
+      try {
+        const { data: labelsData } = await supabase
+          .from('labels')
+          .select('id, name, quantity, min_stock');
+        (labelsData || []).forEach((l: any) => {
+          if (l.min_stock != null && l.quantity < l.min_stock) {
+            lowStockList.push({
+              id: l.id,
+              name: l.name || 'Etiketa',
+              category: 'labels',
+              quantity: l.quantity || 0,
+              minStock: l.min_stock,
+              unit: 'ks',
+            });
+          }
         });
-      });
+      } catch (e) { /* table môže byť pomenovaná inak */ }
 
-    // Tasks from planting plans - harvesting today
-    plantingPlans
-      .filter(plan => plan.expected_harvest_date && isSameDay(new Date(plan.expected_harvest_date), today) && plan.status !== 'harvested')
-      .forEach(plan => {
-        const crop = crops.find(c => c.id === plan.crop_id);
-        generatedTasks.push({
-          id: `harvest-${plan.id}`,
-          type: 'harvest',
-          title: `Zozbierať ${crop?.name || 'plodinu'}`,
-          subtitle: `${plan.tray_count || 1} ${(plan.tray_count || 1) === 1 ? 'tác' : (plan.tray_count || 1) < 5 ? 'tácy' : 'tácov'}`,
-          cropId: plan.crop_id,
-          planId: plan.id,
-          completed: plan.status === 'harvested',
+      // Consumable inventory
+      try {
+        const { data: consData } = await supabase
+          .from('consumable_inventory')
+          .select('id, name, quantity, unit, min_quantity');
+        (consData || []).forEach((c: any) => {
+          if (c.min_quantity != null && c.quantity < c.min_quantity) {
+            lowStockList.push({
+              id: c.id,
+              name: c.name,
+              category: 'consumable',
+              quantity: c.quantity || 0,
+              minStock: c.min_quantity,
+              unit: c.unit || '',
+            });
+          }
         });
-      });
+      } catch (e) { /* table môže neexistovať */ }
 
-    // Tasks from orders - delivery today
-    orders
-      .filter(order => order.delivery_date && isSameDay(new Date(order.delivery_date), today) && order.status !== 'delivered' && order.status !== 'cancelled')
-      .forEach(order => {
-        const customer = customers.find(c => c.id === order.customer_id);
-        generatedTasks.push({
-          id: `deliver-${order.id}`,
-          type: 'deliver',
-          title: `Doručiť objednávku`,
-          subtitle: `${customer?.name || 'Zákazník'} - ${order.quantity} ${order.unit || 'g'}`,
-          orderId: order.id,
-          completed: order.status === 'delivered',
-        });
-      });
-
-    return generatedTasks;
-  }, [plantingPlans, orders, crops, customers]);
-
-  const pendingTasks = dailyTasks.filter(t => !t.completed);
-  const completedToday = dailyTasks.filter(t => t.completed);
-
-  const dateLocale = locales[language as keyof typeof locales] || locales.sk;
-
-  // Debug logs
-
-  // Upcoming notifications - next 3 days
-  const upcomingNotifications = useMemo(() => {
-    const today = startOfDay(new Date());
-    const in3Days = addDays(today, 3);
-    const notifications: Array<{
-      id: string;
-      type: 'harvest' | 'delivery';
-      title: string;
-      daysUntil: number;
-      date: Date;
-      urgent: boolean;
-    }> = [];
-
-    // Upcoming harvests
-    plantingPlans
-      .filter(plan => {
-        if (!plan.expected_harvest_date) return false;
-        const harvestDate = startOfDay(new Date(plan.expected_harvest_date));
-        return plan.status !== 'harvested' && 
-               isAfter(harvestDate, today) && 
-               isBefore(harvestDate, in3Days);
-      })
-      .forEach(plan => {
-        const crop = crops.find(c => c.id === plan.crop_id);
-        const harvestDate = new Date(plan.expected_harvest_date!);
-        const daysUntil = differenceInDays(startOfDay(harvestDate), today);
-        notifications.push({
-          id: `harvest-notif-${plan.id}`,
-          type: 'harvest',
-          title: `${crop?.name || 'Plodina'} - ${plan.tray_count || 1} tácov`,
-          daysUntil,
-          date: harvestDate,
-          urgent: daysUntil <= 1,
-        });
-      });
-
-    // Upcoming deliveries
-    orders
-      .filter(order => {
-        if (!order.delivery_date) return false;
-        const deliveryDate = startOfDay(new Date(order.delivery_date));
-        return order.status !== 'delivered' && 
-               order.status !== 'cancelled' &&
-               isAfter(deliveryDate, today) && 
-               isBefore(deliveryDate, in3Days);
-      })
-      .forEach(order => {
-        const customer = customers.find(c => c.id === order.customer_id);
-        const deliveryDate = new Date(order.delivery_date!);
-        const daysUntil = differenceInDays(startOfDay(deliveryDate), today);
-        notifications.push({
-          id: `delivery-notif-${order.id}`,
-          type: 'delivery',
-          title: customer?.name || 'Zákazník',
-          daysUntil,
-          date: deliveryDate,
-          urgent: daysUntil <= 1,
-        });
-      });
-
-    return notifications.sort((a, b) => a.daysUntil - b.daysUntil);
-  }, [plantingPlans, orders, crops, customers]);
-
-  const getTaskIcon = (type: string) => {
-    switch (type) {
-      case 'sow': return <Sprout className="h-4 w-4" />;
-      case 'harvest': return <Scissors className="h-4 w-4" />;
-      case 'deliver': return <ShoppingCart className="h-4 w-4" />;
-      case 'pack': return <Package className="h-4 w-4" />;
-      default: return <Clock className="h-4 w-4" />;
+      setLowStock(lowStockList);
+    } catch (err) {
+      console.error('Dashboard fetch error:', err);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [today, sparkRange, weekRange, prevWeekRange]);
 
-  const getTaskColor = (type: string) => {
-    switch (type) {
-      case 'sow': return 'bg-success/20 text-success';
-      case 'harvest': return 'bg-warning/20 text-warning';
-      case 'deliver': return 'bg-primary/20 text-primary';
-      case 'pack': return 'bg-info/20 text-info';
-      default: return 'bg-muted text-muted-foreground';
-    }
-  };
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // ===================== DERIVED =====================
+
+  // Posadené gramy = súčet yieldGrams z in_progress plánov
+  const plantedGrams = useMemo(() => {
+    return harvestPlans
+      .filter(p => p.status === 'in_progress')
+      .reduce((s, p) => s + p.yieldGrams, 0);
+  }, [harvestPlans]);
+
+  // Celkový plánovaný výnos (planned + in_progress)
+  const totalYieldGrams = useMemo(() => {
+    return harvestPlans.reduce((s, p) => s + p.yieldGrams, 0);
+  }, [harvestPlans]);
+
+  const freeGrams = Math.max(0, plantedGrams - orderedGramsThisWeek);
+  const orderedPct = plantedGrams > 0 ? Math.min(100, Math.round((orderedGramsThisWeek / plantedGrams) * 100)) : 0;
+
+  const sparkRevenueData = useMemo(() => dailyPoints14.map(d => d.revenue), [dailyPoints14]);
+  const sparkOrdersData = useMemo(() => dailyPoints14.map(d => d.orders), [dailyPoints14]);
+
+  // ===================== RENDER =====================
 
   return (
     <MainLayout hideMobileHeader>
-      <PageHeader
-        title={t('nav.dashboard')}
-        description={`${t('dashboard.welcome')} ${format(new Date(), 'EEEE, d. MMMM yyyy', { locale: dateLocale })}`}
-      />
+      <div className="min-h-screen pb-20 md:pb-6">
+        <div className="space-y-4">
 
-      {/* Soaking Reminders */}
-      <div className="mb-6">
-        <SoakingReminders />
-      </div>
-
-      {/* Upcoming Notifications */}
-      {upcomingNotifications.length > 0 && (
-        <div className="mb-6 space-y-3">
-          <div className="flex items-center gap-2 mb-2">
-            <Bell className="h-5 w-5 text-warning" />
-            <h3 className="font-semibold text-foreground">Blížiace sa termíny</h3>
-            <Badge variant="secondary" className="ml-1">{upcomingNotifications.length}</Badge>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {upcomingNotifications.slice(0, 6).map((notif) => (
-              <Alert 
-                key={notif.id} 
-                variant={notif.urgent ? "destructive" : "default"}
-                className={notif.urgent ? "border-destructive/50 bg-destructive/10" : "border-warning/50 bg-warning/10"}
-              >
-                <div className="flex items-start gap-3">
-                  {notif.type === 'harvest' ? (
-                    <Scissors className={`h-5 w-5 ${notif.urgent ? 'text-destructive' : 'text-warning'}`} />
-                  ) : (
-                    <Truck className={`h-5 w-5 ${notif.urgent ? 'text-destructive' : 'text-warning'}`} />
-                  )}
-                  <div className="flex-1">
-                    <AlertTitle className="text-sm font-medium">
-                      {notif.type === 'harvest' ? 'Zber' : 'Doručenie'} - {notif.daysUntil === 1 ? 'zajtra' : `o ${notif.daysUntil} dni`}
-                    </AlertTitle>
-                    <AlertDescription className="text-xs mt-1">
-                      {notif.title} • {format(notif.date, 'd.M.yyyy', { locale: dateLocale })}
-                    </AlertDescription>
-                  </div>
-                </div>
-              </Alert>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Low Stock Alerts */}
-      <LowStockAlerts />
-
-      {/* Charts Section */}
-      <div className="mt-6 mb-6">
-        <OrdersChart />
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid gap-4 sm:gap-6 grid-cols-2 lg:grid-cols-4 mb-8">
-        <StatCard
-          title={t('dashboard.totalCrops')}
-          value={crops.length}
-          icon={<Leaf className="h-6 w-6" />}
-        />
-        <StatCard
-          title={t('dashboard.activeOrders')}
-          value={activeOrders.length}
-          icon={<ShoppingCart className="h-6 w-6" />}
-        />
-        <StatCard
-          title={t('dashboard.customers')}
-          value={activeCustomersCount}
-          icon={<Users className="h-6 w-6" />}
-        />
-        <StatCard
-          title={t('dashboard.traysGrowing')}
-          value={traysInGrowth}
-          icon={<Sprout className="h-6 w-6" />}
-        />
-      </div>
-
-      {/* Harvest Capacity Widget */}
-      <Card className="p-4 md:p-6 mb-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Calendar className="h-5 w-5 text-green-600" />
-          <h2 className="text-lg font-semibold">Kapacita zberu - Tento týždeň</h2>
-        </div>
-
-        {(() => {
-          const capacityData = calculateHarvestCapacity();
-          const hasData = Object.values(capacityData).some(dateData =>
-            Object.keys(dateData).length > 0
-          );
-
-          if (!hasData) {
-            return (
-              <p className="text-sm text-muted-foreground">
-                Žiadne vysadené výsevy na najbližších 7 dní.
-              </p>
-            );
-          }
-
-          return (
-            <div className="space-y-6">
-              {Object.entries(capacityData).map(([date, crops]) => {
-                if (Object.keys(crops).length === 0) return null;
-
-                const dateObj = new Date(date);
-                const dayName = dateObj.toLocaleDateString('sk-SK', { weekday: 'short' });
-                const dateFormatted = dateObj.toLocaleDateString('sk-SK', { day: '2-digit', month: '2-digit' });
-
-                return (
-                  <div key={date} className="border-l-4 border-green-500 pl-4">
-                    <h3 className="font-medium text-foreground mb-3">
-                      {dayName} {dateFormatted}
-                    </h3>
-
-                    <div className="space-y-3">
-                      {Object.values(crops).map((crop, idx) => {
-                        const percentage = crop.capacity > 0
-                          ? (crop.ordered / crop.capacity) * 100
-                          : 0;
-
-                        let barColor = 'bg-green-500';
-                        let statusColor = 'text-green-600';
-                        let statusIcon = '🟢';
-
-                        if (percentage >= 100) {
-                          barColor = 'bg-red-500';
-                          statusColor = 'text-red-600';
-                          statusIcon = '🔴';
-                        } else if (percentage >= 80) {
-                          barColor = 'bg-amber-500';
-                          statusColor = 'text-amber-600';
-                          statusIcon = '🟡';
-                        }
-
-                        return (
-                          <div key={idx} className="bg-muted/30 rounded p-3">
-                            <div className="flex justify-between items-start mb-2">
-                              <p className="font-medium text-sm">
-                                {crop.cropName} - {crop.packageSize}g
-                              </p>
-                              <span className={`text-xs font-semibold ${statusColor}`}>
-                                {percentage.toFixed(0)}%
-                              </span>
-                            </div>
-
-                            {/* Progress bar */}
-                            <div className="w-full bg-muted rounded-full h-2 mb-2">
-                              <div
-                                className={`${barColor} h-2 rounded-full transition-all`}
-                                style={{ width: `${Math.min(percentage, 100)}%` }}
-                              />
-                            </div>
-
-                            <div className="flex justify-between text-xs text-muted-foreground">
-                              <span>Kapacita: <strong>{crop.capacity}g</strong></span>
-                              <span>Objednané: <strong>{crop.ordered}g</strong></span>
-                            </div>
-
-                            {crop.free > 0 ? (
-                              <p className="text-xs text-green-600 mt-1 font-medium">
-                                {statusIcon} Voľné: {crop.free}g (cca {Math.floor(crop.free / crop.packageSize)} balení)
-                              </p>
-                            ) : crop.free === 0 ? (
-                              <p className="text-xs text-amber-600 mt-1 font-medium">
-                                {statusIcon} Plná kapacita - nedávaj viac objednávok!
-                              </p>
-                            ) : (
-                              <p className="text-xs text-red-600 mt-1 font-semibold">
-                                ⚠️ PREKROČENÁ KAPACITA o {Math.abs(crop.free)}g!
-                              </p>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })()}
-      </Card>
-
-      {/* Planting Statistics */}
-      <div className="mb-6">
-        <PlantingStats />
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Today's Tasks with Checkboxes */}
-        <Card className="p-4 md:p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <CheckCircle2 className="h-5 w-5" />
+          {/* ===== HEADER ===== */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-[#f0fdf4] border border-[#bbf7d0] flex items-center justify-center">
+                <Sun className="h-5 w-5 text-[#16a34a]" />
               </div>
-              <div>
-                <h2 className="text-lg font-semibold">Dnešné úlohy</h2>
-                <p className="text-sm text-muted-foreground">
-                  {pendingTasks.length} zostáva, {completedToday.length} hotových
+              <div className="min-w-0">
+                <h1 className="text-lg md:text-xl font-bold text-[#0f172a] truncate">
+                  {greeting}{userName ? `, ${userName}` : ''} 👋
+                </h1>
+                <p className="text-xs md:text-sm text-[#475569]">
+                  Týždeň {formatWeekRange(weekRange.monday)}
                 </p>
               </div>
             </div>
-            <Link to="/harvest">
-              <Button variant="ghost" size="sm">Zber úrody</Button>
-            </Link>
+            {lowStock.length > 0 && (
+              <span className="inline-flex items-center gap-1.5 self-start sm:self-auto h-7 px-2.5 rounded-full bg-[#fef2f2] border border-[#fecaca] text-[#dc2626] text-xs font-bold">
+                <AlertTriangle className="h-3 w-3" />
+                {lowStock.length} {lowStock.length === 1 ? 'upozornenie' : (lowStock.length >= 2 && lowStock.length <= 4 ? 'upozornenia' : 'upozornení')}
+              </span>
+            )}
           </div>
 
-          {dailyTasks.length === 0 ? (
-            <div className="flex flex-col items-center py-8 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success/10 text-success">
-                <CheckCircle2 className="h-6 w-6" />
+          {/* ===== UPOZORNENIA ===== */}
+          {!loading && lowStock.length > 0 && (
+            <div className="bg-white rounded-xl border border-[#fecaca] shadow-sm overflow-hidden">
+              <div className="px-4 py-3 bg-[#fef2f2] border-b border-[#fecaca] flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-[#dc2626]" />
+                <h2 className="text-sm font-bold text-[#0f172a]">Nízke zásoby</h2>
+                <span className="ml-auto text-[11px] text-[#dc2626] font-semibold">{lowStock.length} položiek</span>
               </div>
-              <p className="mt-3 text-sm text-muted-foreground">
-                Na dnes nie sú naplánované žiadne úlohy.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {/* Pending tasks */}
-              {pendingTasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="flex items-center gap-3 rounded-lg border border-border bg-secondary/30 p-3 transition-all hover:bg-secondary/50"
-                >
-                  <Checkbox checked={task.completed} disabled />
-                  <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${getTaskColor(task.type)}`}>
-                    {getTaskIcon(task.type)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{task.title}</p>
-                    {task.subtitle && (
-                      <p className="text-xs text-muted-foreground truncate">{task.subtitle}</p>
-                    )}
-                  </div>
-                  <Badge variant="outline" className="text-xs hidden sm:inline-flex">
-                    {TASK_TYPE_LABELS[task.type]}
-                  </Badge>
-                </div>
-              ))}
-
-              {/* Completed tasks today */}
-              {completedToday.length > 0 && (
-                <div className="pt-3 border-t border-border mt-3">
-                  <p className="text-xs text-muted-foreground mb-2">Dokončené dnes</p>
-                  {completedToday.map((task) => (
-                    <div
-                      key={task.id}
-                      className="flex items-center gap-3 rounded-lg p-3 opacity-60"
+              <div className="divide-y divide-[#fee2e2]">
+                {lowStock.slice(0, 6).map(item => {
+                  const Icon = item.category === 'seeds' ? Sprout
+                    : item.category === 'packaging' ? Package
+                    : item.category === 'substrate' ? Layers
+                    : item.category === 'labels' ? Tag
+                    : ShoppingBag;
+                  const linkTab = item.category === 'seeds' ? 'seeds'
+                    : item.category === 'packaging' ? 'packaging'
+                    : item.category === 'substrate' ? 'substrate'
+                    : item.category === 'labels' ? 'labels'
+                    : 'consumables';
+                  const categoryLabel = item.category === 'seeds' ? 'Osivo'
+                    : item.category === 'packaging' ? 'Obaly'
+                    : item.category === 'substrate' ? 'Substrát'
+                    : item.category === 'labels' ? 'Etikety'
+                    : 'Spotrebný materiál';
+                  return (
+                    <Link
+                      key={`${item.category}-${item.id}`}
+                      to={`/inventory?tab=${linkTab}`}
+                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#fef2f2] transition-colors"
                     >
-                      <Checkbox checked disabled />
-                      <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${getTaskColor(task.type)}`}>
-                        {getTaskIcon(task.type)}
+                      <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-[#fef2f2] border border-[#fecaca] flex items-center justify-center">
+                        <Icon className="h-4 w-4 text-[#dc2626]" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium line-through truncate">{task.title}</p>
-                        {task.subtitle && (
-                          <p className="text-xs text-muted-foreground truncate">{task.subtitle}</p>
-                        )}
+                        <p className="text-sm font-bold text-[#0f172a] truncate">{item.name}</p>
+                        <p className="text-[11px] text-[#475569]">
+                          {categoryLabel} · zostáva <span className="font-bold text-[#dc2626]">{item.quantity}{item.unit}</span> z min. {item.minStock}{item.unit}
+                        </p>
                       </div>
+                      <ArrowRight className="h-3.5 w-3.5 text-[#94a3b8] flex-shrink-0" />
+                    </Link>
+                  );
+                })}
+                {lowStock.length > 6 && (
+                  <Link to="/inventory" className="block px-4 py-2.5 text-center text-xs font-semibold text-[#dc2626] hover:bg-[#fef2f2] transition-colors">
+                    Zobraziť všetkých {lowStock.length} →
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ===== TRŽBY + OBJEDNÁVKY + STAV ===== */}
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="bg-white rounded-xl border border-[#cbd5e1] shadow-sm p-4">
+                  <Skeleton className="h-5 w-24 mb-3" />
+                  <Skeleton className="h-8 w-32 mb-2" />
+                  <Skeleton className="h-3 w-40" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+
+              {/* === Karta 1: Tržby === */}
+              <div className="bg-white rounded-xl border border-[#cbd5e1] shadow-sm p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-[#f0fdf4] border border-[#bbf7d0] flex items-center justify-center">
+                      <Euro className="h-4 w-4 text-[#16a34a]" />
                     </div>
+                    <h3 className="text-xs font-bold text-[#475569] uppercase tracking-wide">Tržby tento týždeň</h3>
+                  </div>
+                </div>
+                <div className="flex items-end justify-between gap-2 mb-3">
+                  <p className="text-2xl font-bold text-[#0f172a]">{formatEur(revenueWeek.total)}</p>
+                  <Sparkline data={sparkRevenueData} color="#16a34a" />
+                </div>
+                <div className="space-y-1 mb-2">
+                  <RevenueTypeRow label="Domáci" value={revenueWeek.home} total={revenueWeek.total} color="#16a34a" />
+                  <RevenueTypeRow label="Gastro" value={revenueWeek.gastro} total={revenueWeek.total} color="#2563eb" />
+                  <RevenueTypeRow label="VO" value={revenueWeek.wholesale} total={revenueWeek.total} color="#7c3aed" />
+                </div>
+                <div className="pt-2 border-t border-[#e2e8f0] flex items-center justify-between text-xs">
+                  <span className="text-[#475569]">vs. minulý týždeň</span>
+                  <ComparisonBadge current={revenueWeek.total} previous={revenuePrevWeek.total} formatAbs={formatEur} />
+                </div>
+              </div>
+
+              {/* === Karta 2: Objednávky === */}
+              <div className="bg-white rounded-xl border border-[#cbd5e1] shadow-sm p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-[#dbeafe] border border-[#bfdbfe] flex items-center justify-center">
+                      <ShoppingCart className="h-4 w-4 text-[#2563eb]" />
+                    </div>
+                    <h3 className="text-xs font-bold text-[#475569] uppercase tracking-wide">Objednávky tento týždeň</h3>
+                  </div>
+                </div>
+                <div className="flex items-end justify-between gap-2 mb-3">
+                  <p className="text-2xl font-bold text-[#0f172a]">{ordersWeek.total}</p>
+                  <Sparkline data={sparkOrdersData} color="#2563eb" />
+                </div>
+                <div className="space-y-1 mb-2">
+                  <OrdersTypeRow label="Domáci" value={ordersWeek.home} total={ordersWeek.total} color="#16a34a" />
+                  <OrdersTypeRow label="Gastro" value={ordersWeek.gastro} total={ordersWeek.total} color="#2563eb" />
+                  <OrdersTypeRow label="VO" value={ordersWeek.wholesale} total={ordersWeek.total} color="#7c3aed" />
+                </div>
+                <div className="pt-2 border-t border-[#e2e8f0] flex items-center justify-between text-xs">
+                  <span className="text-[#475569]">vs. minulý týždeň</span>
+                  <ComparisonBadge current={ordersWeek.total} previous={ordersPrevWeek.total} />
+                </div>
+              </div>
+
+              {/* === Karta 3: Stav === */}
+              <div className="bg-white rounded-xl border border-[#cbd5e1] shadow-sm p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-[#fef3c7] border border-[#fde68a] flex items-center justify-center">
+                      <Activity className="h-4 w-4 text-[#d97706]" />
+                    </div>
+                    <h3 className="text-xs font-bold text-[#475569] uppercase tracking-wide">Stav objednávok</h3>
+                  </div>
+                </div>
+                {statusCounts.length === 0 ? (
+                  <p className="text-xs text-[#94a3b8] mb-3">Žiadne objednávky tento týždeň.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {statusCounts.sort((a, b) => b.count - a.count).map(s => {
+                      const cfg = STATUS_LABELS[s.status] || { label: s.status, bg: '#f1f5f9', fg: '#475569' };
+                      return (
+                        <span
+                          key={s.status}
+                          className="inline-flex items-center gap-1 h-6 px-2 rounded-full text-[10px] font-bold"
+                          style={{ backgroundColor: cfg.bg, color: cfg.fg }}
+                        >
+                          {cfg.label} · {s.count}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+                <div className="pt-2 border-t border-[#e2e8f0] space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#475569] flex items-center gap-1.5">
+                      <Users className="h-3 w-3" />
+                      Aktívni zákazníci
+                    </span>
+                    <span className="font-bold text-[#0f172a]">{activeCustomers}</span>
+                  </div>
+                  {nextDeliveryToday && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#475569] flex items-center gap-1.5">
+                        <Truck className="h-3 w-3" />
+                        Dnes dodávka
+                      </span>
+                      <span className="font-bold text-[#0f172a] truncate ml-2">{nextDeliveryToday}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ===== KAPACITA ZBERU ===== */}
+          {loading ? (
+            <div className="bg-white rounded-xl border border-[#cbd5e1] shadow-sm p-4">
+              <Skeleton className="h-6 w-48 mb-3" />
+              <div className="grid grid-cols-3 gap-3 mb-3">
+                {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-16" />)}
+              </div>
+              <Skeleton className="h-3 w-full" />
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-[#cbd5e1] shadow-sm p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-[#f0fdf4] border border-[#bbf7d0] flex items-center justify-center">
+                    <Activity className="h-4 w-4 text-[#16a34a]" />
+                  </div>
+                  <h3 className="text-sm font-bold text-[#0f172a]">Kapacita zberu tento týždeň</h3>
+                </div>
+                <Link to="/planting" className="text-xs font-semibold text-[#16a34a] hover:underline">
+                  Plán →
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                <div className="bg-[#f0fdf4] rounded-lg border border-[#bbf7d0] p-2.5">
+                  <p className="text-[10px] uppercase tracking-wide text-[#475569] font-semibold mb-0.5">Posadené</p>
+                  <p className="text-lg font-bold text-[#16a34a]">{Math.round(plantedGrams)}g</p>
+                  <p className="text-[10px] text-[#475569]">odhadovaný výnos</p>
+                </div>
+                <div className="bg-[#dbeafe] rounded-lg border border-[#bfdbfe] p-2.5">
+                  <p className="text-[10px] uppercase tracking-wide text-[#475569] font-semibold mb-0.5">Objednané</p>
+                  <p className="text-lg font-bold text-[#2563eb]">{Math.round(orderedGramsThisWeek)}g</p>
+                  <p className="text-[10px] text-[#475569]">požiadavka zákazníkov</p>
+                </div>
+                <div className={cn(
+                  'rounded-lg border p-2.5',
+                  freeGrams > 0 ? 'bg-[#f0fdf4] border-[#bbf7d0]' : 'bg-[#fef2f2] border-[#fecaca]'
+                )}>
+                  <p className="text-[10px] uppercase tracking-wide text-[#475569] font-semibold mb-0.5">Voľné na predaj</p>
+                  <p className={cn('text-lg font-bold', freeGrams > 0 ? 'text-[#16a34a]' : 'text-[#dc2626]')}>
+                    {Math.round(freeGrams)}g
+                  </p>
+                  <p className="text-[10px] text-[#475569]">
+                    {freeGrams > 0 ? 'môžeš predať' : plantedGrams === 0 ? 'nič nie je posadené' : 'preplnené'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Progress bar */}
+              <div>
+                <div className="flex items-center justify-between text-[11px] mb-1">
+                  <span className="text-[#475569] font-semibold">Vyťaženie kapacity</span>
+                  <span className={cn(
+                    'font-bold',
+                    orderedPct < 80 ? 'text-[#16a34a]' : orderedPct < 100 ? 'text-[#d97706]' : 'text-[#dc2626]'
+                  )}>
+                    {orderedPct}%
+                  </span>
+                </div>
+                <div className="h-2 bg-[#f1f5f9] rounded-full overflow-hidden">
+                  <div
+                    className={cn(
+                      'h-full transition-all',
+                      orderedPct < 80 ? 'bg-[#16a34a]' : orderedPct < 100 ? 'bg-[#f59e0b]' : 'bg-[#dc2626]'
+                    )}
+                    style={{ width: `${Math.min(100, orderedPct)}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ===== PREDPOKLADANÝ VÝNOS ===== */}
+          {loading ? (
+            <div className="bg-white rounded-xl border border-[#cbd5e1] shadow-sm p-4">
+              <Skeleton className="h-6 w-56 mb-3" />
+              {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-10 mb-2" />)}
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-[#cbd5e1] shadow-sm overflow-hidden">
+              <div className="px-4 py-3 border-b border-[#e2e8f0] bg-[#f8fafc] flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-[#f0fdf4] border border-[#bbf7d0] flex items-center justify-center">
+                    <Sprout className="h-4 w-4 text-[#16a34a]" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-[#0f172a]">Predpokladaný výnos</h3>
+                    <p className="text-[11px] text-[#475569]">
+                      Celkom <span className="font-bold text-[#16a34a]">{Math.round(totalYieldGrams)}g</span> z {harvestPlans.length} {harvestPlans.length === 1 ? 'výsevu' : harvestPlans.length >= 2 && harvestPlans.length <= 4 ? 'výsevov' : 'výsevov'}
+                    </p>
+                  </div>
+                </div>
+                <Link to="/planting?tab=week" className="text-xs font-semibold text-[#16a34a] hover:underline flex-shrink-0">
+                  Týždenný plán →
+                </Link>
+              </div>
+              {harvestPlans.length === 0 ? (
+                <div className="px-4 py-8 flex flex-col items-center justify-center text-center">
+                  <div className="w-12 h-12 rounded-xl bg-[#f1f5f9] flex items-center justify-center mb-2">
+                    <Sprout className="h-6 w-6 text-[#94a3b8]" />
+                  </div>
+                  <p className="text-sm font-bold text-[#0f172a] mb-1">Žiadny zber v tomto týždni</p>
+                  <p className="text-xs text-[#475569]">Nasaď výsevy s `expected_harvest_date` v tomto týždni.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-[#e2e8f0]">
+                  {harvestPlans.map(plan => (
+                    <Link
+                      key={plan.id}
+                      to={`/planting?planId=${plan.id}`}
+                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#f8fafc] transition-colors"
+                    >
+                      <div
+                        className="flex-shrink-0 w-2.5 h-2.5 rounded-full"
+                        style={{ backgroundColor: plan.cropColor }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-[#0f172a] truncate">{plan.cropName}</p>
+                        <p className="text-[11px] text-[#475569]">
+                          {plan.tray_count} × {plan.tray_size}
+                          {plan.status === 'in_progress' && (
+                            <span className="ml-1.5 inline-flex items-center h-4 px-1 rounded text-[9px] font-bold bg-[#dcfce7] text-[#166534]">
+                              POSADENÉ
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <div className="flex-shrink-0 flex items-center gap-2">
+                        <span className="text-sm font-bold text-[#16a34a]">{Math.round(plan.yieldGrams)}g</span>
+                        <span className="inline-flex items-center h-5 px-1.5 rounded-full bg-[#f1f5f9] text-[#475569] text-[10px] font-bold whitespace-nowrap">
+                          {formatHarvestDate(plan.expected_harvest_date)}
+                        </span>
+                      </div>
+                    </Link>
                   ))}
                 </div>
               )}
             </div>
           )}
-        </Card>
 
-        {/* Production Overview */}
-        <ProductionOverview />
+          {loading && (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-4 w-4 animate-spin text-[#16a34a]" />
+              <span className="ml-2 text-xs text-[#475569]">Načítavam dáta...</span>
+            </div>
+          )}
+
+        </div>
       </div>
     </MainLayout>
+  );
+};
+
+// ===================== HELPERS =====================
+
+const formatHarvestDate = (dateStr: string): string => {
+  const d = new Date(dateStr);
+  const SK_DAYS = ['Ne', 'Po', 'Ut', 'St', 'Št', 'Pi', 'So'];
+  return `${SK_DAYS[d.getDay()]} ${d.getDate()}.`;
+};
+
+// ===================== TYPE ROW SUB-COMPONENTS =====================
+
+interface RevenueTypeRowProps {
+  label: string;
+  value: number;
+  total: number;
+  color: string;
+}
+
+const RevenueTypeRow = ({ label, value, total, color }: RevenueTypeRowProps) => {
+  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+  return (
+    <div className="flex items-center gap-2 text-[11px]">
+      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+      <span className="text-[#475569] w-14 flex-shrink-0">{label}</span>
+      <span className="font-bold text-[#0f172a] flex-1">{formatEur(value)}</span>
+      <span className="text-[#94a3b8]">{pct}%</span>
+    </div>
+  );
+};
+
+interface OrdersTypeRowProps {
+  label: string;
+  value: number;
+  total: number;
+  color: string;
+}
+
+const OrdersTypeRow = ({ label, value, total, color }: OrdersTypeRowProps) => {
+  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+  return (
+    <div className="flex items-center gap-2 text-[11px]">
+      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+      <span className="text-[#475569] w-14 flex-shrink-0">{label}</span>
+      <span className="font-bold text-[#0f172a] flex-1">{value}</span>
+      <span className="text-[#94a3b8]">{pct}%</span>
+    </div>
   );
 };
 
