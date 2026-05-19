@@ -19,7 +19,6 @@ import BlendsPage from "./pages/BlendsPage";
 import InventoryPage from "./pages/InventoryPage";
 import OtherInventoryPage from "./pages/OtherInventoryPage";
 import ReportsPage from "./pages/ReportsPage";
-import CalendarPage from "./pages/CalendarPage";
 import SettingsPage from "./pages/SettingsPage";
 import DeliveryPage from "./pages/DeliveryPage";
 import PrepPlantingPage from "./pages/PrepPlantingPage";
@@ -60,7 +59,7 @@ const App = () => (
                 <Route path="/prep-packaging" element={<ProtectedRoute><PrepPackagingPage /></ProtectedRoute>} />
                 <Route path="/harvest-packing" element={<ProtectedRoute><HarvestPackingPage /></ProtectedRoute>} />
                 <Route path="/delivery" element={<ProtectedRoute><DeliveryPage /></ProtectedRoute>} />
-                <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
+                <Route path="/calendar" element={<Navigate to="/planting" replace />} />
 
                 {/* Sklad — jedna stránka so záložkami */}
                 <Route path="/inventory" element={<ProtectedRoute><InventoryPage /></ProtectedRoute>} />

@@ -20,7 +20,6 @@ import {
   Truck,
   Warehouse,
   Receipt,
-  Calendar,
   FileText,
   Settings,
   LogOut,
@@ -51,7 +50,7 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
     location.pathname.startsWith('/costs')
   );
 
-  const PREHLAD_PATHS = ['/', '/today', '/calendar'];
+  const PREHLAD_PATHS = ['/', '/today'];
   const PRODUKCIA_PATHS = ['/planting', '/prep-planting', '/prep-packaging', '/harvest-packing', '/delivery'];
 
   const [isPrehladOpen, setIsPrehladOpen] = useState(() => {
@@ -185,8 +184,7 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
               {[
                 { id: 'dashboard', name: 'Dashboard', href: '/', icon: Home },
                 { id: 'today', name: 'Dnešné úlohy', href: '/today', icon: CheckSquare },
-                { id: 'calendar', name: 'Kalendár', href: '/calendar', icon: Calendar },
-              ].filter(item => isItemVisible(item.id)).map((item) => {
+                              ].filter(item => isItemVisible(item.id)).map((item) => {
                 const isActive = location.pathname === item.href;
                 return (
                   <Link
