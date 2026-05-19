@@ -8,6 +8,7 @@ import { WorkerPermissionsSettings } from '@/components/settings/WorkerPermissio
 import { SidebarManagement } from '@/components/settings/SidebarManagement';
 import { UsersManagement } from '@/components/settings/UsersManagement';
 import { ShelfConfigSettings } from '@/components/settings/ShelfConfigSettings';
+import { PackagingMappings } from '@/components/settings/PackagingMappings';
 import { Settings, Truck, Leaf, Users, Shield } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
@@ -62,18 +63,21 @@ const SettingsPage = () => {
       {/* Tab content */}
       <div className="space-y-3">
 
+        {/* Rozvoz: Dni → Nastavenia → Výnimky */}
         {activeTab === 'delivery' && (
           <>
-            <DeliverySettings />
             <DeliveryDaysSettings />
+            <DeliverySettings />
+            <DeliveryExceptionsSettings />
           </>
         )}
 
+        {/* Produkcia: Dni zberu → Priradenie obalov → Regály → DPH */}
         {activeTab === 'production' && (
           <>
             <HarvestSettings />
+            <PackagingMappings />
             <ShelfConfigSettings />
-            <DeliveryExceptionsSettings />
             <VATSettings />
           </>
         )}
