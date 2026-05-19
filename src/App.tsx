@@ -23,12 +23,7 @@ import SettingsPage from "./pages/SettingsPage";
 import DeliveryPage from "./pages/DeliveryPage";
 import PrepPlantingPage from "./pages/PrepPlantingPage";
 import PrepPackagingPage from "./pages/PrepPackagingPage";
-import FuelCostsPage from "./pages/FuelCostsPage";
-import AdblueCostsPage from "./pages/AdblueCostsPage";
-import ElectricityCostsPage from "./pages/ElectricityCostsPage";
-import WaterCostsPage from "./pages/WaterCostsPage";
-import CarServiceCostsPage from "./pages/CarServiceCostsPage";
-import OtherCostsPage from "./pages/OtherCostsPage";
+import CostsPage from "./pages/CostsPage";
 import AuthPage from "./pages/AuthPage";
 import UsersPage from "./pages/UsersPage";
 import PricesPage from "./pages/PricesPage";
@@ -72,12 +67,16 @@ const App = () => (
                 {/* Iné inventory routes ktoré nie sú v novej stránke — ponechané */}
                 <Route path="/inventory/other" element={<ProtectedRoute><OtherInventoryPage /></ProtectedRoute>} />
 
-                <Route path="/costs/fuel" element={<ProtectedRoute><FuelCostsPage /></ProtectedRoute>} />
-                <Route path="/costs/adblue" element={<ProtectedRoute><AdblueCostsPage /></ProtectedRoute>} />
-                <Route path="/costs/electricity" element={<ProtectedRoute><ElectricityCostsPage /></ProtectedRoute>} />
-                <Route path="/costs/water" element={<ProtectedRoute><WaterCostsPage /></ProtectedRoute>} />
-                <Route path="/costs/car-service" element={<ProtectedRoute><CarServiceCostsPage /></ProtectedRoute>} />
-                <Route path="/costs/other" element={<ProtectedRoute><OtherCostsPage /></ProtectedRoute>} />
+                {/* Náklady — jedna stránka so záložkami */}
+                <Route path="/costs" element={<ProtectedRoute><CostsPage /></ProtectedRoute>} />
+                {/* Spätná kompatibilita — staré /costs/* routes redirectujú na nový /costs s ?tab= */}
+                <Route path="/costs/fuel" element={<Navigate to="/costs?tab=fuel" replace />} />
+                <Route path="/costs/adblue" element={<Navigate to="/costs?tab=adblue" replace />} />
+                <Route path="/costs/electricity" element={<Navigate to="/costs?tab=electricity" replace />} />
+                <Route path="/costs/water" element={<Navigate to="/costs?tab=water" replace />} />
+                <Route path="/costs/car-service" element={<Navigate to="/costs?tab=car-service" replace />} />
+                <Route path="/costs/other" element={<Navigate to="/costs?tab=other" replace />} />
+
                 <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
                 <Route path="/prices" element={<ProtectedRoute><PricesPage /></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
@@ -90,6 +89,6 @@ const App = () => (
       </LanguageProvider>
     </QueryClientProvider>
   </ErrorBoundary>
-); 
+);
 
 export default App;

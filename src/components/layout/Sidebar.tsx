@@ -26,10 +26,6 @@ import {
   Shield,
   ChevronDown,
   ChevronRight,
-  Fuel,
-  Droplets,
-  Droplet,
-  Zap,
   Moon
 } from 'lucide-react';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
@@ -46,9 +42,6 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
   const navRef = useRef<HTMLElement>(null);
   const [sidebarSettings, setSidebarSettings] = useState<Record<string, boolean>>({});
   const [settingsLoaded, setSettingsLoaded] = useState(false);
-  const [isCostsOpen, setIsCostsOpen] = useState(
-    location.pathname.startsWith('/costs')
-  );
 
   const PREHLAD_PATHS = ['/', '/today'];
   const PRODUKCIA_PATHS = ['/planting', '/prep-planting', '/prep-packaging', '/harvest-packing', '/delivery'];
@@ -137,17 +130,6 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
     if (Object.keys(sidebarSettings).length === 0) return true; // Default: all visible
     return sidebarSettings[itemId] !== false;
   };
-
-
-  const costsItems = [
-    { name: 'Pohonné hmoty', href: '/costs/fuel', icon: Fuel },
-    { name: 'AdBlue', href: '/costs/adblue', icon: Droplets },
-    { name: 'Voda', href: '/costs/water', icon: Droplet },
-    { name: 'Elektrina', href: '/costs/electricity', icon: Zap },
-    { name: 'Ostatné náklady', href: '/costs/other', icon: Receipt },
-  ];
-
-  const isCostsActive = location.pathname.startsWith('/costs');
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-sidebar border-r border-sidebar-border">
@@ -306,45 +288,20 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
                 );
               })()}
 
-              {/* Náklady s submenu */}
+              {/* Náklady — jedna stránka so záložkami */}
               {isItemVisible('costs') && (
-                <div>
-                  <button
-                    onClick={() => setIsCostsOpen(!isCostsOpen)}
-                    className={cn(
-                      'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] font-medium transition-all duration-200',
-                      isCostsActive
-                        ? 'bg-primary/20 text-primary'
-                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                    )}
-                  >
-                    <Receipt className="h-4 w-4 shrink-0" />
-                    Náklady
-                    <ChevronRight className={cn('ml-auto h-3.5 w-3.5 transition-transform duration-200', isCostsOpen && 'rotate-90')} />
-                  </button>
-                  <div className={cn('overflow-hidden transition-all duration-200 ml-4', isCostsOpen ? 'max-h-60' : 'max-h-0')}>
-                    <div className="space-y-0.5 pt-0.5">
-                      {costsItems.map((item) => {
-                        const isActive = location.pathname === item.href;
-                        return (
-                          <Link
-                            key={item.href}
-                            to={item.href}
-                            className={cn(
-                              'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] font-medium transition-all duration-200',
-                              isActive
-                                ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                                : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                            )}
-                          >
-                            <item.icon className="h-3.5 w-3.5 shrink-0" />
-                            {item.name}
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
+                <Link
+                  to="/costs"
+                  className={cn(
+                    'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] font-medium transition-all duration-200',
+                    location.pathname.startsWith('/costs')
+                      ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
+                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                  )}
+                >
+                  <Receipt className="h-4 w-4 shrink-0" />
+                  Náklady
+                </Link>
               )}
 
               {/* Reporty */}
