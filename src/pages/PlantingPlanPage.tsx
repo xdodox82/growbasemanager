@@ -409,7 +409,7 @@ const PlantingPlanPage = () => {
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, days_to_harvest, days_in_darkness, days_on_light, tray_configs, color, category, reserved_percentage, stacking_height')
+        .select('id, name, days_to_harvest, days_to_germination, days_in_darkness, days_on_light, tray_configs, color, category, reserved_percentage, stacking_height')
         .order('name');
       if (error) throw error;
       setCrops(data || []);
@@ -455,7 +455,7 @@ const PlantingPlanPage = () => {
           customers:customer_id ( id, customer_type ),
           order_items (
             crop_id, blend_id, quantity, packaging_size,
-            crops:crop_id ( id, name, days_to_harvest, days_in_darkness, days_on_light, tray_configs, reserved_percentage, color, category )
+            crops:crop_id ( id, name, days_to_harvest, days_to_germination, days_in_darkness, days_on_light, tray_configs, reserved_percentage, color, category )
           )
         `)
         .gte('delivery_date', today)
@@ -476,7 +476,7 @@ const PlantingPlanPage = () => {
           id, order_number, customer_name, delivery_date, status,
           order_items (
             crop_id, quantity, packaging_size,
-            crops:crop_id ( id, name, days_to_harvest, days_in_darkness, days_on_light )
+            crops:crop_id ( id, name, days_to_harvest, days_to_germination, days_in_darkness, days_on_light )
           )
         `)
         .gte('delivery_date', ninetyDaysAgo)
@@ -519,7 +519,7 @@ const PlantingPlanPage = () => {
         .from('planting_plans')
         .select(`
           *,
-          crops:crop_id(id, name, color, days_to_harvest, days_in_darkness, days_on_light, tray_configs, stacking_height)
+          crops:crop_id(id, name, color, days_to_harvest, days_to_germination, days_in_darkness, days_on_light, tray_configs, stacking_height)
         `)
         .gte('expected_harvest_date', startDate)
         .lte('expected_harvest_date', endDate)
@@ -1039,7 +1039,7 @@ const PlantingPlanPage = () => {
             .from('planting_plans')
             .select(`
               *,
-              crops:crop_id(id, name, color, days_to_harvest, days_in_darkness, days_on_light, tray_configs, stacking_height)
+              crops:crop_id(id, name, color, days_to_harvest, days_to_germination, days_in_darkness, days_on_light, tray_configs, stacking_height)
             `)
             .gte('expected_harvest_date', startDate)
             .lte('expected_harvest_date', endDate)
@@ -4321,10 +4321,16 @@ const PlanDetailContent = ({
           <p className="text-sm font-bold text-[#0f172a]">{daysToHarvest} {daysToHarvest === 1 ? 'deň' : (daysToHarvest >= 2 && daysToHarvest <= 4 ? 'dni' : 'dní')}</p>
         </div>
         <div className="bg-[#f8fafc] rounded-lg border border-[#e2e8f0] p-2.5">
-          <p className="text-[10px] uppercase tracking-wide text-[#475569] font-semibold mb-0.5">Klíčenie / Svetlo</p>
-          <p className="text-sm font-bold text-[#0f172a]">
-            {plan.crops?.days_to_germination ?? 0}d / {plan.crops?.days_on_light ?? 0}d
-          </p>
+          <p className="text-[10px] uppercase tracking-wide text-[#475569] font-semibold mb-0.5">Klíčenie</p>
+          <p className="text-sm font-bold text-[#0f172a]">{plan.crops?.days_to_germination ?? 0}d</p>
+        </div>
+        <div className="bg-[#f8fafc] rounded-lg border border-[#e2e8f0] p-2.5">
+          <p className="text-[10px] uppercase tracking-wide text-[#475569] font-semibold mb-0.5">Tma</p>
+          <p className="text-sm font-bold text-[#0f172a]">{plan.crops?.days_in_darkness ?? 0}d</p>
+        </div>
+        <div className="bg-[#f8fafc] rounded-lg border border-[#e2e8f0] p-2.5">
+          <p className="text-[10px] uppercase tracking-wide text-[#475569] font-semibold mb-0.5">Svetlo</p>
+          <p className="text-sm font-bold text-[#0f172a]">{plan.crops?.days_on_light ?? 0}d</p>
         </div>
       </div>
 
