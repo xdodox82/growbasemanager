@@ -1,7 +1,6 @@
 import { useState } from 'react';
 type ViewMode = 'grid' | 'list';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { PageHeader, EmptyState } from '@/components/ui/page-components';
 import { useBlends, useCrops, DbBlend, CropPercentage } from '@/hooks/useSupabaseData';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -9,8 +8,8 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -364,13 +363,17 @@ const BlendsPage = () => {
                   <div className="flex items-center justify-between">
                     <Label>Zloženie mixu *</Label>
                     <div className="flex items-center gap-2">
-                      <Badge 
-                        variant={getTotalPercentage() === 100 ? 'default' : 'destructive'}
-                        className="gap-1"
+                      <span
+                        className={cn(
+                          'inline-flex items-center gap-1 h-6 px-2 rounded-full text-xs font-bold',
+                          getTotalPercentage() === 100
+                            ? 'bg-[#dcfce7] text-[#166534] border border-[#bbf7d0]'
+                            : 'bg-[#fee2e2] text-[#991b1b] border border-[#fecaca]'
+                        )}
                       >
                         <Percent className="h-3 w-3" />
                         {getTotalPercentage()}%
-                      </Badge>
+                      </span>
                       <button type="button" onClick={addCropToBlend} disabled={crops.length === 0} className="flex items-center gap-1 h-8 px-3 rounded-lg border border-[#cbd5e1] bg-white text-xs font-medium text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] disabled:opacity-50 transition-colors">
                         <Plus className="h-3 w-3" />
                         Plodina
@@ -798,7 +801,9 @@ const BlendsPage = () => {
                       />
                       <span className="font-medium">{getCropName(blendCrop.cropId, blendCrop.isBlend)}</span>
                       {blendCrop.isBlend && (
-                        <Badge variant="outline" className="text-xs">Mix</Badge>
+                        <span className="inline-flex items-center h-5 px-1.5 rounded-full text-[10px] font-bold bg-[#ede9fe] text-[#7c3aed] border border-[#ddd6fe]">
+                          Mix
+                        </span>
                       )}
                     </div>
                     <div className="flex items-center gap-1 text-sm font-semibold">
