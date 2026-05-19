@@ -587,14 +587,21 @@ const PlantingPlanPage = () => {
         });
       }
       const group = grouped.get(key)!;
-      group.trays.push({
-        size: plan.tray_size,
-        count: plan.tray_count,
-        seeds_per_tray: plan.seed_amount_grams,
-        total_seeds: plan.total_seed_grams,
-        plan_id: plan.id,
-        is_manual: plan.is_manual === true,
-      });
+      // Merge tácky rovnakej veľkosti namiesto duplikátov
+      const existingTray = group.trays.find(t => t.size === plan.tray_size && t.is_manual === (plan.is_manual === true));
+      if (existingTray) {
+        existingTray.count += plan.tray_count;
+        existingTray.total_seeds = (existingTray.total_seeds || 0) + plan.total_seed_grams;
+      } else {
+        group.trays.push({
+          size: plan.tray_size,
+          count: plan.tray_count,
+          seeds_per_tray: plan.seed_amount_grams,
+          total_seeds: plan.total_seed_grams,
+          plan_id: plan.id,
+          is_manual: plan.is_manual === true,
+        });
+      }
       group.total_seed_grams += plan.total_seed_grams;
       if (plan.is_manual) group.is_manual = true;
       if (plan.actual_yield_grams != null) {
@@ -4316,7 +4323,7 @@ const PlanDetailContent = ({
         <div className="bg-[#f8fafc] rounded-lg border border-[#e2e8f0] p-2.5">
           <p className="text-[10px] uppercase tracking-wide text-[#475569] font-semibold mb-0.5">Klíčenie / Svetlo</p>
           <p className="text-sm font-bold text-[#0f172a]">
-            {plan.crops?.days_in_darkness ?? 2}d / {plan.crops?.days_on_light ?? (daysToHarvest - (plan.crops?.days_in_darkness ?? 2))}d
+            {plan.crops?.days_to_germination ?? 0}d / {plan.crops?.days_on_light ?? 0}d
           </p>
         </div>
       </div>
@@ -4900,7 +4907,9 @@ const OrderDetailDialog = ({ orderId, onClose, formatDate }: OrderDetailDialogPr
                   <StickyNote className="h-3 w-3 text-[#d97706]" />
                   Poznámka
                 </h4>
-                <p className="text-xs text-[#475569] whitespace-pre-wrap">{order.notes}</p>
+                <p className="text-xs text-[#475569] whitespace-pre-wrap">
+                  {order.notes?.split('\n').filter((line: string) => !line.trim().startsWith('freq:')).join('\n')}
+                </p>
               </div>
             )}
           </div>
