@@ -587,11 +587,16 @@ const PlantingPlanPage = () => {
         });
       }
       const group = grouped.get(key)!;
-      // Merge tácky rovnakej veľkosti namiesto duplikátov
-      const existingTray = group.trays.find(t => t.size === plan.tray_size && t.is_manual === (plan.is_manual === true));
+      // Merge tácky rovnakej veľkosti BEZ ohľadu na is_manual.
+      // Predtým bol filter `t.is_manual === (plan.is_manual === true)` ktorý spôsoboval
+      // zdvojené "1 × M" v UI keď bol jeden plán auto a druhý manuálny.
+      // Pre vizuálne odlíšenie sa is_manual=true propaguje do mergeného záznamu (badge sa zobrazí).
+      const existingTray = group.trays.find(t => t.size === plan.tray_size);
       if (existingTray) {
         existingTray.count += plan.tray_count;
         existingTray.total_seeds = (existingTray.total_seeds || 0) + plan.total_seed_grams;
+        // Ak je hociktorý zo zlúčených manuálny, výsledná tácka je tiež označená ako manuálna
+        if (plan.is_manual === true) existingTray.is_manual = true;
       } else {
         group.trays.push({
           size: plan.tray_size,
@@ -612,7 +617,22 @@ const PlantingPlanPage = () => {
         group.source_orders = [...new Set([...existing, ...plan.source_orders])];
       }
     });
-    return Array.from(grouped.values());
+
+    const result = Array.from(grouped.values());
+
+    // Diagnostické logy — pre každý grouped plan vypíš plan.trays.
+    // Pomôže lokalizovať zdroj zdvojených tácok ak by problém pretrvával.
+    if (result.length > 0) {
+      console.debug('[groupedPlans] count=' + result.length + ' merged groups');
+      result.forEach(g => {
+        const traysDump = g.trays.map(t => `${t.count}×${t.size}${t.is_manual ? '(M)' : ''}`).join('+');
+        console.debug(
+          `[groupedPlans] ${g.crops?.name || g.crop_id} | sow=${g.sow_date} | trays=[${traysDump}] | totalSeeds=${g.total_seed_grams}g`
+        );
+      });
+    }
+
+    return result;
   }, [plans]);
 
   const filteredPlans = useMemo(() => {
@@ -974,10 +994,11 @@ const PlantingPlanPage = () => {
       if (blendIds.length > 0) {
         const { data: blends, error: blendsError } = await supabase
           .from('blends')
-          .select('id, crop_ids, crop_percentages')
+          .select('id, name, crop_ids, crop_percentages')
           .in('id', blendIds);
         if (blendsError) throw blendsError;
         (blends || []).forEach((b: any) => { blendsMap[b.id] = b; });
+        console.debug(`[syncPlansFromOrders] Načítaných ${(blends || []).length} mixov pre expand`);
 
         // Fetchni products pre všetky plodiny v mixoch
         const allBlendCropIds = Array.from(new Set(
@@ -1158,22 +1179,51 @@ const PlantingPlanPage = () => {
             item.packaging_size?.replace(/[^0-9.]/g, '') || '0'
           ) * (item.quantity || 0);
 
-          // crop_percentages je jsonb: [{cropId, percentage}]
-          const percentages = Array.isArray(blend.crop_percentages)
+          // crop_percentages je jsonb. Štruktúra môže byť rôzna:
+          // - [{cropId, percentage}]  (camelCase)
+          // - [{crop_id, percentage}] (snake_case)
+          // Niekedy zabalené v stringu - parse JSON.
+          let percentages: any[] = Array.isArray(blend.crop_percentages)
             ? blend.crop_percentages
             : (typeof blend.crop_percentages === 'string'
               ? (() => { try { return JSON.parse(blend.crop_percentages); } catch { return []; } })()
               : []);
 
+          // Fallback: ak crop_percentages je prázdne ale blend.crop_ids existuje,
+          // rozdeľ rovnakými dielmi medzi všetky plodiny v mixe.
+          if (percentages.length === 0 && Array.isArray(blend.crop_ids) && blend.crop_ids.length > 0) {
+            const equalPct = 100 / blend.crop_ids.length;
+            percentages = blend.crop_ids.map((cid: string) => ({ cropId: cid, percentage: equalPct }));
+            console.debug(`[blend-expand] ${blend.name || blend.id}: crop_percentages prázdne, fallback na rovné rozdelenie ${equalPct.toFixed(1)}% × ${blend.crop_ids.length}`);
+          }
+
+          console.debug(
+            `[blend-expand] ${blend.name || blend.id} | order=${order.id?.slice(0, 8)} | totalGrams=${totalGrams.toFixed(1)}g | percentages=`,
+            percentages
+          );
+
           percentages.forEach((cp: any) => {
-            const crop = blendCropsMap[cp.cropId];
-            if (!crop) return;
+            // Podpor oba kľúče: cropId (camelCase) aj crop_id (snake_case)
+            const cropId = cp.cropId || cp.crop_id;
+            if (!cropId) {
+              console.warn('[blend-expand] crop_percentages položka bez cropId/crop_id:', cp);
+              return;
+            }
+
+            const crop = blendCropsMap[cropId];
+            if (!crop) {
+              console.warn(`[blend-expand] Plodina ${cropId} z mixu ${blend.name || blend.id} nie je v blendCropsMap — preskakujem`);
+              return;
+            }
 
             const pct = typeof cp.percentage === 'number' ? cp.percentage : parseFloat(cp.percentage || '0');
-            if (!pct || pct <= 0) return;
+            if (!pct || pct <= 0) {
+              console.warn(`[blend-expand] Neplatné percento ${cp.percentage} pre plodinu ${crop.name || cropId}`);
+              return;
+            }
 
             const cropGrams = totalGrams * (pct / 100);
-            const key = `${cp.cropId}_${harvestDate}`;
+            const key = `${cropId}_${harvestDate}`;
 
             if (!groups.has(key)) {
               groups.set(key, {
@@ -1186,6 +1236,8 @@ const PlantingPlanPage = () => {
             const g = groups.get(key)!;
             g.totalRequired += cropGrams;
             if (!g.orderIds.includes(order.id)) g.orderIds.push(order.id);
+
+            console.debug(`[blend-expand] + ${crop.name || cropId}: ${cropGrams.toFixed(1)}g (${pct}% z ${totalGrams.toFixed(1)}g) → groupTotal=${g.totalRequired.toFixed(1)}g`);
           });
         }
       });
@@ -4507,14 +4559,48 @@ const CUSTOMER_TYPE_TABS: Array<{ id: CustomerTypeFilter; label: string }> = [
   { id: 'wholesale', label: 'VO' },
 ];
 
-// Zistí gramáž objednávky pre konkrétnu plodinu — sčíta order_items kde crop_id sedí.
-// Mixy (blend_id != null) sa do tejto sumy nezarátajú, lebo ich obsah by sa musel rozpočítať
-// cez crop_percentages a nemáme tu blends data; rátame ich len ako "súčasť mixu".
-const calcOrderGramsForCrop = (order: OrderForPlanning, cropId: string): number => {
+// Zistí gramáž objednávky pre konkrétnu plodinu. Sčíta:
+// 1) Priame položky s crop_id === cropId
+// 2) Položky s blend_id, kde mix obsahuje cropId — vypočíta gramáž podľa crop_percentages.
+//    blendsMap obsahuje fetchnuté blendy s ich crop_percentages.
+const calcOrderGramsForCrop = (
+  order: OrderForPlanning,
+  cropId: string,
+  blendsMap: Record<string, any> = {}
+): number => {
   return (order.order_items || []).reduce((sum: number, it: any) => {
-    if (it.crop_id !== cropId) return sum;
-    const g = parseFloat((it.packaging_size || '').replace(/[^0-9.]/g, '') || '0');
-    return sum + g * (it.quantity || 0);
+    const itemGrams = parseFloat((it.packaging_size || '').replace(/[^0-9.]/g, '') || '0') * (it.quantity || 0);
+
+    // Priama plodina
+    if (it.crop_id === cropId) {
+      return sum + itemGrams;
+    }
+
+    // Mix — expanduj a započítaj danú plodinu
+    if (it.blend_id && blendsMap[it.blend_id]) {
+      const blend = blendsMap[it.blend_id];
+      let percentages: any[] = Array.isArray(blend.crop_percentages)
+        ? blend.crop_percentages
+        : (typeof blend.crop_percentages === 'string'
+          ? (() => { try { return JSON.parse(blend.crop_percentages); } catch { return []; } })()
+          : []);
+
+      // Fallback: rovné rozdelenie ak crop_percentages chýba
+      if (percentages.length === 0 && Array.isArray(blend.crop_ids) && blend.crop_ids.length > 0) {
+        const equalPct = 100 / blend.crop_ids.length;
+        percentages = blend.crop_ids.map((cid: string) => ({ cropId: cid, percentage: equalPct }));
+      }
+
+      const cp = percentages.find((p: any) => (p.cropId || p.crop_id) === cropId);
+      if (cp) {
+        const pct = typeof cp.percentage === 'number' ? cp.percentage : parseFloat(cp.percentage || '0');
+        if (pct > 0) {
+          return sum + itemGrams * (pct / 100);
+        }
+      }
+    }
+
+    return sum;
   }, 0);
 };
 
@@ -4532,6 +4618,40 @@ const SourceOrdersSection = ({ orders, cropId, formatDate }: SourceOrdersSection
   const [activeTab, setActiveTab] = useState<CustomerTypeFilter>('all');
   // Order detail dialog state — interný v sekcii, otvára sa pri kliknutí na riadok
   const [openOrderId, setOpenOrderId] = useState<string | null>(null);
+  // Blends map — fetchneme všetky blend_id zo source orders aby sme vedeli vypočítať
+  // gramáž z mixov pre zobrazenú plodinu (calcOrderGramsForCrop).
+  const [blendsMap, setBlendsMap] = useState<Record<string, any>>({});
+
+  useEffect(() => {
+    // Zozbieraj všetky blend_id zo source objednávok
+    const blendIds = Array.from(new Set(
+      orders.flatMap(o =>
+        (o.order_items || [])
+          .filter((it: any) => it.blend_id)
+          .map((it: any) => it.blend_id as string)
+      )
+    ));
+    if (blendIds.length === 0) {
+      setBlendsMap({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('blends')
+        .select('id, name, crop_ids, crop_percentages')
+        .in('id', blendIds);
+      if (cancelled) return;
+      if (error) {
+        console.warn('[SourceOrdersSection] blends fetch failed:', error);
+        return;
+      }
+      const map: Record<string, any> = {};
+      (data || []).forEach((b: any) => { map[b.id] = b; });
+      setBlendsMap(map);
+    })();
+    return () => { cancelled = true; };
+  }, [orders]);
 
   // Klasifikuj objednávky podľa customer_type
   const classified = useMemo(() => {
@@ -4547,17 +4667,17 @@ const SourceOrdersSection = ({ orders, cropId, formatDate }: SourceOrdersSection
     return { home, gastro, wholesale };
   }, [orders]);
 
-  // Súhrn gramov podľa typu — len pre danú plodinu (cropId)
+  // Súhrn gramov podľa typu — pre danú plodinu (cropId), vrátane podielu z mixov
   const totals = useMemo(() => {
     const sumGrams = (list: OrderForPlanning[]) =>
-      list.reduce((acc, o) => acc + calcOrderGramsForCrop(o, cropId), 0);
+      list.reduce((acc, o) => acc + calcOrderGramsForCrop(o, cropId, blendsMap), 0);
     return {
       home: Math.round(sumGrams(classified.home)),
       gastro: Math.round(sumGrams(classified.gastro)),
       wholesale: Math.round(sumGrams(classified.wholesale)),
       all: Math.round(sumGrams(orders)),
     };
-  }, [classified, orders, cropId]);
+  }, [classified, orders, cropId, blendsMap]);
 
   // Filtrovaný zoznam podľa aktívnej záložky
   const filteredOrders = useMemo(() => {
@@ -4638,8 +4758,8 @@ const SourceOrdersSection = ({ orders, cropId, formatDate }: SourceOrdersSection
           <p className="text-xs text-[#475569] text-center py-3">Žiadne objednávky v tejto kategórii.</p>
         ) : (
           filteredOrders.map((order, idx) => {
-            const grams = calcOrderGramsForCrop(order, cropId);
-            const hasMix = (order.order_items || []).some((it: any) => it.blend_id && it.crop_id !== cropId);
+            const grams = calcOrderGramsForCrop(order, cropId, blendsMap);
+            const hasMix = (order.order_items || []).some((it: any) => it.blend_id);
             return (
               <button
                 key={order.id || idx}
