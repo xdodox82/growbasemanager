@@ -377,7 +377,7 @@ const PlantingPlanPage = () => {
   // UI state
   const [activeTab, setActiveTab] = useState<Tab>('plan');
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('planned');
   const [onlySowDays, setOnlySowDays] = useState(true);
 
   // Dialog state
@@ -716,25 +716,47 @@ const PlantingPlanPage = () => {
       }
     });
 
-    const result = Array.from(grouped.values());
+    const allResults = Array.from(grouped.values());
+
+    // OPRAVA 6: Skryť completed/harvested výsevy staršie ako 30 dní.
+    // Filter, NIE mazanie z DB. Čistí UI od starých záznamov.
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const cutoffStr = thirtyDaysAgo.toISOString().split('T')[0];
+
+    const result = allResults.filter(g => {
+      if (g.status === 'completed' || g.status === 'harvested') {
+        return g.sow_date >= cutoffStr;
+      }
+      return true;
+    });
+
+    const hiddenCount = allResults.length - result.length;
+    if (hiddenCount > 0) {
+      console.debug(`[groupedPlans] skryté ${hiddenCount} starých dokončených/harvested výsevov (sow_date < ${cutoffStr})`);
+    }
 
     // Diagnostické logy — pre každý grouped plan vypíš plan.trays.
     // Pomôže lokalizovať zdroj zdvojených tácok ak by problém pretrvával.
     if (result.length > 0) {
-      console.debug('[groupedPlans] count=' + result.length + ' merged groups');
+      console.debug('[groupedPlans] count=' + result.length + ' merged groups (zobrazených)');
       result.forEach(g => {
         const traysDump = g.trays.map(t => `${t.count}×${t.size}${t.is_manual ? '(M)' : ''}`).join('+');
         console.debug(
-          `[groupedPlans] ${g.crops?.name || g.crop_id} | sow=${g.sow_date} | trays=[${traysDump}] | totalSeeds=${g.total_seed_grams}g`
+          `[groupedPlans] ${g.crops?.name || g.crop_id} | sow=${g.sow_date} | status=${g.status} | trays=[${traysDump}] | totalSeeds=${g.total_seed_grams}g`
         );
       });
     }
 
     return result;
-  }, [plans]);
+  }, [plans, today]);
 
   const filteredPlans = useMemo(() => {
     if (statusFilter === 'all') return groupedPlans;
+    if (statusFilter === 'completed') {
+      // Záložka "Dokončené" zahŕňa aj harvested výsevy
+      return groupedPlans.filter(p => p.status === 'completed' || p.status === 'harvested');
+    }
     return groupedPlans.filter(p => p.status === statusFilter);
   }, [groupedPlans, statusFilter]);
 
@@ -742,7 +764,7 @@ const PlantingPlanPage = () => {
     all: groupedPlans.length,
     planned: groupedPlans.filter(p => p.status === 'planned').length,
     in_progress: groupedPlans.filter(p => p.status === 'in_progress').length,
-    completed: groupedPlans.filter(p => p.status === 'completed').length,
+    completed: groupedPlans.filter(p => p.status === 'completed' || p.status === 'harvested').length,
   }), [groupedPlans]);
 
   const plansByDate = useMemo(() => {
@@ -779,6 +801,16 @@ const PlantingPlanPage = () => {
       planIds: p.trays.map(t => t.plan_id).filter(Boolean) as string[],
     }));
   }, [groupedPlans, today]);
+
+  // True ak na dnes existujú výsevy, ALE všetky sú už posadené (in_progress / completed / harvested).
+  // Používa sa pre rozlíšenie "Dnes nič" vs "Dnes všetko hotové ✓".
+  const todaysAllDone = useMemo(() => {
+    if (todaysSowing.length > 0) return false; // ešte sú nejaké planned
+    return groupedPlans.some(p =>
+      p.sow_date === today &&
+      (p.status === 'in_progress' || p.status === 'completed' || p.status === 'harvested')
+    );
+  }, [groupedPlans, today, todaysSowing.length]);
 
   // ===================== DYNAMIC HORIZON =====================
 
@@ -2010,7 +2042,7 @@ const PlantingPlanPage = () => {
   const getStatusLabel = (status: string) => {
     switch (status) {
       case 'completed': return 'Hotové';
-      case 'in_progress': return 'Prebieha';
+      case 'in_progress': return 'Rastie';
       case 'cancelled': return 'Zrušené';
       case 'planned':
       default: return 'Naplánované';
@@ -2034,10 +2066,10 @@ const PlantingPlanPage = () => {
   };
 
   const filterChips: { value: StatusFilter; label: string; count: number }[] = [
-    { value: 'all', label: 'Všetky', count: statusCounts.all },
     { value: 'planned', label: 'Naplánované', count: statusCounts.planned },
-    { value: 'in_progress', label: 'Prebieha', count: statusCounts.in_progress },
+    { value: 'in_progress', label: 'Rastie', count: statusCounts.in_progress },
     { value: 'completed', label: 'Dokončené', count: statusCounts.completed },
+    { value: 'all', label: 'Všetky', count: statusCounts.all },
   ];
 
 
@@ -2100,6 +2132,7 @@ const PlantingPlanPage = () => {
             formatGrams={formatGrams}
             isAdmin={isAdmin}
             isLoading={loading}
+            allDone={todaysAllDone}
           />
 
           {/* KAPACITNÝ PREHĽAD */}
@@ -2956,9 +2989,11 @@ interface TodaysSowingSectionProps {
   formatGrams: (g: number) => number;
   isAdmin: boolean;
   isLoading?: boolean;
+  // Ak true, znamená že na dnes existujú výsevy ale všetky sú už posadené/dokončené.
+  allDone?: boolean;
 }
 
-const TodaysSowingSection = ({ items, onItemClick, onMarkDone, onEdit, onAddTray, onDelete, formatDate, formatGrams, isAdmin, isLoading }: TodaysSowingSectionProps) => {
+const TodaysSowingSection = ({ items, onItemClick, onMarkDone, onEdit, onAddTray, onDelete, formatDate, formatGrams, isAdmin, isLoading, allDone }: TodaysSowingSectionProps) => {
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
 
   // ÚLOHA 4C: Loading skeleton — zobrazí sa kým sa nenačítajú dáta.
@@ -2990,14 +3025,29 @@ const TodaysSowingSection = ({ items, onItemClick, onMarkDone, onEdit, onAddTray
   }
 
   if (items.length === 0) {
+    // Variant A: existujú dnešné výsevy ale všetky sú už posadené/dokončené → zelený "hotovo"
+    if (allDone) {
+      return (
+        <div className="bg-[#f0fdf4] rounded-xl border border-[#bbf7d0] shadow-sm p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[#16a34a]/10 flex items-center justify-center flex-shrink-0">
+            <CheckCircle2 className="h-5 w-5 text-[#16a34a]" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-[#0f172a]">Na dnes sú všetky výsevy posadené ✓</h3>
+            <p className="text-xs text-[#475569]">Pokračuj v ďalších úlohách.</p>
+          </div>
+        </div>
+      );
+    }
+    // Variant B: vôbec žiadne výsevy na dnes → neutrálne sivé
     return (
-      <div className="bg-[#f0fdf4] rounded-xl border border-[#bbf7d0] shadow-sm p-4 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-[#16a34a]/10 flex items-center justify-center flex-shrink-0">
-          <CheckCircle2 className="h-5 w-5 text-[#16a34a]" />
+      <div className="bg-white rounded-xl border border-[#cbd5e1] shadow-sm p-4 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-[#f1f5f9] flex items-center justify-center flex-shrink-0">
+          <CalendarDays className="h-5 w-5 text-[#94a3b8]" />
         </div>
         <div>
-          <h3 className="text-sm font-bold text-[#0f172a]">Dnes nič nesadíš</h3>
-          <p className="text-xs text-[#475569]">Žiadne výsevy nie sú naplánované na dnes.</p>
+          <h3 className="text-sm font-bold text-[#0f172a]">Dnes nie sú naplánované žiadne výsevy</h3>
+          <p className="text-xs text-[#475569]">Užite si voľnejší deň.</p>
         </div>
       </div>
     );
@@ -3442,14 +3492,13 @@ const WeekTimelineView = ({
       {/* Summary bar */}
       <div className="bg-[#f0fdf4] border border-[#bbf7d0] rounded-lg px-3 py-2.5">
         <p className="text-xs text-[#0f172a]">
-          <span className="font-bold">Tento týždeň</span> <span className="font-bold text-[#16a34a]">{weekSummary.totalPlans}</span> {weekSummary.totalPlans === 1 ? 'výsev' : weekSummary.totalPlans >= 2 && weekSummary.totalPlans <= 4 ? 'výsevy' : 'výsevov'}
+          <span className="font-bold">Tento týždeň</span>
           {' · '}
-          <span>Celkom <span className="font-bold text-[#16a34a]">{formatGrams(weekSummary.totalGrams)}g</span> semien</span>
-          {weekOffset === 0 && todayRemaining > 0 && (
-            <>{' · '}<span>Dnes zostatok <span className="font-bold text-[#16a34a]">{todayRemaining}</span></span></>
-          )}
+          <span className="font-bold text-[#16a34a]">{weekSummary.totalPlans}</span> výsevov
+          {' · '}
+          <span className="font-bold text-[#16a34a]">{formatGrams(weekSummary.totalGrams)}g</span> semien
           {weekSummary.nextHarvest && (
-            <>{' · '}<span>Zber z týchto: <span className="font-bold text-[#16a34a]">{formatNextHarvest(weekSummary.nextHarvest)}</span></span></>
+            <>{' · '}Zber: <span className="font-bold text-[#16a34a]">{formatNextHarvest(weekSummary.nextHarvest)}</span></>
           )}
         </p>
       </div>
@@ -3549,7 +3598,7 @@ const WeekTimelineView = ({
                                 {plan.is_manual && <Pencil className="h-3 w-3 text-[#f59e0b] flex-shrink-0" />}
                                 {isInProgress && (
                                   <span className="inline-flex items-center h-4 px-1 rounded text-[9px] font-bold bg-[#dcfce7] text-[#166534]">
-                                    POSADENÉ
+                                    RASTIE
                                   </span>
                                 )}
                               </div>
@@ -3586,7 +3635,7 @@ const WeekTimelineView = ({
                                   )}
                                 >
                                   {isInProgress ? <CheckCircle className="h-3 w-3" /> : <Circle className="h-3 w-3" />}
-                                  {isInProgress ? 'Prebieha' : 'Hotovo'}
+                                  {isInProgress ? 'Rastie' : 'Hotovo'}
                                 </button>
                                 <button
                                   onClick={() => onAddTray(plan)}
@@ -3864,7 +3913,7 @@ const PlanCardsView = ({
                     ? <CheckCircle className="h-3.5 w-3.5" />
                     : <Circle className="h-3.5 w-3.5" />
                   }
-                  <span>{plan.status === 'completed' ? 'Hotové' : plan.status === 'in_progress' ? 'Prebieha' : 'Hotovo'}</span>
+                  <span>{plan.status === 'completed' ? 'Hotové' : plan.status === 'in_progress' ? 'Rastie' : 'Hotovo'}</span>
                 </button>
                 <button
                   onClick={() => onAddTray(plan)}
@@ -4013,7 +4062,7 @@ const PlanListView = ({
                         ? <CheckCircle className="h-3.5 w-3.5" />
                         : <Circle className="h-3.5 w-3.5" />
                       }
-                      <span>{plan.status === 'completed' ? 'Hotové' : plan.status === 'in_progress' ? 'Prebieha' : 'Hotovo'}</span>
+                      <span>{plan.status === 'completed' ? 'Hotové' : plan.status === 'in_progress' ? 'Rastie' : 'Hotovo'}</span>
                     </button>
                     <button
                       onClick={() => onOpenDetail(plan)}
