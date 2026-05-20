@@ -28,7 +28,7 @@ interface PrepPlan {
     id: string;
     name: string;
     color: string | null;
-    substrate_type: string | null;
+    default_substrate_type: string | null;
   } | null;
 }
 
@@ -146,7 +146,7 @@ const PrepPlantingPage = () => {
         .from('planting_plans')
         .select(`
           id, crop_id, sow_date, tray_size, tray_count, seed_amount_grams, status,
-          crops:crop_id ( id, name, color, substrate_type )
+          crops:crop_id ( id, name, color, default_substrate_type )
         `)
         .eq('status', 'planned')
         .gte('sow_date', toIsoDate(start))
@@ -207,7 +207,7 @@ const PrepPlantingPage = () => {
   const traysBySubstrate = useMemo(() => {
     const counts: Record<SubstrateKey, number> = { peat: 0, coco: 0, mixed: 0, unknown: 0 };
     weekPlans.forEach(p => {
-      const key = normalizeSubstrate(p.crops?.substrate_type);
+      const key = normalizeSubstrate(p.crops?.default_substrate_type);
       counts[key] += (p.tray_count || 0);
     });
     return counts;
@@ -396,7 +396,7 @@ const PrepPlantingPage = () => {
                     <div className="space-y-2">
                       {dayPlans.map(plan => {
                         const cropColor = plan.crops?.color || '#16a34a';
-                        const substrateKey = normalizeSubstrate(plan.crops?.substrate_type);
+                        const substrateKey = normalizeSubstrate(plan.crops?.default_substrate_type);
                         const substrate = SUBSTRATE_CFG[substrateKey];
                         const SubstrateIcon = substrate.icon;
 
