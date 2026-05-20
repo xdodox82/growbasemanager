@@ -2259,6 +2259,7 @@ const PlantingPlanPage = () => {
                     />
                   ) : viewMode === 'week' ? (
                     <WeekTimelineView
+                      today={today}
                       plans={groupedPlans}
                       isAdmin={isAdmin}
                       onOpenDetail={openDetailDialog}
@@ -3290,6 +3291,7 @@ const LateOrdersBanner = ({ lateOrders, formatDate }: LateOrdersBannerProps) => 
 // ===================== WEEK TIMELINE VIEW =====================
 
 interface WeekTimelineViewProps {
+  today: string;
   plans: GroupedPlantingPlan[];
   isAdmin: boolean;
   onOpenDetail: (plan: GroupedPlantingPlan) => void;
@@ -3333,6 +3335,7 @@ const formatWeekRange = (monday: Date): string => {
 };
 
 const WeekTimelineView = ({
+  today,
   plans, isAdmin, onOpenDetail, onMarkComplete, onEdit, onDelete, onAddTray, formatDate, formatGrams,
 }: WeekTimelineViewProps) => {
   const [weekOffset, setWeekOffset] = useState(0);
@@ -3345,11 +3348,7 @@ const WeekTimelineView = ({
     return m;
   }, [weekOffset]);
 
-  const todayStr = useMemo(() => {
-    const t = new Date();
-    t.setHours(0, 0, 0, 0);
-    return t.toISOString().split('T')[0];
-  }, []);
+  const todayStr = today; // z parent prop — aktualizuje sa po polnoci
 
   // 7 dní týždňa (Po–Ne) ako ISO dátum stringy
   const weekDays = useMemo(() => {
