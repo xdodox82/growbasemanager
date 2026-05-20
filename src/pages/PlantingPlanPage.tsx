@@ -260,6 +260,87 @@ type ViewMode = 'cards' | 'list' | 'week' | 'calendar';
 type StatusFilter = 'all' | 'planned' | 'in_progress' | 'completed';
 type Tab = 'plan' | 'prediction' | 'analysis';
 
+// ===================== BLEND EXPANSION (čisté funkcie, bez DB calls) =====================
+
+interface BlendLeafCrop {
+  cropId: string;
+  grams: number;
+}
+
+// Parsuje crop_percentages z DB (jsonb alebo string) do unifikovaného arrayu.
+// Podporuje obe konvencie kľúčov: {cropId, percentage, isBlend} aj {crop_id, percentage, is_blend}.
+const parseCropPercentages = (raw: any): Array<{ cropId: string; percentage: number; isBlend: boolean }> => {
+  let arr: any[];
+  if (Array.isArray(raw)) {
+    arr = raw;
+  } else if (typeof raw === 'string') {
+    try { arr = JSON.parse(raw); } catch { arr = []; }
+  } else {
+    arr = [];
+  }
+  return arr
+    .map((p: any) => {
+      const cropId = p.cropId || p.crop_id;
+      if (!cropId) return null;
+      const percentage = typeof p.percentage === 'number' ? p.percentage : parseFloat(p.percentage || '0');
+      const isBlend = p.isBlend === true || p.is_blend === true;
+      return { cropId, percentage, isBlend };
+    })
+    .filter((p: any) => p !== null && p.percentage > 0) as Array<{ cropId: string; percentage: number; isBlend: boolean }>;
+};
+
+// Rekurzívne expanduje mix na pole leaf-plodín so správnymi gramážami.
+// allBlendsMap: { [blendId]: { id, name, crop_ids[], crop_percentages } }
+// Vráti flat array [{cropId, grams}] kde cropId je vždy LEAF (plodina, nie sub-blend).
+// Maximálna hĺbka rekurzie = 5 (ochrana proti cirkulárnym referenciám).
+const expandBlendToLeafCrops = (
+  blendId: string,
+  totalGrams: number,
+  allBlendsMap: Record<string, any>,
+  depth: number = 0
+): BlendLeafCrop[] => {
+  if (depth > 5) {
+    console.warn(`[blend-expand] depth>5, prerušujem rekurziu pre blend ${blendId}`);
+    return [];
+  }
+  const blend = allBlendsMap[blendId];
+  if (!blend) {
+    console.warn(`[blend-expand] blend ${blendId} nie je v allBlendsMap`);
+    return [];
+  }
+
+  let percentages = parseCropPercentages(blend.crop_percentages);
+
+  // Fallback: ak crop_percentages prázdne ale crop_ids existuje → rovné rozdelenie.
+  // V tomto prípade nevieme či zložky sú sub-blendy → predpokladáme plodiny (isBlend=false).
+  if (percentages.length === 0 && Array.isArray(blend.crop_ids) && blend.crop_ids.length > 0) {
+    const equalPct = 100 / blend.crop_ids.length;
+    percentages = blend.crop_ids.map((cid: string) => ({ cropId: cid, percentage: equalPct, isBlend: false }));
+    console.debug(`[blend-expand] ${blend.name || blendId}: crop_percentages prázdne, fallback rovné ${equalPct.toFixed(1)}% × ${blend.crop_ids.length}`);
+  }
+
+  console.debug(
+    `[blend-expand] ${blend.name || blendId} | depth=${depth} | totalGrams=${totalGrams.toFixed(1)}g | percentages.length=${percentages.length}`
+  );
+
+  const result: BlendLeafCrop[] = [];
+
+  percentages.forEach(({ cropId, percentage, isBlend }) => {
+    const componentGrams = totalGrams * (percentage / 100);
+
+    if (isBlend) {
+      // Sub-blend — rekurzia
+      const subLeaves = expandBlendToLeafCrops(cropId, componentGrams, allBlendsMap, depth + 1);
+      result.push(...subLeaves);
+    } else {
+      // Leaf plodina
+      result.push({ cropId, grams: componentGrams });
+    }
+  });
+
+  return result;
+};
+
 // ===================== MAIN COMPONENT =====================
 
 const PlantingPlanPage = () => {
@@ -342,10 +423,27 @@ const PlantingPlanPage = () => {
   const [notes, setNotes] = useState('');
 
   // Date range
-  const today = new Date().toISOString().split('T')[0];
+  // today je useState (nie konštanta) — aktualizuje sa po polnoci automaticky.
+  // Toto zabraňuje bugu kedy "Dnes sadíš" ukazuje včerajšie výsevy ak je stránka
+  // otvorená cez polnoc bez refresh-u.
+  const [today, setToday] = useState(() => new Date().toISOString().split('T')[0]);
   const defaultEndDate = addDays(new Date(), 60).toISOString().split('T')[0];
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(defaultEndDate);
+
+  // Sledovanie zmeny dátumu — kontrola každú minútu.
+  // Keď sa zmení dátum (polnoc), React automaticky prepočíta todaysSowing
+  // a všetky závislosti cez useMemo deps.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const currentDate = new Date().toISOString().split('T')[0];
+      if (currentDate !== today) {
+        console.info(`[today] Dátum sa zmenil ${today} → ${currentDate} (polnoc)`);
+        setToday(currentDate);
+      }
+    }, 60 * 1000); // každú minútu
+    return () => clearInterval(interval);
+  }, [today]);
 
   const formatGrams = (g: number) => Math.round(g * 10) / 10;
 
@@ -988,33 +1086,41 @@ const PlantingPlanPage = () => {
         )
       ));
 
-      const blendsMap: Record<string, any> = {};
+      // allBlendsMap obsahuje VŠETKY blendy z DB (nielen tie z order_items),
+      // pretože sub-blendy môžu byť hocijaký iný blend z DB.
+      const allBlendsMap: Record<string, any> = {};
       const blendCropsMap: Record<string, any> = {};
 
       if (blendIds.length > 0) {
-        const { data: blends, error: blendsError } = await supabase
+        // Fetch VŠETKY blends naraz — aby sme vedeli rekurzívne expandovať sub-blendy.
+        // Aj keď objednávka odkazuje len na X blendov, sub-blendy môžu byť mimo X.
+        const { data: allBlends, error: blendsError } = await supabase
           .from('blends')
-          .select('id, name, crop_ids, crop_percentages')
-          .in('id', blendIds);
+          .select('id, name, crop_ids, crop_percentages');
         if (blendsError) throw blendsError;
-        (blends || []).forEach((b: any) => { blendsMap[b.id] = b; });
-        console.debug(`[syncPlansFromOrders] Načítaných ${(blends || []).length} mixov pre expand`);
+        (allBlends || []).forEach((b: any) => { allBlendsMap[b.id] = b; });
+        console.debug(`[syncPlansFromOrders] Načítaných ${(allBlends || []).length} blendov v DB (priame z objednávok: ${blendIds.length})`);
 
-        // Fetchni products pre všetky plodiny v mixoch
-        const allBlendCropIds = Array.from(new Set(
-          Object.values(blendsMap).flatMap((b: any) => b.crop_ids || [])
-        ));
-        if (allBlendCropIds.length > 0) {
+        // Zozbieraj VŠETKY leaf cropId z direct + rekurzívnych expanzií.
+        // Použijeme dummy gramáž 1g — zaujímajú nás len cropIds, nie konkrétne hodnoty.
+        const leafCropIds = new Set<string>();
+        blendIds.forEach(bid => {
+          const leaves = expandBlendToLeafCrops(bid, 1, allBlendsMap, 0);
+          leaves.forEach(l => leafCropIds.add(l.cropId));
+        });
+
+        if (leafCropIds.size > 0) {
           const { data: blendCrops, error: blendCropsError } = await supabase
             .from('products')
             .select('id, name, days_to_harvest, tray_configs, reserved_percentage')
-            .in('id', allBlendCropIds);
+            .in('id', Array.from(leafCropIds));
           if (blendCropsError) throw blendCropsError;
           (blendCrops || []).forEach((c: any) => { blendCropsMap[c.id] = c; });
+          console.debug(`[syncPlansFromOrders] Načítaných ${(blendCrops || []).length} leaf plodín pre mixy (vrátane sub-blendov)`);
         }
       }
 
-      const grouped = groupOrdersByCropAndHarvestDate(orders, blendsMap, blendCropsMap);
+      const grouped = groupOrdersByCropAndHarvestDate(orders, allBlendsMap, blendCropsMap);
       if (grouped.length === 0) return 0;
 
       console.info(`[syncPlansFromOrders] Po grupovaní: ${grouped.length} skupín (crop × harvest_date) na spracovanie`);
@@ -1124,8 +1230,7 @@ const PlantingPlanPage = () => {
         title: 'Plán vygenerovaný',
         description: `${created2Word} ${createdCount} ${created1Word}.`,
       });
-      await fetchPlans();
-      await fetchFutureOrders();
+      await Promise.all([fetchPlans(), fetchFutureOrders()]);
     } catch (err) {
       console.error('Generate plan error:', err);
       toast({
@@ -1172,59 +1277,32 @@ const PlantingPlanPage = () => {
           return;
         }
 
-        // Vetva 2: mix (blend_id != null) — expanduj na jednotlivé plodiny podľa percent
+        // Vetva 2: mix (blend_id != null) — REKURZÍVNA expanzia na leaf plodiny.
+        // Mix môže obsahovať sub-blendy (cp.isBlend === true) — tie sa expandujú znova.
+        // Max depth = 5 (chránime proti cirkulárnym referenciám).
         if (item.blend_id && blendsMap[item.blend_id]) {
           const blend = blendsMap[item.blend_id];
           const totalGrams = parseFloat(
             item.packaging_size?.replace(/[^0-9.]/g, '') || '0'
           ) * (item.quantity || 0);
 
-          // crop_percentages je jsonb. Štruktúra môže byť rôzna:
-          // - [{cropId, percentage}]  (camelCase)
-          // - [{crop_id, percentage}] (snake_case)
-          // Niekedy zabalené v stringu - parse JSON.
-          let percentages: any[] = Array.isArray(blend.crop_percentages)
-            ? blend.crop_percentages
-            : (typeof blend.crop_percentages === 'string'
-              ? (() => { try { return JSON.parse(blend.crop_percentages); } catch { return []; } })()
-              : []);
-
-          // Fallback: ak crop_percentages je prázdne ale blend.crop_ids existuje,
-          // rozdeľ rovnakými dielmi medzi všetky plodiny v mixe.
-          if (percentages.length === 0 && Array.isArray(blend.crop_ids) && blend.crop_ids.length > 0) {
-            const equalPct = 100 / blend.crop_ids.length;
-            percentages = blend.crop_ids.map((cid: string) => ({ cropId: cid, percentage: equalPct }));
-            console.debug(`[blend-expand] ${blend.name || blend.id}: crop_percentages prázdne, fallback na rovné rozdelenie ${equalPct.toFixed(1)}% × ${blend.crop_ids.length}`);
-          }
+          if (totalGrams <= 0) return;
 
           console.debug(
-            `[blend-expand] ${blend.name || blend.id} | order=${order.id?.slice(0, 8)} | totalGrams=${totalGrams.toFixed(1)}g | percentages=`,
-            percentages
+            `[blend-expand] ROOT ${blend.name || item.blend_id} | order=${order.id?.slice(0, 8)} | totalGrams=${totalGrams.toFixed(1)}g`
           );
 
-          percentages.forEach((cp: any) => {
-            // Podpor oba kľúče: cropId (camelCase) aj crop_id (snake_case)
-            const cropId = cp.cropId || cp.crop_id;
-            if (!cropId) {
-              console.warn('[blend-expand] crop_percentages položka bez cropId/crop_id:', cp);
-              return;
-            }
+          // Rekurzívna expanzia na leaf-plodiny
+          const leaves = expandBlendToLeafCrops(item.blend_id, totalGrams, blendsMap, 0);
 
+          leaves.forEach(({ cropId, grams }) => {
             const crop = blendCropsMap[cropId];
             if (!crop) {
-              console.warn(`[blend-expand] Plodina ${cropId} z mixu ${blend.name || blend.id} nie je v blendCropsMap — preskakujem`);
+              console.warn(`[blend-expand] Leaf plodina ${cropId} nie je v blendCropsMap — preskakujem`);
               return;
             }
 
-            const pct = typeof cp.percentage === 'number' ? cp.percentage : parseFloat(cp.percentage || '0');
-            if (!pct || pct <= 0) {
-              console.warn(`[blend-expand] Neplatné percento ${cp.percentage} pre plodinu ${crop.name || cropId}`);
-              return;
-            }
-
-            const cropGrams = totalGrams * (pct / 100);
             const key = `${cropId}_${harvestDate}`;
-
             if (!groups.has(key)) {
               groups.set(key, {
                 crop,
@@ -1234,10 +1312,10 @@ const PlantingPlanPage = () => {
               });
             }
             const g = groups.get(key)!;
-            g.totalRequired += cropGrams;
+            g.totalRequired += grams;
             if (!g.orderIds.includes(order.id)) g.orderIds.push(order.id);
 
-            console.debug(`[blend-expand] + ${crop.name || cropId}: ${cropGrams.toFixed(1)}g (${pct}% z ${totalGrams.toFixed(1)}g) → groupTotal=${g.totalRequired.toFixed(1)}g`);
+            console.debug(`[blend-expand] LEAF + ${crop.name || cropId}: ${grams.toFixed(1)}g → groupTotal=${g.totalRequired.toFixed(1)}g`);
           });
         }
       });
@@ -1282,6 +1360,26 @@ const PlantingPlanPage = () => {
       console.error('[createPlanningTasks] Chyba pri mazaní:', deleteError);
     } else if (deletedCount && deletedCount > 0) {
       console.info(`[createPlanningTasks] Zmazaných ${deletedCount} starých auto-plánov pre ${crop?.name}`);
+    }
+
+    // BUG fix: ak pre túto crop+harvest kombináciu už existuje plán so statusom
+    // in_progress alebo completed, NEVYTVÁRAJ nový planned plán. Inak by autoSync
+    // donekonečna vyrábal "Dnes sadíš" záznam aj po kliknutí "Hotovo".
+    // Manuálne plány majú vlastný DELETE filter (is_manual=false vyššie ich nezmaže).
+    const { data: existingActive, error: checkError } = await supabase
+      .from('planting_plans')
+      .select('id, status, is_manual')
+      .eq('crop_id', crop.id)
+      .eq('expected_harvest_date', harvestDate)
+      .in('status', ['in_progress', 'completed']);
+
+    if (checkError) {
+      console.warn('[createPlanningTasks] Check existing failed:', checkError);
+    } else if (existingActive && existingActive.length > 0) {
+      console.info(
+        `[createPlanningTasks] ${crop?.name || crop.id} — preskakujem (${existingActive.length} aktívnych plánov in_progress/completed pre tento harvest)`
+      );
+      return 0;
     }
 
     // Pozn.: extra S delete bol odstránený — hlavný DELETE vyššie už pokrýva všetky veľkosti tácok
@@ -1785,11 +1883,17 @@ const PlantingPlanPage = () => {
   // ===================== EFFECTS =====================
 
   useEffect(() => {
-    fetchPlans();
-    fetchCrops();
-    fetchShelves();
-    fetchHarvestDays();
-    fetchFutureOrders();
+    // ÚLOHA 4A: Paralelné fetche namiesto sekvenčného - rýchlejšie načítanie.
+    // Všetky fetche sú nezávislé (čítajú rôzne tabuľky), takže Promise.all je bezpečný.
+    Promise.all([
+      fetchPlans(),
+      fetchCrops(),
+      fetchShelves(),
+      fetchHarvestDays(),
+      fetchFutureOrders(),
+    ]).catch(err => {
+      console.error('[initial-fetch] Chyba pri paralelnom načítavaní:', err);
+    });
   }, [fetchPlans, fetchCrops, fetchShelves, fetchHarvestDays, fetchFutureOrders]);
 
   // Automatická synchronizácia plánov sadenia s objednávkami — beží ticho na pozadí.
@@ -1995,6 +2099,7 @@ const PlantingPlanPage = () => {
             formatDate={formatDate}
             formatGrams={formatGrams}
             isAdmin={isAdmin}
+            isLoading={loading}
           />
 
           {/* KAPACITNÝ PREHĽAD */}
@@ -2849,10 +2954,39 @@ interface TodaysSowingSectionProps {
   formatDate: (d: string) => string;
   formatGrams: (g: number) => number;
   isAdmin: boolean;
+  isLoading?: boolean;
 }
 
-const TodaysSowingSection = ({ items, onItemClick, onMarkDone, onEdit, onAddTray, onDelete, formatDate, formatGrams, isAdmin }: TodaysSowingSectionProps) => {
+const TodaysSowingSection = ({ items, onItemClick, onMarkDone, onEdit, onAddTray, onDelete, formatDate, formatGrams, isAdmin, isLoading }: TodaysSowingSectionProps) => {
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
+
+  // ÚLOHA 4C: Loading skeleton — zobrazí sa kým sa nenačítajú dáta.
+  // Predtým UI vyzeralo zamrznuté lebo komponent jednoducho nezobrazil nič.
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-xl border border-[#cbd5e1] shadow-sm overflow-hidden">
+        <div className="bg-[#f0fdf4] border-b border-[#bbf7d0] px-4 py-3 flex items-center gap-2">
+          <Sprout className="h-4 w-4 text-[#16a34a] flex-shrink-0" />
+          <Skeleton className="h-4 w-32" />
+        </div>
+        <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="bg-white rounded-lg border border-[#e2e8f0] p-3">
+              <div className="flex items-center gap-3 mb-3">
+                <Skeleton className="h-10 w-10 rounded-xl" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+              </div>
+              <Skeleton className="h-3 w-full mb-1" />
+              <Skeleton className="h-3 w-24" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (items.length === 0) {
     return (
@@ -4561,8 +4695,8 @@ const CUSTOMER_TYPE_TABS: Array<{ id: CustomerTypeFilter; label: string }> = [
 
 // Zistí gramáž objednávky pre konkrétnu plodinu. Sčíta:
 // 1) Priame položky s crop_id === cropId
-// 2) Položky s blend_id, kde mix obsahuje cropId — vypočíta gramáž podľa crop_percentages.
-//    blendsMap obsahuje fetchnuté blendy s ich crop_percentages.
+// 2) Položky s blend_id — REKURZÍVNA expanzia na leaf plodiny cez expandBlendToLeafCrops.
+//    Podporuje sub-blendy (isBlend === true) do max depth 5.
 const calcOrderGramsForCrop = (
   order: OrderForPlanning,
   cropId: string,
@@ -4576,28 +4710,13 @@ const calcOrderGramsForCrop = (
       return sum + itemGrams;
     }
 
-    // Mix — expanduj a započítaj danú plodinu
-    if (it.blend_id && blendsMap[it.blend_id]) {
-      const blend = blendsMap[it.blend_id];
-      let percentages: any[] = Array.isArray(blend.crop_percentages)
-        ? blend.crop_percentages
-        : (typeof blend.crop_percentages === 'string'
-          ? (() => { try { return JSON.parse(blend.crop_percentages); } catch { return []; } })()
-          : []);
-
-      // Fallback: rovné rozdelenie ak crop_percentages chýba
-      if (percentages.length === 0 && Array.isArray(blend.crop_ids) && blend.crop_ids.length > 0) {
-        const equalPct = 100 / blend.crop_ids.length;
-        percentages = blend.crop_ids.map((cid: string) => ({ cropId: cid, percentage: equalPct }));
-      }
-
-      const cp = percentages.find((p: any) => (p.cropId || p.crop_id) === cropId);
-      if (cp) {
-        const pct = typeof cp.percentage === 'number' ? cp.percentage : parseFloat(cp.percentage || '0');
-        if (pct > 0) {
-          return sum + itemGrams * (pct / 100);
-        }
-      }
+    // Mix — rekurzívna expanzia a započítanie všetkých výskytov danej plodiny
+    if (it.blend_id && blendsMap[it.blend_id] && itemGrams > 0) {
+      const leaves = expandBlendToLeafCrops(it.blend_id, itemGrams, blendsMap, 0);
+      const cropGrams = leaves
+        .filter(l => l.cropId === cropId)
+        .reduce((s, l) => s + l.grams, 0);
+      return sum + cropGrams;
     }
 
     return sum;
@@ -4618,29 +4737,26 @@ const SourceOrdersSection = ({ orders, cropId, formatDate }: SourceOrdersSection
   const [activeTab, setActiveTab] = useState<CustomerTypeFilter>('all');
   // Order detail dialog state — interný v sekcii, otvára sa pri kliknutí na riadok
   const [openOrderId, setOpenOrderId] = useState<string | null>(null);
-  // Blends map — fetchneme všetky blend_id zo source orders aby sme vedeli vypočítať
-  // gramáž z mixov pre zobrazenú plodinu (calcOrderGramsForCrop).
+  // Blends map — fetchneme VŠETKY blendy z DB (nielen priame z order_items),
+  // pretože sub-blendy môžu byť hocijaký iný blend. Bez nich by sa rekurzia
+  // v calcOrderGramsForCrop / expandBlendToLeafCrops nepodarila.
   const [blendsMap, setBlendsMap] = useState<Record<string, any>>({});
 
   useEffect(() => {
-    // Zozbieraj všetky blend_id zo source objednávok
-    const blendIds = Array.from(new Set(
-      orders.flatMap(o =>
-        (o.order_items || [])
-          .filter((it: any) => it.blend_id)
-          .map((it: any) => it.blend_id as string)
-      )
-    ));
-    if (blendIds.length === 0) {
+    // Optimalizácia: ak žiadna objednávka neobsahuje blend_id, ani nefetchujeme.
+    const hasAnyBlend = orders.some(o =>
+      (o.order_items || []).some((it: any) => it.blend_id)
+    );
+    if (!hasAnyBlend) {
       setBlendsMap({});
       return;
     }
     let cancelled = false;
     (async () => {
+      // Fetch VŠETKY blends — pre prípad sub-blend referencií.
       const { data, error } = await supabase
         .from('blends')
-        .select('id, name, crop_ids, crop_percentages')
-        .in('id', blendIds);
+        .select('id, name, crop_ids, crop_percentages');
       if (cancelled) return;
       if (error) {
         console.warn('[SourceOrdersSection] blends fetch failed:', error);
