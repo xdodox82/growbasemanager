@@ -49,8 +49,6 @@ interface OrderItem {
   quantity: number;
   packaging_size: string | null;
   price_per_unit: number | null;
-  unit_price?: number | null; // fallback
-  price?: number | null; // fallback
 }
 
 interface Crop {
@@ -145,13 +143,8 @@ const labelCustomerType = (t: 'home' | 'gastro' | 'wholesale'): string => {
   return 'VO';
 };
 
-// Cena jedného item-u — toleruje rôzne stĺpce
-const itemUnitPrice = (item: any): number => {
-  if (typeof item.price_per_unit === 'number') return item.price_per_unit;
-  if (typeof item.unit_price === 'number') return item.unit_price;
-  if (typeof item.price === 'number') return item.price;
-  return 0;
-};
+// Cena jedného item-u
+const itemUnitPrice = (item: any): number => item.price_per_unit ?? 0;
 
 const itemRevenue = (item: any): number => itemUnitPrice(item) * (item.quantity || 0);
 
@@ -2010,12 +2003,12 @@ const ReportsPage = () => {
           .select(`
             id, order_number, delivery_date, status, customer_id,
             customers:customer_id ( id, name, customer_type ),
-            order_items ( id, order_id, crop_id, blend_id, quantity, packaging_size, price_per_unit, unit_price, price )
+            order_items ( id, order_id, crop_id, blend_id, quantity, packaging_size, price_per_unit )
           `)
           .gte('delivery_date', toIsoDate(twelveMonthsAgo))
           .in('status', ACTIVE_ORDER_STATUSES),
         supabase.from('customers').select('id, name, customer_type'),
-        supabase.from('crops').select('id, name, color, category'),
+        supabase.from('products').select('id, name, color, category'),
       ]);
 
       if (ordersRes.error) throw ordersRes.error;
