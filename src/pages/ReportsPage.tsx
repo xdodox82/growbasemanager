@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 
 // ===================== TYPES =====================
 
-type TabKey = 'overview' | 'sales' | 'customers' | 'production';
+type TabKey = 'overview' | 'sales' | 'customers' | 'production' | 'trends' | 'retention';
 
 type PeriodPreset = 'this_week' | 'this_month' | 'this_quarter' | 'this_year' | 'custom';
 
@@ -2569,6 +2569,660 @@ const buildExcel = (params: {
   XLSX.writeFile(wb, fname);
 };
 
+// ===================== TRENDS TAB =====================
+
+interface TrendsTabProps {
+  allOrders: Order[];
+  loading: boolean;
+}
+
+const TrendsTab = ({ allOrders, loading }: TrendsTabProps) => {
+  // ----- Calendar heatmap dáta: posledných ~12 mesiacov v dňových bunkách -----
+  const today = useMemo(() => {
+    const t = new Date();
+    t.setHours(0, 0, 0, 0);
+    return t;
+  }, []);
+
+  // 52 týždňov × 7 dní = 364 dní. Začneme v pondelok 52 týždňov dozadu.
+  const heatmapData = useMemo(() => {
+    const dayMap: Record<string, { revenue: number; orders: number }> = {};
+    allOrders.forEach(o => {
+      const d = (o.delivery_date || '').split('T')[0];
+      if (!d) return;
+      if (!dayMap[d]) dayMap[d] = { revenue: 0, orders: 0 };
+      let r = 0;
+      (o.order_items || []).forEach(it => { r += itemRevenue(it); });
+      dayMap[d].revenue += r;
+      dayMap[d].orders += 1;
+    });
+
+    // Začiatok: pondelok 51 týždňov dozadu = 357 dní späť, zarovnaný na pondelok
+    const startDate = new Date(today);
+    startDate.setDate(startDate.getDate() - 52 * 7);
+    const startMonday = getMonday(startDate);
+
+    const weeks: Array<Array<{ date: string; revenue: number; orders: number; isFuture: boolean }>> = [];
+    for (let w = 0; w < 53; w++) {
+      const week: Array<{ date: string; revenue: number; orders: number; isFuture: boolean }> = [];
+      for (let d = 0; d < 7; d++) {
+        const cellDate = new Date(startMonday);
+        cellDate.setDate(cellDate.getDate() + w * 7 + d);
+        if (cellDate > today) {
+          week.push({ date: toIsoDate(cellDate), revenue: 0, orders: 0, isFuture: true });
+        } else {
+          const key = toIsoDate(cellDate);
+          const entry = dayMap[key] || { revenue: 0, orders: 0 };
+          week.push({ date: key, revenue: entry.revenue, orders: entry.orders, isFuture: false });
+        }
+      }
+      weeks.push(week);
+    }
+
+    // Max revenue pre normalizáciu intenzity
+    const maxRev = Math.max(...weeks.flat().filter(c => !c.isFuture).map(c => c.revenue), 1);
+    return { weeks, maxRev, startMonday };
+  }, [allOrders, today]);
+
+  // ----- Mesačné agregáty (12 mesiacov) -----
+  const monthlySeries = useMemo(() => {
+    const map: Record<string, { month: string; label: string; total: number; home: number; gastro: number; wholesale: number }> = {};
+    const startD = new Date(today.getFullYear(), today.getMonth() - 11, 1);
+    for (let i = 0; i < 12; i++) {
+      const m = new Date(startD.getFullYear(), startD.getMonth() + i, 1);
+      const key = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}`;
+      map[key] = {
+        month: key,
+        label: `${SK_MONTHS_NOM[m.getMonth()].slice(0, 3)} ${m.getFullYear().toString().slice(2)}`,
+        total: 0, home: 0, gastro: 0, wholesale: 0,
+      };
+    }
+    allOrders.forEach(o => {
+      const d = new Date(o.delivery_date);
+      if (isNaN(d.getTime())) return;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (!map[key]) return;
+      const ct = normCustomerType(o.customers?.customer_type);
+      let r = 0;
+      (o.order_items || []).forEach(it => { r += itemRevenue(it); });
+      map[key].total += r;
+      map[key][ct] += r;
+    });
+    return Object.values(map);
+  }, [allOrders, today]);
+
+  // ----- Day-of-week agregát (posledných 90 dní) -----
+  const dayOfWeekData = useMemo(() => {
+    // SK_DAYS: Po, Ut, St, Št, Pi, So, Ne (Po = pondelok)
+    const SK_DOW = ['Po', 'Ut', 'St', 'Št', 'Pi', 'So', 'Ne'];
+    const data = SK_DOW.map(name => ({ name, revenue: 0, orders: 0 }));
+    const ninetyDaysAgo = new Date(today);
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    allOrders.forEach(o => {
+      const d = new Date(o.delivery_date);
+      if (isNaN(d.getTime()) || d < ninetyDaysAgo || d > today) return;
+      // JS getDay: 0=Ne, 1=Po, ..., 6=So → mapujeme na Po=0
+      const jsDay = d.getDay();
+      const idx = jsDay === 0 ? 6 : jsDay - 1;
+      let r = 0;
+      (o.order_items || []).forEach(it => { r += itemRevenue(it); });
+      data[idx].revenue += r;
+      data[idx].orders += 1;
+    });
+    return data;
+  }, [allOrders, today]);
+
+  // Tooltip state pre heatmap
+  const [hoveredCell, setHoveredCell] = useState<{ date: string; revenue: number; orders: number; x: number; y: number } | null>(null);
+
+  // Farba štvorčeka podľa intenzity
+  const cellColor = (revenue: number, maxRev: number, isFuture: boolean): string => {
+    if (isFuture) return 'transparent';
+    if (revenue === 0) return '#f1f5f9';
+    const ratio = Math.min(1, revenue / maxRev);
+    // Interpolácia bielej-zelenej: #dcfce7 (10%) → #16a34a (100%)
+    if (ratio < 0.2) return '#dcfce7';
+    if (ratio < 0.4) return '#86efac';
+    if (ratio < 0.6) return '#4ade80';
+    if (ratio < 0.8) return '#22c55e';
+    return '#16a34a';
+  };
+
+  // Mesiac labely nad heatmapou — pre každý prvý týždeň mesiaca
+  const monthLabels = useMemo(() => {
+    const labels: Array<{ x: number; label: string }> = [];
+    let lastMonth = -1;
+    heatmapData.weeks.forEach((week, wIdx) => {
+      const firstDay = new Date(week[0].date);
+      if (!isNaN(firstDay.getTime()) && firstDay.getMonth() !== lastMonth) {
+        labels.push({ x: wIdx, label: SK_MONTHS_NOM[firstDay.getMonth()].slice(0, 3) });
+        lastMonth = firstDay.getMonth();
+      }
+    });
+    return labels;
+  }, [heatmapData]);
+
+  // Heatmap konfigurácia
+  const CELL_SIZE = 11;
+  const CELL_GAP = 2;
+  const TOP_OFFSET = 18; // pre mesiac labely
+  const LEFT_OFFSET = 22; // pre day labely
+  const svgWidth = LEFT_OFFSET + heatmapData.weeks.length * (CELL_SIZE + CELL_GAP);
+  const svgHeight = TOP_OFFSET + 7 * (CELL_SIZE + CELL_GAP);
+
+  const formatCellDate = (iso: string): string => {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return iso;
+    return `${d.getDate()}. ${SK_MONTHS_GEN[d.getMonth()]} ${d.getFullYear()}`;
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Calendar Heatmap */}
+      <SectionCard title="Kalendár tržieb" subtitle="Posledných 12 mesiacov, intenzita = výška tržieb v daný deň">
+        {loading ? (
+          <Skeleton className="h-44 w-full" />
+        ) : (
+          <div className="overflow-x-auto">
+            <div className="relative inline-block min-w-full" style={{ minHeight: svgHeight + 30 }}>
+              <svg width={svgWidth} height={svgHeight} className="block">
+                {/* Mesiac labely */}
+                {monthLabels.map((m, i) => (
+                  <text
+                    key={i}
+                    x={LEFT_OFFSET + m.x * (CELL_SIZE + CELL_GAP)}
+                    y={12}
+                    fontSize="10"
+                    fill="#475569"
+                    fontWeight="600"
+                  >
+                    {m.label}
+                  </text>
+                ))}
+                {/* Day labely (Po, St, Pi) */}
+                {['Po', 'St', 'Pi'].map((d, i) => {
+                  const dayIndex = [0, 2, 4][i];
+                  return (
+                    <text
+                      key={d}
+                      x={0}
+                      y={TOP_OFFSET + dayIndex * (CELL_SIZE + CELL_GAP) + CELL_SIZE - 2}
+                      fontSize="9"
+                      fill="#94a3b8"
+                    >
+                      {d}
+                    </text>
+                  );
+                })}
+                {/* Bunky */}
+                {heatmapData.weeks.map((week, wIdx) =>
+                  week.map((cell, dIdx) => {
+                    if (cell.isFuture) return null;
+                    const x = LEFT_OFFSET + wIdx * (CELL_SIZE + CELL_GAP);
+                    const y = TOP_OFFSET + dIdx * (CELL_SIZE + CELL_GAP);
+                    return (
+                      <rect
+                        key={`${wIdx}-${dIdx}`}
+                        x={x}
+                        y={y}
+                        width={CELL_SIZE}
+                        height={CELL_SIZE}
+                        fill={cellColor(cell.revenue, heatmapData.maxRev, false)}
+                        stroke="#e2e8f0"
+                        strokeWidth="0.5"
+                        rx="2"
+                        ry="2"
+                        className="cursor-pointer transition-opacity hover:opacity-80"
+                        onMouseEnter={() => setHoveredCell({
+                          date: cell.date,
+                          revenue: cell.revenue,
+                          orders: cell.orders,
+                          x: x + CELL_SIZE / 2,
+                          y: y,
+                        })}
+                        onMouseLeave={() => setHoveredCell(null)}
+                      />
+                    );
+                  })
+                )}
+              </svg>
+
+              {/* Tooltip */}
+              {hoveredCell && (
+                <div
+                  className="absolute z-10 pointer-events-none bg-white border border-[#cbd5e1] rounded-lg shadow-lg px-3 py-2 text-xs whitespace-nowrap"
+                  style={{
+                    left: Math.min(hoveredCell.x + 8, svgWidth - 180),
+                    top: hoveredCell.y - 50,
+                  }}
+                >
+                  <p className="font-bold text-[#0f172a]">{formatCellDate(hoveredCell.date)}</p>
+                  <p className="text-[#16a34a] font-bold">{formatEur(hoveredCell.revenue)}</p>
+                  <p className="text-[#475569]">{hoveredCell.orders} {hoveredCell.orders === 1 ? 'objednávka' : hoveredCell.orders >= 2 && hoveredCell.orders <= 4 ? 'objednávky' : 'objednávok'}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Legenda */}
+            <div className="flex items-center gap-2 mt-3 text-[11px] text-[#475569]">
+              <span>Menej</span>
+              {['#f1f5f9', '#dcfce7', '#86efac', '#4ade80', '#22c55e', '#16a34a'].map(c => (
+                <div key={c} className="w-3 h-3 rounded-sm border border-[#e2e8f0]" style={{ backgroundColor: c }} />
+              ))}
+              <span>Viac</span>
+              <span className="ml-3 text-[#94a3b8]">· Max deň: {formatEur(heatmapData.maxRev)}</span>
+            </div>
+          </div>
+        )}
+      </SectionCard>
+
+      {/* Mesačné tržby line chart */}
+      <SectionCard title="Mesačné tržby" subtitle="Posledných 12 mesiacov">
+        {loading ? (
+          <Skeleton className="h-64 w-full" />
+        ) : (
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={monthlySeries} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#475569' }} />
+              <YAxis tickFormatter={(v) => `${Math.round(v)}€`} tick={{ fontSize: 10, fill: '#475569' }} width={50} />
+              <Tooltip content={<CustomTooltip formatter={(v: number) => formatEur(v)} />} />
+              <Line
+                type="monotone"
+                dataKey="total"
+                name="Tržby"
+                stroke={COLORS.actual}
+                strokeWidth={2}
+                dot={{ r: 4, fill: COLORS.actual }}
+                isAnimationActive={true}
+                animationDuration={400}
+              />
+              <Brush dataKey="label" height={20} stroke="#16a34a" />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
+      </SectionCard>
+
+      {/* Stacked area podľa typu */}
+      <SectionCard title="Rozdelenie tržieb podľa typu zákazníka" subtitle="Posledných 12 mesiacov">
+        {loading ? (
+          <Skeleton className="h-64 w-full" />
+        ) : (
+          <ResponsiveContainer width="100%" height={260}>
+            <AreaChart data={monthlySeries} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#475569' }} />
+              <YAxis tickFormatter={(v) => `${Math.round(v)}€`} tick={{ fontSize: 10, fill: '#475569' }} width={50} />
+              <Tooltip content={<CustomTooltip formatter={(v: number) => formatEur(v)} />} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Area type="monotone" dataKey="home" name="Domáci" stackId="1" stroke={COLORS.home} fill={COLORS.home} fillOpacity={0.7} isAnimationActive={true} animationDuration={400} />
+              <Area type="monotone" dataKey="gastro" name="Gastro" stackId="1" stroke={COLORS.gastro} fill={COLORS.gastro} fillOpacity={0.7} isAnimationActive={true} animationDuration={400} />
+              <Area type="monotone" dataKey="wholesale" name="VO" stackId="1" stroke={COLORS.wholesale} fill={COLORS.wholesale} fillOpacity={0.7} isAnimationActive={true} animationDuration={400} />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
+      </SectionCard>
+
+      {/* Day-of-week */}
+      <SectionCard title="Tržby podľa dňa v týždni" subtitle="Posledných 90 dní · vidno týždenné vzorce objednávok">
+        {loading ? (
+          <Skeleton className="h-64 w-full" />
+        ) : (
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={dayOfWeekData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#0f172a' }} />
+              <YAxis tickFormatter={(v) => `${Math.round(v)}€`} tick={{ fontSize: 10, fill: '#475569' }} width={50} />
+              <Tooltip content={<CustomTooltip formatter={(v: number) => formatEur(v)} />} />
+              <Bar dataKey="revenue" name="Tržby" fill={COLORS.actual} isAnimationActive={true} animationDuration={400} radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </SectionCard>
+    </div>
+  );
+};
+
+// ===================== RETENTION TAB =====================
+
+interface RetentionTabProps {
+  allOrders: Order[];
+  loading: boolean;
+}
+
+type CohortSegment = 'all' | 'home' | 'gastro' | 'wholesale';
+
+const RetentionTab = ({ allOrders, loading }: RetentionTabProps) => {
+  const [segment, setSegment] = useState<CohortSegment>('all');
+
+  const today = useMemo(() => {
+    const t = new Date();
+    t.setHours(0, 0, 0, 0);
+    return t;
+  }, []);
+
+  // ---- Cohort retencia ----
+  const cohortData = useMemo(() => {
+    // Cohort mesiac = mesiac PRVEJ objednávky zákazníka
+    // Riadky: 6 najnovších cohort mesiacov (mesiace -5..0)
+    // Stĺpce: Mesiac 0, +1, +2, +3, +4, +5
+
+    // Filter podľa segmentu
+    const filteredOrders = segment === 'all'
+      ? allOrders
+      : allOrders.filter(o => normCustomerType(o.customers?.customer_type) === segment);
+
+    // Pre každého zákazníka: vypočítaj first order month + zoznam aktívnych mesiacov
+    const customerFirstMonth = new Map<string, string>();
+    const customerActiveMonths = new Map<string, Set<string>>();
+
+    filteredOrders.forEach(o => {
+      if (!o.customer_id) return;
+      const d = new Date(o.delivery_date);
+      if (isNaN(d.getTime())) return;
+      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+      // First month
+      const existing = customerFirstMonth.get(o.customer_id);
+      if (!existing || monthKey < existing) {
+        customerFirstMonth.set(o.customer_id, monthKey);
+      }
+      // Active months
+      if (!customerActiveMonths.has(o.customer_id)) {
+        customerActiveMonths.set(o.customer_id, new Set());
+      }
+      customerActiveMonths.get(o.customer_id)!.add(monthKey);
+    });
+
+    // Cohort mesiace: posledných 6 mesiacov
+    const cohortMonths: string[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const m = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      cohortMonths.push(`${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}`);
+    }
+
+    // Pre každý cohort mesiac: zákazníci ktorých first month = tento, a ich retention v +N mesiacoch
+    type CohortRow = {
+      cohortKey: string;
+      cohortLabel: string;
+      totalCustomers: number;
+      retention: Array<{ monthOffset: number; count: number; pct: number; cellLabel: string }>;
+    };
+    const rows: CohortRow[] = [];
+
+    cohortMonths.forEach((cohortKey, cohortIdx) => {
+      // Zákazníci ktorých first month = cohortKey
+      const cohortCustomers: string[] = [];
+      customerFirstMonth.forEach((firstM, custId) => {
+        if (firstM === cohortKey) cohortCustomers.push(custId);
+      });
+
+      // Pre každý offset +N: koľko z cohortCustomers nakúpilo aj v cohort + N mesiacov
+      // Maximálny N je obmedzený tým ako ďaleko sme od dneška:
+      // Cohort_0 (najstarší) → max +5, Cohort_5 (najnovší) → max +0
+      const maxOffset = 5 - cohortIdx;
+      const retention: Array<{ monthOffset: number; count: number; pct: number; cellLabel: string }> = [];
+      for (let offset = 0; offset <= 5; offset++) {
+        if (offset > maxOffset) {
+          retention.push({ monthOffset: offset, count: 0, pct: -1, cellLabel: '' });
+          continue;
+        }
+        // Vypočítaj cieľový mesiac
+        const baseDate = new Date(parseInt(cohortKey.split('-')[0]), parseInt(cohortKey.split('-')[1]) - 1, 1);
+        const targetDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + offset, 1);
+        const targetKey = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}`;
+
+        let count = 0;
+        cohortCustomers.forEach(custId => {
+          if (customerActiveMonths.get(custId)?.has(targetKey)) count++;
+        });
+        const pct = cohortCustomers.length > 0 ? (count / cohortCustomers.length) * 100 : 0;
+        retention.push({
+          monthOffset: offset,
+          count,
+          pct,
+          cellLabel: cohortCustomers.length > 0 ? `${count} z ${cohortCustomers.length}` : '—',
+        });
+      }
+
+      // Label "Máj 2026"
+      const [y, m] = cohortKey.split('-');
+      const monthIdx = parseInt(m) - 1;
+      const cohortLabel = `${SK_MONTHS_NOM[monthIdx].slice(0, 3)} ${y.slice(2)}`;
+
+      rows.push({
+        cohortKey,
+        cohortLabel,
+        totalCustomers: cohortCustomers.length,
+        retention,
+      });
+    });
+
+    return { rows };
+  }, [allOrders, segment, today]);
+
+  // ---- Rizikoví zákazníci (>45 dní) ----
+  const atRiskCustomers = useMemo(() => {
+    const fortyFiveDaysAgo = new Date(today);
+    fortyFiveDaysAgo.setDate(fortyFiveDaysAgo.getDate() - 45);
+    const ninetyDaysAgo = new Date(today);
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+    // Mapa zákazníka: lastOrder + zoznam datumov + revenue 90d
+    const map = new Map<string, { id: string; name: string; type: 'home' | 'gastro' | 'wholesale'; lastOrder: string; orderDates: string[]; revenue90d: number }>();
+
+    allOrders.forEach(o => {
+      if (!o.customer_id) return;
+      const d = new Date(o.delivery_date);
+      if (isNaN(d.getTime()) || d > today) return;
+      if (!map.has(o.customer_id)) {
+        map.set(o.customer_id, {
+          id: o.customer_id,
+          name: o.customers?.name || 'Neznámy',
+          type: normCustomerType(o.customers?.customer_type),
+          lastOrder: '',
+          orderDates: [],
+          revenue90d: 0,
+        });
+      }
+      const entry = map.get(o.customer_id)!;
+      if (!entry.lastOrder || o.delivery_date > entry.lastOrder) entry.lastOrder = o.delivery_date;
+      entry.orderDates.push(o.delivery_date);
+      if (d >= ninetyDaysAgo) {
+        let r = 0;
+        (o.order_items || []).forEach(it => { r += itemRevenue(it); });
+        entry.revenue90d += r;
+      }
+    });
+
+    return Array.from(map.values())
+      .filter(c => {
+        // Posledná objednávka >45 dní a ZÁROVEŇ má aspoň 2 objednávky (pravidelný zákazník)
+        const last = new Date(c.lastOrder);
+        return last < fortyFiveDaysAgo && c.orderDates.length >= 2;
+      })
+      .map(c => {
+        // Ø interval medzi objednávkami
+        const sorted = [...c.orderDates].sort();
+        let totalGap = 0;
+        for (let i = 1; i < sorted.length; i++) {
+          totalGap += (new Date(sorted[i]).getTime() - new Date(sorted[i - 1]).getTime()) / (1000 * 60 * 60 * 24);
+        }
+        const avgInterval = sorted.length > 1 ? totalGap / (sorted.length - 1) : 0;
+        const daysSince = Math.floor((today.getTime() - new Date(c.lastOrder).getTime()) / (1000 * 60 * 60 * 24));
+        return {
+          ...c,
+          avgInterval,
+          daysSince,
+          avgMonthlyRevenue: c.revenue90d / 3, // 90 dní = 3 mesiace
+        };
+      })
+      .sort((a, b) => b.avgMonthlyRevenue - a.avgMonthlyRevenue);
+  }, [allOrders, today]);
+
+  // Farba bunky v cohort tabuľke
+  const cohortCellColor = (pct: number): string => {
+    if (pct < 0) return 'transparent';
+    if (pct === 0) return '#f8fafc';
+    if (pct < 20) return '#dcfce7';
+    if (pct < 40) return '#86efac';
+    if (pct < 60) return '#4ade80';
+    if (pct < 80) return '#22c55e';
+    return '#16a34a';
+  };
+
+  const cohortCellTextColor = (pct: number): string => {
+    if (pct < 0) return 'transparent';
+    if (pct < 60) return '#0f172a';
+    return '#ffffff';
+  };
+
+  const SEGMENTS: { value: CohortSegment; label: string }[] = [
+    { value: 'all', label: 'Všetci' },
+    { value: 'home', label: 'Domáci' },
+    { value: 'gastro', label: 'Gastro' },
+    { value: 'wholesale', label: 'VO' },
+  ];
+
+  const formatDateShort = (iso: string): string => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return `${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`;
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Cohort retencia */}
+      <SectionCard
+        title="Cohort retencia zákazníkov"
+        subtitle="Riadok = mesiac prvej objednávky · Stĺpec = nákup v +N mesiacov"
+      >
+        {/* Segment tabs */}
+        <div className="flex flex-wrap items-center gap-1.5 mb-3">
+          {SEGMENTS.map(s => (
+            <button
+              key={s.value}
+              onClick={() => setSegment(s.value)}
+              className={cn(
+                'h-7 px-2.5 rounded-full text-[11px] font-semibold border transition-colors',
+                segment === s.value
+                  ? 'bg-[#16a34a] border-[#16a34a] text-white'
+                  : 'bg-white border-[#e2e8f0] text-[#475569] hover:border-[#bbf7d0]'
+              )}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+
+        {loading ? (
+          <Skeleton className="h-40 w-full" />
+        ) : cohortData.rows.every(r => r.totalCustomers === 0) ? (
+          <ChartEmpty message="Žiadne cohort dáta pre vybraný segment." />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-[#f8fafc] border-b-2 border-[#e2e8f0]">
+                <tr>
+                  <th className="px-3 py-2 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wide sticky left-0 bg-[#f8fafc]">
+                    Cohort
+                  </th>
+                  <th className="px-3 py-2 text-right text-[10px] font-bold text-[#475569] uppercase tracking-wide">
+                    Noví
+                  </th>
+                  {[0, 1, 2, 3, 4, 5].map(offset => (
+                    <th key={offset} className="px-3 py-2 text-center text-[10px] font-bold text-[#475569] uppercase tracking-wide">
+                      {offset === 0 ? 'M0' : `+${offset}`}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#e2e8f0]">
+                {cohortData.rows.map(row => (
+                  <tr key={row.cohortKey} className="hover:bg-[#f8fafc] transition-colors">
+                    <td className="px-3 py-2 font-bold text-[#0f172a] sticky left-0 bg-white">{row.cohortLabel}</td>
+                    <td className="px-3 py-2 text-right font-semibold text-[#475569]">{row.totalCustomers}</td>
+                    {row.retention.map(cell => (
+                      <td
+                        key={cell.monthOffset}
+                        className="px-2 py-2 text-center text-xs font-bold relative group"
+                        style={{
+                          backgroundColor: cohortCellColor(cell.pct),
+                          color: cohortCellTextColor(cell.pct),
+                        }}
+                        title={cell.pct >= 0 ? `${cell.cellLabel} zákazníkov nakúpilo aj v mesiaci +${cell.monthOffset}` : ''}
+                      >
+                        {cell.pct >= 0 && row.totalCustomers > 0 ? `${Math.round(cell.pct)}%` : '—'}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-2 text-[11px] text-[#475569]">
+              <strong>Ako čítať:</strong> Riadok "Máj 26" ukazuje % zo zákazníkov ktorí prvýkrát nakúpili v máji 2026 a nakúpili aj v mesiacoch +1, +2, +3...
+              Tmavšia bunka = vyššia retencia.
+            </p>
+          </div>
+        )}
+      </SectionCard>
+
+      {/* Rizikoví zákazníci */}
+      <SectionCard
+        title="🔴 Rizikoví zákazníci"
+        subtitle="Pravidelní zákazníci (≥2 objednávky) bez nákupu posledných 45 dní · zoradení podľa ušlej hodnoty"
+      >
+        {loading ? (
+          <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
+        ) : atRiskCustomers.length === 0 ? (
+          <div className="py-8 text-center">
+            <p className="text-sm text-[#16a34a] font-bold">✓ Žiadni rizikoví zákazníci</p>
+            <p className="text-xs text-[#475569] mt-1">Všetci pravidelní zákazníci nakupujú podľa očakávania.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-[#f8fafc] border-b-2 border-[#e2e8f0]">
+                <tr>
+                  <th className="px-3 py-2 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wide">Zákazník</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wide">Typ</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-bold text-[#475569] uppercase tracking-wide">Posledná obj.</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-bold text-[#475569] uppercase tracking-wide">Ø interval</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-bold text-[#475569] uppercase tracking-wide">Ušlá hodnota</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#fee2e2]">
+                {atRiskCustomers.map(c => (
+                  <tr key={c.id} className="hover:bg-[#fef2f2] transition-colors">
+                    <td className="px-3 py-2 font-semibold text-[#0f172a]">{c.name}</td>
+                    <td className="px-3 py-2">
+                      <span
+                        className="inline-flex items-center h-5 px-1.5 rounded-full text-[10px] font-bold text-white"
+                        style={{ backgroundColor: COLORS[c.type] }}
+                      >
+                        {labelCustomerType(c.type)}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-right text-[#475569]">
+                      {formatDateShort(c.lastOrder)} <span className="text-[10px] text-[#dc2626]">(pred {c.daysSince}d)</span>
+                    </td>
+                    <td className="px-3 py-2 text-right text-[#475569]">
+                      {c.avgInterval > 0 ? `${c.avgInterval.toFixed(1)} dní` : '—'}
+                    </td>
+                    <td className="px-3 py-2 text-right font-bold text-[#dc2626]">
+                      {formatEur(c.avgMonthlyRevenue)}/m
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SectionCard>
+    </div>
+  );
+};
+
 // ===================== MAIN COMPONENT =====================
 
 const TABS: { key: TabKey; label: string; Icon: any }[] = [
@@ -2576,6 +3230,8 @@ const TABS: { key: TabKey; label: string; Icon: any }[] = [
   { key: 'sales', label: 'Predaje', Icon: ShoppingCart },
   { key: 'customers', label: 'Zákazníci', Icon: Users },
   { key: 'production', label: 'Produkcia', Icon: Sprout },
+  { key: 'trends', label: 'Trendy', Icon: Activity },
+  { key: 'retention', label: 'Retencia', Icon: Clock },
 ];
 
 const ReportsPage = () => {
@@ -3182,6 +3838,18 @@ const ReportsPage = () => {
                 crops={crops}
                 category={category}
                 cropFilter={cropFilter}
+                loading={loading}
+              />
+            )}
+            {activeTab === 'trends' && (
+              <TrendsTab
+                allOrders={allOrders}
+                loading={loading}
+              />
+            )}
+            {activeTab === 'retention' && (
+              <RetentionTab
+                allOrders={allOrders}
                 loading={loading}
               />
             )}
