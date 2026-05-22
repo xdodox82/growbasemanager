@@ -2313,6 +2313,8 @@ const buildExcel = (params: {
   // --- LIST 1: Súhrn ---
   let totalRev = 0, totalOrders = 0, totalGrams = 0;
   const byType: Record<string, number> = { home: 0, gastro: 0, wholesale: 0 };
+  const ordersByType: Record<string, number> = { home: 0, gastro: 0, wholesale: 0 };
+  const customersByType: Record<string, Set<string>> = { home: new Set(), gastro: new Set(), wholesale: new Set() };
   const cropRev = new Map<string, number>();
   const customerIds = new Set<string>();
   filteredOrders.forEach(o => {
@@ -2325,52 +2327,107 @@ const buildExcel = (params: {
     });
     totalRev += r;
     totalOrders += 1;
-    byType[normCustomerType(o.customers?.customer_type)] += r;
-    if (o.customer_id) customerIds.add(o.customer_id);
+    const ct = normCustomerType(o.customers?.customer_type);
+    byType[ct] += r;
+    ordersByType[ct] += 1;
+    if (o.customer_id) {
+      customersByType[ct].add(o.customer_id);
+      customerIds.add(o.customer_id);
+    }
   });
   const avgBasket = totalOrders > 0 ? totalRev / totalOrders : 0;
+
+  // Predchádzajúce obdobie — pre trend vo Súhrne
+  let prevTotalRev = 0;
+  let prevTotalOrders = 0;
+  prevOrders.forEach(o => {
+    (o.order_items || []).forEach(it => { prevTotalRev += itemRevenue(it); });
+    prevTotalOrders += 1;
+  });
+  const revTrend = prevTotalRev > 0 ? (totalRev - prevTotalRev) / prevTotalRev : null;
+  const ordersTrend = prevTotalOrders > 0 ? (totalOrders - prevTotalOrders) / prevTotalOrders : null;
+
   const top5 = Array.from(cropRev.entries())
     .map(([id, r]) => ({ name: cropsMap.get(id)?.name || 'Neznáma', revenue: r }))
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 5);
 
+  // Počet dní v období (pre Ø denné tržby)
+  const daysInRange = Math.max(1, Math.floor(
+    (new Date(range.end).getTime() - new Date(range.start).getTime()) / (1000 * 60 * 60 * 24)
+  ) + 1);
+  const avgDaily = totalRev / daysInRange;
+
+  // Súhrn list — kompaktný manažérsky prehľad
   const summaryAOA: any[][] = [
     ['GROWBASE — REPORT', '', '', ''],
     [`Obdobie: ${formatRange(range)}`, '', '', ''],
     [`Generované: ${new Date().toLocaleString('sk-SK')}`, '', '', ''],
     ['', '', '', ''],
-    ['KĽÚČOVÉ METRIKY', '', '', ''],
-    ['Tržby celkom', totalRev, '', ''],
-    ['Objednávok', totalOrders, '', ''],
+    // === KĽÚČOVÉ METRIKY ===
+    ['KĽÚČOVÉ METRIKY', 'Hodnota', 'vs predchádzajúce obdobie', ''],
+    ['Tržby celkom', totalRev, revTrend, ''],
+    ['Objednávok', totalOrders, ordersTrend, ''],
     ['Priemerný košík', avgBasket, '', ''],
     ['Aktívnych zákazníkov', customerIds.size, '', ''],
-    ['Predaných gramov', totalGrams, '', ''],
+    ['Predaných gramov', Math.round(totalGrams), '', ''],
+    ['Priemerné denné tržby', avgDaily, '', `${daysInRange} dní`],
     ['', '', '', ''],
-    ['PODĽA TYPU ZÁKAZNÍKA', 'Tržby', '% z celku', ''],
-    ['Domáci', byType.home, totalRev > 0 ? (byType.home / totalRev) : 0, ''],
-    ['Gastro', byType.gastro, totalRev > 0 ? (byType.gastro / totalRev) : 0, ''],
-    ['VO', byType.wholesale, totalRev > 0 ? (byType.wholesale / totalRev) : 0, ''],
+    // === PODĽA TYPU ZÁKAZNÍKA ===
+    ['PODĽA TYPU ZÁKAZNÍKA', 'Tržby', '% z celku', 'Objednávok'],
+    ['Domáci', byType.home, totalRev > 0 ? (byType.home / totalRev) : 0, ordersByType.home],
+    ['Gastro', byType.gastro, totalRev > 0 ? (byType.gastro / totalRev) : 0, ordersByType.gastro],
+    ['VO', byType.wholesale, totalRev > 0 ? (byType.wholesale / totalRev) : 0, ordersByType.wholesale],
+    ['SPOLU', totalRev, 1, totalOrders],
     ['', '', '', ''],
-    ['TOP 5 PLODÍN', 'Tržby', '', ''],
+    // === UNIKÁTNI ZÁKAZNÍCI PODĽA TYPU ===
+    ['UNIKÁTNI ZÁKAZNÍCI PODĽA TYPU', 'Počet', '% z aktívnych', ''],
+    ['Domáci', customersByType.home.size, customerIds.size > 0 ? customersByType.home.size / customerIds.size : 0, ''],
+    ['Gastro', customersByType.gastro.size, customerIds.size > 0 ? customersByType.gastro.size / customerIds.size : 0, ''],
+    ['VO', customersByType.wholesale.size, customerIds.size > 0 ? customersByType.wholesale.size / customerIds.size : 0, ''],
+    ['', '', '', ''],
+    // === TOP 5 PLODÍN ===
+    ['TOP 5 PLODÍN', 'Tržby', '% z celku', ''],
   ];
-  top5.forEach((c, i) => summaryAOA.push([`${i + 1}. ${c.name}`, c.revenue, '', '']));
+  top5.forEach((c, i) => summaryAOA.push([
+    `${i + 1}. ${c.name}`,
+    c.revenue,
+    totalRev > 0 ? c.revenue / totalRev : 0,
+    '',
+  ]));
 
   const wsSummary = XLSX.utils.aoa_to_sheet(summaryAOA);
-  wsSummary['!cols'] = [{ wch: 30 }, { wch: 14 }, { wch: 12 }, { wch: 10 }];
-  // Number formats — € pre cells B6, B8, atď.
-  ['B6', 'B7', 'B8', 'B10', 'B13', 'B14', 'B15'].forEach(cell => {
-    if (wsSummary[cell]) wsSummary[cell].z = '#,##0.00 €';
+  wsSummary['!cols'] = [{ wch: 32 }, { wch: 16 }, { wch: 22 }, { wch: 12 }];
+
+  // ===== Number formats =====
+  // KĽÚČOVÉ METRIKY — riadky 6-11 (1-indexed v Exceli)
+  // B6=Tržby celkom (€), B7=Objednávok (int), B8=Priem.košík (€), B9=Aktívni (int),
+  // B10=Predaných gramov (int g), B11=Ø denné tržby (€)
+  if (wsSummary['B6']) wsSummary['B6'].z = '#,##0.00 €';
+  if (wsSummary['B8']) wsSummary['B8'].z = '#,##0.00 €';
+  if (wsSummary['B10']) wsSummary['B10'].z = '#,##0" g"';
+  if (wsSummary['B11']) wsSummary['B11'].z = '#,##0.00 €';
+  // C6, C7 — trend (percento alebo prázdne)
+  ['C6', 'C7'].forEach(c => {
+    if (wsSummary[c] && typeof wsSummary[c].v === 'number') wsSummary[c].z = '+0.0%;-0.0%;0.0%';
   });
-  // Top 5 revenues
+
+  // PODĽA TYPU ZÁKAZNÍKA — riadky 14-17 (Domáci/Gastro/VO/SPOLU)
+  ['B14', 'B15', 'B16', 'B17'].forEach(c => { if (wsSummary[c]) wsSummary[c].z = '#,##0.00 €'; });
+  ['C14', 'C15', 'C16', 'C17'].forEach(c => { if (wsSummary[c]) wsSummary[c].z = '0.0%'; });
+
+  // UNIKÁTNI ZÁKAZNÍCI — riadky 20-22
+  ['C20', 'C21', 'C22'].forEach(c => { if (wsSummary[c]) wsSummary[c].z = '0.0%'; });
+
+  // TOP 5 PLODÍN — riadky 25 a nasledujúce
   top5.forEach((_, i) => {
-    const row = 18 + i;
-    const cellRef = `B${row}`;
-    if (wsSummary[cellRef]) wsSummary[cellRef].z = '#,##0.00 €';
+    const row = 26 + i;
+    if (wsSummary[`B${row}`]) wsSummary[`B${row}`].z = '#,##0.00 €';
+    if (wsSummary[`C${row}`]) wsSummary[`C${row}`].z = '0.0%';
   });
-  // Percentá
-  ['C13', 'C14', 'C15'].forEach(cell => {
-    if (wsSummary[cell]) wsSummary[cell].z = '0.0%';
-  });
+
+  // Frozen header
+  wsSummary['!views'] = [{ state: 'frozen', ySplit: 4 } as any];
   XLSX.utils.book_append_sheet(wb, wsSummary, 'Súhrn');
 
   // --- LIST 2: Predaje po plodine ---
@@ -2761,6 +2818,23 @@ const ReportsPage = () => {
   };
 
   // ---- PDF EXPORT ----
+  // Helper: jsPDF defaultný font (helvetica) nepodporuje slovenské diakritické znaky.
+  // Namiesto pridávania Unicode fontu (komplikované, +500 KB bundle) nahradíme
+  // diakritiku ASCII ekvivalentmi pred vložením do PDF.
+  const removeDiacritics = (text: string): string => {
+    if (!text) return '';
+    const map: Record<string, string> = {
+      'á': 'a', 'ä': 'a', 'č': 'c', 'ď': 'd', 'é': 'e', 'í': 'i', 'ĺ': 'l', 'ľ': 'l',
+      'ň': 'n', 'ó': 'o', 'ô': 'o', 'ŕ': 'r', 'š': 's', 'ť': 't', 'ú': 'u', 'ý': 'y',
+      'ž': 'z', 'Á': 'A', 'Ä': 'A', 'Č': 'C', 'Ď': 'D', 'É': 'E', 'Í': 'I', 'Ĺ': 'L',
+      'Ľ': 'L', 'Ň': 'N', 'Ó': 'O', 'Ô': 'O', 'Ŕ': 'R', 'Š': 'S', 'Ť': 'T', 'Ú': 'U',
+      'Ý': 'Y', 'Ž': 'Z',
+      // České diakritiky pre istotu (v zákazníckych menách):
+      'ě': 'e', 'ř': 'r', 'ů': 'u', 'Ě': 'E', 'Ř': 'R', 'Ů': 'U',
+    };
+    return text.replace(/[áäčďéíĺľňóôŕšťúýžÁÄČĎÉÍĹĽŇÓÔŔŠŤÚÝŽěřůĚŘŮ]/g, ch => map[ch] || ch);
+  };
+
   const handleExportPDF = async () => {
     setExportingPdf(true);
     try {
@@ -2786,8 +2860,9 @@ const ReportsPage = () => {
       const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
       // ===== Agregát pre PDF (rovnaký ako Excel Súhrn) =====
-      let totalRev = 0, totalOrders = 0;
+      let totalRev = 0, totalOrders = 0, totalGrams = 0;
       const byType: Record<string, number> = { home: 0, gastro: 0, wholesale: 0 };
+      const ordersByType: Record<string, number> = { home: 0, gastro: 0, wholesale: 0 };
       const cropRev = new Map<string, number>();
       const customerIds = new Set<string>();
       filteredOrders.forEach(o => {
@@ -2795,14 +2870,24 @@ const ReportsPage = () => {
         (o.order_items || []).forEach((it: any) => {
           const rev = itemRevenue(it);
           r += rev;
+          totalGrams += itemGrams(it);
           if (it.crop_id) cropRev.set(it.crop_id, (cropRev.get(it.crop_id) || 0) + rev);
         });
         totalRev += r;
         totalOrders += 1;
-        byType[normCustomerType(o.customers?.customer_type)] += r;
+        const ct = normCustomerType(o.customers?.customer_type);
+        byType[ct] += r;
+        ordersByType[ct] += 1;
         if (o.customer_id) customerIds.add(o.customer_id);
       });
       const avgBasket = totalOrders > 0 ? totalRev / totalOrders : 0;
+
+      // Predchádzajúce obdobie — pre trend MoM/WoW
+      let prevTotalRev = 0;
+      prevOrders.forEach(o => {
+        (o.order_items || []).forEach((it: any) => { prevTotalRev += itemRevenue(it); });
+      });
+
       const cropsNameMap = new Map<string, string>();
       crops.forEach(c => cropsNameMap.set(c.id, c.name));
       const top10 = Array.from(cropRev.entries())
@@ -2830,93 +2915,132 @@ const ReportsPage = () => {
         .slice(0, 15);
 
       // ===== STRANA 1: Cover =====
-      doc.setFontSize(28);
+      // Skrátka: nd() = no-diacritics, používame v každom text() volaní
+      const nd = removeDiacritics;
+
+      // ===== STRANA 1: Cover (kompaktný horný blok) + KPI + Typy + Top 10 =====
+      // Cover blok v hornej tretine strany (nie celá strana ako predtým)
+      doc.setFontSize(22);
       doc.setTextColor(22, 163, 74); // #16a34a
-      doc.text('GrowBase Report', 105, 90, { align: 'center' });
+      doc.text(nd('GrowBase Report'), 105, 22, { align: 'center' });
 
-      doc.setFontSize(14);
+      doc.setFontSize(12);
       doc.setTextColor(15, 23, 42); // #0f172a
-      doc.text(formatRange(range), 105, 105, { align: 'center' });
-
-      doc.setFontSize(10);
-      doc.setTextColor(71, 85, 105); // #475569
-      doc.text(`Vygenerované: ${new Date().toLocaleString('sk-SK')}`, 105, 115, { align: 'center' });
+      doc.text(nd(formatRange(range)), 105, 30, { align: 'center' });
 
       doc.setFontSize(8);
-      doc.text('mikrorastlinky.sk', 105, 270, { align: 'center' });
+      doc.setTextColor(71, 85, 105); // #475569
+      doc.text(nd(`Vygenerovane: ${new Date().toLocaleString('sk-SK')}`), 105, 36, { align: 'center' });
 
-      // ===== STRANA 2: KPI tabuľka =====
-      doc.addPage();
-      doc.setFontSize(16);
+      // ===== KPI tabuľka =====
+      doc.setFontSize(12);
       doc.setTextColor(15, 23, 42);
-      doc.text('Kľúčové metriky', 14, 20);
+      doc.text(nd('Klucove metriky'), 14, 48);
 
       autoTable(doc, {
-        startY: 25,
-        head: [['Metrika', 'Hodnota']],
+        startY: 51,
+        head: [[nd('Metrika'), nd('Hodnota'), nd('vs predchadzajuce obdobie')]],
         body: [
-          ['Tržby celkom', formatEur(totalRev)],
-          ['Objednávok', formatNumber(totalOrders)],
-          ['Priemerný košík', formatEur(avgBasket)],
-          ['Aktívnych zákazníkov', formatNumber(customerIds.size)],
+          [
+            nd('Trzby celkom'),
+            nd(formatEur(totalRev)),
+            (() => {
+              if (prevTotalRev === 0) return '—';
+              const pct = Math.round(((totalRev - prevTotalRev) / prevTotalRev) * 100);
+              return `${pct >= 0 ? '+' : ''}${pct}%`;
+            })(),
+          ],
+          [nd('Objednavok'), formatNumber(totalOrders), ''],
+          [nd('Priemerny kosik'), nd(formatEur(avgBasket)), ''],
+          [nd('Aktivnych zakaznikov'), formatNumber(customerIds.size), ''],
+          [nd('Predanych gramov'), `${Math.round(totalGrams)} g`, ''],
         ],
-        styles: { fontSize: 10, cellPadding: 3 },
-        headStyles: { fillColor: [22, 163, 74], textColor: 255 },
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: { fillColor: [22, 163, 74], textColor: 255, fontSize: 9 },
         alternateRowStyles: { fillColor: [248, 250, 252] },
+        margin: { left: 14, right: 14 },
       });
 
-      // Podľa typu zákazníka
-      doc.setFontSize(13);
+      // ===== Tržby podľa typu zákazníka =====
+      const afterKpi = (doc as any).lastAutoTable.finalY + 5;
+      doc.setFontSize(12);
       doc.setTextColor(15, 23, 42);
-      const afterKpi = (doc as any).lastAutoTable.finalY + 10;
-      doc.text('Tržby podľa typu zákazníka', 14, afterKpi);
+      doc.text(nd('Trzby podla typu zakaznika'), 14, afterKpi);
 
       autoTable(doc, {
         startY: afterKpi + 3,
-        head: [['Typ', 'Tržby', '% z celku']],
+        head: [[nd('Typ'), nd('Trzby'), nd('% z celku'), nd('Pocet objednavok')]],
         body: [
-          ['Domáci', formatEur(byType.home), totalRev > 0 ? `${((byType.home / totalRev) * 100).toFixed(1)}%` : '0%'],
-          ['Gastro', formatEur(byType.gastro), totalRev > 0 ? `${((byType.gastro / totalRev) * 100).toFixed(1)}%` : '0%'],
-          ['VO', formatEur(byType.wholesale), totalRev > 0 ? `${((byType.wholesale / totalRev) * 100).toFixed(1)}%` : '0%'],
+          [
+            nd('Domaci'),
+            nd(formatEur(byType.home)),
+            totalRev > 0 ? `${((byType.home / totalRev) * 100).toFixed(1)}%` : '0%',
+            String(ordersByType.home),
+          ],
+          [
+            'Gastro',
+            nd(formatEur(byType.gastro)),
+            totalRev > 0 ? `${((byType.gastro / totalRev) * 100).toFixed(1)}%` : '0%',
+            String(ordersByType.gastro),
+          ],
+          [
+            'VO',
+            nd(formatEur(byType.wholesale)),
+            totalRev > 0 ? `${((byType.wholesale / totalRev) * 100).toFixed(1)}%` : '0%',
+            String(ordersByType.wholesale),
+          ],
         ],
-        styles: { fontSize: 10, cellPadding: 3 },
-        headStyles: { fillColor: [22, 163, 74], textColor: 255 },
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: { fillColor: [22, 163, 74], textColor: 255, fontSize: 9 },
         alternateRowStyles: { fillColor: [248, 250, 252] },
+        margin: { left: 14, right: 14 },
       });
 
-      // Top 10 plodín
-      const afterTypes = (doc as any).lastAutoTable.finalY + 10;
-      doc.setFontSize(13);
-      doc.text('Top 10 plodín', 14, afterTypes);
+      // ===== Top 10 plodín =====
+      const afterTypes = (doc as any).lastAutoTable.finalY + 5;
+      doc.setFontSize(12);
+      doc.text(nd('Top 10 plodin'), 14, afterTypes);
 
       autoTable(doc, {
         startY: afterTypes + 3,
-        head: [['#', 'Plodina', 'Tržby']],
-        body: top10.map((c, i) => [String(i + 1), c.name, formatEur(c.revenue)]),
-        styles: { fontSize: 10, cellPadding: 3 },
-        headStyles: { fillColor: [22, 163, 74], textColor: 255 },
+        head: [['#', nd('Plodina'), nd('Trzby'), nd('% z celku')]],
+        body: top10.map((c, i) => [
+          String(i + 1),
+          nd(c.name),
+          nd(formatEur(c.revenue)),
+          totalRev > 0 ? `${((c.revenue / totalRev) * 100).toFixed(1)}%` : '0%',
+        ]),
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: { fillColor: [22, 163, 74], textColor: 255, fontSize: 9 },
         alternateRowStyles: { fillColor: [248, 250, 252] },
+        margin: { left: 14, right: 14 },
       });
 
-      // ===== STRANA 3: Top zákazníci =====
+      // ===== STRANA 2: Top zákazníci =====
       doc.addPage();
       doc.setFontSize(16);
       doc.setTextColor(15, 23, 42);
-      doc.text('Top zákazníci', 14, 20);
+      doc.text(nd('Top zakaznici'), 14, 20);
+
+      doc.setFontSize(9);
+      doc.setTextColor(71, 85, 105);
+      doc.text(nd(`Obdobie: ${formatRange(range)}`), 14, 26);
 
       autoTable(doc, {
-        startY: 25,
-        head: [['#', 'Zákazník', 'Typ', 'Tržby', 'Obj.']],
+        startY: 31,
+        head: [['#', nd('Zakaznik'), nd('Typ'), nd('Trzby'), nd('Obj.'), nd('Ø kosik')]],
         body: topCustomers.map((c, i) => [
           String(i + 1),
-          c.name,
-          c.type,
-          formatEur(c.revenue),
+          nd(c.name),
+          nd(c.type),
+          nd(formatEur(c.revenue)),
           String(c.orders),
+          nd(formatEur(c.orders > 0 ? c.revenue / c.orders : 0)),
         ]),
-        styles: { fontSize: 9, cellPadding: 2.5 },
-        headStyles: { fillColor: [22, 163, 74], textColor: 255 },
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: { fillColor: [22, 163, 74], textColor: 255, fontSize: 9 },
         alternateRowStyles: { fillColor: [248, 250, 252] },
+        margin: { left: 14, right: 14 },
       });
 
       // ===== Footer pre každú stranu =====
@@ -2925,7 +3049,12 @@ const ReportsPage = () => {
         doc.setPage(i);
         doc.setFontSize(8);
         doc.setTextColor(148, 163, 184); // #94a3b8
-        doc.text(`GrowBase | mikrorastlinky.sk | Strana ${i} / ${pageCount}`, 105, 290, { align: 'center' });
+        doc.text(
+          nd(`GrowBase | mikrorastlinky.sk | Strana ${i} / ${pageCount}`),
+          105,
+          290,
+          { align: 'center' }
+        );
       }
 
       // ===== Save =====
