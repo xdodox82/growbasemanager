@@ -390,6 +390,11 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
   const [lotNumber, setLotNumber] = useState('');
   const [purchaseDate, setPurchaseDate] = useState<string>('');
   const [expiryDate, setExpiryDate] = useState<string>('');
+  const [consumptionStartDate, setConsumptionStartDate] = useState<string>('');
+  const [consumptionEndDate, setConsumptionEndDate] = useState<string>('');
+  const [stockingDate, setStockingDate] = useState<string>('');
+  const [finishedDate, setFinishedDate] = useState<string>('');
+  const [batchNumber, setBatchNumber] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [minStock, setMinStock] = useState('');
   const [unitPricePerKg, setUnitPricePerKg] = useState('');
@@ -420,6 +425,11 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
     setLotNumber('');
     setPurchaseDate('');
     setExpiryDate('');
+    setConsumptionStartDate('');
+    setConsumptionEndDate('');
+    setStockingDate('');
+    setFinishedDate('');
+    setBatchNumber('');
     setNotes('');
     setMinStock('');
     setUnitPricePerKg('');
@@ -445,6 +455,11 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
     setLotNumber((seed as any).lot_number || '');
     setPurchaseDate((seed as any).purchase_date || '');
     setExpiryDate((seed as any).expiry_date || '');
+    setConsumptionStartDate((seed as any).consumption_start_date || '');
+    setConsumptionEndDate((seed as any).consumption_end_date || '');
+    setStockingDate((seed as any).stocking_date || '');
+    setFinishedDate((seed as any).finished_date || '');
+    setBatchNumber((seed as any).batch_number || '');
     setNotes(seed.notes || '');
     setMinStock((seed as any).min_stock?.toString() || '');
     setUnitPricePerKg((seed as any).unit_price_per_kg?.toString() || '');
@@ -563,6 +578,11 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
       lot_number: lotNumber || null,
       purchase_date: purchaseDate || null,
       expiry_date: expiryDate || null,
+      consumption_start_date: consumptionStartDate || null,
+      consumption_end_date: consumptionEndDate || null,
+      stocking_date: stockingDate || null,
+      finished_date: finishedDate || null,
+      batch_number: batchNumber || null,
       notes: notes || null,
       certificate_url: finalCertUrl,
       min_stock: minStock ? parseFloat(minStock) : null,
@@ -817,6 +837,24 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                       <span className="text-[#0f172a]">{formatDate(expiry)}</span>
                     </div>
                   )}
+                  {(seed as any).consumption_start_date && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#475569]">Spotreba od:</span>
+                      <span className="text-[#0f172a]">{formatDate((seed as any).consumption_start_date)}</span>
+                    </div>
+                  )}
+                  {(seed as any).consumption_end_date && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#475569]">Spotreba do:</span>
+                      <span className="text-[#0f172a]">{formatDate((seed as any).consumption_end_date)}</span>
+                    </div>
+                  )}
+                  {(seed as any).batch_number && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#475569]">Šarža:</span>
+                      <span className="text-[#0f172a]">{(seed as any).batch_number}</span>
+                    </div>
+                  )}
                   {seed.supplier_id && (
                     <div className="flex items-center justify-between">
                       <span className="text-[#475569]">Dodávateľ:</span>
@@ -1059,6 +1097,58 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                   className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
                 />
               </div>
+            </div>
+
+            {/* Dátumy spotreby + šarža */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs font-semibold text-[#475569]">Začiatok spotreby</Label>
+                <Input
+                  type="date"
+                  value={consumptionStartDate}
+                  onChange={(e) => setConsumptionStartDate(e.target.value)}
+                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold text-[#475569]">Koniec spotreby</Label>
+                <Input
+                  type="date"
+                  value={consumptionEndDate}
+                  onChange={(e) => setConsumptionEndDate(e.target.value)}
+                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs font-semibold text-[#475569]">Dátum naskladnenia</Label>
+                <Input
+                  type="date"
+                  value={stockingDate}
+                  onChange={(e) => setStockingDate(e.target.value)}
+                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold text-[#475569]">Dátum spotrebia</Label>
+                <Input
+                  type="date"
+                  value={finishedDate}
+                  onChange={(e) => setFinishedDate(e.target.value)}
+                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs font-semibold text-[#475569]">Číslo šarže</Label>
+              <Input
+                type="text"
+                value={batchNumber}
+                onChange={(e) => setBatchNumber(e.target.value)}
+                placeholder="napr. LOT-2026-001"
+                className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+              />
             </div>
 
             {/* Certifikát */}
