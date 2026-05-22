@@ -10,7 +10,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Brush,
 } from 'recharts';
 import {
-  BarChart3, Users, ShoppingCart, Euro, Sprout, FileSpreadsheet,
+  BarChart3, Users, ShoppingCart, Euro, Sprout, FileSpreadsheet, FileText,
   Filter, Calendar, AlertTriangle, TrendingUp, TrendingDown, Minus,
   Loader2, ChevronDown, X, ArrowUpRight, ArrowDownRight, Activity,
   Package, Clock, Star, Eye,
@@ -20,12 +20,16 @@ import { cn } from '@/lib/utils';
 
 // ===================== TYPES =====================
 
-type TabKey = 'overview' | 'sales' | 'customers';
+type TabKey = 'overview' | 'sales' | 'customers' | 'production';
 
 type PeriodPreset = 'this_week' | 'this_month' | 'this_quarter' | 'this_year' | 'custom';
 
 type CustomerTypeFilter = 'all' | 'home' | 'gastro' | 'wholesale';
 
+// Filter podľa kategórie plodín. 'blends' = mixy (samostatná tabuľka)
+type CategoryFilter = 'all' | 'microgreens' | 'microherbs' | 'edible_flowers' | 'blends';
+
+// "Selected entity" — môže byť konkrétna plodina, konkrétny mix, alebo 'all'
 interface DateRange {
   start: string; // YYYY-MM-DD
   end: string;
@@ -58,6 +62,36 @@ interface Crop {
   category: string | null;
 }
 
+interface Blend {
+  id: string;
+  name: string;
+}
+
+interface PlantingPlan {
+  id: string;
+  crop_id: string;
+  sow_date: string;
+  expected_harvest_date: string | null;
+  status: string;
+  tray_size: string;
+  tray_count: number;
+  products?: {
+    id: string;
+    name: string;
+    color: string | null;
+    category: string | null;
+    tray_configs?: any;
+  } | null;
+}
+
+interface ShelfConfig {
+  id: string;
+  name: string;
+  zone: string; // 'dark' | 'light'
+  shelves: number;
+  positions_per_shelf: number;
+}
+
 interface Customer {
   id: string;
   name: string;
@@ -65,6 +99,26 @@ interface Customer {
 }
 
 // ===================== CONSTANTS =====================
+
+const CATEGORY_LABELS: Record<CategoryFilter, string> = {
+  all: 'Všetky',
+  microgreens: 'Mikrozelenina',
+  microherbs: 'Mikrobylinky',
+  edible_flowers: 'Jedlé kvety',
+  blends: 'Mixy',
+};
+
+const CATEGORY_ORDER: CategoryFilter[] = ['all', 'microgreens', 'microherbs', 'edible_flowers', 'blends'];
+
+// Normalizácia category z DB — toleruje rôzne typografie a slovenské varianty
+const normalizeCategory = (raw: string | null | undefined): 'microgreens' | 'microherbs' | 'edible_flowers' | 'unknown' => {
+  if (!raw) return 'unknown';
+  const t = raw.toLowerCase().trim();
+  if (t.includes('herb') || t === 'mikrobylinky' || t === 'mikrobyliny') return 'microherbs';
+  if (t.includes('flower') || t === 'kvety' || t === 'jedlékvety' || t.includes('jedlé kvety')) return 'edible_flowers';
+  if (t.includes('green') || t === 'mikrozelenina' || t === 'microgreens') return 'microgreens';
+  return 'unknown';
+};
 
 const COLORS = {
   home: '#16a34a',
@@ -342,11 +396,16 @@ interface FilterBarProps {
   range: DateRange;
   customerType: CustomerTypeFilter;
   setCustomerType: (t: CustomerTypeFilter) => void;
+  category: CategoryFilter;
+  setCategory: (c: CategoryFilter) => void;
   cropFilter: string;
   setCropFilter: (id: string) => void;
   crops: Crop[];
-  onExport: () => void;
+  blends: Blend[];
+  onExportExcel: () => void;
+  onExportPDF: () => void;
   exporting: boolean;
+  exportingPDF: boolean;
 }
 
 const FilterBar = (props: FilterBarProps) => {
@@ -416,7 +475,7 @@ const FilterBar = (props: FilterBarProps) => {
           </div>
         )}
 
-        {/* Row 3: customer type + crop */}
+        {/* Row 3: customer type */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex flex-wrap items-center gap-1.5">
             <Users className="h-3.5 w-3.5 text-[#475569]" />
@@ -437,31 +496,76 @@ const FilterBar = (props: FilterBarProps) => {
             ))}
           </div>
 
-          <div className="flex items-center gap-1.5">
-            <Sprout className="h-3.5 w-3.5 text-[#475569]" />
-            <span className="text-[11px] uppercase tracking-wide font-bold text-[#475569]">Plodina:</span>
-            <select
-              value={props.cropFilter}
-              onChange={(e) => props.setCropFilter(e.target.value)}
-              className="h-7 px-2 rounded-md border border-[#e2e8f0] bg-white text-xs text-[#0f172a] hover:border-[#cbd5e1] focus:border-[#16a34a] focus:outline-none"
-            >
-              <option value="all">Všetky plodiny</option>
-              {props.crops.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
-
           <div className="flex-1" />
 
           <button
-            onClick={props.onExport}
+            onClick={props.onExportExcel}
             disabled={props.exporting}
             className="h-8 px-3 rounded-md bg-[#16a34a] hover:bg-[#15803d] disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold flex items-center gap-1.5 transition-colors"
           >
             {props.exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileSpreadsheet className="h-3.5 w-3.5" />}
-            Export Excel
+            Excel
           </button>
+          <button
+            onClick={props.onExportPDF}
+            disabled={props.exportingPDF}
+            className="h-8 px-3 rounded-md bg-[#dc2626] hover:bg-[#b91c1c] disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold flex items-center gap-1.5 transition-colors"
+          >
+            {props.exportingPDF ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+            PDF
+          </button>
+        </div>
+
+        {/* Row 4: kategória + plodina (2-step filter) */}
+        <div className="flex flex-wrap items-center gap-3 border-t border-[#e2e8f0] pt-3">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Sprout className="h-3.5 w-3.5 text-[#475569]" />
+            <span className="text-[11px] uppercase tracking-wide font-bold text-[#475569] mr-1">Kategória:</span>
+            {CATEGORY_ORDER.map(cat => (
+              <button
+                key={cat}
+                onClick={() => {
+                  props.setCategory(cat);
+                  props.setCropFilter('all'); // reset plodiny pri zmene kategórie
+                }}
+                className={cn(
+                  'h-6 px-2 rounded-full text-[11px] font-semibold border transition-colors',
+                  props.category === cat
+                    ? 'bg-[#16a34a] border-[#16a34a] text-white'
+                    : 'bg-white border-[#e2e8f0] text-[#475569] hover:border-[#bbf7d0] hover:text-[#16a34a]'
+                )}
+              >
+                {CATEGORY_LABELS[cat]}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] uppercase tracking-wide font-bold text-[#475569]">
+              {props.category === 'blends' ? 'Mix:' : 'Plodina:'}
+            </span>
+            <select
+              value={props.cropFilter}
+              onChange={(e) => props.setCropFilter(e.target.value)}
+              className="h-7 px-2 rounded-md border border-[#e2e8f0] bg-white text-xs text-[#0f172a] hover:border-[#cbd5e1] focus:border-[#16a34a] focus:outline-none min-w-[180px]"
+            >
+              <option value="all">Všetky {CATEGORY_LABELS[props.category].toLowerCase()}</option>
+              {props.category === 'blends' ? (
+                props.blends.map(b => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))
+              ) : (
+                props.crops
+                  .filter(c => {
+                    if (props.category === 'all') return true;
+                    return normalizeCategory(c.category) === props.category;
+                  })
+                  .map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))
+              )}
+            </select>
+          </div>
         </div>
       </div>
     </div>
@@ -1740,6 +1844,454 @@ const CustomersTab = ({ range, prevRange, filteredOrders, allOrders, customers, 
   );
 };
 
+// ===================== PRODUCTION TAB =====================
+
+interface ProductionTabProps {
+  range: DateRange;
+  plantingPlans: PlantingPlan[];
+  shelves: ShelfConfig[];
+  allOrders: Order[]; // pre sezónnosť (posledných 12 mesiacov)
+  crops: Crop[];
+  category: CategoryFilter;
+  cropFilter: string;
+  loading: boolean;
+}
+
+const ProductionTab = ({ range, plantingPlans, shelves, allOrders, crops, category, cropFilter, loading }: ProductionTabProps) => {
+  // Filter planting plans podľa range (sow_date v rámci obdobia)
+  // a podľa category + cropFilter (rovnaký globálny filter)
+  const filteredPlans = useMemo(() => {
+    return plantingPlans.filter(p => {
+      // Obdobie — podľa sow_date
+      const sowDate = (p.sow_date || '').split('T')[0];
+      if (sowDate < range.start || sowDate > range.end) return false;
+
+      // Kategória + plodina
+      if (category === 'blends') {
+        // Mixy sa nesadia priamo cez planting_plans — preto pri 'blends' žiadne výsevy
+        return false;
+      }
+      if (category !== 'all') {
+        const planCat = normalizeCategory(p.products?.category);
+        if (planCat !== category) return false;
+      }
+      if (cropFilter !== 'all') {
+        if (p.crop_id !== cropFilter) return false;
+      }
+      return true;
+    });
+  }, [plantingPlans, range, category, cropFilter]);
+
+  // ---- Sekcia A — Tabuľka výsevov ----
+  const tableRows = useMemo(() => {
+    return filteredPlans.map(p => {
+      // Normalizácia tray_configs (lowercase v DB → uppercase pre lookup)
+      const rawConfigs = p.products?.tray_configs || {};
+      const configs: Record<string, any> = {};
+      Object.keys(rawConfigs).forEach(k => { configs[k.toUpperCase()] = rawConfigs[k]; });
+
+      const trayKey = (p.tray_size || '').toUpperCase();
+      const yieldPerTray = configs[trayKey]?.yield_grams ?? null;
+      const plannedYield = yieldPerTray != null ? yieldPerTray * (p.tray_count || 0) : null;
+
+      return {
+        id: p.id,
+        cropName: p.products?.name || 'Neznáma',
+        cropColor: p.products?.color || '#16a34a',
+        traySize: p.tray_size,
+        trayCount: p.tray_count || 0,
+        plannedYield,
+        harvestDate: p.expected_harvest_date,
+        status: p.status,
+      };
+    }).sort((a, b) => {
+      // Zoradenie podľa expected_harvest_date ASC
+      const aD = a.harvestDate || '9999-12-31';
+      const bD = b.harvestDate || '9999-12-31';
+      return aD.localeCompare(bD);
+    });
+  }, [filteredPlans]);
+
+  // ---- Sekcia B — Tácky podľa veľkosti ----
+  const traysBySize = useMemo(() => {
+    const counts: Record<string, number> = {};
+    filteredPlans.forEach(p => {
+      const size = (p.tray_size || 'M').toUpperCase();
+      counts[size] = (counts[size] || 0) + (p.tray_count || 0);
+    });
+    // Vrátiť v poradí XL, L, M (top-down)
+    return ['XL', 'L', 'M'].map(size => ({
+      size,
+      count: counts[size] || 0,
+    }));
+  }, [filteredPlans]);
+
+  // ---- Sekcia C — Využitie kapacity regálov ----
+  // Plány aktuálne v tme (in_progress, < expected_harvest_date a sow_date prešiel) → v Klíčení
+  // Plány v rastovej fáze → na Svetle
+  // Pre jednoduchosť: in_progress + sow_date <= dnes <= expected_harvest_date
+  const capacity = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    let darkPositions = 0; // klíčenie - prvé X dní po sow_date
+    let lightPositions = 0; // svetlo
+
+    plantingPlans.forEach(p => {
+      if (p.status !== 'in_progress') return;
+      const sow = (p.sow_date || '').split('T')[0];
+      const harvest = (p.expected_harvest_date || '').split('T')[0];
+      if (sow > today || (harvest && harvest < today)) return;
+
+      // Heuristika: prvé 2-3 dni po výseve klíčenie, potom svetlo.
+      // Bez prístupu k days_in_darkness z plan → použiť konzervatívne 3 dni.
+      const daysSinceSow = Math.floor((new Date(today).getTime() - new Date(sow).getTime()) / (1000 * 60 * 60 * 24));
+      if (daysSinceSow <= 3) {
+        darkPositions += (p.tray_count || 0);
+      } else {
+        lightPositions += (p.tray_count || 0);
+      }
+    });
+
+    // Kapacita z shelves konfigurácie
+    const darkCapacity = shelves
+      .filter(s => s.zone === 'dark' || s.zone === 'klicenie' || s.zone === 'klíčenie')
+      .reduce((s, sh) => s + (sh.shelves * sh.positions_per_shelf), 0);
+    const lightCapacity = shelves
+      .filter(s => s.zone === 'light' || s.zone === 'svetlo')
+      .reduce((s, sh) => s + (sh.shelves * sh.positions_per_shelf), 0);
+
+    return {
+      dark: { used: darkPositions, total: darkCapacity, pct: darkCapacity > 0 ? Math.round((darkPositions / darkCapacity) * 100) : 0 },
+      light: { used: lightPositions, total: lightCapacity, pct: lightCapacity > 0 ? Math.round((lightPositions / lightCapacity) * 100) : 0 },
+    };
+  }, [plantingPlans, shelves]);
+
+  // ---- Sekcia D — Sezónnosť (heatmap top 8 plodín × 12 mesiacov) ----
+  const seasonality = useMemo(() => {
+    const today = new Date();
+    const months: { key: string; label: string }[] = [];
+    for (let i = 11; i >= 0; i--) {
+      const m = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const key = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}`;
+      months.push({ key, label: `${SK_MONTHS_NOM[m.getMonth()].slice(0, 3)}'${m.getFullYear().toString().slice(2)}` });
+    }
+
+    const cropsMap = new Map<string, Crop>();
+    crops.forEach(c => cropsMap.set(c.id, c));
+
+    // Vytvoríme matricu plodina × mesiac → revenue
+    const matrix = new Map<string, { name: string; color: string; cells: Record<string, number>; total: number }>();
+
+    allOrders.forEach(o => {
+      const d = new Date(o.delivery_date);
+      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (!months.find(m => m.key === monthKey)) return;
+
+      (o.order_items || []).forEach(it => {
+        if (!it.crop_id) return;
+        const c = cropsMap.get(it.crop_id);
+        if (!c) return;
+
+        // Filter category
+        if (category === 'blends') return; // blends-only filter skrýva sezónnosť plodín
+        if (category !== 'all') {
+          if (normalizeCategory(c.category) !== category) return;
+        }
+        if (cropFilter !== 'all' && it.crop_id !== cropFilter) return;
+
+        if (!matrix.has(it.crop_id)) {
+          matrix.set(it.crop_id, {
+            name: c.name,
+            color: c.color || '#16a34a',
+            cells: {},
+            total: 0,
+          });
+        }
+        const entry = matrix.get(it.crop_id)!;
+        const rev = itemRevenue(it);
+        entry.cells[monthKey] = (entry.cells[monthKey] || 0) + rev;
+        entry.total += rev;
+      });
+    });
+
+    // Top 8 podľa total
+    const rows = Array.from(matrix.values())
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 8);
+
+    // Max bunky pre intenzitu
+    let maxCell = 0;
+    rows.forEach(r => Object.values(r.cells).forEach(v => { if (v > maxCell) maxCell = v; }));
+
+    return { months, rows, maxCell };
+  }, [allOrders, crops, category, cropFilter]);
+
+  // ---- Render helpers ----
+  const formatHarvest = (iso: string | null): string => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return `${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`;
+  };
+
+  const STATUS_BADGES: Record<string, { label: string; bg: string; fg: string }> = {
+    in_progress: { label: 'Rastie', bg: '#dcfce7', fg: '#166534' },
+    completed: { label: 'Hotové', bg: '#d1fae5', fg: '#064e3b' },
+    harvested: { label: 'Zozbierané', bg: '#dbeafe', fg: '#1e40af' },
+  };
+
+  // ---- Render ----
+  return (
+    <div className="space-y-4">
+
+      {/* Sekcia A — Tabuľka výsevov */}
+      <SectionCard
+        title="Prehľad výsevov"
+        subtitle={`${tableRows.length} výsevov v zvolenom období${category === 'blends' ? ' · Mixy sa nesadia priamo' : ''}`}
+      >
+        {loading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map(i => <Skeleton key={i} className="h-10 w-full" />)}
+          </div>
+        ) : tableRows.length === 0 ? (
+          <ChartEmpty message={category === 'blends' ? 'Mixy sa expandujú na plodiny pri sadení.' : 'Žiadne výsevy v zvolenom období.'} />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-[#f8fafc] border-b-2 border-[#e2e8f0]">
+                <tr>
+                  <th className="px-3 py-2 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wide">Plodina</th>
+                  <th className="px-3 py-2 text-center text-[10px] font-bold text-[#475569] uppercase tracking-wide">Veľkosť</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-bold text-[#475569] uppercase tracking-wide">Tácky</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-bold text-[#475569] uppercase tracking-wide">Plán. výnos</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-bold text-[#475569] uppercase tracking-wide">Zber</th>
+                  <th className="px-3 py-2 text-center text-[10px] font-bold text-[#475569] uppercase tracking-wide">Stav</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#e2e8f0]">
+                {tableRows.map(r => {
+                  const statusCfg = STATUS_BADGES[r.status] || { label: r.status, bg: '#f1f5f9', fg: '#475569' };
+                  return (
+                    <tr key={r.id} className="hover:bg-[#f8fafc] transition-colors">
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: r.cropColor }} />
+                          <span className="font-semibold text-[#0f172a]">{r.cropName}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <span className="inline-flex items-center h-5 px-1.5 rounded-full text-[10px] font-bold bg-[#f0fdf4] border border-[#bbf7d0] text-[#166534]">
+                          {r.traySize}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-right text-[#0f172a]">{r.trayCount} × {r.traySize}</td>
+                      <td className="px-3 py-2 text-right font-bold text-[#16a34a]">
+                        {r.plannedYield != null ? formatGrams(r.plannedYield) : '—'}
+                      </td>
+                      <td className="px-3 py-2 text-right text-[#475569]">{formatHarvest(r.harvestDate)}</td>
+                      <td className="px-3 py-2 text-center">
+                        <span
+                          className="inline-flex items-center h-5 px-1.5 rounded-full text-[10px] font-bold"
+                          style={{ backgroundColor: statusCfg.bg, color: statusCfg.fg }}
+                        >
+                          {statusCfg.label}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SectionCard>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4">
+        {/* Sekcia B — Tácky podľa veľkosti */}
+        <SectionCard title="Tácky podľa veľkosti" subtitle="Počet tácok v zvolenom období">
+          {loading ? (
+            <Skeleton className="h-64 w-full" />
+          ) : traysBySize.every(t => t.count === 0) ? (
+            <div className="h-64"><ChartEmpty message="Žiadne tácky." /></div>
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={traysBySize} margin={{ top: 20, right: 20, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="size" tick={{ fontSize: 11, fill: '#0f172a', fontWeight: 700 }} />
+                <YAxis tick={{ fontSize: 10, fill: '#475569' }} width={35} />
+                <Tooltip content={<CustomTooltip formatter={(v: number) => `${v} tácok`} />} />
+                <Bar dataKey="count" name="Tácky" isAnimationActive={true} animationDuration={400} radius={[4, 4, 0, 0]}>
+                  {traysBySize.map((_, i) => (
+                    <Cell key={i} fill={i === 0 ? '#16a34a' : i === 1 ? '#2563eb' : '#7c3aed'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </SectionCard>
+
+        {/* Sekcia C — Využitie kapacity */}
+        <SectionCard title="Využitie kapacity regálov" subtitle="Aktuálne v_progress výsevy">
+          {loading ? (
+            <Skeleton className="h-48 w-full" />
+          ) : (
+            <div className="space-y-4 py-2">
+              {/* Klíčenie */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-bold text-[#0f172a] flex items-center gap-1.5">
+                    <Sprout className="h-3.5 w-3.5 text-[#7c3aed]" />
+                    Klíčenie (tma)
+                  </span>
+                  <span className="text-xs">
+                    <span className="font-bold text-[#0f172a]">{capacity.dark.used}</span>
+                    {capacity.dark.total > 0 && (
+                      <span className="text-[#475569]"> / {capacity.dark.total} pozícií</span>
+                    )}
+                    {capacity.dark.total > 0 && (
+                      <span className={cn(
+                        'ml-2 font-bold',
+                        capacity.dark.pct < 80 ? 'text-[#16a34a]' : capacity.dark.pct < 100 ? 'text-[#d97706]' : 'text-[#dc2626]'
+                      )}>
+                        {capacity.dark.pct}%
+                      </span>
+                    )}
+                  </span>
+                </div>
+                <div className="h-2 bg-[#f1f5f9] rounded-full overflow-hidden">
+                  <div
+                    className={cn(
+                      'h-full transition-all',
+                      capacity.dark.pct < 80 ? 'bg-[#7c3aed]' : capacity.dark.pct < 100 ? 'bg-[#d97706]' : 'bg-[#dc2626]'
+                    )}
+                    style={{ width: `${Math.min(100, capacity.dark.pct)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Svetlo */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-bold text-[#0f172a] flex items-center gap-1.5">
+                    <Sprout className="h-3.5 w-3.5 text-[#16a34a]" />
+                    Svetlo
+                  </span>
+                  <span className="text-xs">
+                    <span className="font-bold text-[#0f172a]">{capacity.light.used}</span>
+                    {capacity.light.total > 0 && (
+                      <span className="text-[#475569]"> / {capacity.light.total} pozícií</span>
+                    )}
+                    {capacity.light.total > 0 && (
+                      <span className={cn(
+                        'ml-2 font-bold',
+                        capacity.light.pct < 80 ? 'text-[#16a34a]' : capacity.light.pct < 100 ? 'text-[#d97706]' : 'text-[#dc2626]'
+                      )}>
+                        {capacity.light.pct}%
+                      </span>
+                    )}
+                  </span>
+                </div>
+                <div className="h-2 bg-[#f1f5f9] rounded-full overflow-hidden">
+                  <div
+                    className={cn(
+                      'h-full transition-all',
+                      capacity.light.pct < 80 ? 'bg-[#16a34a]' : capacity.light.pct < 100 ? 'bg-[#d97706]' : 'bg-[#dc2626]'
+                    )}
+                    style={{ width: `${Math.min(100, capacity.light.pct)}%` }}
+                  />
+                </div>
+              </div>
+
+              {shelves.length === 0 && (
+                <div className="bg-[#fffbeb] border border-[#fde68a] rounded-md px-3 py-2 mt-2">
+                  <p className="text-[11px] text-[#92400e]">
+                    Žiadne nakonfigurované regály. Pre presnú kapacitu nastav <strong>shelf_config</strong> v Nastaveniach.
+                  </p>
+                </div>
+              )}
+
+              <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-md px-3 py-2 mt-2">
+                <p className="text-[11px] text-[#475569]">
+                  <strong>Pozn.:</strong> Klíčenie = prvé 3 dni po výseve (heuristika). Pre presné rozdelenie podľa <code className="text-[10px]">days_in_darkness</code> plodiny otvor PlantingPlan detail.
+                </p>
+              </div>
+            </div>
+          )}
+        </SectionCard>
+      </div>
+
+      {/* Sekcia D — Sezónnosť heatmap */}
+      <SectionCard title="Sezónnosť plodín" subtitle="Tržby top 8 plodín za posledných 12 mesiacov · intenzita = relatívna hodnota">
+        {loading ? (
+          <Skeleton className="h-64 w-full" />
+        ) : seasonality.rows.length === 0 ? (
+          <ChartEmpty message="Žiadne tržby plodín za posledných 12 mesiacov." />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr>
+                  <th className="px-2 py-2 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wide sticky left-0 bg-white border-b-2 border-[#e2e8f0]">
+                    Plodina
+                  </th>
+                  {seasonality.months.map(m => (
+                    <th key={m.key} className="px-1 py-2 text-center text-[10px] font-bold text-[#475569] border-b-2 border-[#e2e8f0]">
+                      {m.label}
+                    </th>
+                  ))}
+                  <th className="px-2 py-2 text-right text-[10px] font-bold text-[#475569] uppercase tracking-wide border-b-2 border-[#e2e8f0]">
+                    Total
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {seasonality.rows.map(r => (
+                  <tr key={r.name} className="border-b border-[#f1f5f9]">
+                    <td className="px-2 py-2 sticky left-0 bg-white">
+                      <div className="flex items-center gap-1.5 min-w-[120px]">
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: r.color }} />
+                        <span className="font-semibold text-[#0f172a] truncate">{r.name}</span>
+                      </div>
+                    </td>
+                    {seasonality.months.map(m => {
+                      const v = r.cells[m.key] || 0;
+                      const intensity = seasonality.maxCell > 0 ? v / seasonality.maxCell : 0;
+                      const bg = intensity > 0
+                        ? `rgba(22, 163, 74, ${0.08 + intensity * 0.6})`
+                        : '#f8fafc';
+                      return (
+                        <td
+                          key={m.key}
+                          className="px-1 py-2 text-center"
+                          style={{ backgroundColor: bg }}
+                          title={`${r.name} · ${m.label} · ${formatEur(v)}`}
+                        >
+                          {v > 0 ? (
+                            <span className="text-[10px] font-bold text-[#0f172a]">
+                              {v >= 1000 ? `${(v / 1000).toFixed(1)}k` : Math.round(v)}
+                            </span>
+                          ) : (
+                            <span className="text-[#cbd5e1]">·</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                    <td className="px-2 py-2 text-right font-bold text-[#16a34a] border-l border-[#e2e8f0]">
+                      {formatEur(r.total)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="text-[10px] text-[#475569] mt-2 italic">
+              Hodnoty zobrazené v € · hover na bunku zobrazí presnú hodnotu
+            </p>
+          </div>
+        )}
+      </SectionCard>
+
+    </div>
+  );
+};
+
 // ===================== EXCEL EXPORT =====================
 
 const buildExcel = (params: {
@@ -1966,6 +2518,7 @@ const TABS: { key: TabKey; label: string; Icon: any }[] = [
   { key: 'overview', label: 'Prehľad', Icon: BarChart3 },
   { key: 'sales', label: 'Predaje', Icon: ShoppingCart },
   { key: 'customers', label: 'Zákazníci', Icon: Users },
+  { key: 'production', label: 'Produkcia', Icon: Sprout },
 ];
 
 const ReportsPage = () => {
@@ -1976,14 +2529,19 @@ const ReportsPage = () => {
   const [preset, setPreset] = useState<PeriodPreset>('this_month');
   const [customRange, setCustomRange] = useState<DateRange>(() => computeDateRange('this_month'));
   const [customerType, setCustomerType] = useState<CustomerTypeFilter>('all');
+  const [category, setCategory] = useState<CategoryFilter>('all');
   const [cropFilter, setCropFilter] = useState<string>('all');
 
   // Data state
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [crops, setCrops] = useState<Crop[]>([]);
+  const [blends, setBlends] = useState<Blend[]>([]);
+  const [plantingPlans, setPlantingPlans] = useState<PlantingPlan[]>([]);
+  const [shelves, setShelves] = useState<ShelfConfig[]>([]);
 
   // Resolved range
   const range = useMemo(() => computeDateRange(preset, customRange), [preset, customRange]);
@@ -1997,7 +2555,7 @@ const ReportsPage = () => {
       const twelveMonthsAgo = new Date();
       twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
 
-      const [ordersRes, customersRes, cropsRes] = await Promise.all([
+      const [ordersRes, customersRes, cropsRes, blendsRes, plansRes, shelvesRes] = await Promise.all([
         supabase
           .from('orders')
           .select(`
@@ -2009,15 +2567,32 @@ const ReportsPage = () => {
           .in('status', ACTIVE_ORDER_STATUSES),
         supabase.from('customers').select('id, name, customer_type'),
         supabase.from('products').select('id, name, color, category'),
+        supabase.from('blends').select('id, name'),
+        supabase
+          .from('planting_plans')
+          .select(`
+            id, crop_id, sow_date, expected_harvest_date, status, tray_size, tray_count,
+            products:crop_id ( id, name, color, category, tray_configs )
+          `)
+          .in('status', ['planned', 'in_progress', 'completed', 'harvested'])
+          .gte('sow_date', toIsoDate(twelveMonthsAgo)),
+        supabase.from('shelf_config').select('id, name, zone, shelves, positions_per_shelf'),
       ]);
 
       if (ordersRes.error) throw ordersRes.error;
       if (customersRes.error) throw customersRes.error;
       if (cropsRes.error) throw cropsRes.error;
+      // blends / plans / shelves sú voliteľné — chyba pri nich nezablokuje stránku
+      if (blendsRes.error) console.warn('[ReportsPage] blends fetch:', blendsRes.error);
+      if (plansRes.error) console.warn('[ReportsPage] planting_plans fetch:', plansRes.error);
+      if (shelvesRes.error) console.warn('[ReportsPage] shelf_config fetch:', shelvesRes.error);
 
       setAllOrders((ordersRes.data || []) as unknown as Order[]);
       setCustomers((customersRes.data || []) as Customer[]);
       setCrops((cropsRes.data || []) as Crop[]);
+      setBlends((blendsRes.data || []) as Blend[]);
+      setPlantingPlans((plansRes.data || []) as unknown as PlantingPlan[]);
+      setShelves((shelvesRes.data || []) as ShelfConfig[]);
     } catch (error: any) {
       console.error('[ReportsPage] Fetch error:', error);
       toast({
@@ -2033,17 +2608,40 @@ const ReportsPage = () => {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   // ---- FILTERING ----
-  // Filter orders na aktuálne obdobie + customer type + crop
+  // Helper: zistí či order obsahuje aspoň jeden item ktorý prejde category + cropFilter
+  const cropsMap = useMemo(() => {
+    const m = new Map<string, Crop>();
+    crops.forEach(c => m.set(c.id, c));
+    return m;
+  }, [crops]);
+
+  // Filter orders na aktuálne obdobie + customer type + crop/blend + kategória
   const passesFilters = useCallback((o: Order, r: DateRange): boolean => {
     const d = (o.delivery_date || '').split('T')[0];
     if (d < r.start || d > r.end) return false;
     if (customerType !== 'all' && normCustomerType(o.customers?.customer_type) !== customerType) return false;
-    if (cropFilter !== 'all') {
-      const hasCrop = (o.order_items || []).some(it => it.crop_id === cropFilter);
-      if (!hasCrop) return false;
+
+    // Ak je nastavený category alebo crop filter, objednávka musí mať ASPOŇ JEDEN
+    // matching item. Bez tohto check-u by sa zobrazovali aj objednávky bez tej plodiny.
+    const needsItemFilter = category !== 'all' || cropFilter !== 'all';
+    if (needsItemFilter) {
+      const hasMatch = (o.order_items || []).some(it => {
+        // Konkrétna plodina/mix vybraná
+        if (cropFilter !== 'all') {
+          if (category === 'blends') return it.blend_id === cropFilter;
+          return it.crop_id === cropFilter;
+        }
+        // "Všetky" v danej kategórii
+        if (category === 'blends') return !!it.blend_id;
+        // Crops danej kategórie
+        if (!it.crop_id) return false;
+        const c = cropsMap.get(it.crop_id);
+        return normalizeCategory(c?.category) === category;
+      });
+      if (!hasMatch) return false;
     }
     return true;
-  }, [customerType, cropFilter]);
+  }, [customerType, cropFilter, category, cropsMap]);
 
   const filteredOrders = useMemo(() => allOrders.filter(o => passesFilters(o, range)), [allOrders, range, passesFilters]);
   const prevOrders = useMemo(() => allOrders.filter(o => passesFilters(o, prevRange)), [allOrders, prevRange, passesFilters]);
@@ -2162,6 +2760,192 @@ const ReportsPage = () => {
     }
   };
 
+  // ---- PDF EXPORT ----
+  const handleExportPDF = async () => {
+    setExportingPdf(true);
+    try {
+      // Dynamic import — knižnice nemusia byť nainštalované.
+      // Ak chýbajú, zobrazí sa informatívna hláška.
+      let jsPDFModule: any;
+      let autoTableModule: any;
+      try {
+        jsPDFModule = await import('jspdf');
+        autoTableModule = await import('jspdf-autotable');
+      } catch (importErr) {
+        console.error('[ReportsPage] PDF library missing:', importErr);
+        toast({
+          title: 'PDF export nedostupný',
+          description: 'Knižnice jspdf a jspdf-autotable nie sú nainštalované. Spusti: npm install jspdf jspdf-autotable',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const jsPDF = jsPDFModule.default || jsPDFModule.jsPDF || jsPDFModule;
+      const autoTable = autoTableModule.default || autoTableModule.autoTable || autoTableModule;
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+      // ===== Agregát pre PDF (rovnaký ako Excel Súhrn) =====
+      let totalRev = 0, totalOrders = 0;
+      const byType: Record<string, number> = { home: 0, gastro: 0, wholesale: 0 };
+      const cropRev = new Map<string, number>();
+      const customerIds = new Set<string>();
+      filteredOrders.forEach(o => {
+        let r = 0;
+        (o.order_items || []).forEach((it: any) => {
+          const rev = itemRevenue(it);
+          r += rev;
+          if (it.crop_id) cropRev.set(it.crop_id, (cropRev.get(it.crop_id) || 0) + rev);
+        });
+        totalRev += r;
+        totalOrders += 1;
+        byType[normCustomerType(o.customers?.customer_type)] += r;
+        if (o.customer_id) customerIds.add(o.customer_id);
+      });
+      const avgBasket = totalOrders > 0 ? totalRev / totalOrders : 0;
+      const cropsNameMap = new Map<string, string>();
+      crops.forEach(c => cropsNameMap.set(c.id, c.name));
+      const top10 = Array.from(cropRev.entries())
+        .map(([id, r]) => ({ name: cropsNameMap.get(id) || 'Neznáma', revenue: r }))
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 10);
+
+      const customerAgg = new Map<string, { name: string; type: string; revenue: number; orders: number }>();
+      filteredOrders.forEach(o => {
+        if (!o.customer_id) return;
+        if (!customerAgg.has(o.customer_id)) {
+          customerAgg.set(o.customer_id, {
+            name: o.customers?.name || 'Neznámy',
+            type: labelCustomerType(normCustomerType(o.customers?.customer_type)),
+            revenue: 0,
+            orders: 0,
+          });
+        }
+        const e = customerAgg.get(o.customer_id)!;
+        (o.order_items || []).forEach((it: any) => { e.revenue += itemRevenue(it); });
+        e.orders += 1;
+      });
+      const topCustomers = Array.from(customerAgg.values())
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 15);
+
+      // ===== STRANA 1: Cover =====
+      doc.setFontSize(28);
+      doc.setTextColor(22, 163, 74); // #16a34a
+      doc.text('GrowBase Report', 105, 90, { align: 'center' });
+
+      doc.setFontSize(14);
+      doc.setTextColor(15, 23, 42); // #0f172a
+      doc.text(formatRange(range), 105, 105, { align: 'center' });
+
+      doc.setFontSize(10);
+      doc.setTextColor(71, 85, 105); // #475569
+      doc.text(`Vygenerované: ${new Date().toLocaleString('sk-SK')}`, 105, 115, { align: 'center' });
+
+      doc.setFontSize(8);
+      doc.text('mikrorastlinky.sk', 105, 270, { align: 'center' });
+
+      // ===== STRANA 2: KPI tabuľka =====
+      doc.addPage();
+      doc.setFontSize(16);
+      doc.setTextColor(15, 23, 42);
+      doc.text('Kľúčové metriky', 14, 20);
+
+      autoTable(doc, {
+        startY: 25,
+        head: [['Metrika', 'Hodnota']],
+        body: [
+          ['Tržby celkom', formatEur(totalRev)],
+          ['Objednávok', formatNumber(totalOrders)],
+          ['Priemerný košík', formatEur(avgBasket)],
+          ['Aktívnych zákazníkov', formatNumber(customerIds.size)],
+        ],
+        styles: { fontSize: 10, cellPadding: 3 },
+        headStyles: { fillColor: [22, 163, 74], textColor: 255 },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+      });
+
+      // Podľa typu zákazníka
+      doc.setFontSize(13);
+      doc.setTextColor(15, 23, 42);
+      const afterKpi = (doc as any).lastAutoTable.finalY + 10;
+      doc.text('Tržby podľa typu zákazníka', 14, afterKpi);
+
+      autoTable(doc, {
+        startY: afterKpi + 3,
+        head: [['Typ', 'Tržby', '% z celku']],
+        body: [
+          ['Domáci', formatEur(byType.home), totalRev > 0 ? `${((byType.home / totalRev) * 100).toFixed(1)}%` : '0%'],
+          ['Gastro', formatEur(byType.gastro), totalRev > 0 ? `${((byType.gastro / totalRev) * 100).toFixed(1)}%` : '0%'],
+          ['VO', formatEur(byType.wholesale), totalRev > 0 ? `${((byType.wholesale / totalRev) * 100).toFixed(1)}%` : '0%'],
+        ],
+        styles: { fontSize: 10, cellPadding: 3 },
+        headStyles: { fillColor: [22, 163, 74], textColor: 255 },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+      });
+
+      // Top 10 plodín
+      const afterTypes = (doc as any).lastAutoTable.finalY + 10;
+      doc.setFontSize(13);
+      doc.text('Top 10 plodín', 14, afterTypes);
+
+      autoTable(doc, {
+        startY: afterTypes + 3,
+        head: [['#', 'Plodina', 'Tržby']],
+        body: top10.map((c, i) => [String(i + 1), c.name, formatEur(c.revenue)]),
+        styles: { fontSize: 10, cellPadding: 3 },
+        headStyles: { fillColor: [22, 163, 74], textColor: 255 },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+      });
+
+      // ===== STRANA 3: Top zákazníci =====
+      doc.addPage();
+      doc.setFontSize(16);
+      doc.setTextColor(15, 23, 42);
+      doc.text('Top zákazníci', 14, 20);
+
+      autoTable(doc, {
+        startY: 25,
+        head: [['#', 'Zákazník', 'Typ', 'Tržby', 'Obj.']],
+        body: topCustomers.map((c, i) => [
+          String(i + 1),
+          c.name,
+          c.type,
+          formatEur(c.revenue),
+          String(c.orders),
+        ]),
+        styles: { fontSize: 9, cellPadding: 2.5 },
+        headStyles: { fillColor: [22, 163, 74], textColor: 255 },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+      });
+
+      // ===== Footer pre každú stranu =====
+      const pageCount = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(148, 163, 184); // #94a3b8
+        doc.text(`GrowBase | mikrorastlinky.sk | Strana ${i} / ${pageCount}`, 105, 290, { align: 'center' });
+      }
+
+      // ===== Save =====
+      const today = new Date();
+      const fname = `GrowBase_Report_${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}.pdf`;
+      doc.save(fname);
+
+      toast({ title: 'PDF export hotový', description: 'PDF súbor bol vygenerovaný.' });
+    } catch (err: any) {
+      console.error('[ReportsPage] PDF export error:', err);
+      toast({
+        title: 'Chyba pri PDF exporte',
+        description: err?.message || 'Skús to znova.',
+        variant: 'destructive',
+      });
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
   // ---- RENDER ----
   return (
     <MainLayout hideMobileHeader>
@@ -2187,11 +2971,16 @@ const ReportsPage = () => {
           range={range}
           customerType={customerType}
           setCustomerType={setCustomerType}
+          category={category}
+          setCategory={setCategory}
           cropFilter={cropFilter}
           setCropFilter={setCropFilter}
           crops={crops}
-          onExport={handleExport}
+          blends={blends}
+          onExportExcel={handleExport}
+          onExportPDF={handleExportPDF}
           exporting={exporting}
+          exportingPDF={exportingPdf}
         />
 
         {/* Alerts */}
@@ -2252,6 +3041,18 @@ const ReportsPage = () => {
                 allOrders={allOrders}
                 customers={customers}
                 crops={crops}
+                loading={loading}
+              />
+            )}
+            {activeTab === 'production' && (
+              <ProductionTab
+                range={range}
+                plantingPlans={plantingPlans}
+                shelves={shelves}
+                allOrders={allOrders}
+                crops={crops}
+                category={category}
+                cropFilter={cropFilter}
                 loading={loading}
               />
             )}
