@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+﻿import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { useAuth } from '@/hooks/useAuth';
@@ -606,7 +606,6 @@ const PlantingPlanPage = () => {
           if (cleanupError) {
             console.warn('[S-cleanup] failed:', cleanupError);
           } else if (count && count > 0) {
-            console.info(`[S-cleanup] removed ${count} legacy auto-generated S-tray planned plans`);
           }
         } catch (cleanupErr) {
           console.warn('[S-cleanup] exception:', cleanupErr);
@@ -742,9 +741,6 @@ const PlantingPlanPage = () => {
       console.debug('[groupedPlans] count=' + result.length + ' merged groups (zobrazených)');
       result.forEach(g => {
         const traysDump = g.trays.map(t => `${t.count}×${t.size}${t.is_manual ? '(M)' : ''}`).join('+');
-        console.debug(
-          `[groupedPlans] ${g.crops?.name || g.crop_id} | sow=${g.sow_date} | status=${g.status} | trays=[${traysDump}] | totalSeeds=${g.total_seed_grams}g`
-        );
       });
     }
 
@@ -1085,7 +1081,6 @@ const PlantingPlanPage = () => {
     dateTo: string,
     silent: boolean = false
   ): Promise<number> => {
-    console.info(`[syncPlansFromOrders] START dateFrom=${dateFrom} dateTo=${dateTo} silent=${silent}`);
     try {
       const { data: orders, error: ordersError } = await supabase
         .from('orders')
@@ -1102,11 +1097,8 @@ const PlantingPlanPage = () => {
 
       if (ordersError) throw ordersError;
       if (!orders || orders.length === 0) {
-        console.info(`[syncPlansFromOrders] Žiadne objednávky v rozsahu ${dateFrom} až ${dateTo}`);
         return 0;
       }
-      console.info(`[syncPlansFromOrders] Načítaných ${orders.length} objednávok`);
-
       // Expand blends — fetchni všetky blend_ids použité v objednávkach a ich plodiny.
       // Mixy nemajú crop_id na order_items úrovni, ale blend_id, ktorý ukazuje
       // na blends tabuľku obsahujúcu crop_ids[] a crop_percentages jsonb.
@@ -1169,7 +1161,6 @@ const PlantingPlanPage = () => {
         const created = await createPlantingTasksForGroup(g);
         createdCount += created;
       }
-      console.info(`[syncPlansFromOrders] DONE — vytvorených ${createdCount} výsevov`);
       return createdCount;
     } catch (err) {
       if (silent) {
@@ -1228,7 +1219,6 @@ const PlantingPlanPage = () => {
                 },
               };
             });
-            console.info(`[autoSync] Silent refresh — načítaných ${plansWithConfig.length} plánov`);
             setPlans(plansWithConfig);
           }
         } catch (refreshErr) {
@@ -1391,7 +1381,6 @@ const PlantingPlanPage = () => {
     if (deleteError) {
       console.error('[createPlanningTasks] Chyba pri mazaní:', deleteError);
     } else if (deletedCount && deletedCount > 0) {
-      console.info(`[createPlanningTasks] Zmazaných ${deletedCount} starých auto-plánov pre ${crop?.name}`);
     }
 
     // BUG fix: ak pre túto crop+harvest kombináciu už existuje plán so statusom
@@ -1456,7 +1445,6 @@ const PlantingPlanPage = () => {
     Object.keys(trayConfigs).forEach(k => { tc[k.toUpperCase()] = trayConfigs[k]; });
 
     // DEBUG: vypíš RAW + normalizovaný objekt aby sme videli čo prišlo z DB
-    console.debug(`[optimizeTray] ${crop.name} | RAW tray_configs:`, trayConfigs);
     console.debug(`[optimizeTray] ${crop.name} | normalized keys: [${Object.keys(tc).join(', ')}]`);
 
     // Veľkosť S sa NIKDY nenavrhuje automaticky — len manuálne zadanie.
@@ -1937,7 +1925,6 @@ const PlantingPlanPage = () => {
     if (autoSyncRanRef.current) return;
 
     autoSyncRanRef.current = true;
-    console.info('[autoSync] Spúšťam automatickú synchronizáciu plánov...');
     autoSyncPlantingPlans();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, futureOrders.length]);
