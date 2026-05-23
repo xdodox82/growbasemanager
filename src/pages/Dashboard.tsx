@@ -24,7 +24,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatEur, formatWeight } from '@/utils/formatters';
+import { formatEur, formatWeight, formatNumber, formatKg, formatPercent } from '@/utils/formatters';
 
 // ===================== TYPES =====================
 
@@ -646,7 +646,9 @@ const Dashboard = () => {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-[#0f172a] truncate">{item.name}</p>
                         <p className="text-[11px] text-[#475569]">
-                          {categoryLabel} · zostáva <span className="font-bold text-[#dc2626]">{item.quantity}{item.unit}</span> z min. {item.minStock}{item.unit}
+                          {categoryLabel} · zostáva <span className="font-bold text-[#dc2626]">
+                            {item.unit === 'kg' ? formatKg(item.quantity) : `${formatNumber(item.quantity)} ${item.unit}`}
+                          </span> z min. {item.unit === 'kg' ? formatKg(item.minStock) : `${formatNumber(item.minStock)} ${item.unit}`}
                         </p>
                       </div>
                       <ArrowRight className="h-3.5 w-3.5 text-[#94a3b8] flex-shrink-0" />
@@ -712,7 +714,7 @@ const Dashboard = () => {
                   </div>
                 </div>
                 <div className="flex items-end justify-between gap-2 mb-3">
-                  <p className="text-2xl font-bold text-[#0f172a]">{ordersWeek.total}</p>
+                  <p className="text-2xl font-bold text-[#0f172a]">{formatNumber(ordersWeek.total)}</p>
                   <Sparkline data={sparkOrdersData} color="#2563eb" />
                 </div>
                 <div className="space-y-1 mb-2">
@@ -953,7 +955,7 @@ const RevenueTypeRow = ({ label, value, total, color }: RevenueTypeRowProps) => 
       <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
       <span className="text-[#475569] w-14 flex-shrink-0">{label}</span>
       <span className="font-bold text-[#0f172a] flex-1">{formatEur(value)}</span>
-      <span className="text-[#94a3b8]">{pct}%</span>
+      <span className="text-[#94a3b8]">{formatPercent(pct)}</span>
     </div>
   );
 };
@@ -971,8 +973,8 @@ const OrdersTypeRow = ({ label, value, total, color }: OrdersTypeRowProps) => {
     <div className="flex items-center gap-2 text-[11px]">
       <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
       <span className="text-[#475569] w-14 flex-shrink-0">{label}</span>
-      <span className="font-bold text-[#0f172a] flex-1">{value}</span>
-      <span className="text-[#94a3b8]">{pct}%</span>
+      <span className="font-bold text-[#0f172a] flex-1">{formatNumber(value)}</span>
+      <span className="text-[#94a3b8]">{formatPercent(pct)}</span>
     </div>
   );
 };

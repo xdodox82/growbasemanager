@@ -1088,7 +1088,7 @@ const SalesTab = ({ range, prevRange, filteredOrders, prevOrders, crops, loading
                     <td className="px-3 py-2 text-right text-[#0f172a]">{formatWeight(c.grams)}</td>
                     <td className="px-3 py-2 text-right text-[#475569]">{c.orders}</td>
                     <td className="px-3 py-2 text-right font-bold text-[#0f172a]">{formatEur(c.revenue)}</td>
-                    <td className="px-3 py-2 text-right text-[#475569]">{c.avgPricePerGram.toFixed(3)} €</td>
+                    <td className="px-3 py-2 text-right text-[#475569]">{formatNumber(c.avgPricePerGram, 3)}&nbsp;€</td>
                     <td className="px-3 py-2 min-w-[100px]">
                       <div className="flex items-center gap-2">
                         <div className="flex-1 h-1.5 bg-[#f1f5f9] rounded-full overflow-hidden">
@@ -1582,7 +1582,7 @@ const CustomersTab = ({ range, prevRange, filteredOrders, allOrders, customers, 
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#475569]">Frekvencia</span>
-                  <span className="font-bold text-[#0f172a]">{s.frequency.toFixed(1)} obj/zák.</span>
+                  <span className="font-bold text-[#0f172a]">{formatNumber(s.frequency, 1)} obj/zák.</span>
                 </div>
               </div>
             )}
@@ -1637,7 +1637,7 @@ const CustomersTab = ({ range, prevRange, filteredOrders, allOrders, customers, 
                       <td className="px-3 py-2 text-right text-[#475569]">
                         {d >= 0 ? `pred ${d}d` : '—'}
                       </td>
-                      <td className="px-3 py-2 text-right text-[#475569]">{c.frequency.toFixed(1)}/m</td>
+                      <td className="px-3 py-2 text-right text-[#475569]">{formatNumber(c.frequency, 1)}/m</td>
                       <td className="px-3 py-2 text-right">
                         <TrendBadge current={c.revenue} previous={c.prevRevenue} />
                       </td>
@@ -1711,7 +1711,7 @@ const CustomersTab = ({ range, prevRange, filteredOrders, allOrders, customers, 
                 <div className="flex justify-between">
                   <span className="text-[#475569]">Ø čas medzi obj.</span>
                   <span className="font-bold text-[#0f172a]">
-                    {drillData.avgGapDays > 0 ? `${drillData.avgGapDays.toFixed(1)} dní` : '—'}
+                    {drillData.avgGapDays > 0 ? `${formatNumber(drillData.avgGapDays, 1)} dní` : '—'}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -2256,7 +2256,7 @@ const ProductionTab = ({ range, plantingPlans, shelves, allOrders, crops, catego
                         >
                           {v > 0 ? (
                             <span className="text-[10px] font-bold text-[#0f172a]">
-                              {v >= 1000 ? `${(v / 1000).toFixed(1)}k` : Math.round(v)}
+                              {v >= 1000 ? `${formatNumber(v / 1000, 1)}k` : Math.round(v)}
                             </span>
                           ) : (
                             <span className="text-[#cbd5e1]">·</span>
@@ -3197,7 +3197,7 @@ const RetentionTab = ({ allOrders, loading }: RetentionTabProps) => {
                       {formatDateShort(c.lastOrder)} <span className="text-[10px] text-[#dc2626]">(pred {c.daysSince}d)</span>
                     </td>
                     <td className="px-3 py-2 text-right text-[#475569]">
-                      {c.avgInterval > 0 ? `${c.avgInterval.toFixed(1)} dní` : '—'}
+                      {c.avgInterval > 0 ? `${formatNumber(c.avgInterval, 1)} dní` : '—'}
                     </td>
                     <td className="px-3 py-2 text-right font-bold text-[#dc2626]">
                       {formatEur(c.avgMonthlyRevenue)}/m
@@ -3620,19 +3620,19 @@ const ReportsPage = () => {
           [
             nd('Domaci'),
             nd(formatEur(byType.home)),
-            totalRev > 0 ? `${((byType.home / totalRev) * 100).toFixed(1)}%` : '0%',
+            totalRev > 0 ? formatPercent((byType.home / totalRev) * 100) : '0 %',
             String(ordersByType.home),
           ],
           [
             'Gastro',
             nd(formatEur(byType.gastro)),
-            totalRev > 0 ? `${((byType.gastro / totalRev) * 100).toFixed(1)}%` : '0%',
+            totalRev > 0 ? formatPercent((byType.gastro / totalRev) * 100) : '0 %',
             String(ordersByType.gastro),
           ],
           [
             'VO',
             nd(formatEur(byType.wholesale)),
-            totalRev > 0 ? `${((byType.wholesale / totalRev) * 100).toFixed(1)}%` : '0%',
+            totalRev > 0 ? formatPercent((byType.wholesale / totalRev) * 100) : '0 %',
             String(ordersByType.wholesale),
           ],
         ],
@@ -3654,7 +3654,7 @@ const ReportsPage = () => {
           String(i + 1),
           nd(c.name),
           nd(formatEur(c.revenue)),
-          totalRev > 0 ? `${((c.revenue / totalRev) * 100).toFixed(1)}%` : '0%',
+          totalRev > 0 ? formatPercent((c.revenue / totalRev) * 100) : '0 %',
         ]),
         styles: { fontSize: 9, cellPadding: 2 },
         headStyles: { fillColor: [22, 163, 74], textColor: 255, fontSize: 9 },
