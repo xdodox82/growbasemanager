@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
+import { formatKg, formatEur, formatNumber } from '@/utils/formatters';
 import {
   useSeeds,
   usePackagings,
@@ -152,11 +153,6 @@ const formatExpiryMonthYear = (dateStr: string | null | undefined): string => {
   } catch {
     return dateStr;
   }
-};
-
-const formatPrice = (n: number | null | undefined): string => {
-  if (n == null) return '-';
-  return `${n.toFixed(2)} €`;
 };
 
 const isLowStock = (quantity: number | null | undefined, minStock: number | null | undefined): boolean => {
@@ -410,7 +406,6 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
   const [consumptionStartDate, setConsumptionStartDate] = useState<string>('');
   const [consumptionEndDate, setConsumptionEndDate] = useState<string>('');
   const [stockingDate, setStockingDate] = useState<string>('');
-  const [finishedDate, setFinishedDate] = useState<string>('');
   const [batchNumber, setBatchNumber] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [minStock, setMinStock] = useState('');
@@ -445,7 +440,6 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
     setConsumptionStartDate('');
     setConsumptionEndDate('');
     setStockingDate('');
-    setFinishedDate('');
     setBatchNumber('');
     setNotes('');
     setMinStock('');
@@ -476,7 +470,6 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
     setConsumptionStartDate((seed as any).consumption_start_date || '');
     setConsumptionEndDate((seed as any).consumption_end_date || '');
     setStockingDate((seed as any).stocking_date || '');
-    setFinishedDate((seed as any).finished_date || '');
     setBatchNumber((seed as any).batch_number || '');
     setNotes(seed.notes || '');
     setMinStock((seed as any).min_stock?.toString() || '');
@@ -600,7 +593,6 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
       consumption_start_date: consumptionStartDate || null,
       consumption_end_date: consumptionEndDate || null,
       stocking_date: stockingDate || null,
-      finished_date: finishedDate || null,
       batch_number: batchNumber || null,
       notes: notes || null,
       certificate_url: finalCertUrl,
@@ -769,9 +761,9 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-[#0f172a] truncate">{t.cropName}</p>
                   <p className="text-[11px] text-[#475569]">
-                    {t.totalKg > 0 && <span className="font-bold text-[#0f172a]">{t.totalKg.toFixed(2)}kg</span>}
+                    {t.totalKg > 0 && <span className="font-bold text-[#0f172a]">{formatKg(t.totalKg)}</span>}
                     {t.totalKg > 0 && t.totalG > 0 && ' + '}
-                    {t.totalG > 0 && <span className="font-bold text-[#0f172a]">{t.totalG.toFixed(0)}g</span>}
+                    {t.totalG > 0 && <span className="font-bold text-[#0f172a]">{formatNumber(Math.round(t.totalG))} g</span>}
                   </p>
                 </div>
               </div>
@@ -813,16 +805,16 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
               let totalLabel: string;
               if (allKg) {
                 const total = seedsInGroup.reduce((sum, s) => sum + (s.quantity || 0), 0);
-                totalLabel = `${total.toFixed(2)} kg`;
+                totalLabel = formatKg(total);
               } else if (allG) {
                 const total = seedsInGroup.reduce((sum, s) => sum + (s.quantity || 0), 0);
-                totalLabel = `${total.toFixed(0)} g`;
+                totalLabel = `${formatNumber(Math.round(total))} g`;
               } else {
                 // Miešané jednotky — preveď všetko na g
                 const totalG = seedsInGroup.reduce((sum, s) => {
                   return sum + (s.quantity || 0) * (s.unit === 'kg' ? 1000 : 1);
                 }, 0);
-                totalLabel = totalG >= 1000 ? `${(totalG / 1000).toFixed(2)} kg` : `${totalG.toFixed(0)} g`;
+                totalLabel = totalG >= 1000 ? formatKg(totalG / 1000) : `${formatNumber(Math.round(totalG))} g`;
               }
 
               // Min stock súčet (rovnakou logikou)
@@ -903,9 +895,11 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                               <div className="flex-1 min-w-0 space-y-1">
                                 {/* Riadok 1: množstvo + šarža */}
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="text-sm font-bold text-[#16a34a]">{seed.quantity}{seed.unit}</span>
+                                  <span className="text-base font-bold text-[#16a34a]">
+                                    {seed.unit === 'kg' ? formatKg(seed.quantity) : `${formatNumber(seed.quantity)} ${seed.unit}`}
+                                  </span>
                                   {lotNum && (
-                                    <span className="inline-flex items-center h-5 px-1.5 rounded-full bg-[#f1f5f9] font-mono text-[10px] text-[#475569]">
+                                    <span className="inline-flex items-center h-6 px-2 rounded-full bg-[#f1f5f9] font-mono text-xs text-[#475569]">
                                       Šarža: {lotNum}
                                     </span>
                                   )}
@@ -916,15 +910,15 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                                   )}
                                 </div>
                                 {/* Riadok 2: dátumy */}
-                                <div className="flex items-center gap-3 flex-wrap text-[11px] text-[#475569]">
+                                <div className="flex items-center gap-3 flex-wrap text-sm text-[#475569]">
                                   {(seed as any).purchase_date && (
-                                    <span>Nákup: <span className="text-[#0f172a]">{formatDate((seed as any).purchase_date)}</span></span>
+                                    <span>Nákup: <span className="text-[#0f172a] font-semibold">{formatDate((seed as any).purchase_date)}</span></span>
                                   )}
                                   {(seed as any).consumption_start_date && (
-                                    <span>Začiatok: <span className="text-[#0f172a]">{formatDate((seed as any).consumption_start_date)}</span></span>
+                                    <span>Začiatok: <span className="text-[#0f172a] font-semibold">{formatDate((seed as any).consumption_start_date)}</span></span>
                                   )}
                                   {expiry && (
-                                    <span>Expirácia: <span className="text-[#0f172a]">{formatExpiryMonthYear(expiry)}</span></span>
+                                    <span>Expirácia: <span className="text-[#0f172a] font-semibold">{formatExpiryMonthYear(expiry)}</span></span>
                                   )}
                                 </div>
                                 {certUrl && (
@@ -1171,7 +1165,7 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
               </div>
             </div>
 
-            {/* Dátumy spotreby + šarža */}
+            {/* Dátumy spotreby */}
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <Label className="text-sm font-semibold text-[#374151]">Začiatok spotreby</Label>
@@ -1192,25 +1186,14 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-sm font-semibold text-[#374151]">Dátum naskladnenia</Label>
-                <Input
-                  type="date"
-                  value={stockingDate}
-                  onChange={(e) => setStockingDate(e.target.value)}
-                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
-                />
-              </div>
-              <div>
-                <Label className="text-sm font-semibold text-[#374151]">Dátum spotreby</Label>
-                <Input
-                  type="date"
-                  value={finishedDate}
-                  onChange={(e) => setFinishedDate(e.target.value)}
-                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
-                />
-              </div>
+            <div>
+              <Label className="text-sm font-semibold text-[#374151]">Dátum naskladnenia</Label>
+              <Input
+                type="date"
+                value={stockingDate}
+                onChange={(e) => setStockingDate(e.target.value)}
+                className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+              />
             </div>
             <div>
               <Label className="text-sm font-semibold text-[#374151]">Číslo šarže</Label>
@@ -1369,12 +1352,16 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center justify-between p-2 bg-[#f0fdf4] border border-[#bbf7d0] rounded-lg">
                       <span className="text-[#475569] font-semibold">Množstvo:</span>
-                      <span className="font-bold text-[#16a34a] text-base">{selectedSeed.quantity}{selectedSeed.unit}</span>
+                      <span className="font-bold text-[#16a34a] text-base">
+                        {selectedSeed.unit === 'kg' ? formatKg(selectedSeed.quantity) : `${formatNumber(selectedSeed.quantity)} ${selectedSeed.unit}`}
+                      </span>
                     </div>
                     {(selectedSeed as any).min_stock != null && (
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-[#475569]">Minimálny limit:</span>
-                        <span className="text-[#0f172a] font-semibold">{(selectedSeed as any).min_stock}{selectedSeed.unit}</span>
+                        <span className="text-[#0f172a] font-semibold">
+                          {selectedSeed.unit === 'kg' ? formatKg((selectedSeed as any).min_stock) : `${formatNumber((selectedSeed as any).min_stock)} ${selectedSeed.unit}`}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -1423,7 +1410,7 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                       {pricePerKg > 0 && (
                         <div className="flex items-center justify-between">
                           <span className="text-[#475569]">Cena za kg:</span>
-                          <span className="text-[#0f172a] font-semibold">{formatPrice(pricePerKg)}</span>
+                          <span className="text-[#0f172a] font-semibold">{formatEur(pricePerKg)}</span>
                         </div>
                       )}
                     </div>
@@ -1657,7 +1644,7 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
             <div key={s} className="bg-[#f8fafc] rounded-lg border border-[#e2e8f0] p-2.5">
               <p className="text-[10px] uppercase tracking-wide text-[#475569] font-semibold mb-0.5">{s}</p>
               <p className="text-base font-bold text-[#0f172a]">
-                {volumeSummary[s]} <span className="text-xs font-normal text-[#475569]">ks</span>
+                {formatNumber(volumeSummary[s])} <span className="text-xs font-normal text-[#475569]">ks</span>
               </p>
             </div>
           ))}
@@ -1710,12 +1697,12 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
                 <div className="space-y-1 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="text-[#475569]">Množstvo:</span>
-                    <span className="font-bold text-[#16a34a]">{p.quantity} ks</span>
+                    <span className="font-bold text-[#16a34a]">{formatNumber(p.quantity)} ks</span>
                   </div>
                   {(p as any).min_stock && (
                     <div className="flex items-center justify-between">
                       <span className="text-[#475569]">Min. limit:</span>
-                      <span className="text-[#0f172a]">{(p as any).min_stock} ks</span>
+                      <span className="text-[#0f172a]">{formatNumber((p as any).min_stock)} ks</span>
                     </div>
                   )}
                   {p.type && (
@@ -1735,7 +1722,7 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
                   {pricePerPiece > 0 && (
                     <div className="flex items-center justify-between">
                       <span className="text-[#475569]">Cena/ks:</span>
-                      <span className="text-[#0f172a]">{formatPrice(pricePerPiece)}</span>
+                      <span className="text-[#0f172a]">{formatEur(pricePerPiece)}</span>
                     </div>
                   )}
                   {p.supplier_id && (
@@ -2132,7 +2119,7 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
                   {SUBSTRATE_TYPES[t.type] || t.type}
                 </p>
                 <p className="text-base font-bold text-[#0f172a]">
-                  {t.total.toFixed(1)} <span className="text-xs font-normal text-[#475569]">{t.unit}</span>
+                  {t.unit === 'kg' ? formatKg(t.total) : <>{formatNumber(t.total, 1)} <span className="text-xs font-normal text-[#475569]">{t.unit}</span></>}
                 </p>
               </div>
             ))}
@@ -2183,12 +2170,16 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
                 <div className="space-y-1 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="text-[#475569]">Aktuálne:</span>
-                    <span className="font-bold text-[#16a34a]">{stock.toFixed(1)} {s.unit}</span>
+                    <span className="font-bold text-[#16a34a]">
+                      {s.unit === 'kg' ? formatKg(stock) : `${formatNumber(stock, 1)} ${s.unit}`}
+                    </span>
                   </div>
                   {s.quantity != null && cs != null && (
                     <div className="flex items-center justify-between">
                       <span className="text-[#475569]">Pôvodne:</span>
-                      <span className="text-[#0f172a]">{s.quantity} {s.unit}</span>
+                      <span className="text-[#0f172a]">
+                        {s.unit === 'kg' ? formatKg(s.quantity) : `${formatNumber(s.quantity)} ${s.unit}`}
+                      </span>
                     </div>
                   )}
                   {(s as any).custom_type && (
@@ -2200,7 +2191,7 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
                   {unitCostVal > 0 && (
                     <div className="flex items-center justify-between">
                       <span className="text-[#475569]">Cena/{s.unit}:</span>
-                      <span className="text-[#0f172a]">{formatPrice(unitCostVal)}</span>
+                      <span className="text-[#0f172a]">{formatEur(unitCostVal)}</span>
                     </div>
                   )}
                   {s.supplier_id && (
@@ -2615,12 +2606,12 @@ const LabelsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                 <div className="space-y-1 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="text-[#475569]">Množstvo:</span>
-                    <span className="font-bold text-[#16a34a]">{l.quantity} ks</span>
+                    <span className="font-bold text-[#16a34a]">{formatNumber(l.quantity)} ks</span>
                   </div>
                   {(l as any).min_stock && (
                     <div className="flex items-center justify-between">
                       <span className="text-[#475569]">Min. limit:</span>
-                      <span className="text-[#0f172a]">{(l as any).min_stock} ks</span>
+                      <span className="text-[#0f172a]">{formatNumber((l as any).min_stock)} ks</span>
                     </div>
                   )}
                   {l.size && (
@@ -2632,7 +2623,7 @@ const LabelsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                   {unitCost > 0 && (
                     <div className="flex items-center justify-between">
                       <span className="text-[#475569]">Cena/ks:</span>
-                      <span className="text-[#0f172a]">{formatPrice(unitCost)}</span>
+                      <span className="text-[#0f172a]">{formatEur(unitCost)}</span>
                     </div>
                   )}
                   {l.supplier_id && (
@@ -3060,9 +3051,15 @@ const ConsumablesTab = ({ isAdmin, isMobile, toast }: ConsumablesTabProps) => {
                           )}
                         </div>
                         <p className="text-xs text-[#475569] mt-0.5">
-                          <span className="font-bold text-[#16a34a]">{item.quantity}</span> {item.unit}
-                          {item.min_quantity != null && <> • min. {item.min_quantity} {item.unit}</>}
-                          {unitCostVal > 0 && <> • {formatPrice(unitCostVal)}/{item.unit}</>}
+                          {item.unit === 'kg' ? (
+                            <span className="font-bold text-[#16a34a]">{formatKg(item.quantity)}</span>
+                          ) : (
+                            <><span className="font-bold text-[#16a34a]">{formatNumber(item.quantity)}</span> {item.unit}</>
+                          )}
+                          {item.min_quantity != null && (
+                            <> • min. {item.unit === 'kg' ? formatKg(item.min_quantity) : `${formatNumber(item.min_quantity)} ${item.unit}`}</>
+                          )}
+                          {unitCostVal > 0 && <> • {formatEur(unitCostVal)}/{item.unit}</>}
                         </p>
                         {item.notes && (
                           <div className="flex items-start gap-1.5 mt-1 text-xs text-[#475569]">

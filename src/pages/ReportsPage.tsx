@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { cn } from '@/lib/utils';
+import { formatEur, formatNumber, formatWeight, formatPercent } from '@/utils/formatters';
 
 // ===================== TYPES =====================
 
@@ -162,17 +163,6 @@ const getMonday = (d: Date) => {
   const diff = day === 0 ? -6 : 1 - day;
   x.setDate(x.getDate() + diff);
   return x;
-};
-
-const formatEur = (n: number): string =>
-  n.toLocaleString('sk-SK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
-
-const formatNumber = (n: number): string =>
-  n.toLocaleString('sk-SK', { maximumFractionDigits: 0 });
-
-const formatGrams = (g: number): string => {
-  if (g >= 1000) return `${(g / 1000).toFixed(2)} kg`;
-  return `${Math.round(g)} g`;
 };
 
 // Numerické zoradenie packaging_size — "25g" < "50g" < "100g" < "120g"
@@ -769,7 +759,7 @@ const OverviewTab = ({ range, prevRange, filteredOrders, prevOrders, crops, load
         <KpiCard
           loading={loading}
           label="Objednávky"
-          value={formatNumber(agg.orderCount)}
+          value={formatNumber(agg.orderCount, 0)}
           Icon={ShoppingCart}
           iconBg="#dbeafe"
           iconColor="#2563eb"
@@ -791,7 +781,7 @@ const OverviewTab = ({ range, prevRange, filteredOrders, prevOrders, crops, load
         <KpiCard
           loading={loading}
           label="Aktívni zákazníci"
-          value={formatNumber(agg.activeCustomers)}
+          value={formatNumber(agg.activeCustomers, 0)}
           Icon={Users}
           iconBg="#ede9fe"
           iconColor="#7c3aed"
@@ -801,7 +791,7 @@ const OverviewTab = ({ range, prevRange, filteredOrders, prevOrders, crops, load
         <KpiCard
           loading={loading}
           label="Predané gramy"
-          value={formatGrams(agg.totalGrams)}
+          value={formatWeight(agg.totalGrams)}
           Icon={Sprout}
           iconBg="#dcfce7"
           iconColor="#166534"
@@ -1095,7 +1085,7 @@ const SalesTab = ({ range, prevRange, filteredOrders, prevOrders, crops, loading
                         <span className="font-semibold text-[#0f172a]">{c.name}</span>
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-right text-[#0f172a]">{formatGrams(c.grams)}</td>
+                    <td className="px-3 py-2 text-right text-[#0f172a]">{formatWeight(c.grams)}</td>
                     <td className="px-3 py-2 text-right text-[#475569]">{c.orders}</td>
                     <td className="px-3 py-2 text-right font-bold text-[#0f172a]">{formatEur(c.revenue)}</td>
                     <td className="px-3 py-2 text-right text-[#475569]">{c.avgPricePerGram.toFixed(3)} €</td>
@@ -1107,7 +1097,7 @@ const SalesTab = ({ range, prevRange, filteredOrders, prevOrders, crops, loading
                             style={{ width: `${Math.min(100, c.pctOfTotal)}%`, backgroundColor: c.color }}
                           />
                         </div>
-                        <span className="text-[10px] text-[#475569] font-semibold w-9 text-right">{c.pctOfTotal.toFixed(1)}%</span>
+                        <span className="text-[10px] text-[#475569] font-semibold w-9 text-right">{formatPercent(c.pctOfTotal)}</span>
                       </div>
                     </td>
                     <td className="px-3 py-2 text-right">
@@ -1208,14 +1198,14 @@ const SalesTab = ({ range, prevRange, filteredOrders, prevOrders, crops, loading
                           {p.size}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-right text-[#0f172a]">{formatNumber(p.qty)}</td>
+                      <td className="px-3 py-2 text-right text-[#0f172a]">{formatNumber(p.qty, 0)}</td>
                       <td className="px-3 py-2 text-right font-bold text-[#0f172a]">{formatEur(p.revenue)}</td>
                       <td className="px-3 py-2 min-w-[100px]">
                         <div className="flex items-center gap-2">
                           <div className="flex-1 h-1.5 bg-[#f1f5f9] rounded-full overflow-hidden">
                             <div className="h-full bg-[#16a34a] transition-all" style={{ width: `${Math.min(100, p.pctOfTotal)}%` }} />
                           </div>
-                          <span className="text-[10px] text-[#475569] font-semibold w-9 text-right">{p.pctOfTotal.toFixed(1)}%</span>
+                          <span className="text-[10px] text-[#475569] font-semibold w-9 text-right">{formatPercent(p.pctOfTotal)}</span>
                         </div>
                       </td>
                     </tr>
@@ -1237,7 +1227,7 @@ const SalesTab = ({ range, prevRange, filteredOrders, prevOrders, crops, loading
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="size" tick={{ fontSize: 10, fill: '#475569' }} />
                 <YAxis tick={{ fontSize: 10, fill: '#475569' }} width={40} />
-                <Tooltip content={<CustomTooltip formatter={(v: number) => `${formatNumber(v)} ks`} />} />
+                <Tooltip content={<CustomTooltip formatter={(v: number) => `${formatNumber(v, 0)} ks`} />} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar dataKey="byType.home" name="Domáci" stackId="a" fill={COLORS.home} isAnimationActive={true} animationDuration={400} />
                 <Bar dataKey="byType.gastro" name="Gastro" stackId="a" fill={COLORS.gastro} isAnimationActive={true} animationDuration={400} />
@@ -2084,7 +2074,7 @@ const ProductionTab = ({ range, plantingPlans, shelves, allOrders, crops, catego
                       </td>
                       <td className="px-3 py-2 text-right text-[#0f172a]">{r.trayCount} × {r.traySize}</td>
                       <td className="px-3 py-2 text-right font-bold text-[#16a34a]">
-                        {r.plannedYield != null ? formatGrams(r.plannedYield) : '—'}
+                        {r.plannedYield != null ? formatWeight(r.plannedYield) : '—'}
                       </td>
                       <td className="px-3 py-2 text-right text-[#475569]">{formatHarvest(r.harvestDate)}</td>
                       <td className="px-3 py-2 text-center">
@@ -3606,9 +3596,9 @@ const ReportsPage = () => {
               return `${pct >= 0 ? '+' : ''}${pct}%`;
             })(),
           ],
-          [nd('Objednavok'), formatNumber(totalOrders), ''],
+          [nd('Objednavok'), formatNumber(totalOrders, 0), ''],
           [nd('Priemerny kosik'), nd(formatEur(avgBasket)), ''],
-          [nd('Aktivnych zakaznikov'), formatNumber(customerIds.size), ''],
+          [nd('Aktivnych zakaznikov'), formatNumber(customerIds.size, 0), ''],
           [nd('Predanych gramov'), `${Math.round(totalGrams)} g`, ''],
         ],
         styles: { fontSize: 9, cellPadding: 2 },

@@ -24,6 +24,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatEur, formatWeight } from '@/utils/formatters';
 
 // ===================== TYPES =====================
 
@@ -118,10 +119,6 @@ const formatWeekRange = (monday: Date): string => {
   return `${monday.getDate()}. ${SK_MONTHS_GEN[monday.getMonth()]} ${monday.getFullYear()} – ${sunday.getDate()}. ${SK_MONTHS_GEN[sunday.getMonth()]} ${sunday.getFullYear()}`;
 };
 
-const formatEur = (n: number): string => {
-  return n.toLocaleString('sk-SK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
-};
-
 const toIsoDate = (d: Date): string => {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -145,9 +142,10 @@ const parseGrams = (size: string | null | undefined): number => {
   return m ? parseFloat(m[1]) : 0;
 };
 
-// Extract unit price from order_item
+// Extract unit price from order_item (supporting both price_per_unit and unit_price field names)
 const itemUnitPrice = (item: any): number => {
   if (typeof item.price_per_unit === 'number') return item.price_per_unit;
+  if (typeof item.unit_price === 'number') return item.unit_price;
   if (typeof item.price === 'number') return item.price;
   return 0;
 };
@@ -311,7 +309,7 @@ const Dashboard = () => {
         .select(`
           id, delivery_date, status, customer_id,
           customers:customer_id ( id, customer_type ),
-          order_items ( id, crop_id, quantity, packaging_size, price_per_unit )
+          order_items ( id, crop_id, quantity, packaging_size, price_per_unit, unit_price, price )
         `)
         .gte('delivery_date', sparkRange.startStr)
         .lte('delivery_date', sparkRange.endStr);
@@ -804,12 +802,12 @@ const Dashboard = () => {
               <div className="grid grid-cols-3 gap-2 mb-3">
                 <div className="bg-[#f0fdf4] rounded-lg border border-[#bbf7d0] p-2.5">
                   <p className="text-[10px] uppercase tracking-wide text-[#475569] font-semibold mb-0.5">Posadené</p>
-                  <p className="text-lg font-bold text-[#16a34a]">{Math.round(plantedGrams)}g</p>
+                  <p className="text-lg font-bold text-[#16a34a]">{formatWeight(plantedGrams)}</p>
                   <p className="text-[10px] text-[#475569]">odhadovaný výnos</p>
                 </div>
                 <div className="bg-[#dbeafe] rounded-lg border border-[#bfdbfe] p-2.5">
                   <p className="text-[10px] uppercase tracking-wide text-[#475569] font-semibold mb-0.5">Objednané</p>
-                  <p className="text-lg font-bold text-[#2563eb]">{Math.round(orderedGramsThisWeek)}g</p>
+                  <p className="text-lg font-bold text-[#2563eb]">{formatWeight(orderedGramsThisWeek)}</p>
                   <p className="text-[10px] text-[#475569]">požiadavka zákazníkov</p>
                 </div>
                 <div className={cn(
@@ -818,7 +816,7 @@ const Dashboard = () => {
                 )}>
                   <p className="text-[10px] uppercase tracking-wide text-[#475569] font-semibold mb-0.5">Voľné na predaj</p>
                   <p className={cn('text-lg font-bold', freeGrams > 0 ? 'text-[#16a34a]' : 'text-[#dc2626]')}>
-                    {Math.round(freeGrams)}g
+                    {formatWeight(freeGrams)}
                   </p>
                   <p className="text-[10px] text-[#475569]">
                     {freeGrams > 0 ? 'môžeš predať' : plantedGrams === 0 ? 'nič nie je posadené' : 'preplnené'}
@@ -866,7 +864,7 @@ const Dashboard = () => {
                   <div>
                     <h3 className="text-sm font-bold text-[#0f172a]">Predpokladaný výnos</h3>
                     <p className="text-[11px] text-[#475569]">
-                      Celkom <span className="font-bold text-[#16a34a]">{Math.round(totalYieldGrams)}g</span> z {harvestPlans.length} {harvestPlans.length === 1 ? 'výsevu' : harvestPlans.length >= 2 && harvestPlans.length <= 4 ? 'výsevov' : 'výsevov'}
+                      Celkom <span className="font-bold text-[#16a34a]">{formatWeight(totalYieldGrams)}</span> z {harvestPlans.length} {harvestPlans.length === 1 ? 'výsevu' : harvestPlans.length >= 2 && harvestPlans.length <= 4 ? 'výsevov' : 'výsevov'}
                     </p>
                   </div>
                 </div>
@@ -906,7 +904,7 @@ const Dashboard = () => {
                         </p>
                       </div>
                       <div className="flex-shrink-0 flex items-center gap-2">
-                        <span className="text-sm font-bold text-[#16a34a]">{Math.round(plan.yieldGrams)}g</span>
+                        <span className="text-sm font-bold text-[#16a34a]">{formatWeight(plan.yieldGrams)}</span>
                         <span className="inline-flex items-center h-5 px-1.5 rounded-full bg-[#f1f5f9] text-[#475569] text-[10px] font-bold whitespace-nowrap">
                           {formatHarvestDate(plan.expected_harvest_date)}
                         </span>
