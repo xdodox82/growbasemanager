@@ -316,12 +316,7 @@ const expandBlendToLeafCrops = (
   if (percentages.length === 0 && Array.isArray(blend.crop_ids) && blend.crop_ids.length > 0) {
     const equalPct = 100 / blend.crop_ids.length;
     percentages = blend.crop_ids.map((cid: string) => ({ cropId: cid, percentage: equalPct, isBlend: false }));
-    console.debug(`[blend-expand] ${blend.name || blendId}: crop_percentages prázdne, fallback rovné ${equalPct.toFixed(1)}% × ${blend.crop_ids.length}`);
   }
-
-  console.debug(
-    `[blend-expand] ${blend.name || blendId} | depth=${depth} | totalGrams=${totalGrams.toFixed(1)}g | percentages.length=${percentages.length}`
-  );
 
   const result: BlendLeafCrop[] = [];
 
@@ -438,7 +433,6 @@ const PlantingPlanPage = () => {
     const interval = setInterval(() => {
       const currentDate = new Date().toISOString().split('T')[0];
       if (currentDate !== today) {
-        console.info(`[today] Dátum sa zmenil ${today} → ${currentDate} (polnoc)`);
         setToday(currentDate);
       }
     }, 60 * 1000); // každú minútu
@@ -732,13 +726,9 @@ const PlantingPlanPage = () => {
 
     const hiddenCount = allResults.length - result.length;
     if (hiddenCount > 0) {
-      console.debug(`[groupedPlans] skryté ${hiddenCount} starých dokončených/harvested výsevov (sow_date < ${cutoffStr})`);
     }
 
-    // Diagnostické logy — pre každý grouped plan vypíš plan.trays.
-    // Pomôže lokalizovať zdroj zdvojených tácok ak by problém pretrvával.
     if (result.length > 0) {
-      console.debug('[groupedPlans] count=' + result.length + ' merged groups (zobrazených)');
       result.forEach(g => {
         const traysDump = g.trays.map(t => `${t.count}×${t.size}${t.is_manual ? '(M)' : ''}`).join('+');
       });
@@ -1123,7 +1113,6 @@ const PlantingPlanPage = () => {
           .select('id, name, crop_ids, crop_percentages');
         if (blendsError) throw blendsError;
         (allBlends || []).forEach((b: any) => { allBlendsMap[b.id] = b; });
-        console.debug(`[syncPlansFromOrders] Načítaných ${(allBlends || []).length} blendov v DB (priame z objednávok: ${blendIds.length})`);
 
         // Zozbieraj VŠETKY leaf cropId z direct + rekurzívnych expanzií.
         // Použijeme dummy gramáž 1g — zaujímajú nás len cropIds, nie konkrétne hodnoty.
@@ -1140,24 +1129,15 @@ const PlantingPlanPage = () => {
             .in('id', Array.from(leafCropIds));
           if (blendCropsError) throw blendCropsError;
           (blendCrops || []).forEach((c: any) => { blendCropsMap[c.id] = c; });
-          console.debug(`[syncPlansFromOrders] Načítaných ${(blendCrops || []).length} leaf plodín pre mixy (vrátane sub-blendov)`);
         }
       }
 
       const grouped = groupOrdersByCropAndHarvestDate(orders, allBlendsMap, blendCropsMap);
       if (grouped.length === 0) return 0;
 
-      console.info(`[syncPlansFromOrders] Po grupovaní: ${grouped.length} skupín (crop × harvest_date) na spracovanie`);
 
       let createdCount = 0;
       for (const g of grouped) {
-        // Diagnostické logovanie — pomáha overiť že totalRequired sa správne sčítava
-        // pre každú plodinu + harvest_date kombináciu. Tichý log, len pre dev/diagnose.
-        const reservePct = g.crop.reserved_percentage ?? 5;
-        const withReserveDbg = g.totalRequired * (1 + reservePct / 100);
-        console.debug(
-          `[autoSync] ${g.crop.name || g.crop.id} | harvest=${g.harvestDate} | required=${g.totalRequired.toFixed(1)}g | +rezerva ${reservePct}%=${withReserveDbg.toFixed(1)}g | orders=${g.orderIds.length}`
-        );
         const created = await createPlantingTasksForGroup(g);
         createdCount += created;
       }
@@ -1310,9 +1290,6 @@ const PlantingPlanPage = () => {
 
           if (totalGrams <= 0) return;
 
-          console.debug(
-            `[blend-expand] ROOT ${blend.name || item.blend_id} | order=${order.id?.slice(0, 8)} | totalGrams=${totalGrams.toFixed(1)}g`
-          );
 
           // Rekurzívna expanzia na leaf-plodiny
           const leaves = expandBlendToLeafCrops(item.blend_id, totalGrams, blendsMap, 0);
@@ -1337,7 +1314,6 @@ const PlantingPlanPage = () => {
             g.totalRequired += grams;
             if (!g.orderIds.includes(order.id)) g.orderIds.push(order.id);
 
-            console.debug(`[blend-expand] LEAF + ${crop.name || cropId}: ${grams.toFixed(1)}g → groupTotal=${g.totalRequired.toFixed(1)}g`);
           });
         }
       });
@@ -1362,9 +1338,6 @@ const PlantingPlanPage = () => {
     const reserve = reservePercent / 100;
     const withReserve = totalRequired * (1 + reserve);
 
-    console.info(
-      `[createPlanningTasks] ${crop?.name || crop.id} | harvest=${harvestDate} | totalRequired=${totalRequired.toFixed(1)}g | rezerva=${reservePercent}% | withReserve=${withReserve.toFixed(1)}g`
-    );
 
     // Vymaž VŠETKY auto-generované planned plány pre túto kombináciu (crop × harvest_date).
     // Pôvodne sme mali aj .not('source_orders', 'is', null) — to ale vylúčilo legacy záznamy
@@ -1397,9 +1370,6 @@ const PlantingPlanPage = () => {
     if (checkError) {
       console.warn('[createPlanningTasks] Check existing failed:', checkError);
     } else if (existingActive && existingActive.length > 0) {
-      console.info(
-        `[createPlanningTasks] ${crop?.name || crop.id} — preskakujem (${existingActive.length} aktívnych plánov in_progress/completed pre tento harvest)`
-      );
       return 0;
     }
 
@@ -1432,7 +1402,6 @@ const PlantingPlanPage = () => {
       if (!insertError) created++;
       else console.error(`[createPlanningTasks] Chyba pri vytváraní plánu ${tray.size}:`, insertError);
     }
-    console.info(`[createPlanningTasks] ${crop?.name || crop.id} — vytvorených ${created}/${trayConfig.length} plánov: ${trayConfig.map(t => `${t.count}×${t.size}`).join('+')}`);
     return created;
   }
 
@@ -1444,8 +1413,6 @@ const PlantingPlanPage = () => {
     const tc: Record<string, any> = {};
     Object.keys(trayConfigs).forEach(k => { tc[k.toUpperCase()] = trayConfigs[k]; });
 
-    // DEBUG: vypíš RAW + normalizovaný objekt aby sme videli čo prišlo z DB
-    console.debug(`[optimizeTray] ${crop.name} | normalized keys: [${Object.keys(tc).join(', ')}]`);
 
     // Veľkosť S sa NIKDY nenavrhuje automaticky — len manuálne zadanie.
     const sizesAsc = [
@@ -1454,7 +1421,6 @@ const PlantingPlanPage = () => {
       { name: 'XL', seeds: tc.XL?.seed_density_grams ?? tc.XL?.seed_density ?? 0, yield: tc.XL?.yield_grams ?? tc.XL?.expected_yield ?? 0 },
     ].filter(s => s.seeds > 0 && s.yield > 0);
 
-    console.debug(`[optimizeTray] ${crop.name} | required=${requiredYield.toFixed(1)}g | sizes=`, sizesAsc.map(s => `${s.name}(yield=${s.yield}, seeds=${s.seeds})`).join(', ') || 'ŽIADNE');
 
     if (sizesAsc.length === 0) {
       console.warn(`[optimizeTray] ${crop.name} — žiadne tácky M/L/XL nakonfigurované v tray_configs! Skontroluj DB.`);
@@ -1472,7 +1438,6 @@ const PlantingPlanPage = () => {
         seedsPerTray: smallestFit.seeds,
         yieldPerTray: smallestFit.yield,
       });
-      console.debug(`[optimizeTray] ${crop.name} | smallestFit=${smallestFit.name} (yield=${smallestFit.yield}g ≥ required=${requiredYield.toFixed(1)}g) → result=1×${smallestFit.name}`);
       return result;
     }
 
@@ -1523,7 +1488,6 @@ const PlantingPlanPage = () => {
       }
     }
 
-    console.debug(`[optimizeTray] ${crop.name} | Case 2 (required ${requiredYield.toFixed(1)}g > max ${xl.yield}g) → result=${result.map(r => `${r.count}×${r.size}`).join('+')}`);
     return result;
   }
 
