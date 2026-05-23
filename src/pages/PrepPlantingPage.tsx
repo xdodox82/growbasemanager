@@ -84,6 +84,11 @@ const sowingWord = (count: number): string => {
   return 'výsevov';
 };
 
+// Zoradenie tray sizes: XL > L > M > S
+const TRAY_SIZE_ORDER: Record<string, number> = { 'XL': 0, 'L': 1, 'M': 2, 'S': 3 };
+const traySizeRank = (size: string): number =>
+  TRAY_SIZE_ORDER[size] != null ? TRAY_SIZE_ORDER[size] : 99;
+
 // Substrátové konfigurácie - label + badge štýly
 type SubstrateKey = 'peat' | 'coco' | 'mixed' | 'unknown';
 
@@ -216,6 +221,60 @@ const PrepPlantingPage = () => {
   const totalTrays = weekPlans.reduce((s, p) => s + (p.tray_count || 0), 0);
   const daysWithPlans = weekDays.filter(d => plansByDay[d].length > 0);
 
+  // Pre každý deň: zoskupené riadky (plodina + tray_size + substrát) + denný súhrn.
+  // Ak existujú 2 plány s rovnakou kombináciou (zriedkavo), zlúčia sa do jedného riadka so súčtom count.
+  // Riadky sú zoradené: tray_size DESC (XL → L → M → S), potom meno plodiny ASC.
+  type DayRow = {
+    key: string;
+    cropName: string;
+    cropColor: string;
+    traySize: string;
+    substrateKey: SubstrateKey;
+    count: number;
+  };
+  type DailyData = {
+    rows: DayRow[];
+    totalTrays: number;
+    bySize: Record<string, number>;
+    bySubstrate: Record<SubstrateKey, number>;
+  };
+  const dailyData = useMemo<Record<string, DailyData>>(() => {
+    const acc: Record<string, DailyData> = {};
+    daysWithPlans.forEach(dayStr => {
+      const dayPlans = plansByDay[dayStr];
+      const grouped = new Map<string, DayRow>();
+      const bySize: Record<string, number> = {};
+      const bySubstrate: Record<SubstrateKey, number> = { peat: 0, coco: 0, mixed: 0, unknown: 0 };
+      let totalT = 0;
+
+      dayPlans.forEach(p => {
+        const substrateKey = normalizeSubstrate(p.crops?.default_substrate_type);
+        const cropName = p.crops?.name || 'Neznáma plodina';
+        const cropColor = p.crops?.color || '#16a34a';
+        const key = `${p.crop_id}_${p.tray_size}_${substrateKey}`;
+        const count = p.tray_count || 0;
+
+        if (grouped.has(key)) {
+          grouped.get(key)!.count += count;
+        } else {
+          grouped.set(key, { key, cropName, cropColor, traySize: p.tray_size, substrateKey, count });
+        }
+        bySize[p.tray_size] = (bySize[p.tray_size] || 0) + count;
+        bySubstrate[substrateKey] += count;
+        totalT += count;
+      });
+
+      const rows = Array.from(grouped.values()).sort((a, b) => {
+        const sizeDiff = traySizeRank(a.traySize) - traySizeRank(b.traySize);
+        if (sizeDiff !== 0) return sizeDiff;
+        return a.cropName.localeCompare(b.cropName, 'sk');
+      });
+
+      acc[dayStr] = { rows, totalTrays: totalT, bySize, bySubstrate };
+    });
+    return acc;
+  }, [daysWithPlans, plansByDay]);
+
   // ===================== RENDER =====================
 
   return (
@@ -333,7 +392,7 @@ const PrepPlantingPage = () => {
           </div>
         )}
 
-        {/* ===== TIMELINE BY DAY ===== */}
+        {/* ===== DAILY SECTIONS ===== */}
         {loading ? (
           <div className="space-y-3">
             {[1, 2, 3].map(i => (
@@ -344,32 +403,43 @@ const PrepPlantingPage = () => {
             ))}
           </div>
         ) : daysWithPlans.length === 0 ? null : (
-          <div className="relative pl-8">
-            {/* Vertikálna čiara */}
-            <div className="absolute left-3 top-2 bottom-2 w-0.5 bg-[#e2e8f0]" />
+          <div className="space-y-3 md:space-y-4">
+            {daysWithPlans.map(dayStr => {
+              const date = new Date(dayStr);
+              const isToday = dayStr === todayStr;
+              const dayName = SK_DAYS_SHORT[date.getDay()];
+              const monthName = SK_MONTHS_GEN[date.getMonth()];
+              const day = dailyData[dayStr];
+              if (!day) return null;
 
-            <div className="space-y-4">
-              {daysWithPlans.map(dayStr => {
-                const dayPlans = plansByDay[dayStr];
-                const date = new Date(dayStr);
-                const isToday = dayStr === todayStr;
-                const dayName = SK_DAYS_SHORT[date.getDay()];
-                const totalDayTrays = dayPlans.reduce((s, p) => s + (p.tray_count || 0), 0);
+              // Súhrn texty pre footer (zoradené XL → S)
+              const sizeChips = (['XL', 'L', 'M', 'S'] as const)
+                .filter(s => (day.bySize[s] || 0) > 0)
+                .map(s => `${day.bySize[s]} × ${s}`)
+                .join(' · ');
+              const substrateChips = (['peat', 'coco', 'mixed', 'unknown'] as SubstrateKey[])
+                .filter(k => day.bySubstrate[k] > 0)
+                .map(k => `${SUBSTRATE_CFG[k].label}: ${day.bySubstrate[k]}`)
+                .join(' · ');
 
-                return (
-                  <div key={dayStr} className="relative">
-                    {/* Bodka na osi */}
-                    <div
-                      className={cn(
-                        'absolute -left-[26px] top-1 w-4 h-4 rounded-full border-2 z-10',
-                        isToday
-                          ? 'bg-[#16a34a] border-[#16a34a] ring-4 ring-[#bbf7d0]'
-                          : 'bg-white border-[#cbd5e1]'
-                      )}
-                    />
-
-                    {/* Hlavička dňa */}
-                    <div className="flex items-baseline gap-2 mb-2">
+              return (
+                <div
+                  key={dayStr}
+                  className={cn(
+                    'bg-white rounded-xl border shadow-sm overflow-hidden',
+                    isToday ? 'border-[#bbf7d0] ring-1 ring-[#bbf7d0]' : 'border-[#cbd5e1]'
+                  )}
+                >
+                  {/* Hlavička dňa */}
+                  <div
+                    className={cn(
+                      'px-4 py-3 flex items-center justify-between gap-2 border-b',
+                      isToday
+                        ? 'bg-[#f0fdf4] border-[#bbf7d0]'
+                        : 'bg-[#f8fafc] border-[#e2e8f0]'
+                    )}
+                  >
+                    <div className="flex items-baseline gap-2 min-w-0">
                       <span className={cn(
                         'text-xs font-bold uppercase tracking-wide',
                         isToday ? 'text-[#16a34a]' : 'text-[#475569]'
@@ -377,13 +447,10 @@ const PrepPlantingPage = () => {
                         {dayName}
                       </span>
                       <span className={cn(
-                        'text-lg font-bold',
+                        'text-base md:text-lg font-bold',
                         isToday ? 'text-[#16a34a]' : 'text-[#0f172a]'
                       )}>
-                        {date.getDate()}.
-                      </span>
-                      <span className="text-[11px] text-[#475569]">
-                        {totalDayTrays} {trayWord(totalDayTrays)}
+                        {date.getDate()}. {monthName}
                       </span>
                       {isToday && (
                         <span className="inline-flex items-center h-5 px-1.5 rounded-full bg-[#16a34a] text-white text-[10px] font-bold">
@@ -391,71 +458,110 @@ const PrepPlantingPage = () => {
                         </span>
                       )}
                     </div>
+                    <span className={cn(
+                      'text-xs font-bold whitespace-nowrap flex-shrink-0',
+                      isToday ? 'text-[#16a34a]' : 'text-[#475569]'
+                    )}>
+                      {day.totalTrays} {trayWord(day.totalTrays)}
+                    </span>
+                  </div>
 
-                    {/* Karty výsevov */}
-                    <div className="space-y-2">
-                      {dayPlans.map(plan => {
-                        const cropColor = plan.crops?.color || '#16a34a';
-                        const substrateKey = normalizeSubstrate(plan.crops?.default_substrate_type);
-                        const substrate = SUBSTRATE_CFG[substrateKey];
-                        const SubstrateIcon = substrate.icon;
-
-                        return (
-                          <div
-                            key={plan.id}
-                            className={cn(
-                              'bg-white rounded-lg border shadow-sm overflow-hidden flex',
-                              isToday ? 'border-[#bbf7d0]' : 'border-[#e2e8f0]'
-                            )}
-                          >
-                            {/* Farebný pruh vľavo */}
-                            <div
-                              className="w-1 flex-shrink-0"
-                              style={{ backgroundColor: cropColor }}
-                            />
-
-                            <div className="flex-1 min-w-0 p-3">
-                              {/* Top row — plodina + tray size */}
-                              <div className="flex items-start justify-between gap-3 mb-2">
-                                <div className="flex items-center gap-2 min-w-0 flex-1">
-                                  <Sprout className="h-4 w-4 flex-shrink-0" style={{ color: cropColor }} />
-                                  <span className="text-sm font-bold text-[#0f172a] truncate">
-                                    {plan.crops?.name || 'Neznáma plodina'}
-                                  </span>
+                  {/* Desktop / tablet: tabuľka */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-[#f8fafc] border-b border-[#e2e8f0]">
+                        <tr>
+                          <th className="px-4 py-2 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wide">Plodina</th>
+                          <th className="px-4 py-2 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wide w-24">Veľkosť</th>
+                          <th className="px-4 py-2 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wide w-44">Substrát</th>
+                          <th className="px-4 py-2 text-right text-[10px] font-bold text-[#475569] uppercase tracking-wide w-20">Počet</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#e2e8f0]">
+                        {day.rows.map(row => {
+                          const sub = SUBSTRATE_CFG[row.substrateKey];
+                          const SubIcon = sub.icon;
+                          return (
+                            <tr key={row.key} className="hover:bg-[#f8fafc] transition-colors">
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: row.cropColor }} />
+                                  <span className="font-semibold text-[#0f172a]">{row.cropName}</span>
                                 </div>
-                                <span className="inline-flex items-center h-6 px-2 rounded-full bg-[#f8fafc] border border-[#e2e8f0] text-xs font-bold text-[#0f172a] flex-shrink-0">
-                                  {plan.tray_count} × {plan.tray_size}
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="inline-flex items-center h-6 px-2 rounded-full bg-[#f8fafc] border border-[#e2e8f0] text-xs font-bold text-[#0f172a]">
+                                  {row.traySize}
                                 </span>
-                              </div>
-
-                              {/* Bottom row — substrate + seed amount */}
-                              <div className="flex items-center justify-between gap-3 flex-wrap">
+                              </td>
+                              <td className="px-4 py-3">
                                 <span
                                   className="inline-flex items-center gap-1.5 h-6 px-2 rounded-full text-[11px] font-bold border"
-                                  style={{
-                                    backgroundColor: substrate.bg,
-                                    color: substrate.fg,
-                                    borderColor: substrate.border,
-                                  }}
+                                  style={{ backgroundColor: sub.bg, color: sub.fg, borderColor: sub.border }}
                                 >
-                                  <SubstrateIcon className="h-3 w-3" />
-                                  {substrate.label}
+                                  <SubIcon className="h-3 w-3" />
+                                  {sub.label}
                                 </span>
-                                {plan.seed_amount_grams != null && plan.seed_amount_grams > 0 && (
-                                  <span className="text-xs text-[#475569]">
-                                    Osivo: <span className="font-bold text-[#0f172a]">{plan.seed_amount_grams}g</span>
-                                  </span>
-                                )}
-                              </div>
+                              </td>
+                              <td className="px-4 py-3 text-right font-bold text-[#16a34a]">
+                                {row.count}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobil: karty */}
+                  <div className="md:hidden divide-y divide-[#e2e8f0]">
+                    {day.rows.map(row => {
+                      const sub = SUBSTRATE_CFG[row.substrateKey];
+                      const SubIcon = sub.icon;
+                      return (
+                        <div key={row.key} className="px-3 py-2.5 flex items-start gap-3">
+                          <div className="flex-1 min-w-0 space-y-1.5">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: row.cropColor }} />
+                              <span className="text-sm font-bold text-[#0f172a] truncate">{row.cropName}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="inline-flex items-center h-5 px-1.5 rounded-full bg-[#f8fafc] border border-[#e2e8f0] text-[11px] font-bold text-[#0f172a]">
+                                {row.traySize}
+                              </span>
+                              <span
+                                className="inline-flex items-center gap-1 h-5 px-1.5 rounded-full text-[10px] font-bold border"
+                                style={{ backgroundColor: sub.bg, color: sub.fg, borderColor: sub.border }}
+                              >
+                                <SubIcon className="h-2.5 w-2.5" />
+                                {sub.label}
+                              </span>
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
+                          <span className="text-base font-bold text-[#16a34a] flex-shrink-0 mt-0.5">
+                            {row.count}×
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
+
+                  {/* Denný footer súhrn */}
+                  <div className="px-4 py-2 bg-[#f8fafc] border-t border-[#e2e8f0]">
+                    <p className="text-[11px] text-[#475569]">
+                      <span className="font-semibold text-[#0f172a]">Spolu:</span>{' '}
+                      {sizeChips}
+                      {substrateChips && (
+                        <>
+                          {' — '}
+                          {substrateChips}
+                        </>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
