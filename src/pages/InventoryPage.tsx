@@ -71,6 +71,8 @@ import {
   TreePine,
   StickyNote,
   Wheat,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { sk } from 'date-fns/locale';
@@ -111,7 +113,7 @@ const TAB_CONFIG: Record<InventoryTab, { label: string; icon: React.ComponentTyp
 const TAB_ORDER: InventoryTab[] = ['seeds', 'packaging', 'substrate', 'labels', 'consumables'];
 
 const PACKAGING_KINDS = ['Pre zrezanú mikrozeleninu', 'Pre živú mikrozeleninu'] as const;
-const PACKAGING_MATERIALS = ['rPET', 'PET', 'EKO'] as const;
+const PACKAGING_MATERIALS = ['rPET', 'PET', 'EKO', 'Papier', 'Iný'] as const;
 const PACKAGING_SIZES = ['250ml', '500ml', '750ml', '1000ml', '1200ml'] as const;
 
 const SUBSTRATE_TYPES: Record<string, string> = {
@@ -138,6 +140,18 @@ const SEED_CATEGORY_LABELS: Record<string, { label: string; icon: React.Componen
 const formatDate = (dateStr: string | null | undefined): string => {
   if (!dateStr) return '-';
   try { return format(parseISO(dateStr), 'd.M.yyyy', { locale: sk }); } catch { return dateStr; }
+};
+
+// Expirácia osiva sa zobrazuje len ako mesiac/rok (napr. "1/2027").
+// V DB je uložená ako prvý deň daného mesiaca (YYYY-MM-01).
+const formatExpiryMonthYear = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return '-';
+  try {
+    const d = parseISO(dateStr);
+    return `${d.getMonth() + 1}/${d.getFullYear()}`;
+  } catch {
+    return dateStr;
+  }
 };
 
 const formatPrice = (n: number | null | undefined): string => {
@@ -380,6 +394,9 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [archiveDialogId, setArchiveDialogId] = useState<string | null>(null);
   const [selectedSeed, setSelectedSeed] = useState<DbSeed | null>(null);
+  // Šarže — zoskupené po plodine. Klikom na kartu sa rozbalí zoznam šarží.
+  // Set obsahuje cropId-čka ktoré sú rozbalené.
+  const [expandedCropIds, setExpandedCropIds] = useState<Set<string>>(new Set());
 
   // Form state
   const [selectedCategory, setSelectedCategory] = useState<'microgreens' | 'microherbs' | 'edible_flowers'>('microgreens');
@@ -454,7 +471,8 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
     setSupplierId(seed.supplier_id || '');
     setLotNumber((seed as any).lot_number || '');
     setPurchaseDate((seed as any).purchase_date || '');
-    setExpiryDate((seed as any).expiry_date || '');
+    // Expirácia: DB ukladá YYYY-MM-DD, ale UI input type="month" pracuje s YYYY-MM
+    setExpiryDate(((seed as any).expiry_date || '').substring(0, 7));
     setConsumptionStartDate((seed as any).consumption_start_date || '');
     setConsumptionEndDate((seed as any).consumption_end_date || '');
     setStockingDate((seed as any).stocking_date || '');
@@ -577,7 +595,8 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
       supplier_id: supplierId || null,
       lot_number: lotNumber || null,
       purchase_date: purchaseDate || null,
-      expiry_date: expiryDate || null,
+      // Expirácia: UI je YYYY-MM (mesiac picker), DB ukladá ako prvý deň daného mesiaca
+      expiry_date: expiryDate ? `${expiryDate}-01` : null,
       consumption_start_date: consumptionStartDate || null,
       consumption_end_date: consumptionEndDate || null,
       stocking_date: stockingDate || null,
@@ -771,154 +790,207 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
           addLabel="Pridať osivo"
         />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredSeeds.map(seed => {
-            const crop = crops.find(c => c.id === seed.crop_id);
-            const cropColor = crop?.color || '#16a34a';
-            const isArchived = (seed as any).archived === true;
-            const low = isLowStock(seed.quantity, (seed as any).min_stock);
-            const certUrl = (seed as any).certificate_url;
-            const lotNum = (seed as any).lot_number;
-            const expiry = (seed as any).expiry_date;
-            return (
-              <div
-                key={seed.id}
-                onClick={() => setSelectedSeed(seed)}
-                className={cn(
-                  'bg-white rounded-xl border shadow-sm p-4 cursor-pointer hover:shadow-md transition-all',
-                  low ? 'border-[#fecaca]' : 'border-[#cbd5e1] hover:border-[#bbf7d0]',
-                  isArchived && 'opacity-70'
-                )}
-              >
-                <div className="flex items-start gap-3 mb-2">
-                  <div
-                    className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border"
-                    style={{ backgroundColor: `${cropColor}15`, borderColor: `${cropColor}30` }}
+        <div className="space-y-3">
+          {/* Zoskupenie šarží podľa plodiny — 1 karta per plodina, klikom rozbalíme šarže. */}
+          {(() => {
+            // Zoskup podľa crop_id, zachovaj zoradenie z filteredSeeds
+            const groups = new Map<string, DbSeed[]>();
+            filteredSeeds.forEach(s => {
+              const k = s.crop_id || '__unknown__';
+              if (!groups.has(k)) groups.set(k, []);
+              groups.get(k)!.push(s);
+            });
+
+            return Array.from(groups.entries()).map(([cropKey, seedsInGroup]) => {
+              const firstSeed = seedsInGroup[0];
+              const crop = crops.find(c => c.id === firstSeed.crop_id);
+              const cropColor = crop?.color || '#16a34a';
+              const isExpanded = expandedCropIds.has(cropKey);
+
+              // Súčet množstva v rovnakej jednotke — ak sú miešané (kg + g), prevedieme na g
+              const allKg = seedsInGroup.every(s => s.unit === 'kg');
+              const allG = seedsInGroup.every(s => s.unit === 'g');
+              let totalLabel: string;
+              if (allKg) {
+                const total = seedsInGroup.reduce((sum, s) => sum + (s.quantity || 0), 0);
+                totalLabel = `${total.toFixed(2)} kg`;
+              } else if (allG) {
+                const total = seedsInGroup.reduce((sum, s) => sum + (s.quantity || 0), 0);
+                totalLabel = `${total.toFixed(0)} g`;
+              } else {
+                // Miešané jednotky — preveď všetko na g
+                const totalG = seedsInGroup.reduce((sum, s) => {
+                  return sum + (s.quantity || 0) * (s.unit === 'kg' ? 1000 : 1);
+                }, 0);
+                totalLabel = totalG >= 1000 ? `${(totalG / 1000).toFixed(2)} kg` : `${totalG.toFixed(0)} g`;
+              }
+
+              // Min stock súčet (rovnakou logikou)
+              const minTotalKg = seedsInGroup.reduce((sum, s) => {
+                const min = (s as any).min_stock;
+                if (min == null) return sum;
+                return sum + min * (s.unit === 'kg' ? 1 : 0.001);
+              }, 0);
+              const currentKg = seedsInGroup.reduce((sum, s) => sum + (s.quantity || 0) * (s.unit === 'kg' ? 1 : 0.001), 0);
+              const low = minTotalKg > 0 && currentKg < minTotalKg;
+              const anyArchived = seedsInGroup.every(s => (s as any).archived === true);
+
+              return (
+                <div
+                  key={cropKey}
+                  className={cn(
+                    'bg-white rounded-xl border shadow-sm overflow-hidden transition-all',
+                    low ? 'border-[#fecaca]' : 'border-[#cbd5e1] hover:border-[#bbf7d0]',
+                    anyArchived && 'opacity-70'
+                  )}
+                >
+                  {/* Header — klikateľný */}
+                  <button
+                    onClick={() => {
+                      setExpandedCropIds(prev => {
+                        const next = new Set(prev);
+                        if (next.has(cropKey)) next.delete(cropKey); else next.add(cropKey);
+                        return next;
+                      });
+                    }}
+                    className="w-full p-4 flex items-center gap-3 hover:bg-[#f8fafc] transition-colors text-left"
                   >
-                    <Sprout className="h-5 w-5" style={{ color: cropColor }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-bold text-[#0f172a] truncate">{crop?.name || 'Neznáma'}</h3>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {low && (
-                        <span className="inline-flex items-center h-5 px-1.5 rounded-full bg-[#fef2f2] text-[#dc2626] text-[10px] font-bold">
-                          NÍZKE ZÁSOBY
+                    <div
+                      className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border"
+                      style={{ backgroundColor: `${cropColor}15`, borderColor: `${cropColor}30` }}
+                    >
+                      <Sprout className="h-5 w-5" style={{ color: cropColor }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-bold text-[#0f172a] truncate">{crop?.name || 'Neznáma'}</h3>
+                        {low && (
+                          <span className="inline-flex items-center h-5 px-1.5 rounded-full bg-[#fef2f2] text-[#dc2626] text-[10px] font-bold flex-shrink-0">
+                            NÍZKE ZÁSOBY
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 mt-1 text-xs">
+                        <span className="text-[#475569]">Spolu: <span className="font-bold text-[#16a34a]">{totalLabel}</span></span>
+                        <span className="text-[#475569]">·</span>
+                        <span className="text-[#475569]">
+                          <span className="font-semibold text-[#0f172a]">{seedsInGroup.length}</span>{' '}
+                          {seedsInGroup.length === 1 ? 'šarža' : seedsInGroup.length >= 2 && seedsInGroup.length <= 4 ? 'šarže' : 'šarží'}
                         </span>
-                      )}
-                      {isArchived && (
-                        <span className="inline-flex items-center h-5 px-1.5 rounded-full bg-[#f1f5f9] text-[#94a3b8] text-[10px] font-bold">
-                          ARCHIVOVANÉ
-                        </span>
-                      )}
+                      </div>
                     </div>
-                  </div>
-                </div>
+                    {isExpanded ? <ChevronDown className="h-4 w-4 text-[#94a3b8] flex-shrink-0" /> : <ChevronRight className="h-4 w-4 text-[#94a3b8] flex-shrink-0" />}
+                  </button>
 
-                <div className="space-y-1 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[#475569]">Množstvo:</span>
-                    <span className="font-bold text-[#16a34a]">{seed.quantity}{seed.unit}</span>
-                  </div>
-                  {(seed as any).min_stock && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#475569]">Min. limit:</span>
-                      <span className="text-[#0f172a]">{(seed as any).min_stock}{seed.unit}</span>
-                    </div>
-                  )}
-                  {lotNum && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#475569]">Šarža:</span>
-                      <span className="font-mono text-[#0f172a]">{lotNum}</span>
-                    </div>
-                  )}
-                  {expiry && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#475569]">Expirácia:</span>
-                      <span className="text-[#0f172a]">{formatDate(expiry)}</span>
-                    </div>
-                  )}
-                  {(seed as any).consumption_start_date && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#475569]">Spotreba od:</span>
-                      <span className="text-[#0f172a]">{formatDate((seed as any).consumption_start_date)}</span>
-                    </div>
-                  )}
-                  {(seed as any).consumption_end_date && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#475569]">Spotreba do:</span>
-                      <span className="text-[#0f172a]">{formatDate((seed as any).consumption_end_date)}</span>
-                    </div>
-                  )}
-                  {(seed as any).batch_number && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#475569]">Šarža:</span>
-                      <span className="text-[#0f172a]">{(seed as any).batch_number}</span>
-                    </div>
-                  )}
-                  {seed.supplier_id && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#475569]">Dodávateľ:</span>
-                      <span className="text-[#0f172a] truncate ml-2">{getSupplierName(seed.supplier_id)}</span>
+                  {/* Šarže — rozbalený zoznam */}
+                  {isExpanded && (
+                    <div className="border-t border-[#e2e8f0] divide-y divide-[#e2e8f0]">
+                      {seedsInGroup.map(seed => {
+                        const isArchived = (seed as any).archived === true;
+                        const lotNum = (seed as any).lot_number;
+                        const expiry = (seed as any).expiry_date;
+                        const certUrl = (seed as any).certificate_url;
+                        return (
+                          <div
+                            key={seed.id}
+                            onClick={() => setSelectedSeed(seed)}
+                            className={cn(
+                              'px-4 py-3 hover:bg-[#f8fafc] transition-colors cursor-pointer',
+                              isArchived && 'opacity-70'
+                            )}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="flex-1 min-w-0 space-y-1">
+                                {/* Riadok 1: množstvo + šarža */}
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-sm font-bold text-[#16a34a]">{seed.quantity}{seed.unit}</span>
+                                  {lotNum && (
+                                    <span className="inline-flex items-center h-5 px-1.5 rounded-full bg-[#f1f5f9] font-mono text-[10px] text-[#475569]">
+                                      Šarža: {lotNum}
+                                    </span>
+                                  )}
+                                  {isArchived && (
+                                    <span className="inline-flex items-center h-5 px-1.5 rounded-full bg-[#f1f5f9] text-[#94a3b8] text-[10px] font-bold">
+                                      ARCHIVOVANÉ
+                                    </span>
+                                  )}
+                                </div>
+                                {/* Riadok 2: dátumy */}
+                                <div className="flex items-center gap-3 flex-wrap text-[11px] text-[#475569]">
+                                  {(seed as any).purchase_date && (
+                                    <span>Nákup: <span className="text-[#0f172a]">{formatDate((seed as any).purchase_date)}</span></span>
+                                  )}
+                                  {(seed as any).consumption_start_date && (
+                                    <span>Začiatok: <span className="text-[#0f172a]">{formatDate((seed as any).consumption_start_date)}</span></span>
+                                  )}
+                                  {expiry && (
+                                    <span>Expirácia: <span className="text-[#0f172a]">{formatExpiryMonthYear(expiry)}</span></span>
+                                  )}
+                                </div>
+                                {certUrl && (
+                                  <a
+                                    href={certUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="inline-flex items-center gap-1 text-[11px] text-[#16a34a] hover:underline"
+                                  >
+                                    <FileText className="h-3 w-3" />
+                                    Certifikát
+                                    <ExternalLink className="h-2.5 w-2.5" />
+                                  </a>
+                                )}
+                              </div>
+
+                              {/* Actions per šarža */}
+                              <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                                {isAdmin && !isArchived && (
+                                  <button
+                                    onClick={() => openEditDialog(seed)}
+                                    title="Upraviť"
+                                    className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors"
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                                {isAdmin && !isArchived && (
+                                  <button
+                                    onClick={() => setArchiveDialogId(seed.id)}
+                                    title="Archivovať"
+                                    className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors"
+                                  >
+                                    <Archive className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                                {isAdmin && isArchived && (
+                                  <button
+                                    onClick={() => handleUnarchive(seed.id)}
+                                    title="Obnoviť"
+                                    className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors"
+                                  >
+                                    <Undo2 className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                                {isAdmin && isArchived && (
+                                  <button
+                                    onClick={() => setDeleteId(seed.id)}
+                                    title="Zmazať natrvalo"
+                                    className="w-7 h-7 rounded-lg border border-[#fecaca] bg-[#fef2f2] flex items-center justify-center text-[#dc2626] hover:bg-[#fee2e2] transition-colors"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
-
-                {certUrl && (
-                  <a
-                    href={certUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="mt-2 inline-flex items-center gap-1 text-[11px] text-[#16a34a] hover:underline"
-                  >
-                    <FileText className="h-3 w-3" />
-                    Certifikát
-                    <ExternalLink className="h-2.5 w-2.5" />
-                  </a>
-                )}
-
-                {/* Actions */}
-                <div className="flex items-center gap-1 pt-3 mt-3 border-t border-[#e2e8f0]" onClick={(e) => e.stopPropagation()}>
-                  {isAdmin && !isArchived && (
-                    <button
-                      onClick={() => openEditDialog(seed)}
-                      title="Upraviť"
-                      className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                  {isAdmin && !isArchived && (
-                    <button
-                      onClick={() => setArchiveDialogId(seed.id)}
-                      title="Archivovať"
-                      className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors"
-                    >
-                      <Archive className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                  {isAdmin && isArchived && (
-                    <button
-                      onClick={() => handleUnarchive(seed.id)}
-                      title="Obnoviť"
-                      className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors"
-                    >
-                      <Undo2 className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                  {isAdmin && isArchived && (
-                    <button
-                      onClick={() => setDeleteId(seed.id)}
-                      title="Zmazať natrvalo"
-                      className="w-7 h-7 rounded-lg border border-[#fecaca] bg-[#fef2f2] flex items-center justify-center text-[#dc2626] hover:bg-[#fee2e2] transition-colors"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+              );
+            });
+          })()}
         </div>
       )}
 
@@ -935,7 +1007,7 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
           <form onSubmit={handleSubmit} className="space-y-3">
             {/* Kategória */}
             <div>
-              <Label className="text-xs font-semibold text-[#475569]">Kategória *</Label>
+              <Label className="text-sm font-semibold text-[#374151]">Kategória *</Label>
               <div className="grid grid-cols-3 gap-1.5 mt-1.5">
                 {Object.entries(SEED_CATEGORY_LABELS).map(([key, cat]) => {
                   const CatIcon = cat.icon;
@@ -962,9 +1034,9 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
 
             {/* Plodina */}
             <div>
-              <Label htmlFor="seed-crop" className="text-xs font-semibold text-[#475569]">Plodina *</Label>
+              <Label htmlFor="seed-crop" className="text-sm font-semibold text-[#374151]">Plodina *</Label>
               <Select value={cropId} onValueChange={setCropId}>
-                <SelectTrigger id="seed-crop" className="h-9 text-sm mt-1.5 border-[#e2e8f0]">
+                <SelectTrigger id="seed-crop" className="h-10 text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]">
                   <SelectValue placeholder="Vyber plodinu" />
                 </SelectTrigger>
                 <SelectContent>
@@ -978,7 +1050,7 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
             {/* Množstvo + jednotka */}
             <div className="grid grid-cols-3 gap-2">
               <div className="col-span-2">
-                <Label htmlFor="seed-qty" className="text-xs font-semibold text-[#475569]">Množstvo *</Label>
+                <Label htmlFor="seed-qty" className="text-sm font-semibold text-[#374151]">Množstvo *</Label>
                 <Input
                   id="seed-qty"
                   type="number"
@@ -987,13 +1059,13 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
                   required
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Jednotka</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Jednotka</Label>
                 <Select value={quantityUnit} onValueChange={(v) => setQuantityUnit(v as 'kg' | 'g')}>
-                  <SelectTrigger className="h-9 text-sm mt-1.5 border-[#e2e8f0]"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-10 text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="kg">kg</SelectItem>
                     <SelectItem value="g">g</SelectItem>
@@ -1005,25 +1077,25 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
             {/* Min limit + cena */}
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Min. limit ({quantityUnit})</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Min. limit ({quantityUnit})</Label>
                 <Input
                   type="number"
                   step="0.01"
                   min="0"
                   value={minStock}
                   onChange={(e) => setMinStock(e.target.value)}
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Cena/kg (€)</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Cena/kg (€)</Label>
                 <Input
                   type="number"
                   step="0.01"
                   min="0"
                   value={unitPricePerKg}
                   onChange={(e) => setUnitPricePerKg(e.target.value)}
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
             </div>
@@ -1040,7 +1112,7 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                 <span className="text-xs text-[#0f172a]">Cena s DPH</span>
               </label>
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">DPH (%)</Label>
+                <Label className="text-sm font-semibold text-[#374151]">DPH (%)</Label>
                 <Input
                   type="number"
                   step="1"
@@ -1048,7 +1120,7 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                   max="100"
                   value={vatRate}
                   onChange={(e) => setVatRate(e.target.value)}
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
             </div>
@@ -1056,9 +1128,9 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
             {/* Dodávateľ + šarža */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Dodávateľ</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Dodávateľ</Label>
                 <Select value={supplierId} onValueChange={setSupplierId}>
-                  <SelectTrigger className="h-9 text-sm mt-1.5 border-[#e2e8f0]"><SelectValue placeholder="Vyber dodávateľa" /></SelectTrigger>
+                  <SelectTrigger className="h-10 text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"><SelectValue placeholder="Vyber dodávateľa" /></SelectTrigger>
                   <SelectContent>
                     {suppliersList.map(s => (
                       <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
@@ -1067,12 +1139,12 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                 </Select>
               </div>
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Číslo šarže</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Číslo šarže</Label>
                 <Input
                   type="text"
                   value={lotNumber}
                   onChange={(e) => setLotNumber(e.target.value)}
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
             </div>
@@ -1080,21 +1152,21 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
             {/* Dátumy */}
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Dátum nákupu</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Dátum nákupu</Label>
                 <Input
                   type="date"
                   value={purchaseDate}
                   onChange={(e) => setPurchaseDate(e.target.value)}
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Expirácia</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Expirácia (mesiac/rok)</Label>
                 <Input
-                  type="date"
+                  type="month"
                   value={expiryDate}
                   onChange={(e) => setExpiryDate(e.target.value)}
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
             </div>
@@ -1102,58 +1174,58 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
             {/* Dátumy spotreby + šarža */}
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Začiatok spotreby</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Začiatok spotreby</Label>
                 <Input
                   type="date"
                   value={consumptionStartDate}
                   onChange={(e) => setConsumptionStartDate(e.target.value)}
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Koniec spotreby</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Koniec spotreby</Label>
                 <Input
                   type="date"
                   value={consumptionEndDate}
                   onChange={(e) => setConsumptionEndDate(e.target.value)}
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Dátum naskladnenia</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Dátum naskladnenia</Label>
                 <Input
                   type="date"
                   value={stockingDate}
                   onChange={(e) => setStockingDate(e.target.value)}
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Dátum spotrebia</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Dátum spotreby</Label>
                 <Input
                   type="date"
                   value={finishedDate}
                   onChange={(e) => setFinishedDate(e.target.value)}
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
             </div>
             <div>
-              <Label className="text-xs font-semibold text-[#475569]">Číslo šarže</Label>
+              <Label className="text-sm font-semibold text-[#374151]">Číslo šarže</Label>
               <Input
                 type="text"
                 value={batchNumber}
                 onChange={(e) => setBatchNumber(e.target.value)}
                 placeholder="napr. LOT-2026-001"
-                className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
               />
             </div>
 
             {/* Certifikát */}
             <div>
-              <Label className="text-xs font-semibold text-[#475569]">Certifikát (voliteľné)</Label>
+              <Label className="text-sm font-semibold text-[#374151]">Certifikát (voliteľné)</Label>
               <div className="mt-1.5 flex items-center gap-2">
                 <input
                   ref={fileInputRef}
@@ -1192,12 +1264,12 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
 
             {/* Poznámka */}
             <div>
-              <Label className="text-xs font-semibold text-[#475569]">Poznámka</Label>
+              <Label className="text-sm font-semibold text-[#374151]">Poznámka</Label>
               <Textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={2}
-                className="resize-none text-sm mt-1.5 border-[#e2e8f0]"
+                className="resize-none text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
               />
             </div>
 
@@ -1264,6 +1336,151 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Detail dialog — zobrazí všetky polia osiva pri kliknutí na šaržu */}
+      <Dialog open={selectedSeed !== null} onOpenChange={(open) => { if (!open) setSelectedSeed(null); }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          {selectedSeed && (() => {
+            const crop = crops.find(c => c.id === selectedSeed.crop_id);
+            const cropColor = crop?.color || '#16a34a';
+            const isArchived = (selectedSeed as any).archived === true;
+            const lotNum = (selectedSeed as any).lot_number;
+            const expiry = (selectedSeed as any).expiry_date;
+            const certUrl = (selectedSeed as any).certificate_url;
+            const pricePerKg = (selectedSeed as any).unit_price_per_kg;
+            return (
+              <>
+                <DialogHeader>
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border"
+                      style={{ backgroundColor: `${cropColor}15`, borderColor: `${cropColor}30` }}
+                    >
+                      <Sprout className="h-5 w-5" style={{ color: cropColor }} />
+                    </div>
+                    <div>
+                      <DialogTitle className="text-base font-bold text-[#0f172a]">{crop?.name || 'Neznáma'}</DialogTitle>
+                      <p className="text-xs text-[#475569]">Detail šarže</p>
+                    </div>
+                  </div>
+                </DialogHeader>
+
+                <div className="space-y-3 pt-2">
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center justify-between p-2 bg-[#f0fdf4] border border-[#bbf7d0] rounded-lg">
+                      <span className="text-[#475569] font-semibold">Množstvo:</span>
+                      <span className="font-bold text-[#16a34a] text-base">{selectedSeed.quantity}{selectedSeed.unit}</span>
+                    </div>
+                    {(selectedSeed as any).min_stock != null && (
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-[#475569]">Minimálny limit:</span>
+                        <span className="text-[#0f172a] font-semibold">{(selectedSeed as any).min_stock}{selectedSeed.unit}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border-t border-[#e2e8f0] pt-3 space-y-1.5 text-xs">
+                    {lotNum && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-[#475569]">Číslo šarže:</span>
+                        <span className="font-mono text-[#0f172a]">{lotNum}</span>
+                      </div>
+                    )}
+                    {(selectedSeed as any).purchase_date && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-[#475569]">Dátum nákupu:</span>
+                        <span className="text-[#0f172a]">{formatDate((selectedSeed as any).purchase_date)}</span>
+                      </div>
+                    )}
+                    {expiry && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-[#475569]">Expirácia:</span>
+                        <span className="text-[#0f172a] font-semibold">{formatExpiryMonthYear(expiry)}</span>
+                      </div>
+                    )}
+                    {(selectedSeed as any).consumption_start_date && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-[#475569]">Začiatok spotreby:</span>
+                        <span className="text-[#0f172a]">{formatDate((selectedSeed as any).consumption_start_date)}</span>
+                      </div>
+                    )}
+                    {(selectedSeed as any).consumption_end_date && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-[#475569]">Koniec spotreby:</span>
+                        <span className="text-[#0f172a]">{formatDate((selectedSeed as any).consumption_end_date)}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {(selectedSeed.supplier_id || pricePerKg > 0) && (
+                    <div className="border-t border-[#e2e8f0] pt-3 space-y-1.5 text-xs">
+                      {selectedSeed.supplier_id && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-[#475569]">Dodávateľ:</span>
+                          <span className="text-[#0f172a] font-semibold">{getSupplierName(selectedSeed.supplier_id)}</span>
+                        </div>
+                      )}
+                      {pricePerKg > 0 && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-[#475569]">Cena za kg:</span>
+                          <span className="text-[#0f172a] font-semibold">{formatPrice(pricePerKg)}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {certUrl && (
+                    <div className="border-t border-[#e2e8f0] pt-3">
+                      <a
+                        href={certUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs text-[#16a34a] hover:underline font-semibold"
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                        Otvoriť certifikát
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                  )}
+
+                  {selectedSeed.notes && (
+                    <div className="border-t border-[#e2e8f0] pt-3">
+                      <p className="text-[10px] uppercase tracking-wide font-bold text-[#475569] mb-1">Poznámka</p>
+                      <p className="text-xs text-[#0f172a] whitespace-pre-wrap">{selectedSeed.notes}</p>
+                    </div>
+                  )}
+
+                  {isAdmin && !isArchived && (
+                    <div className="border-t border-[#e2e8f0] pt-3 flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setSelectedSeed(null);
+                          openEditDialog(selectedSeed);
+                        }}
+                        className="flex-1 h-9 px-3 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Upraviť
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedSeed(null);
+                          setArchiveDialogId(selectedSeed.id);
+                        }}
+                        className="h-9 px-3 rounded-lg border border-[#e2e8f0] text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] text-xs font-bold flex items-center gap-1.5 transition-colors"
+                      >
+                        <Archive className="h-3.5 w-3.5" />
+                        Archivovať
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
@@ -1284,6 +1501,9 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
   // Form state
   const [name, setName] = useState('');
   const [type, setType] = useState<string>('');
+  // Nový pole — materiál obalu (rPET, PET, EKO, Papier, Iný).
+  // Vyžaduje DB migráciu: ALTER TABLE packagings ADD COLUMN packaging_type text;
+  const [packagingType, setPackagingType] = useState<string>('');
   const [size, setSize] = useState('');
   const [supplierId, setSupplierId] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -1305,6 +1525,7 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
     setEditingPackaging(null);
     setName('');
     setType('');
+    setPackagingType('');
     setSize('');
     setSupplierId('');
     setQuantity('');
@@ -1324,6 +1545,7 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
     setEditingPackaging(p);
     setName(p.name || '');
     setType(p.type || '');
+    setPackagingType((p as any).packaging_type || '');
     setSize(p.size || '');
     setSupplierId(p.supplier_id || '');
     setQuantity(p.quantity?.toString() || '');
@@ -1379,6 +1601,7 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
     const data: any = {
       name: name.trim(),
       type: type || null,
+      packaging_type: packagingType || null,
       size: size || null,
       supplier_id: supplierId || null,
       quantity: parseInt(quantity),
@@ -1497,8 +1720,16 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
                   )}
                   {p.type && (
                     <div className="flex items-center justify-between">
-                      <span className="text-[#475569]">Typ:</span>
+                      <span className="text-[#475569]">Forma:</span>
                       <span className="text-[#0f172a] truncate ml-2">{p.type}</span>
+                    </div>
+                  )}
+                  {(p as any).packaging_type && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#475569]">Materiál:</span>
+                      <span className="inline-flex items-center h-5 px-1.5 rounded-full bg-[#dcfce7] text-[#166534] text-[10px] font-bold">
+                        {(p as any).packaging_type}
+                      </span>
                     </div>
                   )}
                   {pricePerPiece > 0 && (
@@ -1558,22 +1789,22 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
 
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>
-              <Label className="text-xs font-semibold text-[#475569]">Názov *</Label>
+              <Label className="text-sm font-semibold text-[#374151]">Názov *</Label>
               <Input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
                 placeholder="napr. Krabička 500ml EKO"
-                className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Typ</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Forma</Label>
                 <Select value={type} onValueChange={setType}>
-                  <SelectTrigger className="h-9 text-sm mt-1.5 border-[#e2e8f0]"><SelectValue placeholder="Vyber typ" /></SelectTrigger>
+                  <SelectTrigger className="h-10 text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"><SelectValue placeholder="Vyber formu" /></SelectTrigger>
                   <SelectContent>
                     {PACKAGING_KINDS.map(k => (
                       <SelectItem key={k} value={k}>{k}</SelectItem>
@@ -1582,9 +1813,9 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
                 </Select>
               </div>
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Veľkosť</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Veľkosť</Label>
                 <Select value={size} onValueChange={setSize}>
-                  <SelectTrigger className="h-9 text-sm mt-1.5 border-[#e2e8f0]"><SelectValue placeholder="Vyber veľkosť" /></SelectTrigger>
+                  <SelectTrigger className="h-10 text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"><SelectValue placeholder="Vyber veľkosť" /></SelectTrigger>
                   <SelectContent>
                     {PACKAGING_SIZES.map(s => (
                       <SelectItem key={s} value={s}>{s}</SelectItem>
@@ -1594,9 +1825,21 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
               </div>
             </div>
 
+            <div>
+              <Label className="text-sm font-semibold text-[#374151]">Typ obalu (materiál)</Label>
+              <Select value={packagingType} onValueChange={setPackagingType}>
+                <SelectTrigger className="h-10 text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"><SelectValue placeholder="Vyber materiál" /></SelectTrigger>
+                <SelectContent>
+                  {PACKAGING_MATERIALS.map(m => (
+                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Množstvo (ks) *</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Množstvo (ks) *</Label>
                 <Input
                   type="number"
                   min="0"
@@ -1604,36 +1847,36 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
                   required
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Min. limit (ks)</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Min. limit (ks)</Label>
                 <Input
                   type="number"
                   min="0"
                   step="1"
                   value={minStock}
                   onChange={(e) => setMinStock(e.target.value)}
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Cena/ks (€)</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Cena/ks (€)</Label>
                 <Input
                   type="number"
                   step="0.01"
                   min="0"
                   value={pricePerPiece}
                   onChange={(e) => setPricePerPiece(e.target.value)}
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">DPH (%)</Label>
+                <Label className="text-sm font-semibold text-[#374151]">DPH (%)</Label>
                 <Input
                   type="number"
                   step="1"
@@ -1641,7 +1884,7 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
                   max="100"
                   value={vatRate}
                   onChange={(e) => setVatRate(e.target.value)}
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
             </div>
@@ -1657,9 +1900,9 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
             </label>
 
             <div>
-              <Label className="text-xs font-semibold text-[#475569]">Dodávateľ</Label>
+              <Label className="text-sm font-semibold text-[#374151]">Dodávateľ</Label>
               <Select value={supplierId} onValueChange={setSupplierId}>
-                <SelectTrigger className="h-9 text-sm mt-1.5 border-[#e2e8f0]"><SelectValue placeholder="Vyber dodávateľa" /></SelectTrigger>
+                <SelectTrigger className="h-10 text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"><SelectValue placeholder="Vyber dodávateľa" /></SelectTrigger>
                 <SelectContent>
                   {suppliersList.map(s => (
                     <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
@@ -1669,12 +1912,12 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
             </div>
 
             <div>
-              <Label className="text-xs font-semibold text-[#475569]">Poznámka</Label>
+              <Label className="text-sm font-semibold text-[#374151]">Poznámka</Label>
               <Textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={2}
-                className="resize-none text-sm mt-1.5 border-[#e2e8f0]"
+                className="resize-none text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
               />
             </div>
 
@@ -2011,9 +2254,9 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
 
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>
-              <Label className="text-xs font-semibold text-[#475569]">Typ *</Label>
+              <Label className="text-sm font-semibold text-[#374151]">Typ *</Label>
               <Select value={type} onValueChange={setType}>
-                <SelectTrigger className="h-9 text-sm mt-1.5 border-[#e2e8f0]"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10 text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Object.entries(SUBSTRATE_TYPES).map(([k, v]) => (
                     <SelectItem key={k} value={k}>{v}</SelectItem>
@@ -2024,20 +2267,20 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
 
             {(type === 'other' || type === 'coconut' || type === 'peat') && (
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Konkrétny variant / značka</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Konkrétny variant / značka</Label>
                 <Input
                   type="text"
                   value={customType}
                   onChange={(e) => setCustomType(e.target.value)}
                   placeholder="napr. Klasmann TS3"
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
             )}
 
             <div className="grid grid-cols-3 gap-2">
               <div className="col-span-2">
-                <Label className="text-xs font-semibold text-[#475569]">Množstvo (pôvodne) *</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Množstvo (pôvodne) *</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -2045,13 +2288,13 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
                   required
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Jednotka</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Jednotka</Label>
                 <Select value={quantityUnit} onValueChange={(v) => setQuantityUnit(v as 'l' | 'kg')}>
-                  <SelectTrigger className="h-9 text-sm mt-1.5 border-[#e2e8f0]"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-10 text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="kg">kg</SelectItem>
                     <SelectItem value="l">l</SelectItem>
@@ -2062,7 +2305,7 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Aktuálny stav ({quantityUnit})</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Aktuálny stav ({quantityUnit})</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -2070,36 +2313,36 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
                   value={currentStock}
                   onChange={(e) => setCurrentStock(e.target.value)}
                   placeholder="Default = množstvo"
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Min. limit ({quantityUnit})</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Min. limit ({quantityUnit})</Label>
                 <Input
                   type="number"
                   step="0.01"
                   min="0"
                   value={minStock}
                   onChange={(e) => setMinStock(e.target.value)}
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Cena/{quantityUnit} (€)</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Cena/{quantityUnit} (€)</Label>
                 <Input
                   type="number"
                   step="0.01"
                   min="0"
                   value={unitCost}
                   onChange={(e) => setUnitCost(e.target.value)}
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">DPH (%)</Label>
+                <Label className="text-sm font-semibold text-[#374151]">DPH (%)</Label>
                 <Input
                   type="number"
                   step="1"
@@ -2107,7 +2350,7 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
                   max="100"
                   value={vatRate}
                   onChange={(e) => setVatRate(e.target.value)}
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
             </div>
@@ -2124,9 +2367,9 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Dodávateľ</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Dodávateľ</Label>
                 <Select value={supplierId} onValueChange={setSupplierId}>
-                  <SelectTrigger className="h-9 text-sm mt-1.5 border-[#e2e8f0]"><SelectValue placeholder="Vyber dodávateľa" /></SelectTrigger>
+                  <SelectTrigger className="h-10 text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"><SelectValue placeholder="Vyber dodávateľa" /></SelectTrigger>
                   <SelectContent>
                     {suppliersList.map(sup => (
                       <SelectItem key={sup.id} value={sup.id}>{sup.name}</SelectItem>
@@ -2135,23 +2378,23 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
                 </Select>
               </div>
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Dátum naskladnenia</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Dátum naskladnenia</Label>
                 <Input
                   type="date"
                   value={stockDate}
                   onChange={(e) => setStockDate(e.target.value)}
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
             </div>
 
             <div>
-              <Label className="text-xs font-semibold text-[#475569]">Poznámka</Label>
+              <Label className="text-sm font-semibold text-[#374151]">Poznámka</Label>
               <Textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={2}
-                className="resize-none text-sm mt-1.5 border-[#e2e8f0]"
+                className="resize-none text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
               />
             </div>
 
@@ -2443,22 +2686,22 @@ const LabelsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
 
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>
-              <Label className="text-xs font-semibold text-[#475569]">Názov *</Label>
+              <Label className="text-sm font-semibold text-[#374151]">Názov *</Label>
               <Input
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
                 placeholder="napr. Etiketa Reďkovka červená"
-                className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Typ</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Typ</Label>
                 <Select value={formData.type} onValueChange={(v) => setFormData({ ...formData, type: v })}>
-                  <SelectTrigger className="h-9 text-sm mt-1.5 border-[#e2e8f0]"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-10 text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {Object.entries(LABEL_TYPES).map(([k, v]) => (
                       <SelectItem key={k} value={k}>{v}</SelectItem>
@@ -2467,20 +2710,20 @@ const LabelsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                 </Select>
               </div>
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Veľkosť</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Veľkosť</Label>
                 <Input
                   type="text"
                   value={formData.size}
                   onChange={(e) => setFormData({ ...formData, size: e.target.value })}
                   placeholder="napr. 50×30mm"
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Množstvo (ks) *</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Množstvo (ks) *</Label>
                 <Input
                   type="number"
                   min="0"
@@ -2488,36 +2731,36 @@ const LabelsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                   value={formData.quantity === 0 ? '' : formData.quantity}
                   onChange={(e) => setFormData({ ...formData, quantity: e.target.value === '' ? 0 : parseInt(e.target.value) })}
                   required
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Min. limit (ks)</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Min. limit (ks)</Label>
                 <Input
                   type="number"
                   min="0"
                   step="1"
                   value={formData.minStock}
                   onChange={(e) => setFormData({ ...formData, minStock: e.target.value })}
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Cena/ks (€)</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Cena/ks (€)</Label>
                 <Input
                   type="number"
                   step="0.01"
                   min="0"
                   value={formData.unitCost}
                   onChange={(e) => setFormData({ ...formData, unitCost: e.target.value })}
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">DPH (%)</Label>
+                <Label className="text-sm font-semibold text-[#374151]">DPH (%)</Label>
                 <Input
                   type="number"
                   step="1"
@@ -2525,7 +2768,7 @@ const LabelsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                   max="100"
                   value={formData.vatRate}
                   onChange={(e) => setFormData({ ...formData, vatRate: e.target.value })}
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
             </div>
@@ -2541,9 +2784,9 @@ const LabelsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
             </label>
 
             <div>
-              <Label className="text-xs font-semibold text-[#475569]">Dodávateľ</Label>
+              <Label className="text-sm font-semibold text-[#374151]">Dodávateľ</Label>
               <Select value={formData.supplierId} onValueChange={(v) => setFormData({ ...formData, supplierId: v })}>
-                <SelectTrigger className="h-9 text-sm mt-1.5 border-[#e2e8f0]"><SelectValue placeholder="Vyber dodávateľa" /></SelectTrigger>
+                <SelectTrigger className="h-10 text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"><SelectValue placeholder="Vyber dodávateľa" /></SelectTrigger>
                 <SelectContent>
                   {suppliersList.map(s => (
                     <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
@@ -2553,12 +2796,12 @@ const LabelsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
             </div>
 
             <div>
-              <Label className="text-xs font-semibold text-[#475569]">Poznámka</Label>
+              <Label className="text-sm font-semibold text-[#374151]">Poznámka</Label>
               <Textarea
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 rows={2}
-                className="resize-none text-sm mt-1.5 border-[#e2e8f0]"
+                className="resize-none text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
               />
             </div>
 
@@ -2867,7 +3110,7 @@ const ConsumablesTab = ({ isAdmin, isMobile, toast }: ConsumablesTabProps) => {
 
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>
-              <Label className="text-xs font-semibold text-[#475569]">Kategória *</Label>
+              <Label className="text-sm font-semibold text-[#374151]">Kategória *</Label>
               <Input
                 type="text"
                 value={category}
@@ -2875,7 +3118,7 @@ const ConsumablesTab = ({ isAdmin, isMobile, toast }: ConsumablesTabProps) => {
                 placeholder="napr. Čistiace prostriedky"
                 list="consumable-categories"
                 required
-                className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
               />
               <datalist id="consumable-categories">
                 {categories.map(cat => (
@@ -2885,20 +3128,20 @@ const ConsumablesTab = ({ isAdmin, isMobile, toast }: ConsumablesTabProps) => {
             </div>
 
             <div>
-              <Label className="text-xs font-semibold text-[#475569]">Názov *</Label>
+              <Label className="text-sm font-semibold text-[#374151]">Názov *</Label>
               <Input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
                 placeholder="napr. Dezinfekčný prostriedok"
-                className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
               />
             </div>
 
             <div className="grid grid-cols-3 gap-2">
               <div className="col-span-2">
-                <Label className="text-xs font-semibold text-[#475569]">Množstvo *</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Množstvo *</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -2906,48 +3149,48 @@ const ConsumablesTab = ({ isAdmin, isMobile, toast }: ConsumablesTabProps) => {
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
                   required
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Jednotka *</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Jednotka *</Label>
                 <Input
                   type="text"
                   value={unit}
                   onChange={(e) => setUnit(e.target.value)}
                   placeholder="ks, l, kg..."
                   required
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
             </div>
 
             <div>
-              <Label className="text-xs font-semibold text-[#475569]">Min. množstvo</Label>
+              <Label className="text-sm font-semibold text-[#374151]">Min. množstvo</Label>
               <Input
                 type="number"
                 step="0.01"
                 min="0"
                 value={minQuantity}
                 onChange={(e) => setMinQuantity(e.target.value)}
-                className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">Cena/jednotka (€)</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Cena/jednotka (€)</Label>
                 <Input
                   type="number"
                   step="0.01"
                   min="0"
                   value={unitCost}
                   onChange={(e) => setUnitCost(e.target.value)}
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
               <div>
-                <Label className="text-xs font-semibold text-[#475569]">DPH (%)</Label>
+                <Label className="text-sm font-semibold text-[#374151]">DPH (%)</Label>
                 <Input
                   type="number"
                   step="1"
@@ -2955,7 +3198,7 @@ const ConsumablesTab = ({ isAdmin, isMobile, toast }: ConsumablesTabProps) => {
                   max="100"
                   value={vatRate}
                   onChange={(e) => setVatRate(e.target.value)}
-                  className="text-sm h-9 mt-1.5 border-[#e2e8f0]"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
             </div>
@@ -2971,12 +3214,12 @@ const ConsumablesTab = ({ isAdmin, isMobile, toast }: ConsumablesTabProps) => {
             </label>
 
             <div>
-              <Label className="text-xs font-semibold text-[#475569]">Poznámka</Label>
+              <Label className="text-sm font-semibold text-[#374151]">Poznámka</Label>
               <Textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={2}
-                className="resize-none text-sm mt-1.5 border-[#e2e8f0]"
+                className="resize-none text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
               />
             </div>
 
