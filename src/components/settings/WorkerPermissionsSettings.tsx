@@ -17,11 +17,17 @@ import {
   Blend,
   Sprout,
   Warehouse,
+  Wheat,
   Scissors,
   FileBarChart,
+  Layers,
   Box,
   Tag,
   Settings,
+  Fuel,
+  Droplet,
+  Zap,
+  Droplets,
   Receipt
 } from 'lucide-react';
 
@@ -53,7 +59,17 @@ const PERMISSION_CONFIG: Array<{
   { key: 'can_view_harvest', label: 'Zber a balenie', icon: Scissors, description: 'Prístup k zberu úrody a baleniu' },
   { key: 'can_view_delivery', label: 'Rozvoz', icon: Truck, description: 'Prístup k rozvozu' },
   { key: 'can_view_inventory', label: 'Sklad', icon: Warehouse, description: 'Prístup k inventáru' },
-  { key: 'can_view_costs_fuel', label: 'Náklady', icon: Receipt, description: 'Prístup k nákladom', sensitive: true },
+  { key: 'can_view_seeds', label: 'Sklad - Osivo', icon: Wheat, description: 'Správa osiva' },
+  { key: 'can_view_packaging', label: 'Sklad - Obaly', icon: Package, description: 'Obalový materiál' },
+  { key: 'can_view_substrate', label: 'Sklad - Substrát', icon: Layers, description: 'Správa substrátu' },
+  { key: 'can_view_labels', label: 'Sklad - Etikety', icon: Tag, description: 'Správa etikiet' },
+  { key: 'can_view_consumables', label: 'Sklad - Spotrebný materiál', icon: Package, description: 'Spotrebný materiál' },
+  { key: 'can_view_costs_fuel', label: 'Náklady - PHM', icon: Fuel, description: 'Pohonné hmoty', sensitive: true },
+  { key: 'can_view_costs_adblue', label: 'Náklady - AdBlue', icon: Droplets, description: 'AdBlue náklady', sensitive: true },
+  { key: 'can_view_costs_water', label: 'Náklady - Voda', icon: Droplet, description: 'Náklady za vodu', sensitive: true },
+  { key: 'can_view_costs_electricity', label: 'Náklady - Elektrina', icon: Zap, description: 'Náklady za elektrinu', sensitive: true },
+  { key: 'can_view_costs_other', label: 'Náklady - Ostatné', icon: Receipt, description: 'Ostatné náklady', sensitive: true },
+  { key: 'can_view_calendar', label: 'Kalendár', icon: Calendar, description: 'Zobrazenie kalendára' },
   { key: 'can_view_reports', label: 'Reporty', icon: FileBarChart, description: 'Prístup k reportom', sensitive: true },
   { key: 'can_view_settings', label: 'Nastavenia', icon: Settings, description: 'Prístup k nastaveniam', sensitive: true },
 ];
@@ -194,26 +210,26 @@ export const WorkerPermissionsSettings = () => {
             </div>
 
             {/* Permissions grid */}
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {PERMISSION_CONFIG.map((config) => {
                 const Icon = config.icon;
                 const value = getPermissionValue(worker.id, config.key as keyof Omit<WorkerPermission, 'id' | 'user_id'>);
                 return (
                   <div key={config.key}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors ${
-                      value ? 'bg-[#f0fdf4] border-[#bbf7d0]' : 'bg-[#f8fafc] border-[#e2e8f0] hover:border-[#cbd5e1]'
-                    }`}
-                    onClick={() => handleToggle(worker.id, config.key as keyof Omit<WorkerPermission, 'id' | 'user_id'>)}>
+                    className={`flex items-center justify-between px-3 py-3.5 rounded-lg border transition-colors ${
+                      value ? 'bg-[#f0fdf4] border-[#bbf7d0]' : 'bg-[#f8fafc] border-[#e2e8f0]'
+                    }`}>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Icon className={`h-3.5 w-3.5 shrink-0 ${value ? 'text-[#16a34a]' : 'text-[#94a3b8]'}`} />
+                      <span className="text-xs font-semibold text-[#0f172a] truncate">{config.label}</span>
+                      {config.sensitive && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#fff7ed] border border-[#fed7aa] text-[#c2410c] shrink-0">Citlivé</span>
+                      )}
+                    </div>
                     <Switch
                       checked={value}
                       onCheckedChange={() => handleToggle(worker.id, config.key as keyof Omit<WorkerPermission, 'id' | 'user_id'>)}
-                      className="shrink-0"
                     />
-                    <Icon className={`h-3.5 w-3.5 shrink-0 ${value ? 'text-[#16a34a]' : 'text-[#94a3b8]'}`} />
-                    <span className={`text-xs font-semibold truncate ${value ? 'text-[#0f172a]' : 'text-[#64748b]'}`}>{config.label}</span>
-                    {config.sensitive && (
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#fff7ed] border border-[#fed7aa] text-[#c2410c] shrink-0">Citlivé</span>
-                    )}
                   </div>
                 );
               })}
