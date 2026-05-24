@@ -210,13 +210,13 @@ export const WorkerPermissionsSettings = () => {
             </div>
 
             {/* Permissions grid */}
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-2 sm:grid-cols-2">
               {PERMISSION_CONFIG.map((config) => {
                 const Icon = config.icon;
                 const value = getPermissionValue(worker.id, config.key as keyof Omit<WorkerPermission, 'id' | 'user_id'>);
                 return (
                   <div key={config.key}
-                    className={`flex items-center justify-between px-3 py-3.5 rounded-lg border transition-colors ${
+                    className={`flex items-center justify-between px-3 py-2.5 rounded-lg border transition-colors ${
                       value ? 'bg-[#f0fdf4] border-[#bbf7d0]' : 'bg-[#f8fafc] border-[#e2e8f0]'
                     }`}>
                     <div className="flex items-center gap-2 min-w-0">
