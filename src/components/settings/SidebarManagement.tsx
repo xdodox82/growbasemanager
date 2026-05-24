@@ -3,7 +3,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { LayoutGrid, Save, Loader2, LayoutDashboard, Leaf, Users, ShoppingCart, Calendar, Blend, Warehouse, Package, Truck, Euro, FileBarChart, ListChecks } from 'lucide-react';
+import { LayoutGrid, Save, Loader2, LayoutDashboard, Leaf, Users, ShoppingCart, Blend, Warehouse, Package, Truck, Euro, FileBarChart, ListChecks, Scissors, Receipt, Box, Tag, Settings2 } from 'lucide-react';
 
 interface SidebarItem {
   id: string;
@@ -21,14 +21,13 @@ const defaultSidebarItems: SidebarItem[] = [
   { id: 'blends', name: 'Mixy', icon: Blend, enabled: true },
   { id: 'prices', name: 'Ceny', icon: Euro, enabled: true },
   { id: 'orders', name: 'Objednávky', icon: ShoppingCart, enabled: true },
-  { id: 'planting', name: 'Plán sadenia', icon: Calendar, enabled: true },
+  { id: 'planting', name: 'Plán sadenia', icon: Leaf, enabled: true },
   { id: 'prep_planting', name: 'Príprava na sadenie', icon: Package, enabled: true },
   { id: 'prep_packaging', name: 'Príprava obalov', icon: Package, enabled: true },
   { id: 'harvest', name: 'Zber a balenie', icon: Leaf, enabled: true },
   { id: 'delivery', name: 'Rozvoz', icon: Truck, enabled: true },
   { id: 'inventory', name: 'Sklad', icon: Warehouse, enabled: true },
   { id: 'costs', name: 'Náklady', icon: Euro, enabled: true },
-  { id: 'calendar', name: 'Kalendár', icon: Calendar, enabled: true },
   { id: 'reports', name: 'Reporty', icon: FileBarChart, enabled: true },
 ];
 
