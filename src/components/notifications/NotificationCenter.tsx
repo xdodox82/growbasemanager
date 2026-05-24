@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Bell, AlertTriangle, Calendar, Package, X, Sprout, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,7 +9,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 
 // ===================== TYPES =====================
@@ -111,6 +111,7 @@ export function NotificationCenter() {
     }
   });
 
+  const navigate = useNavigate();
   const fetchRef = useRef<() => Promise<void>>();
 
   // ===================== FETCH =====================
@@ -419,56 +420,68 @@ export function NotificationCenter() {
             <p className="text-sm text-[#475569]">Žiadne nové upozornenia</p>
           </div>
         ) : (
-          <ScrollArea className="max-h-[400px]">
+          <div className="max-h-[400px] overflow-y-auto">
             <div className="divide-y divide-[#e2e8f0]">
-              {visibleNotifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={cn(
-                    'px-4 py-3 hover:bg-[#f8fafc] transition-colors relative group',
-                    notification.priority === 'high' && 'bg-[#fef2f2]/40'
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <div
+              {visibleNotifications.map((notification) => {
+                const handleNavigate = () => {
+                  if (notification.link) {
+                    setIsOpen(false);
+                    navigate(notification.link);
+                  }
+                };
+                return (
+                  <div
+                    key={notification.id}
+                    className={cn(
+                      'flex items-stretch transition-colors group',
+                      notification.priority === 'high' && 'bg-[#fef2f2]/40',
+                      'hover:bg-[#f8fafc]'
+                    )}
+                  >
+                    {/* Klikateľná zóna — content (icon + texty) */}
+                    <button
+                      type="button"
+                      onClick={handleNavigate}
+                      disabled={!notification.link}
                       className={cn(
-                        'p-2 rounded-lg border flex-shrink-0',
-                        getPriorityClasses(notification.priority)
+                        'flex-1 min-w-0 px-4 py-3 flex items-start gap-3 text-left',
+                        notification.link ? 'cursor-pointer' : 'cursor-default'
                       )}
                     >
-                      {getIcon(notification.type)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-[#0f172a]">{notification.title}</p>
-                      <p className="text-xs text-[#475569] mt-0.5 truncate">
-                        {notification.message}
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-[#94a3b8] hover:text-[#dc2626] hover:bg-[#fef2f2] flex-shrink-0"
+                      <div
+                        className={cn(
+                          'p-2 rounded-lg border flex-shrink-0',
+                          getPriorityClasses(notification.priority)
+                        )}
+                      >
+                        {getIcon(notification.type)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-[#0f172a]">{notification.title}</p>
+                        <p className="text-xs text-[#475569] mt-0.5 line-clamp-2">
+                          {notification.message}
+                        </p>
+                      </div>
+                    </button>
+
+                    {/* Dismiss zóna — samostatne, mimo navigate kliku */}
+                    <button
+                      type="button"
                       onClick={(e) => {
+                        e.preventDefault();
                         e.stopPropagation();
                         dismissNotification(notification.id);
                       }}
+                      className="w-10 flex-shrink-0 flex items-center justify-center text-[#94a3b8] hover:text-[#dc2626] hover:bg-[#fef2f2] transition-colors"
                       aria-label="Skryť upozornenie"
                     >
-                      <X className="h-3 w-3" />
-                    </Button>
+                      <X className="h-4 w-4" />
+                    </button>
                   </div>
-                  {notification.link && (
-                    <a
-                      href={notification.link}
-                      className="absolute inset-0"
-                      onClick={() => setIsOpen(false)}
-                      aria-label={notification.title}
-                    />
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
-          </ScrollArea>
+          </div>
         )}
 
         {dismissedIds.length > 0 && (
