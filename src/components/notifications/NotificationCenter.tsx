@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useAppStore } from '@/store/appStore';
-import { Bell, AlertTriangle, Calendar, Truck, Package, X, ChevronRight } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Bell, AlertTriangle, Calendar, Package, X, Sprout, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -10,264 +10,459 @@ import {
 } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { addDays, isWithinInterval, startOfDay, format } from 'date-fns';
-import { sk } from 'date-fns/locale';
+
+// ===================== TYPES =====================
+
+type NotifType = 'new_pwa_order' | 'pending_order' | 'low_seed' | 'low_packaging' | 'harvest_due';
+type NotifPriority = 'high' | 'medium' | 'low';
 
 interface Notification {
   id: string;
-  type: 'low_stock' | 'harvest_due' | 'delivery_due' | 'order_pending';
+  type: NotifType;
   title: string;
   message: string;
-  priority: 'high' | 'medium' | 'low';
-  timestamp: Date;
+  priority: NotifPriority;
+  timestamp: string;
   link?: string;
 }
 
+interface OrderRow {
+  id: string;
+  order_number: number | null;
+  customer_id: string | null;
+  status: string;
+  created_at: string;
+  source?: string | null;
+  customers?: { name: string | null } | null;
+}
+
+interface SeedRow {
+  id: string;
+  crop_id: string | null;
+  quantity: number | null;
+  min_stock: number | null;
+  unit: string | null;
+  archived: boolean | null;
+  products?: { name: string | null } | null;
+}
+
+interface PackagingRow {
+  id: string;
+  name: string | null;
+  size: string | null;
+  type: string | null;
+  quantity: number | null;
+  min_stock: number | null;
+}
+
+interface PlanRow {
+  id: string;
+  crop_id: string | null;
+  expected_harvest_date: string;
+  status: string;
+  products?: { name: string | null } | null;
+}
+
+// ===================== CONSTANTS =====================
+
+const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+const NEW_ORDER_WINDOW_HOURS = 24;
+const PENDING_STATUSES = ['pending', 'pending_approval', 'cakajuca'];
+const PENDING_THRESHOLD_DAYS = 1;
+const HARVEST_WINDOW_DAYS = 2;
+
+// ===================== HELPERS =====================
+
+const dayWord = (count: number): string => {
+  if (count === 1) return 'deň';
+  if (count >= 2 && count <= 4) return 'dni';
+  return 'dní';
+};
+
+const formatOrderNumber = (n: number | null): string => {
+  if (n == null) return '???';
+  return `MR-${String(n).padStart(3, '0')}`;
+};
+
+const formatHarvestDate = (iso: string): string => {
+  const d = new Date(iso);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(d);
+  target.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return 'dnes';
+  if (diffDays === 1) return 'zajtra';
+  if (diffDays === 2) return 'pozajtra';
+  return `${target.getDate()}.${target.getMonth() + 1}.`;
+};
+
+// ===================== COMPONENT =====================
+
 export function NotificationCenter() {
   const [isOpen, setIsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [dismissedIds, setDismissedIds] = useState<string[]>(() => {
-    const stored = localStorage.getItem('dismissed-notifications');
-    return stored ? JSON.parse(stored) : [];
+    try {
+      const stored = localStorage.getItem('dismissed-notifications');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
   });
 
-  const { seeds, packagings, substrates, plantingPlans, orders, crops } = useAppStore();
+  const fetchRef = useRef<() => Promise<void>>();
 
-  const notifications = useMemo(() => {
+  // ===================== FETCH =====================
+
+  const fetchNotifications = useCallback(async () => {
     const notifs: Notification[] = [];
-    const today = startOfDay(new Date());
-    const threeDaysFromNow = addDays(today, 3);
-    const sevenDaysFromNow = addDays(today, 7);
+    const now = new Date();
+    const newOrderCutoff = new Date(now.getTime() - NEW_ORDER_WINDOW_HOURS * 60 * 60 * 1000);
+    const pendingCutoff = new Date(now.getTime() - PENDING_THRESHOLD_DAYS * 24 * 60 * 60 * 1000);
+    const harvestUpperBound = new Date(now.getTime() + HARVEST_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+    harvestUpperBound.setHours(23, 59, 59, 999);
 
-    // Low stock alerts - Seeds (based on quantity threshold)
-    seeds.forEach((seed) => {
-      const threshold = 100; // grams threshold for low stock
-      const quantityInGrams = seed.quantityUnit === 'kg' ? seed.quantity * 1000 : seed.quantity;
-      if (quantityInGrams <= threshold) {
-        const crop = crops.find(c => c.id === seed.cropId);
-        notifs.push({
-          id: `seed-low-${seed.id}`,
-          type: 'low_stock',
-          title: 'Nízka zásoba semien',
-          message: `${crop?.name || 'Neznáma plodina'} - zostáva ${seed.quantity} ${seed.quantityUnit}`,
-          priority: quantityInGrams === 0 ? 'high' : 'medium',
-          timestamp: new Date(),
-          link: '/inventory/seeds',
+    try {
+      const [ordersRes, seedsRes, packagingsRes, plansRes] = await Promise.all([
+        supabase
+          .from('orders')
+          .select(`
+            id, order_number, customer_id, status, created_at, source,
+            customers:customer_id ( name )
+          `)
+          .in('status', PENDING_STATUSES)
+          .order('created_at', { ascending: false })
+          .limit(50),
+        supabase
+          .from('seeds')
+          .select(`
+            id, crop_id, quantity, min_stock, unit, archived,
+            products:crop_id ( name )
+          `)
+          .eq('archived', false)
+          .not('min_stock', 'is', null),
+        supabase
+          .from('packagings')
+          .select('id, name, size, type, quantity, min_stock')
+          .not('min_stock', 'is', null),
+        supabase
+          .from('planting_plans')
+          .select(`
+            id, crop_id, expected_harvest_date, status,
+            products:crop_id ( name )
+          `)
+          .eq('status', 'in_progress')
+          .lte('expected_harvest_date', harvestUpperBound.toISOString().split('T')[0])
+          .order('expected_harvest_date', { ascending: true }),
+      ]);
+
+      // ===== 1 & 2: Objednávky =====
+      if (!ordersRes.error && ordersRes.data) {
+        const orders = ordersRes.data as unknown as OrderRow[];
+        orders.forEach(o => {
+          if (!o.created_at) return;
+          const created = new Date(o.created_at);
+          const customerName = o.customers?.name || 'Neznámy zákazník';
+          const orderNum = formatOrderNumber(o.order_number);
+
+          // Nová objednávka z PWA — vytvorená za posledných 24h + source='app'
+          if (created >= newOrderCutoff && o.source === 'app') {
+            notifs.push({
+              id: `new-pwa-${o.id}`,
+              type: 'new_pwa_order',
+              title: 'Nová objednávka z PWA',
+              message: `${orderNum} — ${customerName}`,
+              priority: 'high',
+              timestamp: o.created_at,
+              link: '/orders',
+            });
+            return;
+          }
+
+          // Nevybavená — staršia ako 1 deň
+          if (created < pendingCutoff) {
+            const daysSince = Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+            notifs.push({
+              id: `pending-${o.id}`,
+              type: 'pending_order',
+              title: 'Nevybavená objednávka',
+              message: `${orderNum} čaká ${daysSince} ${dayWord(daysSince)} na potvrdenie`,
+              priority: daysSince >= 3 ? 'high' : 'medium',
+              timestamp: o.created_at,
+              link: '/orders',
+            });
+          }
         });
+      } else if (ordersRes.error) {
+        console.warn('[NotificationCenter] orders fetch:', ordersRes.error.message);
       }
-    });
 
-    // Low stock alerts - Packaging (based on quantity threshold)
-    packagings.forEach((pkg) => {
-      const threshold = 10; // pieces threshold for low stock
-      if (pkg.quantity <= threshold) {
-        notifs.push({
-          id: `pkg-low-${pkg.id}`,
-          type: 'low_stock',
-          title: 'Nízka zásoba obalov',
-          message: `${pkg.type} - zostáva ${pkg.quantity} ks`,
-          priority: pkg.quantity === 0 ? 'high' : 'medium',
-          timestamp: new Date(),
-          link: '/inventory/packaging',
-        });
-      }
-    });
-
-    // Low stock alerts - Substrates (based on currentStock)
-    substrates.forEach((sub) => {
-      const threshold = 10; // liters/kg threshold for low stock
-      if (sub.currentStock <= threshold) {
-        const typeName = sub.type === 'coconut' ? 'Kokos' : sub.type === 'peat' ? 'Rašelina' : (sub.customType || 'Substrát');
-        notifs.push({
-          id: `sub-low-${sub.id}`,
-          type: 'low_stock',
-          title: 'Nízka zásoba substrátu',
-          message: `${typeName} - zostáva ${sub.currentStock} ${sub.quantityUnit}`,
-          priority: sub.currentStock === 0 ? 'high' : 'medium',
-          timestamp: new Date(),
-          link: '/inventory/substrate',
-        });
-      }
-    });
-
-    // Upcoming harvests (within 3 days) - only for growing or sown status
-    plantingPlans
-      .filter(plan => plan.status === 'sown' || plan.status === 'scheduled')
-      .forEach((plan) => {
-        const harvestDate = startOfDay(new Date(plan.harvestDate));
-        if (isWithinInterval(harvestDate, { start: today, end: threeDaysFromNow })) {
-          const crop = crops.find(c => c.id === plan.cropId);
-          const daysUntil = Math.ceil((harvestDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      // ===== 3: Nízke zásoby osiva =====
+      if (!seedsRes.error && seedsRes.data) {
+        const seeds = seedsRes.data as unknown as SeedRow[];
+        seeds.forEach(s => {
+          if (s.quantity == null || s.min_stock == null) return;
+          if (s.quantity >= s.min_stock) return;
+          const cropName = s.products?.name || 'Neznáma plodina';
+          const unit = s.unit || '';
+          const isZero = s.quantity <= 0;
           notifs.push({
-            id: `harvest-${plan.id}`,
+            id: `low-seed-${s.id}`,
+            type: 'low_seed',
+            title: 'Nízka zásoba osiva',
+            message: `${cropName}: zostáva ${s.quantity}${unit}`,
+            priority: isZero ? 'high' : 'medium',
+            timestamp: now.toISOString(),
+            link: '/inventory?tab=seeds',
+          });
+        });
+      } else if (seedsRes.error) {
+        console.warn('[NotificationCenter] seeds fetch:', seedsRes.error.message);
+      }
+
+      // ===== 4: Nízke zásoby obalov =====
+      if (!packagingsRes.error && packagingsRes.data) {
+        const packagings = packagingsRes.data as unknown as PackagingRow[];
+        packagings.forEach(p => {
+          if (p.quantity == null || p.min_stock == null) return;
+          if (p.quantity >= p.min_stock) return;
+          const label = [p.name, p.size].filter(Boolean).join(' ') || p.type || 'Obal';
+          const isZero = p.quantity <= 0;
+          notifs.push({
+            id: `low-pkg-${p.id}`,
+            type: 'low_packaging',
+            title: 'Nízka zásoba obalov',
+            message: `${label}: zostáva ${p.quantity} ks`,
+            priority: isZero ? 'high' : 'medium',
+            timestamp: now.toISOString(),
+            link: '/inventory?tab=packaging',
+          });
+        });
+      } else if (packagingsRes.error) {
+        console.warn('[NotificationCenter] packagings fetch:', packagingsRes.error.message);
+      }
+
+      // ===== 5: Blížiaci sa zber =====
+      if (!plansRes.error && plansRes.data) {
+        const plans = plansRes.data as unknown as PlanRow[];
+        plans.forEach(p => {
+          if (!p.expected_harvest_date) return;
+          const cropName = p.products?.name || 'Neznáma plodina';
+          notifs.push({
+            id: `harvest-${p.id}`,
             type: 'harvest_due',
             title: 'Blížiaci sa zber',
-            message: `${crop?.name || 'Neznáma plodina'} - ${daysUntil === 0 ? 'dnes' : `o ${daysUntil} ${daysUntil === 1 ? 'deň' : 'dni'}`}`,
-            priority: daysUntil === 0 ? 'high' : 'medium',
-            timestamp: harvestDate,
-            link: '/harvest',
+            message: `${cropName} — ${formatHarvestDate(p.expected_harvest_date)}`,
+            priority: 'high',
+            timestamp: p.expected_harvest_date,
+            link: '/harvest-packing',
           });
-        }
-      });
+        });
+      } else if (plansRes.error) {
+        console.warn('[NotificationCenter] planting_plans fetch:', plansRes.error.message);
+      }
 
-    // Pending orders with upcoming delivery
-    orders
-      .filter(order => order.status === 'pending' || order.status === 'growing')
-      .forEach((order) => {
-        const deliveryDate = startOfDay(new Date(order.deliveryDate));
-        if (isWithinInterval(deliveryDate, { start: today, end: sevenDaysFromNow })) {
-          const daysUntil = Math.ceil((deliveryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-          notifs.push({
-            id: `order-${order.id}`,
-            type: 'delivery_due',
-            title: 'Blížiaca sa dodávka',
-            message: `Objednávka #${order.id.slice(0, 6)} - ${format(deliveryDate, 'd. MMM', { locale: sk })}`,
-            priority: daysUntil <= 1 ? 'high' : daysUntil <= 3 ? 'medium' : 'low',
-            timestamp: deliveryDate,
-            link: '/orders',
-          });
-        }
-      });
+      setNotifications(notifs);
+    } catch (err) {
+      console.error('[NotificationCenter] fetch error:', err);
+    }
+  }, []);
 
-    // Pending orders that need attention
-    orders
-      .filter(order => order.status === 'pending')
-      .forEach((order) => {
-        const orderDate = new Date(order.createdAt);
-        const daysSinceOrder = Math.ceil((today.getTime() - startOfDay(orderDate).getTime()) / (1000 * 60 * 60 * 24));
-        if (daysSinceOrder >= 1) {
-          notifs.push({
-            id: `pending-${order.id}`,
-            type: 'order_pending',
-            title: 'Nevybavená objednávka',
-            message: `Objednávka čaká ${daysSinceOrder} ${daysSinceOrder === 1 ? 'deň' : 'dní'} na potvrdenie`,
-            priority: daysSinceOrder >= 3 ? 'high' : 'medium',
-            timestamp: orderDate,
-            link: '/orders',
-          });
-        }
-      });
+  useEffect(() => {
+    fetchRef.current = fetchNotifications;
+  }, [fetchNotifications]);
 
-    // Filter out dismissed notifications and sort by priority
-    const priorityOrder = { high: 0, medium: 1, low: 2 };
-    return notifs
+  // ===================== EFFECTS =====================
+
+  // Initial fetch + 5min refresh
+  useEffect(() => {
+    fetchNotifications();
+    const intervalId = setInterval(() => {
+      fetchNotifications();
+    }, REFRESH_INTERVAL_MS);
+    return () => clearInterval(intervalId);
+  }, [fetchNotifications]);
+
+  // Realtime subscription pre INSERT do orders (okamžité notifikácie PWA objednávok)
+  useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    try {
+      channel = supabase
+        .channel('notifications-orders')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'orders' },
+          () => {
+            fetchRef.current?.();
+          }
+        )
+        .subscribe();
+    } catch (err) {
+      console.warn('[NotificationCenter] realtime subscription failed:', err);
+    }
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, []);
+
+  // ===================== DERIVED =====================
+
+  const visibleNotifications = useMemo(() => {
+    const priorityOrder: Record<NotifPriority, number> = { high: 0, medium: 1, low: 2 };
+    return notifications
       .filter(n => !dismissedIds.includes(n.id))
-      .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
-  }, [seeds, packagings, substrates, plantingPlans, orders, crops, dismissedIds]);
+      .sort((a, b) => {
+        const p = priorityOrder[a.priority] - priorityOrder[b.priority];
+        if (p !== 0) return p;
+        return b.timestamp.localeCompare(a.timestamp);
+      });
+  }, [notifications, dismissedIds]);
 
-  const highPriorityCount = notifications.filter(n => n.priority === 'high').length;
+  const highPriorityCount = visibleNotifications.filter(n => n.priority === 'high').length;
+
+  // ===================== ACTIONS =====================
 
   const dismissNotification = (id: string) => {
     const newDismissed = [...dismissedIds, id];
     setDismissedIds(newDismissed);
-    localStorage.setItem('dismissed-notifications', JSON.stringify(newDismissed));
+    try {
+      localStorage.setItem('dismissed-notifications', JSON.stringify(newDismissed));
+    } catch {
+      // ignore
+    }
   };
 
   const clearAllDismissed = () => {
     setDismissedIds([]);
-    localStorage.removeItem('dismissed-notifications');
+    try {
+      localStorage.removeItem('dismissed-notifications');
+    } catch {
+      // ignore
+    }
   };
 
-  const getIcon = (type: Notification['type']) => {
+  // ===================== STYLING =====================
+
+  const getIcon = (type: NotifType) => {
     switch (type) {
-      case 'low_stock':
+      case 'new_pwa_order':
+        return <ShoppingCart className="h-4 w-4" />;
+      case 'pending_order':
+        return <AlertTriangle className="h-4 w-4" />;
+      case 'low_seed':
+        return <Sprout className="h-4 w-4" />;
+      case 'low_packaging':
         return <Package className="h-4 w-4" />;
       case 'harvest_due':
         return <Calendar className="h-4 w-4" />;
-      case 'delivery_due':
-        return <Truck className="h-4 w-4" />;
-      case 'order_pending':
-        return <AlertTriangle className="h-4 w-4" />;
     }
   };
 
-  const getPriorityColor = (priority: Notification['priority']) => {
+  // GrowBase dizajn — bez shadcn destructive/warning tokenov
+  const getPriorityClasses = (priority: NotifPriority): string => {
     switch (priority) {
       case 'high':
-        return 'bg-destructive/20 text-destructive border-destructive/30';
+        return 'bg-[#fee2e2] text-[#991b1b] border-[#fecaca]';
       case 'medium':
-        return 'bg-warning/20 text-warning border-warning/30';
+        return 'bg-[#fef3c7] text-[#92400e] border-[#fde68a]';
       case 'low':
-        return 'bg-muted text-muted-foreground border-border';
+        return 'bg-[#f1f5f9] text-[#475569] border-[#e2e8f0]';
     }
   };
+
+  // ===================== RENDER =====================
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="relative"
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative text-[#475569] hover:text-[#0f172a] hover:bg-[#f8fafc]"
+          aria-label="Upozornenia"
         >
           <Bell className="h-5 w-5" />
-          {notifications.length > 0 && (
-            <span className={cn(
-              "absolute -top-1 -right-1 h-5 w-5 rounded-full flex items-center justify-center text-xs font-bold",
-              highPriorityCount > 0 
-                ? "bg-destructive text-destructive-foreground animate-pulse" 
-                : "bg-warning text-warning-foreground"
-            )}>
-              {notifications.length > 9 ? '9+' : notifications.length}
+          {visibleNotifications.length > 0 && (
+            <span
+              className={cn(
+                'absolute -top-1 -right-1 h-5 min-w-[20px] px-1 rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-white',
+                highPriorityCount > 0
+                  ? 'bg-[#dc2626] text-white animate-pulse'
+                  : 'bg-[#16a34a] text-white'
+              )}
+            >
+              {visibleNotifications.length > 9 ? '9+' : visibleNotifications.length}
             </span>
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent 
-        className="w-80 md:w-96 p-0" 
+
+      <PopoverContent
+        className="w-80 md:w-96 p-0 border border-[#cbd5e1] shadow-lg"
         align="end"
         sideOffset={8}
       >
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          <h3 className="font-semibold">Upozornenia</h3>
-          <Badge variant="secondary">{notifications.length}</Badge>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[#e2e8f0] bg-[#f8fafc]">
+          <h3 className="text-sm font-bold text-[#0f172a]">Upozornenia</h3>
+          <Badge variant="secondary" className="bg-[#f0fdf4] text-[#16a34a] border border-[#bbf7d0]">
+            {visibleNotifications.length}
+          </Badge>
         </div>
-        
-        {notifications.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground">
-            <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p>Žiadne nové upozornenia</p>
+
+        {visibleNotifications.length === 0 ? (
+          <div className="px-4 py-8 text-center">
+            <Bell className="h-8 w-8 mx-auto mb-2 text-[#cbd5e1]" />
+            <p className="text-sm text-[#475569]">Žiadne nové upozornenia</p>
           </div>
         ) : (
           <ScrollArea className="max-h-[400px]">
-            <div className="divide-y divide-border">
-              {notifications.map((notification) => (
+            <div className="divide-y divide-[#e2e8f0]">
+              {visibleNotifications.map((notification) => (
                 <div
                   key={notification.id}
                   className={cn(
-                    "p-4 hover:bg-muted/50 transition-colors relative group",
-                    notification.priority === 'high' && "bg-destructive/5"
+                    'px-4 py-3 hover:bg-[#f8fafc] transition-colors relative group',
+                    notification.priority === 'high' && 'bg-[#fef2f2]/40'
                   )}
                 >
                   <div className="flex items-start gap-3">
-                    <div className={cn(
-                      "p-2 rounded-lg border",
-                      getPriorityColor(notification.priority)
-                    )}>
+                    <div
+                      className={cn(
+                        'p-2 rounded-lg border flex-shrink-0',
+                        getPriorityClasses(notification.priority)
+                      )}
+                    >
                       {getIcon(notification.type)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm">{notification.title}</p>
-                      <p className="text-sm text-muted-foreground mt-0.5 truncate">
+                      <p className="text-sm font-bold text-[#0f172a]">{notification.title}</p>
+                      <p className="text-xs text-[#475569] mt-0.5 truncate">
                         {notification.message}
                       </p>
                     </div>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-[#94a3b8] hover:text-[#dc2626] hover:bg-[#fef2f2] flex-shrink-0"
                       onClick={(e) => {
                         e.stopPropagation();
                         dismissNotification(notification.id);
                       }}
+                      aria-label="Skryť upozornenie"
                     >
                       <X className="h-3 w-3" />
                     </Button>
                   </div>
                   {notification.link && (
-                    <a 
+                    <a
                       href={notification.link}
                       className="absolute inset-0"
                       onClick={() => setIsOpen(false)}
+                      aria-label={notification.title}
                     />
                   )}
                 </div>
@@ -275,13 +470,13 @@ export function NotificationCenter() {
             </div>
           </ScrollArea>
         )}
-        
+
         {dismissedIds.length > 0 && (
-          <div className="p-2 border-t border-border">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="w-full text-xs"
+          <div className="px-2 py-2 border-t border-[#e2e8f0] bg-[#f8fafc]">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-xs text-[#475569] hover:text-[#0f172a] hover:bg-white"
               onClick={clearAllDismissed}
             >
               Zobraziť skryté upozornenia ({dismissedIds.length})
