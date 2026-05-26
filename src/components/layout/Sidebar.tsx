@@ -5,30 +5,16 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import {
-  Home,
-  CheckSquare,
-  Users,
-  Building2,
   Sprout,
-  Blend,
-  DollarSign,
-  ShoppingCart,
-  CalendarDays,
-  Box,
-  Tag,
-  Scissors,
-  Truck,
-  Warehouse,
-  Receipt,
-  FileText,
   Settings,
   LogOut,
-  Shield,
-  ChevronDown,
   ChevronRight,
-  Moon
 } from 'lucide-react';
-import { NotificationCenter } from '@/components/notifications/NotificationCenter';
+import {
+  NAV_GROUPS,
+  isNavItemActive,
+  isNavItemVisible,
+} from './navigation';
 
 interface SidebarProps {
   onToggle?: () => void;
@@ -38,33 +24,41 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useLanguage();
-  const { user, signOut, isAdmin } = useAuth();
+  const { user, signOut } = useAuth();
   const navRef = useRef<HTMLElement>(null);
   const [sidebarSettings, setSidebarSettings] = useState<Record<string, boolean>>({});
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
-
-  const PREHLAD_PATHS = ['/', '/today'];
-  const PRODUKCIA_PATHS = ['/planting', '/prep-planting', '/prep-packaging', '/harvest-packing', '/delivery'];
-
-  const [isPrehladOpen, setIsPrehladOpen] = useState(() => {
-    const saved = localStorage.getItem('sidebar-prehlad');
-    return saved !== null ? saved === 'true' : PREHLAD_PATHS.includes(location.pathname);
-  });
-  const [isProdukciaOpen, setIsProdukciaOpen] = useState(() => {
-    const saved = localStorage.getItem('sidebar-produkcia');
-    return saved !== null ? saved === 'true' : PRODUKCIA_PATHS.includes(location.pathname);
-  });
-  const [isSpravaOpen, setIsSpravaOpen] = useState(() => {
-    const saved = localStorage.getItem('sidebar-sprava');
-    return saved !== null ? saved === 'true' : !PREHLAD_PATHS.includes(location.pathname) && !PRODUKCIA_PATHS.includes(location.pathname);
-  });
-
-  const togglePrehlad = () => setIsPrehladOpen(v => { const n = !v; localStorage.setItem('sidebar-prehlad', String(n)); return n; });
-  const toggleProdukcia = () => setIsProdukciaOpen(v => { const n = !v; localStorage.setItem('sidebar-produkcia', String(n)); return n; });
-  const toggleSprava = () => setIsSpravaOpen(v => { const n = !v; localStorage.setItem('sidebar-sprava', String(n)); return n; });
-
   const [pendingCount, setPendingCount] = useState(0);
 
+  // Otvorenie skupiny — default podľa aktuálnej cesty
+  const isPathInGroup = (groupId: string) => {
+    const group = NAV_GROUPS.find(g => g.id === groupId);
+    if (!group) return false;
+    return group.items.some(item => isNavItemActive(item, location.pathname));
+  };
+
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    NAV_GROUPS.forEach(group => {
+      const saved = localStorage.getItem(`sidebar-${group.id}`);
+      initial[group.id] = saved !== null ? saved === 'true' : isPathInGroup(group.id);
+    });
+    // Ak nie je nikde aktívna, default otvor "sprava"
+    const anyActive = NAV_GROUPS.some(g => isPathInGroup(g.id));
+    if (!anyActive && localStorage.getItem('sidebar-sprava') === null) {
+      initial.sprava = true;
+    }
+    return initial;
+  });
+
+  const toggleGroup = (groupId: string) => {
+    setOpenGroups(prev => {
+      const next = !prev[groupId];
+      localStorage.setItem(`sidebar-${groupId}`, String(next));
+      return { ...prev, [groupId]: next };
+    });
+  };
+
+  // Pending objednávky badge
   useEffect(() => {
     const fetchPending = async () => {
       const { count } = await supabase
@@ -78,34 +72,28 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
     return () => clearInterval(interval);
   }, []);
 
-  // Load sidebar settings from profiles
+  // Worker permissions
   useEffect(() => {
     const loadSidebarSettings = async () => {
       if (!user) return;
-
       try {
         const { data, error } = await supabase
           .from('profiles')
           .select('sidebar_settings')
           .eq('user_id', user.id)
           .maybeSingle();
-
         if (error) throw error;
-
         if (data?.sidebar_settings) {
           setSidebarSettings(data.sidebar_settings as Record<string, boolean>);
         }
       } catch (error) {
         console.error('Error loading sidebar settings:', error);
-      } finally {
-        setSettingsLoaded(true);
       }
     };
-
     loadSidebarSettings();
   }, [user]);
 
-  // Restore scroll position on mount
+  // Scroll persistence
   useEffect(() => {
     const savedScrollPos = sessionStorage.getItem('sidebar-scroll-position');
     if (savedScrollPos && navRef.current) {
@@ -113,7 +101,6 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
     }
   }, []);
 
-  // Save scroll position
   const handleScroll = () => {
     if (navRef.current) {
       sessionStorage.setItem('sidebar-scroll-position', navRef.current.scrollTop.toString());
@@ -123,12 +110,6 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
   const handleSignOut = async () => {
     await signOut();
     navigate('/auth');
-  };
-
-  // Helper function to check if item should be visible
-  const isItemVisible = (itemId: string) => {
-    if (Object.keys(sidebarSettings).length === 0) return true; // Default: all visible
-    return sidebarSettings[itemId] !== false;
   };
 
   return (
@@ -152,175 +133,65 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
 
         {/* Navigation */}
         <nav ref={navRef} onScroll={handleScroll} className="flex-1 px-3 py-3 overflow-y-auto">
+          {NAV_GROUPS.map((group, idx) => {
+            const isOpen = openGroups[group.id];
+            const visibleItems = group.items.filter(item => isNavItemVisible(item, sidebarSettings));
+            if (visibleItems.length === 0) return null;
 
-          {/* ── PREHĽAD ── */}
-          <button
-            onClick={togglePrehlad}
-            className="flex w-full items-center gap-1 px-3 mb-1 hover:text-sidebar-foreground transition-colors"
-          >
-            <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform duration-200', isPrehladOpen && 'rotate-90')} />
-            <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Prehľad</span>
-          </button>
-          <div className={cn('overflow-hidden transition-all duration-200', isPrehladOpen ? 'max-h-60' : 'max-h-0')}>
-            <div className="space-y-0.5 pb-1">
-              {[
-                { id: 'dashboard', name: 'Dashboard', href: '/', icon: Home },
-                { id: 'today', name: 'Dnešné úlohy', href: '/today', icon: CheckSquare },
-                              ].filter(item => isItemVisible(item.id)).map((item) => {
-                const isActive = location.pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    to={item.href}
+            return (
+              <div key={group.id}>
+                {idx > 0 && <div className="my-2 border-t border-sidebar-border/60" />}
+
+                <button
+                  onClick={() => toggleGroup(group.id)}
+                  className="flex w-full items-center gap-1 px-3 mb-1 hover:text-sidebar-foreground transition-colors"
+                >
+                  <ChevronRight
                     className={cn(
-                      'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] font-medium transition-all duration-200',
-                      isActive
-                        ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                      'h-3 w-3 text-muted-foreground transition-transform duration-200',
+                      isOpen && 'rotate-90'
                     )}
-                  >
-                    <item.icon className="h-4 w-4 shrink-0" />
-                    {item.name}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="my-2 border-t border-sidebar-border/60" />
-
-          {/* ── PRODUKCIA ── */}
-          <button
-            onClick={toggleProdukcia}
-            className="flex w-full items-center gap-1 px-3 mb-1 hover:text-sidebar-foreground transition-colors"
-          >
-            <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform duration-200', isProdukciaOpen && 'rotate-90')} />
-            <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Produkcia</span>
-          </button>
-          <div className={cn('overflow-hidden transition-all duration-200', isProdukciaOpen ? 'max-h-60' : 'max-h-0')}>
-            <div className="space-y-0.5 pb-1">
-              {[
-                { id: 'planting', name: 'Plán sadenia', href: '/planting', icon: CalendarDays },
-                { id: 'prep-planting', name: 'Príprava na sadenie', href: '/prep-planting', icon: Box },
-                { id: 'prep-packaging', name: 'Príprava obalov', href: '/prep-packaging', icon: Tag },
-                { id: 'harvest-packing', name: 'Zber a balenie', href: '/harvest-packing', icon: Scissors },
-                { id: 'delivery', name: 'Rozvoz', href: '/delivery', icon: Truck },
-              ].filter(item => isItemVisible(item.id)).map((item) => {
-                const isActive = location.pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    to={item.href}
-                    className={cn(
-                      'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] font-medium transition-all duration-200',
-                      isActive
-                        ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                    )}
-                  >
-                    <item.icon className="h-4 w-4 shrink-0" />
-                    {item.name}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="my-2 border-t border-sidebar-border/60" />
-
-          {/* ── SPRÁVA ── */}
-          <button
-            onClick={toggleSprava}
-            className="flex w-full items-center gap-1 px-3 mb-1 hover:text-sidebar-foreground transition-colors"
-          >
-            <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform duration-200', isSpravaOpen && 'rotate-90')} />
-            <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Správa</span>
-          </button>
-          <div className={cn('overflow-hidden transition-all duration-200', isSpravaOpen ? 'max-h-[600px]' : 'max-h-0')}>
-            <div className="space-y-0.5 pb-1">
-              {[
-                { id: 'customers', name: 'Zákazníci', href: '/customers', icon: Users },
-                { id: 'suppliers', name: 'Dodávatelia', href: '/suppliers', icon: Building2 },
-                { id: 'orders', name: 'Objednávky', href: '/orders', icon: ShoppingCart, badge: pendingCount },
-                { id: 'crops', name: 'Plodiny', href: '/crops', icon: Sprout },
-                { id: 'blends', name: 'Mixy', href: '/blends', icon: Blend },
-                { id: 'prices', name: 'Ceny', href: '/prices', icon: DollarSign },
-              ].filter(item => isItemVisible(item.id)).map((item) => {
-                const isActive = location.pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    to={item.href}
-                    className={cn(
-                      'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] font-medium transition-all duration-200',
-                      isActive
-                        ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                    )}
-                  >
-                    <item.icon className="h-4 w-4 shrink-0" />
-                    {item.name}
-                    {(item as any).badge > 0 && (
-                      <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[#dc2626] px-1.5 text-[10px] font-bold text-white">
-                        {(item as any).badge}
-                      </span>
-                    )}
-                  </Link>
-                );
-              })}
-
-              {/* Sklad — jedna položka (nahradzuje submenu) */}
-              {isItemVisible('inventory') && (() => {
-                const isActive = location.pathname.startsWith('/inventory');
-                return (
-                  <Link
-                    to="/inventory"
-                    className={cn(
-                      'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] font-medium transition-all duration-200',
-                      isActive
-                        ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                    )}
-                  >
-                    <Warehouse className="h-4 w-4 shrink-0" />
-                    Sklad
-                  </Link>
-                );
-              })()}
-
-              {/* Náklady — jedna stránka so záložkami */}
-              {isItemVisible('costs') && (
-                <Link
-                  to="/costs"
+                  />
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                    {group.label}
+                  </span>
+                </button>
+                <div
                   className={cn(
-                    'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] font-medium transition-all duration-200',
-                    location.pathname.startsWith('/costs')
-                      ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                    'overflow-hidden transition-all duration-200',
+                    isOpen ? 'max-h-[600px]' : 'max-h-0'
                   )}
                 >
-                  <Receipt className="h-4 w-4 shrink-0" />
-                  Náklady
-                </Link>
-              )}
-
-              {/* Reporty */}
-              {isItemVisible('reports') && (
-                <Link
-                  to="/reports"
-                  className={cn(
-                    'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] font-medium transition-all duration-200',
-                    location.pathname === '/reports'
-                      ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                  )}
-                >
-                  <FileText className="h-4 w-4 shrink-0" />
-                  Reporty
-                </Link>
-              )}
-            </div>
-          </div>
+                  <div className="space-y-0.5 pb-1">
+                    {visibleItems.map(item => {
+                      const isActive = isNavItemActive(item, location.pathname);
+                      const badge = item.id === 'orders' ? pendingCount : 0;
+                      return (
+                        <Link
+                          key={item.href}
+                          to={item.href}
+                          className={cn(
+                            'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] font-medium transition-all duration-200',
+                            isActive
+                              ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
+                              : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                          )}
+                        >
+                          <item.icon className="h-4 w-4 shrink-0" />
+                          {item.name}
+                          {badge > 0 && (
+                            <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[#dc2626] px-1.5 text-[10px] font-bold text-white">
+                              {badge}
+                            </span>
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </nav>
 
         {/* Footer */}
@@ -337,7 +208,7 @@ export function Sidebar({ onToggle }: SidebarProps = {}) {
             <Settings className="h-5 w-5" />
             Nastavenia
           </Link>
-          
+
           <div className="pt-2 border-t border-sidebar-border mt-2">
             <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
               <span className="truncate">{user?.email}</span>

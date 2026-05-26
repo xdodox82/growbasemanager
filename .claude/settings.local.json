@@ -35,7 +35,9 @@
       "Bash(cp /mnt/user-data/outputs/src/App.tsx src/App.tsx)",
       "Bash(cp /mnt/user-data/outputs/src/components/layout/Sidebar.tsx src/components/layout/Sidebar.tsx)",
       "Bash(cp /mnt/user-data/outputs/src/pages/InventoryPage.tsx src/pages/InventoryPage.tsx)",
-      "PowerShell(Set-ExecutionPolicy *)"
+      "PowerShell(Set-ExecutionPolicy *)",
+      "Bash(npm install *)",
+      "Bash(Get-Content *)"
     ]
   }
 }

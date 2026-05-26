@@ -1,131 +1,93 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import {
-  Home,
-  CheckSquare,
-  Users,
-  Building2,
   Sprout,
-  Blend,
-  DollarSign,
-  ShoppingCart,
-  CalendarDays,
-  Box,
-  Tag,
-  Scissors,
-  Truck,
-  Warehouse,
-  Receipt,
-  Calendar,
-  FileText,
   Settings,
   Menu,
   LogOut,
-  Shield,
-  ChevronDown,
   ChevronRight,
-  Wheat,
-  Package,
-  Layers,
-  Fuel,
-  Droplets,
-  Droplet,
-  Zap
 } from 'lucide-react';
+import {
+  NAV_GROUPS,
+  isNavItemActive,
+  isNavItemVisible,
+} from './navigation';
 
-interface MobileSidebarProps {
-  onClose?: () => void;
-}
-
-export function MobileSidebar({ onClose }: MobileSidebarProps) {
+export function MobileSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useLanguage();
-  const { user, signOut, isAdmin } = useAuth();
+  const { user, signOut } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-  const [isInventoryOpen, setIsInventoryOpen] = useState(
-    location.pathname.startsWith('/inventory')
-  );
-  const [isCostsOpen, setIsCostsOpen] = useState(
-    location.pathname.startsWith('/costs')
-  );
+  const [sidebarSettings, setSidebarSettings] = useState<Record<string, boolean>>({});
+  const [pendingCount, setPendingCount] = useState(0);
 
-  const PREHLAD_PATHS = ['/', '/today', '/calendar'];
-  const PRODUKCIA_PATHS = ['/planting', '/prep-planting', '/prep-packaging', '/harvest-packing', '/delivery'];
+  const isPathInGroup = (groupId: string) => {
+    const group = NAV_GROUPS.find(g => g.id === groupId);
+    if (!group) return false;
+    return group.items.some(item => isNavItemActive(item, location.pathname));
+  };
 
-  const [isPrehladOpen, setIsPrehladOpen] = useState(() => {
-    const saved = localStorage.getItem('sidebar-prehlad');
-    return saved !== null ? saved === 'true' : PREHLAD_PATHS.includes(location.pathname);
-  });
-  const [isProdukciaOpen, setIsProdukciaOpen] = useState(() => {
-    const saved = localStorage.getItem('sidebar-produkcia');
-    return saved !== null ? saved === 'true' : PRODUKCIA_PATHS.includes(location.pathname);
-  });
-  const [isSpravaOpen, setIsSpravaOpen] = useState(() => {
-    const saved = localStorage.getItem('sidebar-sprava');
-    return saved !== null ? saved === 'true' : !PREHLAD_PATHS.includes(location.pathname) && !PRODUKCIA_PATHS.includes(location.pathname);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    NAV_GROUPS.forEach(group => {
+      const saved = localStorage.getItem(`sidebar-${group.id}`);
+      initial[group.id] = saved !== null ? saved === 'true' : isPathInGroup(group.id);
+    });
+    return initial;
   });
 
-  const togglePrehlad = () => setIsPrehladOpen(v => { const n = !v; localStorage.setItem('sidebar-prehlad', String(n)); return n; });
-  const toggleProdukcia = () => setIsProdukciaOpen(v => { const n = !v; localStorage.setItem('sidebar-produkcia', String(n)); return n; });
-  const toggleSprava = () => setIsSpravaOpen(v => { const n = !v; localStorage.setItem('sidebar-sprava', String(n)); return n; });
+  const toggleGroup = (groupId: string) => {
+    setOpenGroups(prev => {
+      const next = !prev[groupId];
+      localStorage.setItem(`sidebar-${groupId}`, String(next));
+      return { ...prev, [groupId]: next };
+    });
+  };
+
+  useEffect(() => {
+    const fetchPending = async () => {
+      const { count } = await supabase
+        .from('orders')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending_approval');
+      setPendingCount(count || 0);
+    };
+    fetchPending();
+    const interval = setInterval(fetchPending, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const loadSidebarSettings = async () => {
+      if (!user) return;
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('sidebar_settings')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (error) throw error;
+        if (data?.sidebar_settings) {
+          setSidebarSettings(data.sidebar_settings as Record<string, boolean>);
+        }
+      } catch (error) {
+        console.error('Error loading sidebar settings:', error);
+      }
+    };
+    loadSidebarSettings();
+  }, [user]);
 
   const handleSignOut = async () => {
     await signOut();
     setIsOpen(false);
     navigate('/auth');
-  };
-
-  const prehlad = [
-    { name: 'Dashboard', href: '/', icon: Home },
-    { name: 'Dnešné úlohy', href: '/today', icon: CheckSquare },
-    { name: 'Kalendár', href: '/calendar', icon: Calendar },
-  ];
-
-  const produkcia = [
-    { name: 'Plán sadenia', href: '/planting', icon: CalendarDays },
-    { name: 'Príprava na sadenie', href: '/prep-planting', icon: Box },
-    { name: 'Príprava obalov', href: '/prep-packaging', icon: Tag },
-    { name: 'Zber a balenie', href: '/harvest-packing', icon: Scissors },
-    { name: 'Rozvoz', href: '/delivery', icon: Truck },
-  ];
-
-  const sprava = [
-    { name: 'Zákazníci', href: '/customers', icon: Users },
-    { name: 'Dodávatelia', href: '/suppliers', icon: Building2 },
-    { name: 'Objednávky', href: '/orders', icon: ShoppingCart },
-    { name: 'Plodiny', href: '/crops', icon: Sprout },
-    { name: 'Mixy', href: '/blends', icon: Blend },
-    { name: 'Ceny', href: '/prices', icon: DollarSign },
-  ];
-
-  const inventoryItems = [
-    { name: 'Osivo', href: '/inventory/seeds', icon: Wheat },
-    { name: 'Obalový materiál', href: '/inventory/packaging', icon: Package },
-    { name: 'Substrát', href: '/inventory/substrate', icon: Layers },
-    { name: 'Etikety', href: '/inventory/labels', icon: Tag },
-    { name: 'Spotrebný materiál', href: '/inventory/consumables', icon: Package },
-  ];
-
-  const costsItems = [
-    { name: 'Pohonné hmoty', href: '/costs/fuel', icon: Fuel },
-    { name: 'AdBlue', href: '/costs/adblue', icon: Droplets },
-    { name: 'Voda', href: '/costs/water', icon: Droplet },
-    { name: 'Elektrina', href: '/costs/electricity', icon: Zap },
-    { name: 'Ostatné náklady', href: '/costs/other', icon: Receipt },
-  ];
-
-  const isInventoryActive = location.pathname.startsWith('/inventory');
-  const isCostsActive = location.pathname.startsWith('/costs');
-
-  const handleLinkClick = () => {
-    // Keep sidebar open after clicking a link
-    // User can manually close it using the close button
   };
 
   return (
@@ -150,229 +112,84 @@ export function MobileSidebar({ onClose }: MobileSidebarProps) {
 
           {/* Navigation */}
           <nav className="flex-1 px-3 py-3 overflow-y-auto">
+            {NAV_GROUPS.map((group, idx) => {
+              const isOpen = openGroups[group.id];
+              const visibleItems = group.items.filter(item => isNavItemVisible(item, sidebarSettings));
+              if (visibleItems.length === 0) return null;
 
-            {/* ── PREHĽAD ── */}
-            <button
-              onClick={togglePrehlad}
-              className="flex w-full items-center gap-1 px-3 mb-1 hover:text-sidebar-foreground transition-colors"
-            >
-              <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform duration-200', isPrehladOpen && 'rotate-90')} />
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Prehľad</span>
-            </button>
-            <div className={cn('overflow-hidden transition-all duration-200', isPrehladOpen ? 'max-h-60' : 'max-h-0')}>
-              <div className="space-y-0.5 pb-1">
-                {prehlad.map((item) => {
-                  const isActive = location.pathname === item.href;
-                  return (
-                    <Link
-                      key={item.href}
-                      to={item.href}
-                      onClick={handleLinkClick}
-                      className={cn(
-                        'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
-                        isActive
-                          ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                          : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent'
-                      )}
-                    >
-                      <item.icon className="h-4 w-4 shrink-0" />
-                      {item.name}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
+              return (
+                <div key={group.id}>
+                  {idx > 0 && <div className="my-2 border-t border-sidebar-border/60" />}
 
-            <div className="my-2 border-t border-sidebar-border/60" />
-
-            {/* ── PRODUKCIA ── */}
-            <button
-              onClick={toggleProdukcia}
-              className="flex w-full items-center gap-1 px-3 mb-1 hover:text-sidebar-foreground transition-colors"
-            >
-              <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform duration-200', isProdukciaOpen && 'rotate-90')} />
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Produkcia</span>
-            </button>
-            <div className={cn('overflow-hidden transition-all duration-200', isProdukciaOpen ? 'max-h-60' : 'max-h-0')}>
-              <div className="space-y-0.5 pb-1">
-                {produkcia.map((item) => {
-                  const isActive = location.pathname === item.href;
-                  return (
-                    <Link
-                      key={item.href}
-                      to={item.href}
-                      onClick={handleLinkClick}
-                      className={cn(
-                        'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
-                        isActive
-                          ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                          : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent'
-                      )}
-                    >
-                      <item.icon className="h-4 w-4 shrink-0" />
-                      {item.name}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="my-2 border-t border-sidebar-border/60" />
-
-            {/* ── SPRÁVA ── */}
-            <button
-              onClick={toggleSprava}
-              className="flex w-full items-center gap-1 px-3 mb-1 hover:text-sidebar-foreground transition-colors"
-            >
-              <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform duration-200', isSpravaOpen && 'rotate-90')} />
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Správa</span>
-            </button>
-            <div className={cn('overflow-hidden transition-all duration-200', isSpravaOpen ? 'max-h-[600px]' : 'max-h-0')}>
-              <div className="space-y-0.5 pb-1">
-                {sprava.map((item) => {
-                  const isActive = location.pathname === item.href;
-                  return (
-                    <Link
-                      key={item.href}
-                      to={item.href}
-                      onClick={handleLinkClick}
-                      className={cn(
-                        'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
-                        isActive
-                          ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                          : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent'
-                      )}
-                    >
-                      <item.icon className="h-4 w-4 shrink-0" />
-                      {item.name}
-                    </Link>
-                  );
-                })}
-
-                {/* Sklad submenu */}
-                <div>
                   <button
-                    onClick={() => setIsInventoryOpen(!isInventoryOpen)}
+                    onClick={() => toggleGroup(group.id)}
+                    className="flex w-full items-center gap-1 px-3 mb-1 hover:text-sidebar-foreground transition-colors"
+                  >
+                    <ChevronRight
+                      className={cn(
+                        'h-3 w-3 text-muted-foreground transition-transform duration-200',
+                        isOpen && 'rotate-90'
+                      )}
+                    />
+                    <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                      {group.label}
+                    </span>
+                  </button>
+                  <div
                     className={cn(
-                      'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
-                      isInventoryActive
-                        ? 'bg-primary/20 text-primary'
-                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                      'overflow-hidden transition-all duration-200',
+                      isOpen ? 'max-h-[600px]' : 'max-h-0'
                     )}
                   >
-                    <Warehouse className="h-4 w-4 shrink-0" />
-                    Sklad
-                    <ChevronRight className={cn('ml-auto h-3.5 w-3.5 transition-transform duration-200', isInventoryOpen && 'rotate-90')} />
-                  </button>
-                  <div className={cn('overflow-hidden transition-all duration-200 ml-4', isInventoryOpen ? 'max-h-60' : 'max-h-0')}>
-                    <div className="space-y-0.5 pt-0.5">
-                      {inventoryItems.map((item) => {
-                        const isActive = location.pathname === item.href;
+                    <div className="space-y-0.5 pb-1">
+                      {visibleItems.map(item => {
+                        const isActive = isNavItemActive(item, location.pathname);
+                        const badge = item.id === 'orders' ? pendingCount : 0;
                         return (
                           <Link
                             key={item.href}
                             to={item.href}
-                            onClick={handleLinkClick}
+                            onClick={() => setIsOpen(false)}
                             className={cn(
                               'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
                               isActive
                                 ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                                : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                                : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent'
                             )}
                           >
-                            <item.icon className="h-3.5 w-3.5 shrink-0" />
+                            <item.icon className="h-4 w-4 shrink-0" />
                             {item.name}
+                            {badge > 0 && (
+                              <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[#dc2626] px-1.5 text-[10px] font-bold text-white">
+                                {badge}
+                              </span>
+                            )}
                           </Link>
                         );
                       })}
                     </div>
                   </div>
                 </div>
-
-                {/* Náklady submenu */}
-                <div>
-                  <button
-                    onClick={() => setIsCostsOpen(!isCostsOpen)}
-                    className={cn(
-                      'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
-                      isCostsActive
-                        ? 'bg-primary/20 text-primary'
-                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                    )}
-                  >
-                    <Receipt className="h-4 w-4 shrink-0" />
-                    Náklady
-                    <ChevronRight className={cn('ml-auto h-3.5 w-3.5 transition-transform duration-200', isCostsOpen && 'rotate-90')} />
-                  </button>
-                  <div className={cn('overflow-hidden transition-all duration-200 ml-4', isCostsOpen ? 'max-h-60' : 'max-h-0')}>
-                    <div className="space-y-0.5 pt-0.5">
-                      {costsItems.map((item) => {
-                        const isActive = location.pathname === item.href;
-                        return (
-                          <Link
-                            key={item.href}
-                            to={item.href}
-                            onClick={handleLinkClick}
-                            className={cn(
-                              'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
-                              isActive
-                                ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                                : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                            )}
-                          >
-                            <item.icon className="h-3.5 w-3.5 shrink-0" />
-                            {item.name}
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Reporty */}
-                <Link
-                  to="/reports"
-                  onClick={handleLinkClick}
-                  className={cn(
-                    'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
-                    location.pathname === '/reports'
-                      ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                  )}
-                >
-                  <FileText className="h-4 w-4 shrink-0" />
-                  Reporty
-                </Link>
-              </div>
-            </div>
+              );
+            })}
           </nav>
 
           {/* Footer */}
           <div className="border-t border-sidebar-border p-4 space-y-1">
-            {isAdmin && (
-              <Link
-                to="/users"
-                onClick={handleLinkClick}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors',
-                  location.pathname === '/users'
-                    ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
-                    : 'text-sidebar-foreground hover:bg-sidebar-accent'
-                )}
-              >
-                <Shield className="h-5 w-5" />
-                Používatelia
-              </Link>
-            )}
             <Link
               to="/settings"
-              onClick={handleLinkClick}
-              className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+              onClick={() => setIsOpen(false)}
+              className={cn(
+                'flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors',
+                location.pathname === '/settings'
+                  ? 'bg-primary text-primary-foreground shadow-lg glow-primary'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent'
+              )}
             >
               <Settings className="h-5 w-5" />
               Nastavenia
             </Link>
-            
+
             <div className="pt-2 border-t border-sidebar-border mt-2">
               <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
                 <span className="truncate">{user?.email}</span>
