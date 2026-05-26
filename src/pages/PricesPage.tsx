@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Euro, Plus, Pencil, Trash2, Leaf, Sprout, Flower, X, House, Utensils, Store, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { formatEur } from '@/utils/formatters';
 
 const PACKAGING_SIZES = ['25g', '50g', '60g', '70g', '100g', '120g', '150g'];
 
@@ -101,7 +102,7 @@ const PricesPage = () => {
     CUSTOMER_TYPES.forEach(ct => {
       grouped[ct.value] = existing
         .filter(p => p.customer_type === ct.value)
-        .map(p => ({ packagingSize: p.packaging_size, price: p.unit_price.toString() }));
+        .map(p => ({ packagingSize: p.packaging_size, price: p.unit_price.toString().replace('.', ',') }));
       if (grouped[ct.value].length === 0) {
         grouped[ct.value] = [{ packagingSize: '50g', price: '' }];
       }
@@ -162,12 +163,14 @@ const PricesPage = () => {
     CUSTOMER_TYPES.forEach(ct => {
       const entries = pricesByCustomer[ct.value] || [];
       entries.forEach(e => {
-        if (e.price && parseFloat(e.price) > 0) {
+        // normalize comma to dot for parsing
+        const normalized = e.price.replace(',', '.');
+        if (normalized && parseFloat(normalized) > 0) {
           toAdd.push({
             crop_id: isCrop ? itemId : null,
             blend_id: !isCrop ? itemId : null,
             packaging_size: e.packagingSize,
-            unit_price: parseFloat(e.price),
+            unit_price: parseFloat(normalized),
             customer_type: ct.value,
           });
         }
@@ -225,7 +228,7 @@ const PricesPage = () => {
         </div>
         <button onClick={openNewDialog}
           className="flex items-center gap-1.5 h-9 px-4 rounded-xl bg-[#16a34a] text-white text-sm font-semibold hover:bg-[#15803d] transition-colors">
-          <Plus className="h-4 w-4" /> Pridať ceny
+          <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Pridať ceny</span><span className="sm:hidden">Pridať</span>
         </button>
       </div>
 
@@ -299,12 +302,12 @@ const PricesPage = () => {
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-[#cbd5e1] shadow-sm overflow-hidden">
-          {/* Table header */}
-          <div className="grid grid-cols-[220px_1fr_72px] bg-[#f8fafc] border-b border-[#e2e8f0]">
-            <div className="px-4 py-2.5 text-[11px] font-bold text-[#475569] font-bold uppercase tracking-wide">
+          {/* Table header — len desktop */}
+          <div className="hidden md:grid grid-cols-[220px_1fr_72px] bg-[#f8fafc] border-b border-[#e2e8f0]">
+            <div className="px-4 py-2.5 text-[11px] font-bold text-[#475569] uppercase tracking-wide">
               {mainTab === 'crops' ? 'Plodina' : 'Mix'}
             </div>
-            <div className="px-4 py-2.5 text-[11px] font-bold text-[#475569] font-bold uppercase tracking-wide">
+            <div className="px-4 py-2.5 text-[11px] font-bold text-[#475569] uppercase tracking-wide">
               Ceny — {currentCt.label}
             </div>
             <div />
@@ -318,22 +321,31 @@ const PricesPage = () => {
               <p className="text-sm text-[#64748b]">Žiadne ceny</p>
             </div>
           ) : (
-            <div className="divide-y divide-[#f8fafc]">
+            <div className="divide-y divide-[#e2e8f0]">
               {itemsWithPrices.map(item => (
-                <div key={item.id} className="grid grid-cols-[220px_1fr_72px] items-center hover:bg-[#f8fafc] transition-colors group">
-                  <div className="px-4 py-3">
+                <div
+                  key={item.id}
+                  className="flex flex-col md:grid md:grid-cols-[220px_1fr_72px] md:items-center hover:bg-[#f8fafc] transition-colors group"
+                >
+                  {/* Názov */}
+                  <div className="px-4 pt-3 md:py-3">
                     <div className="text-sm font-semibold text-[#0f172a]">{item.name}</div>
                   </div>
-                  <div className="px-4 py-3">
+
+                  {/* Ceny */}
+                  <div className="px-4 py-2 md:py-3">
                     {item.prices.length > 0 ? (
                       <div className="flex flex-wrap gap-1.5">
                         {item.prices
                           .sort((a, b) => a.packaging_size.localeCompare(b.packaging_size, undefined, { numeric: true }))
                           .map((price, idx) => (
-                            <div key={idx} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium ${currentCt.row}`}>
+                            <div
+                              key={idx}
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium whitespace-nowrap ${currentCt.row}`}
+                            >
                               <span className="font-bold">{price.packaging_size}</span>
                               <span className="opacity-50">·</span>
-                              <span className="font-semibold">{price.unit_price.toFixed(2)} €</span>
+                              <span className="font-semibold">{formatEur(price.unit_price)}</span>
                             </div>
                           ))}
                       </div>
@@ -341,15 +353,23 @@ const PricesPage = () => {
                       <span className="text-xs text-[#94a3b8] italic">Bez ceny pre {currentCt.label}</span>
                     )}
                   </div>
-                  <div className="flex items-center justify-end gap-1.5 px-3 py-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => openDialog(item.id, item.name, item.isCrop)}
-                      className="w-7 h-7 rounded-lg border border-[#cbd5e1] bg-white flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors">
-                      <Pencil className="h-3.5 w-3.5" />
+
+                  {/* Akcie — na mobile vždy viditeľné, na desktope hover-only */}
+                  <div className="flex items-center justify-end gap-1.5 px-4 pb-3 md:px-3 md:pb-0 md:py-3 md:opacity-0 md:group-hover:opacity-100 md:transition-opacity">
+                    <button
+                      onClick={() => openDialog(item.id, item.name, item.isCrop)}
+                      className="w-8 h-8 md:w-7 md:h-7 rounded-lg border border-[#cbd5e1] bg-white flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors"
+                      aria-label="Upraviť ceny"
+                    >
+                      <Pencil className="h-4 w-4 md:h-3.5 md:w-3.5" />
                     </button>
                     {item.prices.length > 0 && (
-                      <button onClick={() => setDeleteId(item.id)}
-                        className="w-7 h-7 rounded-lg border border-[#fecaca] bg-[#fef2f2] flex items-center justify-center text-[#dc2626] hover:bg-[#fee2e2] transition-colors">
-                        <Trash2 className="h-3.5 w-3.5" />
+                      <button
+                        onClick={() => setDeleteId(item.id)}
+                        className="w-8 h-8 md:w-7 md:h-7 rounded-lg border border-[#fecaca] bg-[#fef2f2] flex items-center justify-center text-[#dc2626] hover:bg-[#fee2e2] transition-colors"
+                        aria-label="Zmazať ceny"
+                      >
+                        <Trash2 className="h-4 w-4 md:h-3.5 md:w-3.5" />
                       </button>
                     )}
                   </div>
@@ -419,7 +439,7 @@ const PricesPage = () => {
 
               <div className="space-y-2">
                 {(pricesByCustomer[dialogCustomerTab] || []).map((entry, idx) => (
-                  <div key={idx} className={`flex items-center gap-2 p-2 rounded-xl border ${dialogCt.row.includes('f0fdf4') ? 'bg-[#f8fafc] border-[#e2e8f0]' : 'bg-[#f8fafc] border-[#e2e8f0]'}`}>
+                  <div key={idx} className="flex items-center gap-2 p-2 rounded-xl border bg-[#f8fafc] border-[#e2e8f0]">
                     <Select value={entry.packagingSize}
                       onValueChange={v => updateEntry(dialogCustomerTab, idx, 'packagingSize', v)}>
                       <SelectTrigger className="h-8 w-[78px] text-xs border-[#e2e8f0] shrink-0 bg-white">
@@ -430,19 +450,24 @@ const PricesPage = () => {
                       </SelectContent>
                     </Select>
 
-                    <div className="relative flex-1">
+                    <div className="relative flex-1 min-w-0">
                       <input
                         type="text" inputMode="decimal" value={entry.price}
                         onChange={e => {
-                          let v = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
-                          const parts = v.split('.');
-                          if (parts.length > 2) v = parts[0] + '.' + parts.slice(1).join('');
+                          // Povoľ čiarku aj bodku počas písania, normalizujeme až pri uložení
+                          let v = e.target.value.replace(/[^0-9.,]/g, '');
+                          // Len jeden oddeľovač
+                          const sepCount = (v.match(/[.,]/g) || []).length;
+                          if (sepCount > 1) {
+                            const firstSep = v.search(/[.,]/);
+                            v = v.slice(0, firstSep + 1) + v.slice(firstSep + 1).replace(/[.,]/g, '');
+                          }
                           updateEntry(dialogCustomerTab, idx, 'price', v);
                         }}
-                        placeholder="0.00"
-                        className="w-full h-8 rounded-lg border border-[#cbd5e1] bg-white text-sm px-3 pr-7 text-[#0f172a] focus:outline-none focus:border-[#16a34a]"
+                        placeholder="0,00"
+                        className="w-full h-8 rounded-lg border border-[#cbd5e1] bg-white text-sm px-3 pr-8 text-[#0f172a] focus:outline-none focus:border-[#16a34a]"
                       />
-                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[#94a3b8]">€</span>
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[#94a3b8] pointer-events-none">€</span>
                     </div>
 
                     {(pricesByCustomer[dialogCustomerTab] || []).length > 1 && (
