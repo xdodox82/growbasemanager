@@ -1,7 +1,6 @@
 import { ReactNode, useState, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { MobileHeader } from './MobileHeader';
-import { DesktopHeader } from './DesktopHeader';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { QuickActionFAB } from '@/components/mobile/QuickActionFAB';
 import { MobileBottomNav } from '@/components/mobile/MobileBottomNav';
@@ -9,10 +8,15 @@ import { Menu, Sun, Moon } from 'lucide-react';
 
 interface MainLayoutProps {
   children: ReactNode;
+  /**
+   * @deprecated MobileHeader sa teraz auto-skrýva pri scrolle.
+   * Prop sa ignoruje, ponechaný len kvôli spätnej kompatibilite — pri TS chybách na stránkach,
+   * ktoré ho ešte odovzdávajú. Po cleanupe (odstránenie z volajúcich stránok) ho zmaž.
+   */
   hideMobileHeader?: boolean;
 }
 
-export function MainLayout({ children, hideMobileHeader }: MainLayoutProps) {
+export function MainLayout({ children }: MainLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('sidebarOpen');
@@ -64,11 +68,11 @@ export function MainLayout({ children, hideMobileHeader }: MainLayoutProps) {
         </button>
       )}
 
-      {/* Mobile header */}
-      {!hideMobileHeader && <MobileHeader />}
+      {/* Mobile header — vždy renderovaný, sám sa schováva pri scrolle */}
+      <MobileHeader />
 
       {/* Main content — scrolluje celý obsah vrátane ikoniek */}
-      <main className={`h-screen overflow-y-auto ${hideMobileHeader ? 'pt-0' : 'pt-16'} md:pt-0 pb-20 md:pb-0 transition-all duration-300 ${sidebarOpen ? 'md:pl-64' : 'md:pl-0'}`}>
+      <main className={`h-screen overflow-y-auto pt-16 md:pt-0 pb-20 md:pb-0 transition-all duration-300 ${sidebarOpen ? 'md:pl-64' : 'md:pl-0'}`}>
 
         {/* Desktop ikony — súčasť scroll oblasti, nezostávajú fixed */}
         <div className="hidden md:flex justify-end items-center gap-2 px-6 py-3">
