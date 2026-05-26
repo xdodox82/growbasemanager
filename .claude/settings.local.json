@@ -37,7 +37,8 @@
       "Bash(cp /mnt/user-data/outputs/src/pages/InventoryPage.tsx src/pages/InventoryPage.tsx)",
       "PowerShell(Set-ExecutionPolicy *)",
       "Bash(npm install *)",
-      "Bash(Get-Content *)"
+      "Bash(Get-Content *)",
+      "Bash(git mv *)"
     ]
   }
 }
