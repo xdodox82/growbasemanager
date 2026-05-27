@@ -33,6 +33,7 @@ import { OrdersFilterBar } from '@/components/orders/OrdersFilterBar';
 import { OrdersStatsBar } from '@/components/orders/OrdersStatsBar';
 import { OrdersTableView } from '@/components/orders/OrdersTableView';
 import { OrdersCardView } from '@/components/orders/OrdersCardView';
+import { OrdersListView } from '@/components/orders/OrdersListView';
 import { OrderDetailDialog } from '@/components/orders/OrderDetailDialog';
 import { getStatusLabel } from '@/components/orders/orderUtils';
 
@@ -218,10 +219,18 @@ export default function OrdersPage() {
   const { toast } = useToast();
   const { getDeliveryDaysArray } = useDeliveryDays();
   const isMobile = useIsMobile();
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
+    if (typeof window === 'undefined') return 'grid';
+    const saved = localStorage.getItem('orders-view-mode');
+    return saved === 'list' ? 'list' : 'grid';
+  });
 
-  // Force grid view on mobile
-  const effectiveViewMode = isMobile ? 'grid' : viewMode;
+  // Persist view mode choice
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('orders-view-mode', viewMode);
+    }
+  }, [viewMode]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [crops, setCrops] = useState<Crop[]>([]);
@@ -2329,15 +2338,26 @@ export default function OrdersPage() {
           wholesaleRevenue={wholesaleRevenue}
         />
 
-        {effectiveViewMode === 'list' ? (
-          <OrdersTableView
-            filteredOrders={filteredOrders}
-            getOrderTotal={getOrderTotal}
-            onSelectOrder={(order) => { setSelectedOrderDetail(order); setDetailModalOpen(true); }}
-            onDuplicate={duplicateOrder}
-            onEdit={openEdit}
-            onDelete={openDeleteDialog}
-          />
+        {viewMode === 'list' ? (
+          isMobile ? (
+            <OrdersListView
+              filteredOrders={filteredOrders}
+              getOrderTotal={getOrderTotal}
+              onSelectOrder={(order) => { setSelectedOrderDetail(order); setDetailModalOpen(true); }}
+              onDuplicate={duplicateOrder}
+              onEdit={openEdit}
+              onDelete={openDeleteDialog}
+            />
+          ) : (
+            <OrdersTableView
+              filteredOrders={filteredOrders}
+              getOrderTotal={getOrderTotal}
+              onSelectOrder={(order) => { setSelectedOrderDetail(order); setDetailModalOpen(true); }}
+              onDuplicate={duplicateOrder}
+              onEdit={openEdit}
+              onDelete={openDeleteDialog}
+            />
+          )
         ) : (
           <OrdersCardView
             filteredOrders={filteredOrders}
