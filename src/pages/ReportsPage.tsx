@@ -414,7 +414,7 @@ const FilterBar = (props: FilterBarProps) => {
   ];
 
   return (
-    <div className="sticky top-0 z-20 bg-white border border-[#cbd5e1] rounded-xl shadow-sm p-3 md:p-4">
+    <div className="md:sticky md:top-0 z-20 bg-white border border-[#cbd5e1] rounded-xl shadow-sm p-3 md:p-4">
       <div className="flex flex-col gap-3">
         {/* Row 1: period presets */}
         <div className="flex flex-wrap items-center gap-1.5">

@@ -86,7 +86,7 @@ export function MainLayout({ children }: MainLayoutProps) {
           <NotificationCenter />
         </div>
 
-        <div className="px-4 pb-4 md:px-6 md:pb-6 lg:px-8 lg:pb-8">
+        <div className="px-4 pt-3 pb-4 md:px-6 md:pt-0 md:pb-6 lg:px-8 lg:pb-8">
           {children}
         </div>
       </main>
