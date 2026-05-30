@@ -406,7 +406,6 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
   const [consumptionStartDate, setConsumptionStartDate] = useState<string>('');
   const [consumptionEndDate, setConsumptionEndDate] = useState<string>('');
   const [stockingDate, setStockingDate] = useState<string>('');
-  const [batchNumber, setBatchNumber] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [minStock, setMinStock] = useState('');
   const [unitPricePerKg, setUnitPricePerKg] = useState('');
@@ -440,7 +439,6 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
     setConsumptionStartDate('');
     setConsumptionEndDate('');
     setStockingDate('');
-    setBatchNumber('');
     setNotes('');
     setMinStock('');
     setUnitPricePerKg('');
@@ -470,7 +468,6 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
     setConsumptionStartDate((seed as any).consumption_start_date || '');
     setConsumptionEndDate((seed as any).consumption_end_date || '');
     setStockingDate((seed as any).stocking_date || '');
-    setBatchNumber((seed as any).batch_number || '');
     setNotes(seed.notes || '');
     setMinStock((seed as any).min_stock?.toString() || '');
     setUnitPricePerKg((seed as any).unit_price_per_kg?.toString() || '');
@@ -593,7 +590,6 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
       consumption_start_date: consumptionStartDate || null,
       consumption_end_date: consumptionEndDate || null,
       stocking_date: stockingDate || null,
-      batch_number: batchNumber || null,
       notes: notes || null,
       certificate_url: finalCertUrl,
       min_stock: minStock ? parseFloat(minStock) : null,
@@ -1195,16 +1191,6 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                 className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
               />
             </div>
-            <div>
-              <Label className="text-sm font-semibold text-[#374151]">Číslo šarže</Label>
-              <Input
-                type="text"
-                value={batchNumber}
-                onChange={(e) => setBatchNumber(e.target.value)}
-                placeholder="napr. LOT-2026-001"
-                className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
-              />
-            </div>
 
             {/* Certifikát */}
             <div>
@@ -1256,7 +1242,7 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
               />
             </div>
 
-            <DialogFooter className="mt-4 gap-2">
+            <DialogFooter className="mt-4 gap-2 flex-row justify-end">
               <button
                 type="button"
                 onClick={() => { setIsDialogOpen(false); resetForm(); }}
@@ -1268,7 +1254,7 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
               <button
                 type="submit"
                 disabled={saving || !cropId || !quantity}
-                className="h-9 px-4 rounded-md bg-[#16a34a] hover:bg-[#15803d] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold flex items-center gap-2 transition-colors"
+                className="h-9 px-4 rounded-md bg-[#16a34a] hover:bg-[#15803d] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold inline-flex items-center justify-center gap-2 transition-colors"
               >
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />}
                 {editingSeed ? 'Uložiť' : 'Pridať'}
