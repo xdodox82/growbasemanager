@@ -1216,7 +1216,6 @@ export interface Database {
           unit_price_per_kg: number | null
           price_includes_vat: boolean | null
           vat_rate: number | null
-          batch_number: string | null
           consumption_end_date: string | null
           certificate: string | null
           certificate_file: string | null
@@ -1241,7 +1240,6 @@ export interface Database {
           unit_price_per_kg?: number | null
           price_includes_vat?: boolean | null
           vat_rate?: number | null
-          batch_number?: string | null
           consumption_end_date?: string | null
           certificate?: string | null
           certificate_file?: string | null
@@ -1266,7 +1264,6 @@ export interface Database {
           unit_price_per_kg?: number | null
           price_includes_vat?: boolean | null
           vat_rate?: number | null
-          batch_number?: string | null
           consumption_end_date?: string | null
           certificate?: string | null
           certificate_file?: string | null
