@@ -1217,8 +1217,6 @@ export interface Database {
           price_includes_vat: boolean | null
           vat_rate: number | null
           consumption_end_date: string | null
-          certificate: string | null
-          certificate_file: string | null
         }
         Insert: {
           id?: string
@@ -1241,8 +1239,6 @@ export interface Database {
           price_includes_vat?: boolean | null
           vat_rate?: number | null
           consumption_end_date?: string | null
-          certificate?: string | null
-          certificate_file?: string | null
         }
         Update: {
           id?: string
@@ -1265,8 +1261,6 @@ export interface Database {
           price_includes_vat?: boolean | null
           vat_rate?: number | null
           consumption_end_date?: string | null
-          certificate?: string | null
-          certificate_file?: string | null
         }
       }
       substrates: {
