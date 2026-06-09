@@ -152,7 +152,9 @@ export const PackagingMappings = () => {
               .select('weight_g, packaging_id, sku, packagings(id, name, size)')
               .eq('crop_id', crop.id);
 
-            const formatted: MappingDetail[] = (mappings || []).map((m: any) => ({
+            const formatted: MappingDetail[] = (mappings || [])
+              .filter((m: any) => m.packagings) // rozbité priradenie (obal v sklade zmazaný) → ignoruj
+              .map((m: any) => ({
               weight_g: m.weight_g,
               volume: m.packagings?.size || '',
               sku: m.sku || '',
@@ -176,7 +178,9 @@ export const PackagingMappings = () => {
               .select('weight_g, packaging_id, sku, packagings(id, name, size)')
               .eq('blend_id', blend.id);
 
-            const formatted: MappingDetail[] = (mappings || []).map((m: any) => ({
+            const formatted: MappingDetail[] = (mappings || [])
+              .filter((m: any) => m.packagings) // rozbité priradenie (obal v sklade zmazaný) → ignoruj
+              .map((m: any) => ({
               weight_g: m.weight_g,
               volume: m.packagings?.size || '',
               sku: m.sku || '',
