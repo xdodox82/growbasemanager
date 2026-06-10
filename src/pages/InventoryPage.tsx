@@ -419,6 +419,138 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // --- Naskladniť / Inventúra / História (osivo) ---
+  const sToday = () => new Date().toISOString().split('T')[0];
+  const fmtSeed = (val: number, unit?: string | null) =>
+    (unit === 'kg' ? formatKg(val) : `${formatNumber(val)} ${unit || ''}`).trim();
+
+  const [receiptFor, setReceiptFor] = useState<DbSeed | null>(null);
+  const [rcvQty, setRcvQty] = useState('');
+  const [rcvDate, setRcvDate] = useState(sToday());
+  const [rcvPrice, setRcvPrice] = useState('');
+  const [rcvNotes, setRcvNotes] = useState('');
+  const [rcvSaving, setRcvSaving] = useState(false);
+
+  const [stocktakeFor, setStocktakeFor] = useState<DbSeed | null>(null);
+  const [counted, setCounted] = useState('');
+  const [stkDate, setStkDate] = useState(sToday());
+  const [stkNotes, setStkNotes] = useState('');
+  const [stkSaving, setStkSaving] = useState(false);
+
+  const [historyFor, setHistoryFor] = useState<DbSeed | null>(null);
+  const [movements, setMovements] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  const openReceipt = (s: DbSeed) => {
+    setReceiptFor(s); setRcvQty(''); setRcvDate(sToday()); setRcvPrice(''); setRcvNotes('');
+  };
+  const handleReceipt = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!receiptFor) return;
+    const qty = parseFloat(rcvQty);
+    if (!rcvQty || isNaN(qty) || qty <= 0) {
+      toast({ title: 'Chyba', description: 'Zadaj kladné množstvo.', variant: 'destructive' });
+      return;
+    }
+    setRcvSaving(true);
+    try {
+      const { error } = await supabase.rpc('add_seed_receipt', {
+        p_seed_id: receiptFor.id,
+        p_quantity: qty,
+        p_occurred_on: rcvDate || sToday(),
+        p_unit_price: rcvPrice ? parseFloat(rcvPrice) : null,
+        p_supplier_id: receiptFor.supplier_id || null,
+        p_batch: (receiptFor as any).lot_number || null,
+        p_notes: rcvNotes || null,
+      });
+      if (error) throw error;
+      await refetch();
+      toast({ title: 'Naskladnené', description: `Pridané ${fmtSeed(qty, receiptFor.unit)}.` });
+      setReceiptFor(null);
+    } catch (err: any) {
+      toast({ title: 'Chyba', description: err.message || 'Naskladnenie sa nepodarilo.', variant: 'destructive' });
+    } finally {
+      setRcvSaving(false);
+    }
+  };
+
+  const openStocktake = (s: DbSeed) => {
+    setStocktakeFor(s); setCounted(''); setStkDate(sToday()); setStkNotes('');
+  };
+  const handleStocktake = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stocktakeFor) return;
+    const cnt = parseFloat(counted);
+    if (counted === '' || isNaN(cnt) || cnt < 0) {
+      toast({ title: 'Chyba', description: 'Zadaj napočítaný stav (0 alebo viac).', variant: 'destructive' });
+      return;
+    }
+    setStkSaving(true);
+    try {
+      const { error } = await supabase.rpc('set_seed_stocktake', {
+        p_seed_id: stocktakeFor.id,
+        p_counted: cnt,
+        p_occurred_on: stkDate || sToday(),
+        p_notes: stkNotes || null,
+      });
+      if (error) throw error;
+      await refetch();
+      toast({ title: 'Inventúra uložená', description: 'Stav bol upravený podľa napočítaného.' });
+      setStocktakeFor(null);
+    } catch (err: any) {
+      toast({ title: 'Chyba', description: err.message || 'Inventúra sa nepodarila.', variant: 'destructive' });
+    } finally {
+      setStkSaving(false);
+    }
+  };
+
+  const openHistory = async (s: DbSeed) => {
+    setHistoryFor(s); setLoadingHistory(true); setMovements([]);
+    try {
+      const { data, error } = await supabase
+        .from('stock_movements')
+        .select('*')
+        .eq('item_kind', 'seed')
+        .eq('item_id', s.id)
+        .order('occurred_on', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      setMovements(data || []);
+    } catch (err: any) {
+      toast({ title: 'Chyba', description: 'Nepodarilo sa načítať históriu.', variant: 'destructive' });
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const SEED_MOVEMENT_LABELS: Record<string, string> = {
+    receipt: 'Naskladnenie', consumption: 'Spotreba', adjustment: 'Inventúra',
+  };
+  const seedStkUnit = stocktakeFor?.unit || 'kg';
+  const seedCountedDiff = stocktakeFor && counted !== '' && !isNaN(parseFloat(counted))
+    ? parseFloat(counted) - (stocktakeFor.quantity || 0)
+    : null;
+  const seedHistUnit = historyFor?.unit || 'kg';
+
+  // Naskladniť NOVÚ šaržu existujúceho druhu — otvorí "Pridať osivo" predvyplnené plodinou
+  const openAddForCrop = (cropObj: any, sample?: DbSeed) => {
+    resetForm();
+    if (cropObj?.category && ['microgreens', 'microherbs', 'edible_flowers'].includes(cropObj.category)) {
+      setSelectedCategory(cropObj.category);
+    }
+    setCropId(cropObj?.id || '');
+    if (sample) {
+      setQuantityUnit((sample.unit as 'kg' | 'g') || 'kg');
+      setSupplierId(sample.supplier_id || '');
+      setUnitPricePerKg((sample as any).unit_price_per_kg?.toString() || '');
+      setPriceIncludesVat((sample as any).price_includes_vat ?? true);
+      setVatRate((sample as any).vat_rate?.toString() || '20');
+      setMinStock((sample as any).min_stock?.toString() || '');
+    }
+    setIsDialogOpen(true);
+  };
+
   // Listen for header "+" button event
   useEffect(() => {
     const handler = () => openAddDialog();
@@ -835,43 +967,67 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                     anyArchived && 'opacity-70'
                   )}
                 >
-                  {/* Header — klikateľný */}
-                  <button
-                    onClick={() => {
-                      setExpandedCropIds(prev => {
-                        const next = new Set(prev);
-                        if (next.has(cropKey)) next.delete(cropKey); else next.add(cropKey);
-                        return next;
-                      });
-                    }}
-                    className="w-full p-4 flex items-center gap-3 hover:bg-[#f8fafc] transition-colors text-left"
-                  >
-                    <div
-                      className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border"
-                      style={{ backgroundColor: `${cropColor}15`, borderColor: `${cropColor}30` }}
+                  {/* Header — toggle + akcie */}
+                  <div className="w-full p-4 flex items-center gap-3">
+                    <button
+                      onClick={() => {
+                        setExpandedCropIds(prev => {
+                          const next = new Set(prev);
+                          if (next.has(cropKey)) next.delete(cropKey); else next.add(cropKey);
+                          return next;
+                        });
+                      }}
+                      className="flex items-center gap-3 flex-1 min-w-0 text-left hover:opacity-80 transition-opacity"
                     >
-                      <Sprout className="h-5 w-5" style={{ color: cropColor }} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-bold text-[#0f172a] truncate">{crop?.name || 'Neznáma'}</h3>
-                        {low && (
-                          <span className="inline-flex items-center h-5 px-1.5 rounded-full bg-[#fef2f2] text-[#dc2626] text-[10px] font-bold flex-shrink-0">
-                            NÍZKE ZÁSOBY
+                      <div
+                        className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border"
+                        style={{ backgroundColor: `${cropColor}15`, borderColor: `${cropColor}30` }}
+                      >
+                        <Sprout className="h-5 w-5" style={{ color: cropColor }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-bold text-[#0f172a] truncate">{crop?.name || 'Neznáma'}</h3>
+                          {low && (
+                            <span className="inline-flex items-center h-5 px-1.5 rounded-full bg-[#fef2f2] text-[#dc2626] text-[10px] font-bold flex-shrink-0">
+                              NÍZKE ZÁSOBY
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 mt-1 text-xs">
+                          <span className="text-[#475569]">Spolu: <span className="font-bold text-[#16a34a]">{totalLabel}</span></span>
+                          <span className="text-[#475569]">·</span>
+                          <span className="text-[#475569]">
+                            <span className="font-semibold text-[#0f172a]">{seedsInGroup.length}</span>{' '}
+                            {seedsInGroup.length === 1 ? 'šarža' : seedsInGroup.length >= 2 && seedsInGroup.length <= 4 ? 'šarže' : 'šarží'}
                           </span>
-                        )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3 mt-1 text-xs">
-                        <span className="text-[#475569]">Spolu: <span className="font-bold text-[#16a34a]">{totalLabel}</span></span>
-                        <span className="text-[#475569]">·</span>
-                        <span className="text-[#475569]">
-                          <span className="font-semibold text-[#0f172a]">{seedsInGroup.length}</span>{' '}
-                          {seedsInGroup.length === 1 ? 'šarža' : seedsInGroup.length >= 2 && seedsInGroup.length <= 4 ? 'šarže' : 'šarží'}
-                        </span>
-                      </div>
-                    </div>
-                    {isExpanded ? <ChevronDown className="h-4 w-4 text-[#94a3b8] flex-shrink-0" /> : <ChevronRight className="h-4 w-4 text-[#94a3b8] flex-shrink-0" />}
-                  </button>
+                    </button>
+                    {isAdmin && !anyArchived && (
+                      <button
+                        onClick={() => openAddForCrop(crop, seedsInGroup[0])}
+                        title="Naskladniť novú šaržu"
+                        className="flex-shrink-0 h-9 px-3 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-xs font-bold flex items-center gap-1.5 transition-colors"
+                      >
+                        <PackagePlus className="h-4 w-4" />
+                        <span className="hidden sm:inline">Naskladniť</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        setExpandedCropIds(prev => {
+                          const next = new Set(prev);
+                          if (next.has(cropKey)) next.delete(cropKey); else next.add(cropKey);
+                          return next;
+                        });
+                      }}
+                      className="flex-shrink-0 w-8 h-8 flex items-center justify-center text-[#94a3b8] hover:text-[#475569] transition-colors"
+                      aria-label={isExpanded ? 'Zbaliť' : 'Rozbaliť'}
+                    >
+                      {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    </button>
+                  </div>
 
                   {/* Šarže — rozbalený zoznam */}
                   {isExpanded && (
@@ -939,20 +1095,29 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                               <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                                 {isAdmin && !isArchived && (
                                   <button
+                                    onClick={() => openStocktake(seed)}
+                                    title="Inventúra"
+                                    className="w-8 h-8 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#2563eb] hover:text-[#2563eb] transition-colors"
+                                  >
+                                    <ClipboardCheck className="h-4 w-4" />
+                                  </button>
+                                )}
+                                {isAdmin && !isArchived && (
+                                  <button
                                     onClick={() => openEditDialog(seed)}
                                     title="Upraviť"
-                                    className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors"
+                                    className="w-8 h-8 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors"
                                   >
-                                    <Pencil className="h-3.5 w-3.5" />
+                                    <Pencil className="h-4 w-4" />
                                   </button>
                                 )}
                                 {isAdmin && !isArchived && (
                                   <button
                                     onClick={() => setArchiveDialogId(seed.id)}
                                     title="Archivovať"
-                                    className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors"
+                                    className="w-8 h-8 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors"
                                   >
-                                    <Archive className="h-3.5 w-3.5" />
+                                    <Archive className="h-4 w-4" />
                                   </button>
                                 )}
                                 {isAdmin && isArchived && (
@@ -1145,21 +1310,21 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
             {/* Dátumy */}
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-sm font-semibold text-[#374151]">Dátum nákupu</Label>
-                <Input
-                  type="date"
-                  value={purchaseDate}
-                  onChange={(e) => setPurchaseDate(e.target.value)}
-                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
-                />
-              </div>
-              <div>
                 <Label className="text-sm font-semibold text-[#374151]">Expirácia (mesiac/rok)</Label>
                 <Input
                   type="month"
                   value={expiryDate}
                   onChange={(e) => setExpiryDate(e.target.value)}
                   className="text-sm h-10 mt-1.5 border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Dátum naskladnenia</Label>
+                <Input
+                  type="date"
+                  value={stockingDate}
+                  onChange={(e) => setStockingDate(e.target.value)}
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
             </div>
@@ -1184,15 +1349,6 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                   className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
-            </div>
-            <div>
-              <Label className="text-sm font-semibold text-[#374151]">Dátum naskladnenia</Label>
-              <Input
-                type="date"
-                value={stockingDate}
-                onChange={(e) => setStockingDate(e.target.value)}
-                className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
-              />
             </div>
 
             {/* Certifikát */}
@@ -1428,33 +1584,272 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                   )}
 
                   {isAdmin && !isArchived && (
-                    <div className="border-t border-[#e2e8f0] pt-3 flex items-center gap-2">
+                    <div className="border-t border-[#e2e8f0] pt-3 space-y-2">
                       <button
-                        onClick={() => {
-                          setSelectedSeed(null);
-                          openEditDialog(selectedSeed);
-                        }}
-                        className="flex-1 h-9 px-3 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                        onClick={() => { openReceipt(selectedSeed); setSelectedSeed(null); }}
+                        className="w-full h-9 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
                       >
-                        <Pencil className="h-3.5 w-3.5" />
-                        Upraviť
+                        <PackagePlus className="h-4 w-4" />
+                        Naskladniť
                       </button>
-                      <button
-                        onClick={() => {
-                          setSelectedSeed(null);
-                          setArchiveDialogId(selectedSeed.id);
-                        }}
-                        className="h-9 px-3 rounded-lg border border-[#e2e8f0] text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] text-xs font-bold flex items-center gap-1.5 transition-colors"
-                      >
-                        <Archive className="h-3.5 w-3.5" />
-                        Archivovať
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => { openStocktake(selectedSeed); setSelectedSeed(null); }}
+                          className="flex-1 h-9 rounded-lg border border-[#cbd5e1] text-[#2563eb] hover:bg-[#eff6ff] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                        >
+                          <ClipboardCheck className="h-4 w-4" />
+                          Inventúra
+                        </button>
+                        <button
+                          onClick={() => { openHistory(selectedSeed); setSelectedSeed(null); }}
+                          className="flex-1 h-9 rounded-lg border border-[#cbd5e1] text-[#475569] hover:bg-[#f8fafc] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                        >
+                          <History className="h-4 w-4" />
+                          História
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            setSelectedSeed(null);
+                            openEditDialog(selectedSeed);
+                          }}
+                          className="flex-1 h-9 px-3 rounded-lg border border-[#e2e8f0] text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          Upraviť
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedSeed(null);
+                            setArchiveDialogId(selectedSeed.id);
+                          }}
+                          className="flex-1 h-9 px-3 rounded-lg border border-[#e2e8f0] text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                        >
+                          <Archive className="h-3.5 w-3.5" />
+                          Archivovať
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
               </>
             );
           })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== Naskladniť (osivo) ===== */}
+      <Dialog open={receiptFor !== null} onOpenChange={(open) => { if (!open) setReceiptFor(null); }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-[#0f172a]">Naskladniť osivo</DialogTitle>
+            <DialogDescription className="text-[#475569]">
+              {receiptFor ? (crops.find(c => c.id === receiptFor.crop_id)?.name || 'Osivo') : ''}
+              {receiptFor && (receiptFor as any).lot_number ? ` · šarža ${(receiptFor as any).lot_number}` : ''}
+              {receiptFor ? ` — aktuálne ${fmtSeed(receiptFor.quantity, receiptFor.unit)}` : ''}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleReceipt} className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Množstvo ({receiptFor?.unit || 'kg'}) *</Label>
+                <Input
+                  type="number" min="0" step="0.001" autoFocus
+                  value={rcvQty}
+                  onChange={(e) => setRcvQty(e.target.value)}
+                  required
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Dátum</Label>
+                <Input
+                  type="date"
+                  value={rcvDate}
+                  onChange={(e) => setRcvDate(e.target.value)}
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-sm font-semibold text-[#374151]">Cena/kg (€)</Label>
+              <Input
+                type="number" step="0.01" min="0"
+                value={rcvPrice}
+                onChange={(e) => setRcvPrice(e.target.value)}
+                placeholder="voliteľné"
+                className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+              />
+            </div>
+
+            <div>
+              <Label className="text-sm font-semibold text-[#374151]">Poznámka</Label>
+              <Textarea
+                value={rcvNotes}
+                onChange={(e) => setRcvNotes(e.target.value)}
+                rows={2}
+                className="resize-none text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+              />
+            </div>
+
+            <DialogFooter className="mt-4 gap-2">
+              <button
+                type="button"
+                onClick={() => setReceiptFor(null)}
+                disabled={rcvSaving}
+                className="h-9 px-4 rounded-md border border-[#e2e8f0] bg-white text-[#475569] hover:bg-[#f8fafc] text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                Zrušiť
+              </button>
+              <button
+                type="submit"
+                disabled={rcvSaving || !rcvQty}
+                className="h-9 px-4 rounded-md bg-[#16a34a] hover:bg-[#15803d] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold flex items-center gap-2 transition-colors"
+              >
+                {rcvSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                <PackagePlus className="h-4 w-4" /> Naskladniť
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== Inventúra (osivo) ===== */}
+      <Dialog open={stocktakeFor !== null} onOpenChange={(open) => { if (!open) setStocktakeFor(null); }}>
+        <DialogContent className="max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-[#0f172a]">Inventúra</DialogTitle>
+            <DialogDescription className="text-[#475569]">
+              {stocktakeFor ? (crops.find(c => c.id === stocktakeFor.crop_id)?.name || 'Osivo') : ''}
+              {stocktakeFor && (stocktakeFor as any).lot_number ? ` · šarža ${(stocktakeFor as any).lot_number}` : ''}
+              {stocktakeFor ? ` — systém eviduje ${fmtSeed(stocktakeFor.quantity, stocktakeFor.unit)}` : ''}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleStocktake} className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Napočítaný stav ({seedStkUnit}) *</Label>
+                <Input
+                  type="number" min="0" step="0.001" autoFocus
+                  value={counted}
+                  onChange={(e) => setCounted(e.target.value)}
+                  required
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Dátum</Label>
+                <Input
+                  type="date"
+                  value={stkDate}
+                  onChange={(e) => setStkDate(e.target.value)}
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+            </div>
+
+            {seedCountedDiff !== null && seedCountedDiff !== 0 && (
+              <div className={cn(
+                'text-xs font-semibold rounded-lg px-3 py-2 border',
+                seedCountedDiff > 0 ? 'bg-[#f0fdf4] border-[#bbf7d0] text-[#166534]' : 'bg-[#fef2f2] border-[#fecaca] text-[#dc2626]'
+              )}>
+                Rozdiel oproti systému: {seedCountedDiff > 0 ? '+' : ''}{formatNumber(seedCountedDiff, 3)} {seedStkUnit}
+              </div>
+            )}
+
+            <div>
+              <Label className="text-sm font-semibold text-[#374151]">Poznámka</Label>
+              <Textarea
+                value={stkNotes}
+                onChange={(e) => setStkNotes(e.target.value)}
+                rows={2}
+                placeholder="napr. dôvod rozdielu"
+                className="resize-none text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+              />
+            </div>
+
+            <DialogFooter className="mt-4 gap-2">
+              <button
+                type="button"
+                onClick={() => setStocktakeFor(null)}
+                disabled={stkSaving}
+                className="h-9 px-4 rounded-md border border-[#e2e8f0] bg-white text-[#475569] hover:bg-[#f8fafc] text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                Zrušiť
+              </button>
+              <button
+                type="submit"
+                disabled={stkSaving || counted === ''}
+                className="h-9 px-4 rounded-md bg-[#2563eb] hover:bg-[#1d4ed8] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold flex items-center gap-2 transition-colors"
+              >
+                {stkSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                <ClipboardCheck className="h-4 w-4" /> Uložiť inventúru
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== História pohybov (osivo) ===== */}
+      <Dialog open={historyFor !== null} onOpenChange={(open) => { if (!open) { setHistoryFor(null); setMovements([]); } }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-[#0f172a]">História pohybov</DialogTitle>
+            <DialogDescription className="text-[#475569]">
+              {historyFor ? (crops.find(c => c.id === historyFor.crop_id)?.name || 'Osivo') : ''}
+              {historyFor && (historyFor as any).lot_number ? ` · šarža ${(historyFor as any).lot_number}` : ''}
+              {historyFor ? ` — aktuálne ${fmtSeed(historyFor.quantity, historyFor.unit)}` : ''}
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingHistory ? (
+            <div className="py-8 text-center text-sm text-[#64748b]">Načítavam…</div>
+          ) : movements.length === 0 ? (
+            <div className="py-8 text-center text-sm text-[#64748b]">Zatiaľ žiadne pohyby.</div>
+          ) : (
+            <div className="space-y-2">
+              {movements.map((m) => (
+                <div key={m.id} className="flex items-center justify-between gap-2 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] px-3 py-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={cn(
+                        'inline-flex items-center h-5 px-1.5 rounded-full text-[10px] font-bold',
+                        m.movement_type === 'receipt' ? 'bg-[#dcfce7] text-[#166534]'
+                          : m.movement_type === 'consumption' ? 'bg-[#fef2f2] text-[#dc2626]'
+                          : 'bg-[#dbeafe] text-[#1e40af]'
+                      )}>
+                        {SEED_MOVEMENT_LABELS[m.movement_type] || m.movement_type}
+                      </span>
+                      <span className="text-[11px] text-[#64748b]">{formatDate(m.occurred_on)}</span>
+                    </div>
+                    {m.notes && <p className="text-[11px] text-[#475569] mt-0.5 truncate">{m.notes}</p>}
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className={cn('text-sm font-bold', m.quantity_delta >= 0 ? 'text-[#16a34a]' : 'text-[#dc2626]')}>
+                      {m.quantity_delta > 0 ? '+' : ''}{formatNumber(m.quantity_delta, 3)} {seedHistUnit}
+                    </div>
+                    {m.balance_after != null && (
+                      <div className="text-[10px] text-[#64748b]">stav: {formatNumber(m.balance_after, 3)} {seedHistUnit}</div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <DialogFooter className="mt-4">
+            <button
+              type="button"
+              onClick={() => { setHistoryFor(null); setMovements([]); }}
+              className="h-9 px-4 rounded-md border border-[#e2e8f0] bg-white text-[#475569] hover:bg-[#f8fafc] text-sm font-semibold transition-colors"
+            >
+              Zavrieť
+            </button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
@@ -1771,12 +2166,12 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
         <EmptyTabState
           icon={Package}
           title="Žiadne typy obalov"
-          description="Vytvor prvý typ obalu. Sklad doplníš cez „Naskladniť"."
+          description="Vytvor prvý typ obalu. Sklad doplníš cez Naskladniť."
           onAdd={isAdmin ? openAddDialog : undefined}
           addLabel="Pridať typ obalu"
         />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {sortedPackagings.map(p => {
             const low = isLowStock(p.quantity, (p as any).min_stock);
             const pricePerPiece = (p as any).price_per_piece;
@@ -1855,46 +2250,46 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
                   </div>
                 )}
 
-                <div className="flex items-center gap-1.5 pt-3 mt-3 border-t border-[#e2e8f0]">
+                <div className="pt-3 mt-3 border-t border-[#e2e8f0] space-y-2">
                   {isAdmin && (
                     <button
                       onClick={() => openReceipt(p)}
-                      className="flex-1 h-7 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-xs font-semibold flex items-center justify-center gap-1 transition-colors"
+                      className="w-full h-9 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-sm font-bold flex items-center justify-center gap-2 transition-colors"
                     >
-                      <PackagePlus className="h-3.5 w-3.5" /> Naskladniť
+                      <PackagePlus className="h-4 w-4" /> Naskladniť
                     </button>
                   )}
-                  <button
-                    onClick={() => openHistory(p)}
-                    title="História pohybov"
-                    className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors"
-                  >
-                    <History className="h-3.5 w-3.5" />
-                  </button>
-                  {isAdmin && (
-                    <>
+                  <div className="flex items-center gap-2">
+                    {isAdmin && (
                       <button
                         onClick={() => openStocktake(p)}
-                        title="Inventúra"
-                        className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#2563eb] hover:text-[#2563eb] transition-colors"
+                        className="flex-1 h-9 rounded-lg border border-[#cbd5e1] text-[#2563eb] hover:bg-[#eff6ff] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
                       >
-                        <ClipboardCheck className="h-3.5 w-3.5" />
+                        <ClipboardCheck className="h-4 w-4" /> Inventúra
                       </button>
+                    )}
+                    <button
+                      onClick={() => openHistory(p)}
+                      className="flex-1 h-9 rounded-lg border border-[#cbd5e1] text-[#475569] hover:bg-[#f8fafc] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                    >
+                      <History className="h-4 w-4" /> História
+                    </button>
+                  </div>
+                  {isAdmin && (
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={() => openEditDialog(p)}
-                        title="Upraviť typ"
-                        className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors"
+                        className="flex-1 h-9 rounded-lg border border-[#e2e8f0] text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
                       >
-                        <Pencil className="h-3.5 w-3.5" />
+                        <Pencil className="h-3.5 w-3.5" /> Upraviť
                       </button>
                       <button
                         onClick={() => setDeleteId(p.id)}
-                        title="Zmazať typ"
-                        className="w-7 h-7 rounded-lg border border-[#fecaca] bg-[#fef2f2] flex items-center justify-center text-[#dc2626] hover:bg-[#fee2e2] transition-colors"
+                        className="flex-1 h-9 rounded-lg border border-[#fecaca] bg-[#fef2f2] text-[#dc2626] hover:bg-[#fee2e2] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="h-3.5 w-3.5" /> Zmazať
                       </button>
-                    </>
+                    </div>
                   )}
                 </div>
               </div>
@@ -2605,12 +3000,12 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
         <EmptyTabState
           icon={Layers}
           title="Žiadny typ substrátu"
-          description="Vytvor prvý typ substrátu. Sklad doplníš cez „Naskladniť"."
+          description="Vytvor prvý typ substrátu. Sklad doplníš cez Naskladniť."
           onAdd={isAdmin ? openAddDialog : undefined}
           addLabel="Pridať typ substrátu"
         />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {substrates.map(s => {
             const stock = liveStock(s);
             const low = isLowStock(stock, (s as any).min_stock);
@@ -2681,46 +3076,46 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
                   </div>
                 )}
 
-                <div className="flex items-center gap-1.5 pt-3 mt-3 border-t border-[#e2e8f0]">
+                <div className="pt-3 mt-3 border-t border-[#e2e8f0] space-y-2">
                   {isAdmin && (
                     <button
                       onClick={() => openReceipt(s)}
-                      className="flex-1 h-7 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-xs font-semibold flex items-center justify-center gap-1 transition-colors"
+                      className="w-full h-9 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-sm font-bold flex items-center justify-center gap-2 transition-colors"
                     >
-                      <PackagePlus className="h-3.5 w-3.5" /> Naskladniť
+                      <PackagePlus className="h-4 w-4" /> Naskladniť
                     </button>
                   )}
-                  <button
-                    onClick={() => openHistory(s)}
-                    title="História pohybov"
-                    className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors"
-                  >
-                    <History className="h-3.5 w-3.5" />
-                  </button>
-                  {isAdmin && (
-                    <>
+                  <div className="flex items-center gap-2">
+                    {isAdmin && (
                       <button
                         onClick={() => openStocktake(s)}
-                        title="Inventúra"
-                        className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#2563eb] hover:text-[#2563eb] transition-colors"
+                        className="flex-1 h-9 rounded-lg border border-[#cbd5e1] text-[#2563eb] hover:bg-[#eff6ff] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
                       >
-                        <ClipboardCheck className="h-3.5 w-3.5" />
+                        <ClipboardCheck className="h-4 w-4" /> Inventúra
                       </button>
+                    )}
+                    <button
+                      onClick={() => openHistory(s)}
+                      className="flex-1 h-9 rounded-lg border border-[#cbd5e1] text-[#475569] hover:bg-[#f8fafc] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                    >
+                      <History className="h-4 w-4" /> História
+                    </button>
+                  </div>
+                  {isAdmin && (
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={() => openEditDialog(s)}
-                        title="Upraviť typ"
-                        className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors"
+                        className="flex-1 h-9 rounded-lg border border-[#e2e8f0] text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
                       >
-                        <Pencil className="h-3.5 w-3.5" />
+                        <Pencil className="h-3.5 w-3.5" /> Upraviť
                       </button>
                       <button
                         onClick={() => setDeleteId(s.id)}
-                        title="Zmazať typ"
-                        className="w-7 h-7 rounded-lg border border-[#fecaca] bg-[#fef2f2] flex items-center justify-center text-[#dc2626] hover:bg-[#fee2e2] transition-colors"
+                        className="flex-1 h-9 rounded-lg border border-[#fecaca] bg-[#fef2f2] text-[#dc2626] hover:bg-[#fee2e2] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="h-3.5 w-3.5" /> Zmazať
                       </button>
-                    </>
+                    </div>
                   )}
                 </div>
               </div>
