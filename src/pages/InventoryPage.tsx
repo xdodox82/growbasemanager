@@ -3513,27 +3513,50 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
 // ===================== LABELS TAB =====================
 
 const LabelsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
-  const { data: labels, add, update, remove } = useLabels();
+  const { data: labels, add, update, remove, refetch } = useLabels();
   const { data: suppliersList } = useSuppliers();
 
+  const today = () => new Date().toISOString().split('T')[0];
+
+  // --- Definícia typu (Pridať/Upraviť) — BEZ množstva, množstvo sa rieši cez Naskladniť/Inventúru ---
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingLabel, setEditingLabel] = useState<DbLabel | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const [formData, setFormData] = useState({
-    name: '',
-    type: 'standard',
-    size: '',
-    quantity: 0,
-    minStock: '',
-    supplierId: '',
-    unitCost: '',
-    priceIncludesVat: true,
-    vatRate: '20',
-    notes: '',
-  });
+  const [name, setName] = useState('');
+  const [type, setType] = useState('standard');
+  const [size, setSize] = useState('');
+  const [supplierId, setSupplierId] = useState('');
+  const [minStock, setMinStock] = useState('');
+  const [unitCost, setUnitCost] = useState('');
+  const [priceIncludesVat, setPriceIncludesVat] = useState(true);
+  const [vatRate, setVatRate] = useState('20');
+  const [notes, setNotes] = useState('');
 
+  // --- Naskladniť (várka) ---
+  const [receiptFor, setReceiptFor] = useState<DbLabel | null>(null);
+  const [rcvQty, setRcvQty] = useState('');
+  const [rcvDate, setRcvDate] = useState(today());
+  const [rcvPrice, setRcvPrice] = useState('');
+  const [rcvSupplier, setRcvSupplier] = useState('');
+  const [rcvBatch, setRcvBatch] = useState('');
+  const [rcvNotes, setRcvNotes] = useState('');
+  const [rcvSaving, setRcvSaving] = useState(false);
+
+  // --- Inventúra ---
+  const [stocktakeFor, setStocktakeFor] = useState<DbLabel | null>(null);
+  const [counted, setCounted] = useState('');
+  const [stkDate, setStkDate] = useState(today());
+  const [stkNotes, setStkNotes] = useState('');
+  const [stkSaving, setStkSaving] = useState(false);
+
+  // --- História pohybov ---
+  const [historyFor, setHistoryFor] = useState<DbLabel | null>(null);
+  const [movements, setMovements] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  // Listen for header "+" event
   useEffect(() => {
     const handler = () => openAddDialog();
     window.addEventListener('inventory-add', handler);
@@ -3543,18 +3566,15 @@ const LabelsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
 
   const resetForm = () => {
     setEditingLabel(null);
-    setFormData({
-      name: '',
-      type: 'standard',
-      size: '',
-      quantity: 0,
-      minStock: '',
-      supplierId: '',
-      unitCost: '',
-      priceIncludesVat: true,
-      vatRate: '20',
-      notes: '',
-    });
+    setName('');
+    setType('standard');
+    setSize('');
+    setSupplierId('');
+    setMinStock('');
+    setUnitCost('');
+    setPriceIncludesVat(true);
+    setVatRate('20');
+    setNotes('');
   };
 
   const openAddDialog = () => {
@@ -3564,18 +3584,15 @@ const LabelsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
 
   const openEditDialog = (l: DbLabel) => {
     setEditingLabel(l);
-    setFormData({
-      name: l.name,
-      type: l.type || 'standard',
-      size: l.size || '',
-      quantity: l.quantity || 0,
-      minStock: (l as any).min_stock?.toString() || '',
-      supplierId: l.supplier_id || '',
-      unitCost: (l as any).unit_cost?.toString() || '',
-      priceIncludesVat: (l as any).price_includes_vat ?? true,
-      vatRate: (l as any).vat_rate?.toString() || '20',
-      notes: l.notes || '',
-    });
+    setName(l.name || '');
+    setType(l.type || 'standard');
+    setSize(l.size || '');
+    setSupplierId(l.supplier_id || '');
+    setMinStock((l as any).min_stock?.toString() || '');
+    setUnitCost((l as any).unit_cost?.toString() || '');
+    setPriceIncludesVat((l as any).price_includes_vat ?? true);
+    setVatRate((l as any).vat_rate?.toString() || '20');
+    setNotes(l.notes || '');
     setIsDialogOpen(true);
   };
 
@@ -3584,35 +3601,38 @@ const LabelsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
     [labels]
   );
 
+  // Uloženie DEFINÍCIE typu — množstvo sa tu NEMENÍ (rieši Naskladniť/Inventúra)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim()) {
+    if (!name.trim()) {
       toast({ title: 'Chyba', description: 'Zadaj názov etikety.', variant: 'destructive' });
       return;
     }
     setSaving(true);
+
     const data: any = {
-      name: formData.name,
-      type: formData.type,
-      size: formData.size || null,
-      quantity: formData.quantity,
-      supplier_id: formData.supplierId || null,
-      notes: formData.notes || null,
-      min_stock: formData.minStock ? parseInt(formData.minStock) : null,
-      unit_cost: formData.unitCost ? parseFloat(formData.unitCost) : 0,
-      price_includes_vat: formData.priceIncludesVat,
-      vat_rate: formData.vatRate ? parseFloat(formData.vatRate) : 20,
+      name: name.trim(),
+      type: type || 'standard',
+      size: size || null,
+      supplier_id: supplierId || null,
+      notes: notes || null,
+      min_stock: minStock ? parseInt(minStock) : null,
+      unit_cost: unitCost ? parseFloat(unitCost) : 0,
+      price_includes_vat: priceIncludesVat,
+      vat_rate: vatRate ? parseFloat(vatRate) : 20,
     };
 
     try {
       if (editingLabel) {
+        // EDIT = len definícia, množstvo necháme nedotknuté
         const { error } = await update(editingLabel.id, data);
         if (error) throw error;
-        toast({ title: 'Aktualizované', description: `${formData.name} bola upravená.` });
+        toast({ title: 'Aktualizované', description: 'Typ etikety bol upravený.' });
       } else {
-        const { error } = await add(data);
+        // NOVÝ typ začína na 0 ks — sklad sa dopĺňa cez „Naskladniť"
+        const { error } = await add({ ...data, quantity: 0 });
         if (error) throw error;
-        toast({ title: 'Pridané', description: `${formData.name} bola pridaná do skladu.` });
+        toast({ title: 'Pridané', description: 'Nový typ etikety vytvorený. Sklad doplň cez „Naskladniť".' });
       }
       setIsDialogOpen(false);
       resetForm();
@@ -3627,12 +3647,121 @@ const LabelsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
     try {
       const { error } = await remove(id);
       if (error) throw error;
-      toast({ title: 'Zmazané', description: 'Etiketa bola odstránená.' });
+      toast({ title: 'Zmazané', description: 'Typ etikety bol odstránený.' });
       setDeleteId(null);
     } catch (err: any) {
       toast({ title: 'Chyba', description: err.message || 'Nepodarilo sa zmazať.', variant: 'destructive' });
     }
   };
+
+  // --- Naskladniť ---
+  const openReceipt = (l: DbLabel) => {
+    setReceiptFor(l);
+    setRcvQty('');
+    setRcvDate(today());
+    setRcvPrice('');
+    setRcvSupplier(l.supplier_id || '');
+    setRcvBatch('');
+    setRcvNotes('');
+  };
+
+  const handleReceipt = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!receiptFor) return;
+    const qty = parseInt(rcvQty);
+    if (!rcvQty || isNaN(qty) || qty <= 0) {
+      toast({ title: 'Chyba', description: 'Zadaj kladný počet kusov.', variant: 'destructive' });
+      return;
+    }
+    setRcvSaving(true);
+    try {
+      const { error } = await supabase.rpc('add_label_receipt', {
+        p_label_id: receiptFor.id,
+        p_quantity: qty,
+        p_occurred_on: rcvDate || today(),
+        p_unit_price: rcvPrice ? parseFloat(rcvPrice) : null,
+        p_supplier_id: rcvSupplier || null,
+        p_batch: rcvBatch || null,
+        p_notes: rcvNotes || null,
+      });
+      if (error) throw error;
+      await refetch();
+      toast({ title: 'Naskladnené', description: `Pridaných ${qty} ks.` });
+      setReceiptFor(null);
+    } catch (err: any) {
+      toast({ title: 'Chyba', description: err.message || 'Naskladnenie sa nepodarilo.', variant: 'destructive' });
+    } finally {
+      setRcvSaving(false);
+    }
+  };
+
+  // --- Inventúra ---
+  const openStocktake = (l: DbLabel) => {
+    setStocktakeFor(l);
+    setCounted('');
+    setStkDate(today());
+    setStkNotes('');
+  };
+
+  const handleStocktake = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stocktakeFor) return;
+    const cnt = parseInt(counted);
+    if (counted === '' || isNaN(cnt) || cnt < 0) {
+      toast({ title: 'Chyba', description: 'Zadaj napočítaný stav (0 alebo viac).', variant: 'destructive' });
+      return;
+    }
+    setStkSaving(true);
+    try {
+      const { error } = await supabase.rpc('set_label_stocktake', {
+        p_label_id: stocktakeFor.id,
+        p_counted: cnt,
+        p_occurred_on: stkDate || today(),
+        p_notes: stkNotes || null,
+      });
+      if (error) throw error;
+      await refetch();
+      toast({ title: 'Inventúra uložená', description: 'Stav bol upravený podľa napočítaného.' });
+      setStocktakeFor(null);
+    } catch (err: any) {
+      toast({ title: 'Chyba', description: err.message || 'Inventúra sa nepodarila.', variant: 'destructive' });
+    } finally {
+      setStkSaving(false);
+    }
+  };
+
+  // --- História pohybov ---
+  const openHistory = async (l: DbLabel) => {
+    setHistoryFor(l);
+    setLoadingHistory(true);
+    setMovements([]);
+    try {
+      const { data, error } = await supabase
+        .from('stock_movements')
+        .select('*')
+        .eq('item_kind', 'label')
+        .eq('item_id', l.id)
+        .order('occurred_on', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      setMovements(data || []);
+    } catch (err: any) {
+      toast({ title: 'Chyba', description: 'Nepodarilo sa načítať históriu.', variant: 'destructive' });
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const MOVEMENT_LABELS: Record<string, string> = {
+    receipt: 'Naskladnenie',
+    consumption: 'Spotreba',
+    adjustment: 'Inventúra',
+  };
+
+  const countedDiff = stocktakeFor && counted !== '' && !isNaN(parseInt(counted))
+    ? parseInt(counted) - (stocktakeFor.quantity || 0)
+    : null;
 
   return (
     <>
@@ -3641,16 +3770,16 @@ const LabelsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
       {labels.length === 0 ? (
         <EmptyTabState
           icon={Tag}
-          title="Žiadne etikety v sklade"
-          description="Pridaj prvú etiketu do skladu."
+          title="Žiadne typy etikiet"
+          description="Vytvor prvý typ etikety. Sklad doplníš cez Naskladniť."
           onAdd={isAdmin ? openAddDialog : undefined}
-          addLabel="Pridať etiketu"
+          addLabel="Pridať typ etikety"
         />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {labels.map(l => {
             const low = isLowStock(l.quantity, (l as any).min_stock);
-            const unitCost = (l as any).unit_cost;
+            const unitCostVal = (l as any).unit_cost;
             return (
               <div
                 key={l.id}
@@ -3682,7 +3811,7 @@ const LabelsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
 
                 <div className="space-y-1 text-xs">
                   <div className="flex items-center justify-between">
-                    <span className="text-[#475569]">Množstvo:</span>
+                    <span className="text-[#475569]">Na sklade:</span>
                     <span className="font-bold text-[#16a34a]">{formatNumber(l.quantity)} ks</span>
                   </div>
                   {(l as any).min_stock && (
@@ -3694,13 +3823,13 @@ const LabelsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                   {l.size && (
                     <div className="flex items-center justify-between">
                       <span className="text-[#475569]">Veľkosť:</span>
-                      <span className="text-[#0f172a]">{l.size}</span>
+                      <span className="text-[#0f172a] truncate ml-2">{l.size}</span>
                     </div>
                   )}
-                  {unitCost > 0 && (
+                  {unitCostVal > 0 && (
                     <div className="flex items-center justify-between">
                       <span className="text-[#475569]">Cena/ks:</span>
-                      <span className="text-[#0f172a]">{formatEur(unitCost)}</span>
+                      <span className="text-[#0f172a]">{formatEur(unitCostVal)}</span>
                     </div>
                   )}
                   {l.supplier_id && (
@@ -3718,37 +3847,61 @@ const LabelsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                   </div>
                 )}
 
-                {isAdmin && (
-                  <div className="flex items-center gap-2 pt-3 mt-3 border-t border-[#e2e8f0]">
+                <div className="pt-3 mt-3 border-t border-[#e2e8f0] space-y-2">
+                  {isAdmin && (
                     <button
-                      onClick={() => openEditDialog(l)}
-                      title="Upraviť"
-                      className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors"
+                      onClick={() => openReceipt(l)}
+                      className="w-full h-9 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-sm font-bold flex items-center justify-center gap-2 transition-colors"
                     >
-                      <Pencil className="h-3.5 w-3.5" />
+                      <PackagePlus className="h-4 w-4" /> Naskladniť
                     </button>
+                  )}
+                  <div className="flex items-center gap-2">
+                    {isAdmin && (
+                      <button
+                        onClick={() => openStocktake(l)}
+                        className="flex-1 h-9 rounded-lg border border-[#cbd5e1] text-[#2563eb] hover:bg-[#eff6ff] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <ClipboardCheck className="h-4 w-4" /> Inventúra
+                      </button>
+                    )}
                     <button
-                      onClick={() => setDeleteId(l.id)}
-                      title="Zmazať"
-                      className="w-7 h-7 rounded-lg border border-[#fecaca] bg-[#fef2f2] flex items-center justify-center text-[#dc2626] hover:bg-[#fee2e2] transition-colors"
+                      onClick={() => openHistory(l)}
+                      className="flex-1 h-9 rounded-lg border border-[#cbd5e1] text-[#475569] hover:bg-[#f8fafc] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <History className="h-4 w-4" /> História
                     </button>
                   </div>
-                )}
+                  {isAdmin && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => openEditDialog(l)}
+                        className="flex-1 h-9 rounded-lg border border-[#e2e8f0] text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <Pencil className="h-3.5 w-3.5" /> Upraviť
+                      </button>
+                      <button
+                        onClick={() => setDeleteId(l.id)}
+                        className="flex-1 h-9 rounded-lg border border-[#fecaca] bg-[#fef2f2] text-[#dc2626] hover:bg-[#fee2e2] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> Zmazať
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })}
         </div>
       )}
 
-      {/* Add/Edit Dialog */}
+      {/* ===== Definícia typu (Add/Edit) — bez množstva ===== */}
       <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) { setIsDialogOpen(false); resetForm(); } }}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto bg-white">
           <DialogHeader>
-            <DialogTitle className="text-[#0f172a]">{editingLabel ? 'Upraviť etiketu' : 'Pridať novú etiketu'}</DialogTitle>
+            <DialogTitle className="text-[#0f172a]">{editingLabel ? 'Upraviť typ etikety' : 'Nový typ etikety'}</DialogTitle>
             <DialogDescription className="text-[#475569]">
-              {editingLabel ? 'Uprav údaje o etikete.' : 'Vyplň údaje o etikete.'}
+              Definuj typ etikety. Množstvo na sklade sa nemení tu — rieši ho „Naskladniť" a „Inventúra".
             </DialogDescription>
           </DialogHeader>
 
@@ -3757,8 +3910,8 @@ const LabelsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
               <Label className="text-sm font-semibold text-[#374151]">Názov *</Label>
               <Input
                 type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 required
                 placeholder="napr. Etiketa Reďkovka červená"
                 className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
@@ -3768,7 +3921,7 @@ const LabelsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <Label className="text-sm font-semibold text-[#374151]">Typ</Label>
-                <Select value={formData.type} onValueChange={(v) => setFormData({ ...formData, type: v })}>
+                <Select value={type} onValueChange={setType}>
                   <SelectTrigger className="h-10 text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {Object.entries(LABEL_TYPES).map(([k, v]) => (
@@ -3781,38 +3934,25 @@ const LabelsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                 <Label className="text-sm font-semibold text-[#374151]">Veľkosť</Label>
                 <Input
                   type="text"
-                  value={formData.size}
-                  onChange={(e) => setFormData({ ...formData, size: e.target.value })}
+                  value={size}
+                  onChange={(e) => setSize(e.target.value)}
                   placeholder="napr. 50×30mm"
                   className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-sm font-semibold text-[#374151]">Množstvo (ks) *</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={formData.quantity === 0 ? '' : formData.quantity}
-                  onChange={(e) => setFormData({ ...formData, quantity: e.target.value === '' ? 0 : parseInt(e.target.value) })}
-                  required
-                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
-                />
-              </div>
-              <div>
-                <Label className="text-sm font-semibold text-[#374151]">Min. limit (ks)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={formData.minStock}
-                  onChange={(e) => setFormData({ ...formData, minStock: e.target.value })}
-                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
-                />
-              </div>
+            <div>
+              <Label className="text-sm font-semibold text-[#374151]">Min. limit (ks)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="1"
+                value={minStock}
+                onChange={(e) => setMinStock(e.target.value)}
+                placeholder="napr. 200"
+                className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -3822,8 +3962,8 @@ const LabelsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                   type="number"
                   step="0.01"
                   min="0"
-                  value={formData.unitCost}
-                  onChange={(e) => setFormData({ ...formData, unitCost: e.target.value })}
+                  value={unitCost}
+                  onChange={(e) => setUnitCost(e.target.value)}
                   className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
@@ -3834,8 +3974,8 @@ const LabelsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                   step="1"
                   min="0"
                   max="100"
-                  value={formData.vatRate}
-                  onChange={(e) => setFormData({ ...formData, vatRate: e.target.value })}
+                  value={vatRate}
+                  onChange={(e) => setVatRate(e.target.value)}
                   className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
@@ -3844,8 +3984,8 @@ const LabelsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={formData.priceIncludesVat}
-                onChange={(e) => setFormData({ ...formData, priceIncludesVat: e.target.checked })}
+                checked={priceIncludesVat}
+                onChange={(e) => setPriceIncludesVat(e.target.checked)}
                 className="h-4 w-4 rounded border-[#cbd5e1] text-[#16a34a] focus:ring-[#16a34a] focus:ring-offset-0 cursor-pointer"
               />
               <span className="text-sm text-[#0f172a]">Cena s DPH</span>
@@ -3853,7 +3993,7 @@ const LabelsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
 
             <div>
               <Label className="text-sm font-semibold text-[#374151]">Dodávateľ</Label>
-              <Select value={formData.supplierId} onValueChange={(v) => setFormData({ ...formData, supplierId: v })}>
+              <Select value={supplierId} onValueChange={setSupplierId}>
                 <SelectTrigger className="h-10 text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"><SelectValue placeholder="Vyber dodávateľa" /></SelectTrigger>
                 <SelectContent>
                   {suppliersList.map(s => (
@@ -3866,8 +4006,8 @@ const LabelsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
             <div>
               <Label className="text-sm font-semibold text-[#374151]">Poznámka</Label>
               <Textarea
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
                 rows={2}
                 className="resize-none text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
               />
@@ -3884,22 +4024,257 @@ const LabelsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
               </button>
               <button
                 type="submit"
-                disabled={saving || !formData.name.trim()}
+                disabled={saving || !name.trim()}
                 className="h-9 px-4 rounded-md bg-[#16a34a] hover:bg-[#15803d] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold flex items-center gap-2 transition-colors"
               >
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-                {editingLabel ? 'Uložiť' : 'Pridať'}
+                {editingLabel ? 'Uložiť' : 'Vytvoriť typ'}
               </button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
+      {/* ===== Naskladniť ===== */}
+      <Dialog open={receiptFor !== null} onOpenChange={(open) => { if (!open) setReceiptFor(null); }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-[#0f172a]">Naskladniť etikety</DialogTitle>
+            <DialogDescription className="text-[#475569]">
+              {receiptFor?.name} — aktuálne na sklade {formatNumber(receiptFor?.quantity || 0)} ks
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleReceipt} className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Počet (ks) *</Label>
+                <Input
+                  type="number" min="1" step="1" autoFocus
+                  value={rcvQty}
+                  onChange={(e) => setRcvQty(e.target.value)}
+                  required
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Dátum</Label>
+                <Input
+                  type="date"
+                  value={rcvDate}
+                  onChange={(e) => setRcvDate(e.target.value)}
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Cena/ks (€)</Label>
+                <Input
+                  type="number" step="0.01" min="0"
+                  value={rcvPrice}
+                  onChange={(e) => setRcvPrice(e.target.value)}
+                  placeholder="voliteľné"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Šarža</Label>
+                <Input
+                  type="text"
+                  value={rcvBatch}
+                  onChange={(e) => setRcvBatch(e.target.value)}
+                  placeholder="voliteľné"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-sm font-semibold text-[#374151]">Dodávateľ</Label>
+              <Select value={rcvSupplier} onValueChange={setRcvSupplier}>
+                <SelectTrigger className="h-10 text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"><SelectValue placeholder="Vyber dodávateľa" /></SelectTrigger>
+                <SelectContent>
+                  {suppliersList.map(s => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className="text-sm font-semibold text-[#374151]">Poznámka</Label>
+              <Textarea
+                value={rcvNotes}
+                onChange={(e) => setRcvNotes(e.target.value)}
+                rows={2}
+                className="resize-none text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+              />
+            </div>
+
+            <DialogFooter className="mt-4 gap-2">
+              <button
+                type="button"
+                onClick={() => setReceiptFor(null)}
+                disabled={rcvSaving}
+                className="h-9 px-4 rounded-md border border-[#e2e8f0] bg-white text-[#475569] hover:bg-[#f8fafc] text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                Zrušiť
+              </button>
+              <button
+                type="submit"
+                disabled={rcvSaving || !rcvQty}
+                className="h-9 px-4 rounded-md bg-[#16a34a] hover:bg-[#15803d] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold flex items-center gap-2 transition-colors"
+              >
+                {rcvSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                <PackagePlus className="h-4 w-4" /> Naskladniť
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== Inventúra ===== */}
+      <Dialog open={stocktakeFor !== null} onOpenChange={(open) => { if (!open) setStocktakeFor(null); }}>
+        <DialogContent className="max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-[#0f172a]">Inventúra</DialogTitle>
+            <DialogDescription className="text-[#475569]">
+              {stocktakeFor?.name} — systém eviduje {formatNumber(stocktakeFor?.quantity || 0)} ks
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleStocktake} className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Napočítaný stav (ks) *</Label>
+                <Input
+                  type="number" min="0" step="1" autoFocus
+                  value={counted}
+                  onChange={(e) => setCounted(e.target.value)}
+                  required
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Dátum</Label>
+                <Input
+                  type="date"
+                  value={stkDate}
+                  onChange={(e) => setStkDate(e.target.value)}
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+            </div>
+
+            {countedDiff !== null && countedDiff !== 0 && (
+              <div className={cn(
+                'text-xs font-semibold rounded-lg px-3 py-2 border',
+                countedDiff > 0 ? 'bg-[#f0fdf4] border-[#bbf7d0] text-[#166534]' : 'bg-[#fef2f2] border-[#fecaca] text-[#dc2626]'
+              )}>
+                Rozdiel oproti systému: {countedDiff > 0 ? '+' : ''}{formatNumber(countedDiff)} ks
+              </div>
+            )}
+
+            <div>
+              <Label className="text-sm font-semibold text-[#374151]">Poznámka</Label>
+              <Textarea
+                value={stkNotes}
+                onChange={(e) => setStkNotes(e.target.value)}
+                rows={2}
+                placeholder="napr. dôvod rozdielu"
+                className="resize-none text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+              />
+            </div>
+
+            <DialogFooter className="mt-4 gap-2">
+              <button
+                type="button"
+                onClick={() => setStocktakeFor(null)}
+                disabled={stkSaving}
+                className="h-9 px-4 rounded-md border border-[#e2e8f0] bg-white text-[#475569] hover:bg-[#f8fafc] text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                Zrušiť
+              </button>
+              <button
+                type="submit"
+                disabled={stkSaving || counted === ''}
+                className="h-9 px-4 rounded-md bg-[#2563eb] hover:bg-[#1d4ed8] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold flex items-center gap-2 transition-colors"
+              >
+                {stkSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                <ClipboardCheck className="h-4 w-4" /> Uložiť inventúru
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== História pohybov ===== */}
+      <Dialog open={historyFor !== null} onOpenChange={(open) => { if (!open) { setHistoryFor(null); setMovements([]); } }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-[#0f172a]">História pohybov</DialogTitle>
+            <DialogDescription className="text-[#475569]">
+              {historyFor?.name} — aktuálne {formatNumber(historyFor?.quantity || 0)} ks
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingHistory ? (
+            <div className="py-8 text-center text-sm text-[#64748b]">Načítavam…</div>
+          ) : movements.length === 0 ? (
+            <div className="py-8 text-center text-sm text-[#64748b]">Zatiaľ žiadne pohyby.</div>
+          ) : (
+            <div className="space-y-2">
+              {movements.map((m) => (
+                <div key={m.id} className="flex items-center justify-between gap-2 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] px-3 py-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={cn(
+                        'inline-flex items-center h-5 px-1.5 rounded-full text-[10px] font-bold',
+                        m.movement_type === 'receipt' ? 'bg-[#dcfce7] text-[#166534]'
+                          : m.movement_type === 'consumption' ? 'bg-[#fef2f2] text-[#dc2626]'
+                          : 'bg-[#dbeafe] text-[#1e40af]'
+                      )}>
+                        {MOVEMENT_LABELS[m.movement_type] || m.movement_type}
+                      </span>
+                      <span className="text-[11px] text-[#64748b]">{formatDate(m.occurred_on)}</span>
+                    </div>
+                    {m.notes && <p className="text-[11px] text-[#475569] mt-0.5 truncate">{m.notes}</p>}
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className={cn('text-sm font-bold', m.quantity_delta >= 0 ? 'text-[#16a34a]' : 'text-[#dc2626]')}>
+                      {m.quantity_delta > 0 ? '+' : ''}{formatNumber(m.quantity_delta)} ks
+                    </div>
+                    {m.balance_after != null && (
+                      <div className="text-[10px] text-[#64748b]">stav: {formatNumber(m.balance_after)} ks</div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <DialogFooter className="mt-4">
+            <button
+              type="button"
+              onClick={() => { setHistoryFor(null); setMovements([]); }}
+              className="h-9 px-4 rounded-md border border-[#e2e8f0] bg-white text-[#475569] hover:bg-[#f8fafc] text-sm font-semibold transition-colors"
+            >
+              Zavrieť
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirm */}
       <AlertDialog open={deleteId !== null} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Zmazať etiketu?</AlertDialogTitle>
-            <AlertDialogDescription>Táto akcia je nevratná.</AlertDialogDescription>
+            <AlertDialogTitle>Zmazať typ etikety?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Zmaže sa definícia typu aj jeho stav a história pohybov. Táto akcia je nevratná.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Zrušiť</AlertDialogCancel>
@@ -3926,24 +4301,53 @@ interface ConsumablesTabProps {
 }
 
 const ConsumablesTab = ({ isAdmin, isMobile, toast }: ConsumablesTabProps) => {
+  const { data: suppliersList } = useSuppliers();
+  const getSupplierName = (id: string | null | undefined) =>
+    suppliersList.find(s => s.id === id)?.name || '';
+
   const [items, setItems] = useState<ConsumableItem[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const today = () => new Date().toISOString().split('T')[0];
+  const fmtAmt = (val: number, unit?: string | null) =>
+    (unit === 'kg' ? formatKg(val) : `${formatNumber(val)} ${unit || ''}`).trim();
+
+  // --- Definícia položky (Pridať/Upraviť) — BEZ množstva ---
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ConsumableItem | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Form
   const [category, setCategory] = useState('');
   const [name, setName] = useState('');
-  const [quantity, setQuantity] = useState('');
   const [unit, setUnit] = useState('');
   const [minQuantity, setMinQuantity] = useState('');
   const [unitCost, setUnitCost] = useState('');
   const [priceIncludesVat, setPriceIncludesVat] = useState(true);
   const [vatRate, setVatRate] = useState('20');
   const [notes, setNotes] = useState('');
+
+  // --- Naskladniť ---
+  const [receiptFor, setReceiptFor] = useState<ConsumableItem | null>(null);
+  const [rcvQty, setRcvQty] = useState('');
+  const [rcvDate, setRcvDate] = useState(today());
+  const [rcvPrice, setRcvPrice] = useState('');
+  const [rcvSupplier, setRcvSupplier] = useState('');
+  const [rcvBatch, setRcvBatch] = useState('');
+  const [rcvNotes, setRcvNotes] = useState('');
+  const [rcvSaving, setRcvSaving] = useState(false);
+
+  // --- Inventúra ---
+  const [stocktakeFor, setStocktakeFor] = useState<ConsumableItem | null>(null);
+  const [counted, setCounted] = useState('');
+  const [stkDate, setStkDate] = useState(today());
+  const [stkNotes, setStkNotes] = useState('');
+  const [stkSaving, setStkSaving] = useState(false);
+
+  // --- História ---
+  const [historyFor, setHistoryFor] = useState<ConsumableItem | null>(null);
+  const [movements, setMovements] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -3978,7 +4382,6 @@ const ConsumablesTab = ({ isAdmin, isMobile, toast }: ConsumablesTabProps) => {
     setEditingItem(null);
     setCategory('');
     setName('');
-    setQuantity('');
     setUnit('');
     setMinQuantity('');
     setUnitCost('');
@@ -3996,7 +4399,6 @@ const ConsumablesTab = ({ isAdmin, isMobile, toast }: ConsumablesTabProps) => {
     setEditingItem(item);
     setCategory(item.category);
     setName(item.name);
-    setQuantity(item.quantity.toString());
     setUnit(item.unit);
     setMinQuantity(item.min_quantity?.toString() || '');
     setUnitCost((item as any).unit_cost?.toString() || '');
@@ -4021,24 +4423,19 @@ const ConsumablesTab = ({ isAdmin, isMobile, toast }: ConsumablesTabProps) => {
     [items]
   );
 
+  // Uloženie DEFINÍCIE položky — množstvo sa tu NEMENÍ (rieši Naskladniť/Inventúra)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!category || !name || !quantity || !unit) {
-      toast({ title: 'Chyba', description: 'Vyplň všetky povinné polia.', variant: 'destructive' });
-      return;
-    }
-    const qNum = parseFloat(quantity);
-    if (isNaN(qNum) || qNum < 0) {
-      toast({ title: 'Chyba', description: 'Zadaj platné množstvo.', variant: 'destructive' });
+    if (!category.trim() || !name.trim() || !unit.trim()) {
+      toast({ title: 'Chyba', description: 'Vyplň kategóriu, názov a jednotku.', variant: 'destructive' });
       return;
     }
     setSaving(true);
 
     const itemData: any = {
-      category,
-      name,
-      quantity: qNum,
-      unit,
+      category: category.trim(),
+      name: name.trim(),
+      unit: unit.trim(),
       min_quantity: minQuantity ? parseFloat(minQuantity) : null,
       unit_cost: unitCost ? parseFloat(unitCost) : 0,
       price_includes_vat: priceIncludesVat,
@@ -4048,6 +4445,7 @@ const ConsumablesTab = ({ isAdmin, isMobile, toast }: ConsumablesTabProps) => {
 
     try {
       if (editingItem) {
+        // EDIT = len definícia, stav (quantity) necháme nedotknutý
         const { error } = await supabase
           .from('consumable_inventory')
           .update(itemData)
@@ -4055,11 +4453,12 @@ const ConsumablesTab = ({ isAdmin, isMobile, toast }: ConsumablesTabProps) => {
         if (error) throw error;
         toast({ title: 'Aktualizované', description: 'Položka bola upravená.' });
       } else {
+        // NOVÁ položka začína na 0 — sklad sa dopĺňa cez „Naskladniť"
         const { error } = await supabase
           .from('consumable_inventory')
-          .insert([itemData]);
+          .insert([{ ...itemData, quantity: 0 }]);
         if (error) throw error;
-        toast({ title: 'Pridané', description: 'Položka bola pridaná.' });
+        toast({ title: 'Pridané', description: 'Nová položka vytvorená. Sklad doplň cez „Naskladniť".' });
       }
       setIsDialogOpen(false);
       resetForm();
@@ -4083,6 +4482,115 @@ const ConsumablesTab = ({ isAdmin, isMobile, toast }: ConsumablesTabProps) => {
     }
   };
 
+  // --- Naskladniť ---
+  const openReceipt = (item: ConsumableItem) => {
+    setReceiptFor(item);
+    setRcvQty('');
+    setRcvDate(today());
+    setRcvPrice('');
+    setRcvSupplier('');
+    setRcvBatch('');
+    setRcvNotes('');
+  };
+
+  const handleReceipt = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!receiptFor) return;
+    const qty = parseFloat(rcvQty);
+    if (!rcvQty || isNaN(qty) || qty <= 0) {
+      toast({ title: 'Chyba', description: 'Zadaj kladné množstvo.', variant: 'destructive' });
+      return;
+    }
+    setRcvSaving(true);
+    try {
+      const { error } = await supabase.rpc('add_consumable_receipt', {
+        p_consumable_id: receiptFor.id,
+        p_quantity: qty,
+        p_occurred_on: rcvDate || today(),
+        p_unit_price: rcvPrice ? parseFloat(rcvPrice) : null,
+        p_supplier_id: rcvSupplier || null,
+        p_batch: rcvBatch || null,
+        p_notes: rcvNotes || null,
+      });
+      if (error) throw error;
+      await fetchData();
+      toast({ title: 'Naskladnené', description: `Pridané ${fmtAmt(qty, receiptFor.unit)}.` });
+      setReceiptFor(null);
+    } catch (err: any) {
+      toast({ title: 'Chyba', description: err.message || 'Naskladnenie sa nepodarilo.', variant: 'destructive' });
+    } finally {
+      setRcvSaving(false);
+    }
+  };
+
+  // --- Inventúra ---
+  const openStocktake = (item: ConsumableItem) => {
+    setStocktakeFor(item);
+    setCounted('');
+    setStkDate(today());
+    setStkNotes('');
+  };
+
+  const handleStocktake = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stocktakeFor) return;
+    const cnt = parseFloat(counted);
+    if (counted === '' || isNaN(cnt) || cnt < 0) {
+      toast({ title: 'Chyba', description: 'Zadaj napočítaný stav (0 alebo viac).', variant: 'destructive' });
+      return;
+    }
+    setStkSaving(true);
+    try {
+      const { error } = await supabase.rpc('set_consumable_stocktake', {
+        p_consumable_id: stocktakeFor.id,
+        p_counted: cnt,
+        p_occurred_on: stkDate || today(),
+        p_notes: stkNotes || null,
+      });
+      if (error) throw error;
+      await fetchData();
+      toast({ title: 'Inventúra uložená', description: 'Stav bol upravený podľa napočítaného.' });
+      setStocktakeFor(null);
+    } catch (err: any) {
+      toast({ title: 'Chyba', description: err.message || 'Inventúra sa nepodarila.', variant: 'destructive' });
+    } finally {
+      setStkSaving(false);
+    }
+  };
+
+  // --- História ---
+  const openHistory = async (item: ConsumableItem) => {
+    setHistoryFor(item);
+    setLoadingHistory(true);
+    setMovements([]);
+    try {
+      const { data, error } = await supabase
+        .from('stock_movements')
+        .select('*')
+        .eq('item_kind', 'consumable')
+        .eq('item_id', item.id)
+        .order('occurred_on', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      setMovements(data || []);
+    } catch (err: any) {
+      toast({ title: 'Chyba', description: 'Nepodarilo sa načítať históriu.', variant: 'destructive' });
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const MOVEMENT_LABELS: Record<string, string> = {
+    receipt: 'Naskladnenie',
+    consumption: 'Spotreba',
+    adjustment: 'Inventúra',
+  };
+
+  const countedDiff = stocktakeFor && counted !== '' && !isNaN(parseFloat(counted))
+    ? parseFloat(counted) - (stocktakeFor.quantity || 0)
+    : null;
+
   if (loading) return <TabSkeleton />;
 
   return (
@@ -4093,7 +4601,7 @@ const ConsumablesTab = ({ isAdmin, isMobile, toast }: ConsumablesTabProps) => {
         <EmptyTabState
           icon={ShoppingBag}
           title="Žiadny spotrebný materiál"
-          description="Pridaj prvú položku spotrebného materiálu."
+          description="Vytvor prvú položku. Sklad doplníš cez Naskladniť."
           onAdd={isAdmin ? openAddDialog : undefined}
           addLabel="Pridať položku"
         />
@@ -4114,55 +4622,78 @@ const ConsumablesTab = ({ isAdmin, isMobile, toast }: ConsumablesTabProps) => {
                     <div
                       key={item.id}
                       className={cn(
-                        'px-4 py-3 flex items-start gap-3 transition-colors',
+                        'px-4 py-3 transition-colors',
                         low && 'bg-[#fef2f2]'
                       )}
                     >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-sm text-[#0f172a]">{item.name}</span>
-                          {low && (
-                            <span className="inline-flex items-center h-5 px-1.5 rounded-full bg-[#fef2f2] text-[#dc2626] text-[10px] font-bold border border-[#fecaca]">
-                              NÍZKE ZÁSOBY
-                            </span>
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-sm text-[#0f172a]">{item.name}</span>
+                            {low && (
+                              <span className="inline-flex items-center h-5 px-1.5 rounded-full bg-[#fef2f2] text-[#dc2626] text-[10px] font-bold border border-[#fecaca]">
+                                NÍZKE ZÁSOBY
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-[#475569] mt-0.5">
+                            <span className="font-bold text-[#16a34a]">{fmtAmt(item.quantity, item.unit)}</span>
+                            {item.min_quantity != null && (
+                              <> • min. {fmtAmt(item.min_quantity, item.unit)}</>
+                            )}
+                            {unitCostVal > 0 && <> • {formatEur(unitCostVal)}/{item.unit}</>}
+                          </p>
+                          {item.notes && (
+                            <div className="flex items-start gap-1.5 mt-1 text-xs text-[#475569]">
+                              <StickyNote className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                              <span className="line-clamp-2">{item.notes}</span>
+                            </div>
                           )}
                         </div>
-                        <p className="text-xs text-[#475569] mt-0.5">
-                          {item.unit === 'kg' ? (
-                            <span className="font-bold text-[#16a34a]">{formatKg(item.quantity)}</span>
-                          ) : (
-                            <><span className="font-bold text-[#16a34a]">{formatNumber(item.quantity)}</span> {item.unit}</>
-                          )}
-                          {item.min_quantity != null && (
-                            <> • min. {item.unit === 'kg' ? formatKg(item.min_quantity) : `${formatNumber(item.min_quantity)} ${item.unit}`}</>
-                          )}
-                          {unitCostVal > 0 && <> • {formatEur(unitCostVal)}/{item.unit}</>}
-                        </p>
-                        {item.notes && (
-                          <div className="flex items-start gap-1.5 mt-1 text-xs text-[#475569]">
-                            <StickyNote className="h-3 w-3 mt-0.5 flex-shrink-0" />
-                            <span className="line-clamp-2">{item.notes}</span>
-                          </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 mt-3">
+                        {isAdmin && (
+                          <button
+                            onClick={() => openReceipt(item)}
+                            className="h-9 px-3 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                          >
+                            <PackagePlus className="h-4 w-4" /> Naskladniť
+                          </button>
+                        )}
+                        {isAdmin && (
+                          <button
+                            onClick={() => openStocktake(item)}
+                            className="h-9 px-3 rounded-lg border border-[#cbd5e1] text-[#2563eb] hover:bg-[#eff6ff] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                          >
+                            <ClipboardCheck className="h-4 w-4" /> Inventúra
+                          </button>
+                        )}
+                        <button
+                          onClick={() => openHistory(item)}
+                          className="h-9 px-3 rounded-lg border border-[#cbd5e1] text-[#475569] hover:bg-[#f8fafc] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                        >
+                          <History className="h-4 w-4" /> História
+                        </button>
+                        {isAdmin && (
+                          <>
+                            <button
+                              onClick={() => openEditDialog(item)}
+                              title="Upraviť"
+                              className="h-9 w-9 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors ml-auto"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setDeleteId(item.id)}
+                              title="Zmazať"
+                              className="h-9 w-9 rounded-lg border border-[#fecaca] bg-[#fef2f2] flex items-center justify-center text-[#dc2626] hover:bg-[#fee2e2] transition-colors"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </>
                         )}
                       </div>
-                      {isAdmin && (
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <button
-                            onClick={() => openEditDialog(item)}
-                            title="Upraviť"
-                            className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteId(item.id)}
-                            title="Zmazať"
-                            className="w-7 h-7 rounded-lg border border-[#fecaca] bg-[#fef2f2] flex items-center justify-center text-[#dc2626] hover:bg-[#fee2e2] transition-colors"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      )}
                     </div>
                   );
                 })}
@@ -4172,13 +4703,13 @@ const ConsumablesTab = ({ isAdmin, isMobile, toast }: ConsumablesTabProps) => {
         </div>
       )}
 
-      {/* Add/Edit Dialog */}
+      {/* ===== Definícia položky (Add/Edit) — bez množstva ===== */}
       <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) { setIsDialogOpen(false); resetForm(); } }}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto bg-white">
           <DialogHeader>
-            <DialogTitle className="text-[#0f172a]">{editingItem ? 'Upraviť položku' : 'Pridať novú položku'}</DialogTitle>
+            <DialogTitle className="text-[#0f172a]">{editingItem ? 'Upraviť položku' : 'Nová položka'}</DialogTitle>
             <DialogDescription className="text-[#475569]">
-              {editingItem ? 'Uprav údaje o položke.' : 'Vyplň údaje o spotrebnom materiáli.'}
+              Definuj položku. Množstvo na sklade sa nemení tu — rieši ho „Naskladniť" a „Inventúra".
             </DialogDescription>
           </DialogHeader>
 
@@ -4213,19 +4744,7 @@ const ConsumablesTab = ({ isAdmin, isMobile, toast }: ConsumablesTabProps) => {
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
-              <div className="col-span-2">
-                <Label className="text-sm font-semibold text-[#374151]">Množstvo *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  required
-                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
-                />
-              </div>
+            <div className="grid grid-cols-2 gap-2">
               <div>
                 <Label className="text-sm font-semibold text-[#374151]">Jednotka *</Label>
                 <Input
@@ -4237,18 +4756,17 @@ const ConsumablesTab = ({ isAdmin, isMobile, toast }: ConsumablesTabProps) => {
                   className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
                 />
               </div>
-            </div>
-
-            <div>
-              <Label className="text-sm font-semibold text-[#374151]">Min. množstvo</Label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                value={minQuantity}
-                onChange={(e) => setMinQuantity(e.target.value)}
-                className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
-              />
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Min. množstvo</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={minQuantity}
+                  onChange={(e) => setMinQuantity(e.target.value)}
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -4308,14 +4826,246 @@ const ConsumablesTab = ({ isAdmin, isMobile, toast }: ConsumablesTabProps) => {
               </button>
               <button
                 type="submit"
-                disabled={saving || !category || !name || !quantity || !unit}
+                disabled={saving || !category.trim() || !name.trim() || !unit.trim()}
                 className="h-9 px-4 rounded-md bg-[#16a34a] hover:bg-[#15803d] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold flex items-center gap-2 transition-colors"
               >
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-                {editingItem ? 'Uložiť' : 'Pridať'}
+                {editingItem ? 'Uložiť' : 'Vytvoriť položku'}
               </button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== Naskladniť ===== */}
+      <Dialog open={receiptFor !== null} onOpenChange={(open) => { if (!open) setReceiptFor(null); }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-[#0f172a]">Naskladniť položku</DialogTitle>
+            <DialogDescription className="text-[#475569]">
+              {receiptFor?.name} — aktuálne na sklade {fmtAmt(receiptFor?.quantity || 0, receiptFor?.unit)}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleReceipt} className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Množstvo ({receiptFor?.unit || 'ks'}) *</Label>
+                <Input
+                  type="number" min="0" step="0.01" autoFocus
+                  value={rcvQty}
+                  onChange={(e) => setRcvQty(e.target.value)}
+                  required
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Dátum</Label>
+                <Input
+                  type="date"
+                  value={rcvDate}
+                  onChange={(e) => setRcvDate(e.target.value)}
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Cena/jednotka (€)</Label>
+                <Input
+                  type="number" step="0.01" min="0"
+                  value={rcvPrice}
+                  onChange={(e) => setRcvPrice(e.target.value)}
+                  placeholder="voliteľné"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Šarža</Label>
+                <Input
+                  type="text"
+                  value={rcvBatch}
+                  onChange={(e) => setRcvBatch(e.target.value)}
+                  placeholder="voliteľné"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-sm font-semibold text-[#374151]">Dodávateľ</Label>
+              <Select value={rcvSupplier} onValueChange={setRcvSupplier}>
+                <SelectTrigger className="h-10 text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"><SelectValue placeholder="Vyber dodávateľa" /></SelectTrigger>
+                <SelectContent>
+                  {suppliersList.map(s => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className="text-sm font-semibold text-[#374151]">Poznámka</Label>
+              <Textarea
+                value={rcvNotes}
+                onChange={(e) => setRcvNotes(e.target.value)}
+                rows={2}
+                className="resize-none text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+              />
+            </div>
+
+            <DialogFooter className="mt-4 gap-2">
+              <button
+                type="button"
+                onClick={() => setReceiptFor(null)}
+                disabled={rcvSaving}
+                className="h-9 px-4 rounded-md border border-[#e2e8f0] bg-white text-[#475569] hover:bg-[#f8fafc] text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                Zrušiť
+              </button>
+              <button
+                type="submit"
+                disabled={rcvSaving || !rcvQty}
+                className="h-9 px-4 rounded-md bg-[#16a34a] hover:bg-[#15803d] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold flex items-center gap-2 transition-colors"
+              >
+                {rcvSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                <PackagePlus className="h-4 w-4" /> Naskladniť
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== Inventúra ===== */}
+      <Dialog open={stocktakeFor !== null} onOpenChange={(open) => { if (!open) setStocktakeFor(null); }}>
+        <DialogContent className="max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-[#0f172a]">Inventúra</DialogTitle>
+            <DialogDescription className="text-[#475569]">
+              {stocktakeFor?.name} — systém eviduje {fmtAmt(stocktakeFor?.quantity || 0, stocktakeFor?.unit)}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleStocktake} className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Napočítaný stav ({stocktakeFor?.unit || 'ks'}) *</Label>
+                <Input
+                  type="number" min="0" step="0.01" autoFocus
+                  value={counted}
+                  onChange={(e) => setCounted(e.target.value)}
+                  required
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Dátum</Label>
+                <Input
+                  type="date"
+                  value={stkDate}
+                  onChange={(e) => setStkDate(e.target.value)}
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+            </div>
+
+            {countedDiff !== null && countedDiff !== 0 && (
+              <div className={cn(
+                'text-xs font-semibold rounded-lg px-3 py-2 border',
+                countedDiff > 0 ? 'bg-[#f0fdf4] border-[#bbf7d0] text-[#166534]' : 'bg-[#fef2f2] border-[#fecaca] text-[#dc2626]'
+              )}>
+                Rozdiel oproti systému: {countedDiff > 0 ? '+' : ''}{fmtAmt(countedDiff, stocktakeFor?.unit)}
+              </div>
+            )}
+
+            <div>
+              <Label className="text-sm font-semibold text-[#374151]">Poznámka</Label>
+              <Textarea
+                value={stkNotes}
+                onChange={(e) => setStkNotes(e.target.value)}
+                rows={2}
+                placeholder="napr. dôvod rozdielu"
+                className="resize-none text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+              />
+            </div>
+
+            <DialogFooter className="mt-4 gap-2">
+              <button
+                type="button"
+                onClick={() => setStocktakeFor(null)}
+                disabled={stkSaving}
+                className="h-9 px-4 rounded-md border border-[#e2e8f0] bg-white text-[#475569] hover:bg-[#f8fafc] text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                Zrušiť
+              </button>
+              <button
+                type="submit"
+                disabled={stkSaving || counted === ''}
+                className="h-9 px-4 rounded-md bg-[#2563eb] hover:bg-[#1d4ed8] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold flex items-center gap-2 transition-colors"
+              >
+                {stkSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                <ClipboardCheck className="h-4 w-4" /> Uložiť inventúru
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== História pohybov ===== */}
+      <Dialog open={historyFor !== null} onOpenChange={(open) => { if (!open) { setHistoryFor(null); setMovements([]); } }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-[#0f172a]">História pohybov</DialogTitle>
+            <DialogDescription className="text-[#475569]">
+              {historyFor?.name} — aktuálne {fmtAmt(historyFor?.quantity || 0, historyFor?.unit)}
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingHistory ? (
+            <div className="py-8 text-center text-sm text-[#64748b]">Načítavam…</div>
+          ) : movements.length === 0 ? (
+            <div className="py-8 text-center text-sm text-[#64748b]">Zatiaľ žiadne pohyby.</div>
+          ) : (
+            <div className="space-y-2">
+              {movements.map((m) => (
+                <div key={m.id} className="flex items-center justify-between gap-2 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] px-3 py-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={cn(
+                        'inline-flex items-center h-5 px-1.5 rounded-full text-[10px] font-bold',
+                        m.movement_type === 'receipt' ? 'bg-[#dcfce7] text-[#166534]'
+                          : m.movement_type === 'consumption' ? 'bg-[#fef2f2] text-[#dc2626]'
+                          : 'bg-[#dbeafe] text-[#1e40af]'
+                      )}>
+                        {MOVEMENT_LABELS[m.movement_type] || m.movement_type}
+                      </span>
+                      <span className="text-[11px] text-[#64748b]">{formatDate(m.occurred_on)}</span>
+                    </div>
+                    {m.notes && <p className="text-[11px] text-[#475569] mt-0.5 truncate">{m.notes}</p>}
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className={cn('text-sm font-bold', m.quantity_delta >= 0 ? 'text-[#16a34a]' : 'text-[#dc2626]')}>
+                      {m.quantity_delta > 0 ? '+' : ''}{fmtAmt(m.quantity_delta, historyFor?.unit)}
+                    </div>
+                    {m.balance_after != null && (
+                      <div className="text-[10px] text-[#64748b]">stav: {fmtAmt(m.balance_after, historyFor?.unit)}</div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <DialogFooter className="mt-4">
+            <button
+              type="button"
+              onClick={() => { setHistoryFor(null); setMovements([]); }}
+              className="h-9 px-4 rounded-md border border-[#e2e8f0] bg-white text-[#475569] hover:bg-[#f8fafc] text-sm font-semibold transition-colors"
+            >
+              Zavrieť
+            </button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -4323,7 +5073,9 @@ const ConsumablesTab = ({ isAdmin, isMobile, toast }: ConsumablesTabProps) => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Zmazať položku?</AlertDialogTitle>
-            <AlertDialogDescription>Táto akcia je nevratná.</AlertDialogDescription>
+            <AlertDialogDescription>
+              Zmaže sa definícia položky aj jej stav a história pohybov. Táto akcia je nevratná.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Zrušiť</AlertDialogCancel>
