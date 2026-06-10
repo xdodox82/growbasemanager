@@ -74,6 +74,9 @@ import {
   Wheat,
   ChevronDown,
   ChevronRight,
+  PackagePlus,
+  ClipboardCheck,
+  History,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { sk } from 'date-fns/locale';
@@ -1462,29 +1465,48 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
 // ===================== PACKAGING TAB =====================
 
 const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
-  const { data: packagings, add, update, remove } = usePackagings();
+  const { data: packagings, add, update, remove, refetch } = usePackagings();
   const { data: suppliersList } = useSuppliers();
 
-  // Dialog state
+  const today = () => new Date().toISOString().split('T')[0];
+
+  // --- Definícia typu (Pridať/Upraviť) — BEZ množstva, množstvo sa rieši cez Naskladniť/Inventúru ---
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPackaging, setEditingPackaging] = useState<DbPackaging | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Form state
-  const [name, setName] = useState('');
   const [type, setType] = useState<string>('');
-  // Nový pole — materiál obalu (rPET, PET, EKO, Papier, Iný).
-  // Vyžaduje DB migráciu: ALTER TABLE packagings ADD COLUMN packaging_type text;
   const [packagingType, setPackagingType] = useState<string>('');
   const [size, setSize] = useState('');
   const [supplierId, setSupplierId] = useState('');
-  const [quantity, setQuantity] = useState('');
   const [minStock, setMinStock] = useState('');
   const [pricePerPiece, setPricePerPiece] = useState('');
   const [priceIncludesVat, setPriceIncludesVat] = useState(true);
   const [vatRate, setVatRate] = useState('20');
   const [notes, setNotes] = useState('');
+
+  // --- Naskladniť (várka) ---
+  const [receiptFor, setReceiptFor] = useState<DbPackaging | null>(null);
+  const [rcvQty, setRcvQty] = useState('');
+  const [rcvDate, setRcvDate] = useState(today());
+  const [rcvPrice, setRcvPrice] = useState('');
+  const [rcvSupplier, setRcvSupplier] = useState('');
+  const [rcvBatch, setRcvBatch] = useState('');
+  const [rcvNotes, setRcvNotes] = useState('');
+  const [rcvSaving, setRcvSaving] = useState(false);
+
+  // --- Inventúra ---
+  const [stocktakeFor, setStocktakeFor] = useState<DbPackaging | null>(null);
+  const [counted, setCounted] = useState('');
+  const [stkDate, setStkDate] = useState(today());
+  const [stkNotes, setStkNotes] = useState('');
+  const [stkSaving, setStkSaving] = useState(false);
+
+  // --- História pohybov ---
+  const [historyFor, setHistoryFor] = useState<DbPackaging | null>(null);
+  const [movements, setMovements] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   // Listen for header "+" event
   useEffect(() => {
@@ -1496,12 +1518,10 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
 
   const resetForm = () => {
     setEditingPackaging(null);
-    setName('');
     setType('');
     setPackagingType('');
     setSize('');
     setSupplierId('');
-    setQuantity('');
     setMinStock('');
     setPricePerPiece('');
     setPriceIncludesVat(true);
@@ -1516,12 +1536,10 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
 
   const openEditDialog = (p: DbPackaging) => {
     setEditingPackaging(p);
-    setName(p.name || '');
     setType(p.type || '');
     setPackagingType((p as any).packaging_type || '');
     setSize(p.size || '');
     setSupplierId(p.supplier_id || '');
-    setQuantity(p.quantity?.toString() || '');
     setMinStock((p as any).min_stock?.toString() || '');
     setPricePerPiece((p as any).price_per_piece?.toString() || '');
     setPriceIncludesVat((p as any).price_includes_vat ?? true);
@@ -1529,6 +1547,10 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
     setNotes(p.notes || '');
     setIsDialogOpen(true);
   };
+
+  // Názov typu sa neukladá ručne — odvodíme ho z veľkosti + materiálu (napr. "750ml rPET")
+  const buildName = () =>
+    [size, packagingType].map(s => (s || '').trim()).filter(Boolean).join(' ') || 'Obal';
 
   // Sort by size
   const sortedPackagings = useMemo(() => {
@@ -1559,25 +1581,21 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
     [packagings]
   );
 
+  // Uloženie DEFINÍCIE typu — množstvo sa tu NEMENÍ (rieši Naskladniť/Inventúra)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
-      toast({ title: 'Chyba', description: 'Zadaj názov obalu.', variant: 'destructive' });
-      return;
-    }
-    if (!quantity || isNaN(parseInt(quantity))) {
-      toast({ title: 'Chyba', description: 'Zadaj platné množstvo.', variant: 'destructive' });
+    if (!size) {
+      toast({ title: 'Chyba', description: 'Vyber veľkosť obalu.', variant: 'destructive' });
       return;
     }
     setSaving(true);
 
     const data: any = {
-      name: name.trim(),
+      name: buildName(),
       type: type || null,
       packaging_type: packagingType || null,
       size: size || null,
       supplier_id: supplierId || null,
-      quantity: parseInt(quantity),
       notes: notes || null,
       min_stock: minStock ? parseInt(minStock) : null,
       price_per_piece: pricePerPiece ? parseFloat(pricePerPiece) : 0,
@@ -1587,13 +1605,15 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
 
     try {
       if (editingPackaging) {
+        // EDIT = len definícia, množstvo necháme nedotknuté
         const { error } = await update(editingPackaging.id, data);
         if (error) throw error;
-        toast({ title: 'Aktualizované', description: 'Obal bol aktualizovaný.' });
+        toast({ title: 'Aktualizované', description: 'Typ obalu bol upravený.' });
       } else {
-        const { error } = await add(data);
+        // NOVÝ typ začína na 0 ks — sklad sa dopĺňa cez „Naskladniť"
+        const { error } = await add({ ...data, quantity: 0 });
         if (error) throw error;
-        toast({ title: 'Pridané', description: 'Obal bol pridaný do skladu.' });
+        toast({ title: 'Pridané', description: 'Nový typ obalu vytvorený. Sklad doplň cez „Naskladniť".' });
       }
       setIsDialogOpen(false);
       resetForm();
@@ -1608,12 +1628,121 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
     try {
       const { error } = await remove(id);
       if (error) throw error;
-      toast({ title: 'Zmazané', description: 'Obal bol odstránený.' });
+      toast({ title: 'Zmazané', description: 'Typ obalu bol odstránený.' });
       setDeleteId(null);
     } catch (err: any) {
       toast({ title: 'Chyba', description: err.message || 'Nepodarilo sa zmazať.', variant: 'destructive' });
     }
   };
+
+  // --- Naskladniť ---
+  const openReceipt = (p: DbPackaging) => {
+    setReceiptFor(p);
+    setRcvQty('');
+    setRcvDate(today());
+    setRcvPrice('');
+    setRcvSupplier(p.supplier_id || '');
+    setRcvBatch('');
+    setRcvNotes('');
+  };
+
+  const handleReceipt = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!receiptFor) return;
+    const qty = parseInt(rcvQty);
+    if (!rcvQty || isNaN(qty) || qty <= 0) {
+      toast({ title: 'Chyba', description: 'Zadaj kladný počet kusov.', variant: 'destructive' });
+      return;
+    }
+    setRcvSaving(true);
+    try {
+      const { error } = await supabase.rpc('add_packaging_receipt', {
+        p_packaging_id: receiptFor.id,
+        p_quantity: qty,
+        p_occurred_on: rcvDate || today(),
+        p_unit_price: rcvPrice ? parseFloat(rcvPrice) : null,
+        p_supplier_id: rcvSupplier || null,
+        p_batch: rcvBatch || null,
+        p_notes: rcvNotes || null,
+      });
+      if (error) throw error;
+      await refetch();
+      toast({ title: 'Naskladnené', description: `Pridaných ${qty} ks.` });
+      setReceiptFor(null);
+    } catch (err: any) {
+      toast({ title: 'Chyba', description: err.message || 'Naskladnenie sa nepodarilo.', variant: 'destructive' });
+    } finally {
+      setRcvSaving(false);
+    }
+  };
+
+  // --- Inventúra ---
+  const openStocktake = (p: DbPackaging) => {
+    setStocktakeFor(p);
+    setCounted('');
+    setStkDate(today());
+    setStkNotes('');
+  };
+
+  const handleStocktake = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stocktakeFor) return;
+    const cnt = parseInt(counted);
+    if (counted === '' || isNaN(cnt) || cnt < 0) {
+      toast({ title: 'Chyba', description: 'Zadaj napočítaný stav (0 alebo viac).', variant: 'destructive' });
+      return;
+    }
+    setStkSaving(true);
+    try {
+      const { error } = await supabase.rpc('set_packaging_stocktake', {
+        p_packaging_id: stocktakeFor.id,
+        p_counted: cnt,
+        p_occurred_on: stkDate || today(),
+        p_notes: stkNotes || null,
+      });
+      if (error) throw error;
+      await refetch();
+      toast({ title: 'Inventúra uložená', description: 'Stav bol upravený podľa napočítaného.' });
+      setStocktakeFor(null);
+    } catch (err: any) {
+      toast({ title: 'Chyba', description: err.message || 'Inventúra sa nepodarila.', variant: 'destructive' });
+    } finally {
+      setStkSaving(false);
+    }
+  };
+
+  // --- História pohybov ---
+  const openHistory = async (p: DbPackaging) => {
+    setHistoryFor(p);
+    setLoadingHistory(true);
+    setMovements([]);
+    try {
+      const { data, error } = await supabase
+        .from('stock_movements')
+        .select('*')
+        .eq('item_kind', 'packaging')
+        .eq('item_id', p.id)
+        .order('occurred_on', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      setMovements(data || []);
+    } catch (err: any) {
+      toast({ title: 'Chyba', description: 'Nepodarilo sa načítať históriu.', variant: 'destructive' });
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const MOVEMENT_LABELS: Record<string, string> = {
+    receipt: 'Naskladnenie',
+    consumption: 'Spotreba',
+    adjustment: 'Inventúra',
+  };
+
+  const countedDiff = stocktakeFor && counted !== '' && !isNaN(parseInt(counted))
+    ? parseInt(counted) - (stocktakeFor.quantity || 0)
+    : null;
 
   return (
     <>
@@ -1641,10 +1770,10 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
       {sortedPackagings.length === 0 ? (
         <EmptyTabState
           icon={Package}
-          title="Žiadne obaly v sklade"
-          description="Pridaj prvý obal do skladu."
+          title="Žiadne typy obalov"
+          description="Vytvor prvý typ obalu. Sklad doplníš cez „Naskladniť"."
           onAdd={isAdmin ? openAddDialog : undefined}
-          addLabel="Pridať obal"
+          addLabel="Pridať typ obalu"
         />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -1682,7 +1811,7 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
 
                 <div className="space-y-1 text-xs">
                   <div className="flex items-center justify-between">
-                    <span className="text-[#475569]">Množstvo:</span>
+                    <span className="text-[#475569]">Na sklade:</span>
                     <span className="font-bold text-[#16a34a]">{formatNumber(p.quantity)} ks</span>
                   </div>
                   {(p as any).min_stock && (
@@ -1726,53 +1855,65 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
                   </div>
                 )}
 
-                {isAdmin && (
-                  <div className="flex items-center gap-2 pt-3 mt-3 border-t border-[#e2e8f0]">
+                <div className="flex items-center gap-1.5 pt-3 mt-3 border-t border-[#e2e8f0]">
+                  {isAdmin && (
                     <button
-                      onClick={() => openEditDialog(p)}
-                      title="Upraviť"
-                      className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors"
+                      onClick={() => openReceipt(p)}
+                      className="flex-1 h-7 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-xs font-semibold flex items-center justify-center gap-1 transition-colors"
                     >
-                      <Pencil className="h-3.5 w-3.5" />
+                      <PackagePlus className="h-3.5 w-3.5" /> Naskladniť
                     </button>
-                    <button
-                      onClick={() => setDeleteId(p.id)}
-                      title="Zmazať"
-                      className="w-7 h-7 rounded-lg border border-[#fecaca] bg-[#fef2f2] flex items-center justify-center text-[#dc2626] hover:bg-[#fee2e2] transition-colors"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                )}
+                  )}
+                  <button
+                    onClick={() => openHistory(p)}
+                    title="História pohybov"
+                    className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors"
+                  >
+                    <History className="h-3.5 w-3.5" />
+                  </button>
+                  {isAdmin && (
+                    <>
+                      <button
+                        onClick={() => openStocktake(p)}
+                        title="Inventúra"
+                        className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#2563eb] hover:text-[#2563eb] transition-colors"
+                      >
+                        <ClipboardCheck className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => openEditDialog(p)}
+                        title="Upraviť typ"
+                        className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setDeleteId(p.id)}
+                        title="Zmazať typ"
+                        className="w-7 h-7 rounded-lg border border-[#fecaca] bg-[#fef2f2] flex items-center justify-center text-[#dc2626] hover:bg-[#fee2e2] transition-colors"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             );
           })}
         </div>
       )}
 
-      {/* Add/Edit Dialog */}
+      {/* ===== Definícia typu (Add/Edit) — bez množstva a názvu ===== */}
       <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) { setIsDialogOpen(false); resetForm(); } }}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto bg-white">
           <DialogHeader>
-            <DialogTitle className="text-[#0f172a]">{editingPackaging ? 'Upraviť obal' : 'Pridať nový obal'}</DialogTitle>
+            <DialogTitle className="text-[#0f172a]">{editingPackaging ? 'Upraviť typ obalu' : 'Nový typ obalu'}</DialogTitle>
             <DialogDescription className="text-[#475569]">
-              {editingPackaging ? 'Uprav údaje o obale.' : 'Vyplň údaje o obale.'}
+              Definuj typ obalu. Množstvo na sklade sa nemení tu — rieši ho „Naskladniť" a „Inventúra".
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-3">
-            <div>
-              <Label className="text-sm font-semibold text-[#374151]">Názov *</Label>
-              <Input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                placeholder="napr. Krabička 500ml EKO"
-                className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
-              />
-            </div>
-
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <Label className="text-sm font-semibold text-[#374151]">Forma</Label>
@@ -1786,7 +1927,7 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
                 </Select>
               </div>
               <div>
-                <Label className="text-sm font-semibold text-[#374151]">Veľkosť</Label>
+                <Label className="text-sm font-semibold text-[#374151]">Veľkosť (objem) *</Label>
                 <Select value={size} onValueChange={setSize}>
                   <SelectTrigger className="h-10 text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"><SelectValue placeholder="Vyber veľkosť" /></SelectTrigger>
                   <SelectContent>
@@ -1810,30 +1951,17 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-sm font-semibold text-[#374151]">Množstvo (ks) *</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  required
-                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
-                />
-              </div>
-              <div>
-                <Label className="text-sm font-semibold text-[#374151]">Min. limit (ks)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={minStock}
-                  onChange={(e) => setMinStock(e.target.value)}
-                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
-                />
-              </div>
+            <div>
+              <Label className="text-sm font-semibold text-[#374151]">Min. limit (ks)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="1"
+                value={minStock}
+                onChange={(e) => setMinStock(e.target.value)}
+                placeholder="napr. 150"
+                className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -1905,14 +2033,246 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
               </button>
               <button
                 type="submit"
-                disabled={saving || !name.trim() || !quantity}
+                disabled={saving || !size}
                 className="h-9 px-4 rounded-md bg-[#16a34a] hover:bg-[#15803d] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold flex items-center gap-2 transition-colors"
               >
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-                {editingPackaging ? 'Uložiť' : 'Pridať'}
+                {editingPackaging ? 'Uložiť' : 'Vytvoriť typ'}
               </button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== Naskladniť ===== */}
+      <Dialog open={receiptFor !== null} onOpenChange={(open) => { if (!open) setReceiptFor(null); }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-[#0f172a]">Naskladniť obal</DialogTitle>
+            <DialogDescription className="text-[#475569]">
+              {receiptFor?.name}{receiptFor?.size ? ` · ${receiptFor.size}` : ''} — aktuálne na sklade {formatNumber(receiptFor?.quantity || 0)} ks
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleReceipt} className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Počet (ks) *</Label>
+                <Input
+                  type="number" min="1" step="1" autoFocus
+                  value={rcvQty}
+                  onChange={(e) => setRcvQty(e.target.value)}
+                  required
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Dátum</Label>
+                <Input
+                  type="date"
+                  value={rcvDate}
+                  onChange={(e) => setRcvDate(e.target.value)}
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Cena/ks (€)</Label>
+                <Input
+                  type="number" step="0.01" min="0"
+                  value={rcvPrice}
+                  onChange={(e) => setRcvPrice(e.target.value)}
+                  placeholder="voliteľné"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Šarža</Label>
+                <Input
+                  type="text"
+                  value={rcvBatch}
+                  onChange={(e) => setRcvBatch(e.target.value)}
+                  placeholder="voliteľné"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-sm font-semibold text-[#374151]">Dodávateľ</Label>
+              <Select value={rcvSupplier} onValueChange={setRcvSupplier}>
+                <SelectTrigger className="h-10 text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"><SelectValue placeholder="Vyber dodávateľa" /></SelectTrigger>
+                <SelectContent>
+                  {suppliersList.map(s => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className="text-sm font-semibold text-[#374151]">Poznámka</Label>
+              <Textarea
+                value={rcvNotes}
+                onChange={(e) => setRcvNotes(e.target.value)}
+                rows={2}
+                className="resize-none text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+              />
+            </div>
+
+            <DialogFooter className="mt-4 gap-2">
+              <button
+                type="button"
+                onClick={() => setReceiptFor(null)}
+                disabled={rcvSaving}
+                className="h-9 px-4 rounded-md border border-[#e2e8f0] bg-white text-[#475569] hover:bg-[#f8fafc] text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                Zrušiť
+              </button>
+              <button
+                type="submit"
+                disabled={rcvSaving || !rcvQty}
+                className="h-9 px-4 rounded-md bg-[#16a34a] hover:bg-[#15803d] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold flex items-center gap-2 transition-colors"
+              >
+                {rcvSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                <PackagePlus className="h-4 w-4" /> Naskladniť
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== Inventúra ===== */}
+      <Dialog open={stocktakeFor !== null} onOpenChange={(open) => { if (!open) setStocktakeFor(null); }}>
+        <DialogContent className="max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-[#0f172a]">Inventúra</DialogTitle>
+            <DialogDescription className="text-[#475569]">
+              {stocktakeFor?.name}{stocktakeFor?.size ? ` · ${stocktakeFor.size}` : ''} — systém eviduje {formatNumber(stocktakeFor?.quantity || 0)} ks
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleStocktake} className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Napočítaný stav (ks) *</Label>
+                <Input
+                  type="number" min="0" step="1" autoFocus
+                  value={counted}
+                  onChange={(e) => setCounted(e.target.value)}
+                  required
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Dátum</Label>
+                <Input
+                  type="date"
+                  value={stkDate}
+                  onChange={(e) => setStkDate(e.target.value)}
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+            </div>
+
+            {countedDiff !== null && countedDiff !== 0 && (
+              <div className={cn(
+                'text-xs font-semibold rounded-lg px-3 py-2 border',
+                countedDiff > 0 ? 'bg-[#f0fdf4] border-[#bbf7d0] text-[#166534]' : 'bg-[#fef2f2] border-[#fecaca] text-[#dc2626]'
+              )}>
+                Rozdiel oproti systému: {countedDiff > 0 ? '+' : ''}{formatNumber(countedDiff)} ks
+              </div>
+            )}
+
+            <div>
+              <Label className="text-sm font-semibold text-[#374151]">Poznámka</Label>
+              <Textarea
+                value={stkNotes}
+                onChange={(e) => setStkNotes(e.target.value)}
+                rows={2}
+                placeholder="napr. dôvod rozdielu"
+                className="resize-none text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+              />
+            </div>
+
+            <DialogFooter className="mt-4 gap-2">
+              <button
+                type="button"
+                onClick={() => setStocktakeFor(null)}
+                disabled={stkSaving}
+                className="h-9 px-4 rounded-md border border-[#e2e8f0] bg-white text-[#475569] hover:bg-[#f8fafc] text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                Zrušiť
+              </button>
+              <button
+                type="submit"
+                disabled={stkSaving || counted === ''}
+                className="h-9 px-4 rounded-md bg-[#2563eb] hover:bg-[#1d4ed8] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold flex items-center gap-2 transition-colors"
+              >
+                {stkSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                <ClipboardCheck className="h-4 w-4" /> Uložiť inventúru
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== História pohybov ===== */}
+      <Dialog open={historyFor !== null} onOpenChange={(open) => { if (!open) { setHistoryFor(null); setMovements([]); } }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-[#0f172a]">História pohybov</DialogTitle>
+            <DialogDescription className="text-[#475569]">
+              {historyFor?.name}{historyFor?.size ? ` · ${historyFor.size}` : ''} — aktuálne {formatNumber(historyFor?.quantity || 0)} ks
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingHistory ? (
+            <div className="py-8 text-center text-sm text-[#64748b]">Načítavam…</div>
+          ) : movements.length === 0 ? (
+            <div className="py-8 text-center text-sm text-[#64748b]">Zatiaľ žiadne pohyby.</div>
+          ) : (
+            <div className="space-y-2">
+              {movements.map((m) => (
+                <div key={m.id} className="flex items-center justify-between gap-2 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] px-3 py-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={cn(
+                        'inline-flex items-center h-5 px-1.5 rounded-full text-[10px] font-bold',
+                        m.movement_type === 'receipt' ? 'bg-[#dcfce7] text-[#166534]'
+                          : m.movement_type === 'consumption' ? 'bg-[#fef2f2] text-[#dc2626]'
+                          : 'bg-[#dbeafe] text-[#1e40af]'
+                      )}>
+                        {MOVEMENT_LABELS[m.movement_type] || m.movement_type}
+                      </span>
+                      <span className="text-[11px] text-[#64748b]">{formatDate(m.occurred_on)}</span>
+                    </div>
+                    {m.notes && <p className="text-[11px] text-[#475569] mt-0.5 truncate">{m.notes}</p>}
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className={cn('text-sm font-bold', m.quantity_delta >= 0 ? 'text-[#16a34a]' : 'text-[#dc2626]')}>
+                      {m.quantity_delta > 0 ? '+' : ''}{formatNumber(m.quantity_delta)} ks
+                    </div>
+                    {m.balance_after != null && (
+                      <div className="text-[10px] text-[#64748b]">stav: {formatNumber(m.balance_after)} ks</div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <DialogFooter className="mt-4">
+            <button
+              type="button"
+              onClick={() => { setHistoryFor(null); setMovements([]); }}
+              className="h-9 px-4 rounded-md border border-[#e2e8f0] bg-white text-[#475569] hover:bg-[#f8fafc] text-sm font-semibold transition-colors"
+            >
+              Zavrieť
+            </button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -1920,8 +2280,10 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
       <AlertDialog open={deleteId !== null} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Zmazať obal?</AlertDialogTitle>
-            <AlertDialogDescription>Táto akcia je nevratná.</AlertDialogDescription>
+            <AlertDialogTitle>Zmazať typ obalu?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Zmaže sa definícia typu aj jeho stav. Ak je typ priradený k plodinám v konfigurácii obalov, priradenie sa zobrazí ako „nenastavené". Táto akcia je nevratná.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Zrušiť</AlertDialogCancel>
@@ -1942,27 +2304,50 @@ const PackagingTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
 // ===================== SUBSTRATE TAB =====================
 
 const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
-  const { data: substrates, add, update, remove } = useSubstrates();
+  const { data: substrates, add, update, remove, refetch } = useSubstrates();
   const { data: suppliersList } = useSuppliers();
 
+  const today = () => new Date().toISOString().split('T')[0];
+  const fmtAmt = (val: number, unit?: string | null) =>
+    (unit === 'kg' ? formatKg(val) : `${formatNumber(val, 1)} ${unit || ''}`).trim();
+
+  // --- Definícia typu (Pridať/Upraviť) — bez množstva ---
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSubstrate, setEditingSubstrate] = useState<DbSubstrate | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Form
   const [type, setType] = useState<string>('coconut');
   const [customType, setCustomType] = useState('');
   const [supplierId, setSupplierId] = useState('');
-  const [stockDate, setStockDate] = useState<string>('');
-  const [quantity, setQuantity] = useState('');
-  const [currentStock, setCurrentStock] = useState('');
   const [quantityUnit, setQuantityUnit] = useState<'l' | 'kg'>('kg');
   const [unitCost, setUnitCost] = useState('');
   const [priceIncludesVat, setPriceIncludesVat] = useState(true);
   const [vatRate, setVatRate] = useState('20');
   const [notes, setNotes] = useState('');
   const [minStock, setMinStock] = useState('');
+
+  // --- Naskladniť ---
+  const [receiptFor, setReceiptFor] = useState<DbSubstrate | null>(null);
+  const [rcvQty, setRcvQty] = useState('');
+  const [rcvDate, setRcvDate] = useState(today());
+  const [rcvPrice, setRcvPrice] = useState('');
+  const [rcvSupplier, setRcvSupplier] = useState('');
+  const [rcvBatch, setRcvBatch] = useState('');
+  const [rcvNotes, setRcvNotes] = useState('');
+  const [rcvSaving, setRcvSaving] = useState(false);
+
+  // --- Inventúra ---
+  const [stocktakeFor, setStocktakeFor] = useState<DbSubstrate | null>(null);
+  const [counted, setCounted] = useState('');
+  const [stkDate, setStkDate] = useState(today());
+  const [stkNotes, setStkNotes] = useState('');
+  const [stkSaving, setStkSaving] = useState(false);
+
+  // --- História ---
+  const [historyFor, setHistoryFor] = useState<DbSubstrate | null>(null);
+  const [movements, setMovements] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   useEffect(() => {
     const handler = () => openAddDialog();
@@ -1976,9 +2361,6 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
     setType('coconut');
     setCustomType('');
     setSupplierId('');
-    setStockDate('');
-    setQuantity('');
-    setCurrentStock('');
     setQuantityUnit('kg');
     setUnitCost('');
     setPriceIncludesVat(true);
@@ -1997,9 +2379,6 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
     setType(s.type || 'coconut');
     setCustomType((s as any).custom_type || '');
     setSupplierId(s.supplier_id || '');
-    setStockDate((s as any).stock_date || '');
-    setQuantity(s.quantity?.toString() || '');
-    setCurrentStock((s as any).current_stock?.toString() || '');
     setQuantityUnit((s.unit as 'l' | 'kg') || 'kg');
     setUnitCost((s as any).unit_cost?.toString() || '');
     setPriceIncludesVat((s as any).price_includes_vat ?? true);
@@ -2009,34 +2388,32 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
     setIsDialogOpen(true);
   };
 
+  const liveStock = (s: DbSubstrate) => {
+    const cs = (s as any).current_stock;
+    return (cs != null && cs !== '') ? parseFloat(cs) : (s.quantity || 0);
+  };
+
   // Totals by type+unit
   const totals = useMemo(() => {
     const acc: Record<string, { type: string; unit: string; total: number }> = {};
     substrates.forEach(s => {
       const key = `${s.type || 'other'}-${s.unit || 'kg'}`;
-      if (!acc[key]) {
-        acc[key] = { type: s.type || 'other', unit: s.unit || 'kg', total: 0 };
-      }
-      // Use current_stock if available, else quantity
-      const cs = (s as any).current_stock;
-      acc[key].total += (cs != null && cs !== '') ? parseFloat(cs) : (s.quantity || 0);
+      if (!acc[key]) acc[key] = { type: s.type || 'other', unit: s.unit || 'kg', total: 0 };
+      acc[key].total += liveStock(s);
     });
     return Object.values(acc);
   }, [substrates]);
 
   const lowStockItems = useMemo(() =>
-    substrates.filter(s => {
-      const cs = (s as any).current_stock;
-      const stock = (cs != null && cs !== '') ? parseFloat(cs) : (s.quantity || 0);
-      return isLowStock(stock, (s as any).min_stock);
-    }),
+    substrates.filter(s => isLowStock(liveStock(s), (s as any).min_stock)),
     [substrates]
   );
 
+  // Uloženie DEFINÍCIE typu — stav (current_stock) sa tu NEMENÍ
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!type || !quantity) {
-      toast({ title: 'Chyba', description: 'Vyplň typ a množstvo.', variant: 'destructive' });
+    if (!type) {
+      toast({ title: 'Chyba', description: 'Vyber typ substrátu.', variant: 'destructive' });
       return;
     }
     setSaving(true);
@@ -2046,9 +2423,6 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
       type: type || null,
       custom_type: customType || null,
       supplier_id: supplierId || null,
-      stock_date: stockDate || null,
-      quantity: parseFloat(quantity),
-      current_stock: currentStock ? parseFloat(currentStock) : parseFloat(quantity),
       unit: quantityUnit,
       notes: notes || null,
       min_stock: minStock ? parseFloat(minStock) : null,
@@ -2059,13 +2433,15 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
 
     try {
       if (editingSubstrate) {
+        // EDIT = len definícia, stav necháme nedotknutý
         const { error } = await update(editingSubstrate.id, data);
         if (error) throw error;
-        toast({ title: 'Aktualizované', description: 'Substrát bol aktualizovaný.' });
+        toast({ title: 'Aktualizované', description: 'Typ substrátu bol upravený.' });
       } else {
-        const { error } = await add(data);
+        // NOVÝ typ začína na 0 — sklad sa dopĺňa cez „Naskladniť"
+        const { error } = await add({ ...data, quantity: 0, current_stock: 0 });
         if (error) throw error;
-        toast({ title: 'Pridané', description: 'Substrát bol pridaný.' });
+        toast({ title: 'Pridané', description: 'Nový typ substrátu vytvorený. Sklad doplň cez „Naskladniť".' });
       }
       setIsDialogOpen(false);
       resetForm();
@@ -2080,12 +2456,123 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
     try {
       const { error } = await remove(id);
       if (error) throw error;
-      toast({ title: 'Zmazané', description: 'Substrát bol odstránený.' });
+      toast({ title: 'Zmazané', description: 'Typ substrátu bol odstránený.' });
       setDeleteId(null);
     } catch (err: any) {
       toast({ title: 'Chyba', description: err.message || 'Nepodarilo sa zmazať.', variant: 'destructive' });
     }
   };
+
+  // --- Naskladniť ---
+  const openReceipt = (s: DbSubstrate) => {
+    setReceiptFor(s);
+    setRcvQty('');
+    setRcvDate(today());
+    setRcvPrice('');
+    setRcvSupplier(s.supplier_id || '');
+    setRcvBatch('');
+    setRcvNotes('');
+  };
+
+  const handleReceipt = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!receiptFor) return;
+    const qty = parseFloat(rcvQty);
+    if (!rcvQty || isNaN(qty) || qty <= 0) {
+      toast({ title: 'Chyba', description: 'Zadaj kladné množstvo.', variant: 'destructive' });
+      return;
+    }
+    setRcvSaving(true);
+    try {
+      const { error } = await supabase.rpc('add_substrate_receipt', {
+        p_substrate_id: receiptFor.id,
+        p_quantity: qty,
+        p_occurred_on: rcvDate || today(),
+        p_unit_price: rcvPrice ? parseFloat(rcvPrice) : null,
+        p_supplier_id: rcvSupplier || null,
+        p_batch: rcvBatch || null,
+        p_notes: rcvNotes || null,
+      });
+      if (error) throw error;
+      await refetch();
+      toast({ title: 'Naskladnené', description: `Pridané ${fmtAmt(qty, receiptFor.unit)}.` });
+      setReceiptFor(null);
+    } catch (err: any) {
+      toast({ title: 'Chyba', description: err.message || 'Naskladnenie sa nepodarilo.', variant: 'destructive' });
+    } finally {
+      setRcvSaving(false);
+    }
+  };
+
+  // --- Inventúra ---
+  const openStocktake = (s: DbSubstrate) => {
+    setStocktakeFor(s);
+    setCounted('');
+    setStkDate(today());
+    setStkNotes('');
+  };
+
+  const handleStocktake = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stocktakeFor) return;
+    const cnt = parseFloat(counted);
+    if (counted === '' || isNaN(cnt) || cnt < 0) {
+      toast({ title: 'Chyba', description: 'Zadaj napočítaný stav (0 alebo viac).', variant: 'destructive' });
+      return;
+    }
+    setStkSaving(true);
+    try {
+      const { error } = await supabase.rpc('set_substrate_stocktake', {
+        p_substrate_id: stocktakeFor.id,
+        p_counted: cnt,
+        p_occurred_on: stkDate || today(),
+        p_notes: stkNotes || null,
+      });
+      if (error) throw error;
+      await refetch();
+      toast({ title: 'Inventúra uložená', description: 'Stav bol upravený podľa napočítaného.' });
+      setStocktakeFor(null);
+    } catch (err: any) {
+      toast({ title: 'Chyba', description: err.message || 'Inventúra sa nepodarila.', variant: 'destructive' });
+    } finally {
+      setStkSaving(false);
+    }
+  };
+
+  // --- História ---
+  const openHistory = async (s: DbSubstrate) => {
+    setHistoryFor(s);
+    setLoadingHistory(true);
+    setMovements([]);
+    try {
+      const { data, error } = await supabase
+        .from('stock_movements')
+        .select('*')
+        .eq('item_kind', 'substrate')
+        .eq('item_id', s.id)
+        .order('occurred_on', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      setMovements(data || []);
+    } catch (err: any) {
+      toast({ title: 'Chyba', description: 'Nepodarilo sa načítať históriu.', variant: 'destructive' });
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const MOVEMENT_LABELS: Record<string, string> = {
+    receipt: 'Naskladnenie',
+    consumption: 'Spotreba',
+    adjustment: 'Inventúra',
+  };
+
+  const stkUnit = stocktakeFor?.unit || 'kg';
+  const countedDiff = stocktakeFor && counted !== '' && !isNaN(parseFloat(counted))
+    ? parseFloat(counted) - liveStock(stocktakeFor)
+    : null;
+  const histUnit = historyFor?.unit || 'kg';
 
   return (
     <>
@@ -2117,16 +2604,15 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
       {substrates.length === 0 ? (
         <EmptyTabState
           icon={Layers}
-          title="Žiadny substrát v sklade"
-          description="Pridaj prvý substrát do skladu."
+          title="Žiadny typ substrátu"
+          description="Vytvor prvý typ substrátu. Sklad doplníš cez „Naskladniť"."
           onAdd={isAdmin ? openAddDialog : undefined}
-          addLabel="Pridať substrát"
+          addLabel="Pridať typ substrátu"
         />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {substrates.map(s => {
-            const cs = (s as any).current_stock;
-            const stock = (cs != null && cs !== '') ? parseFloat(cs) : (s.quantity || 0);
+            const stock = liveStock(s);
             const low = isLowStock(stock, (s as any).min_stock);
             const unitCostVal = (s as any).unit_cost;
             return (
@@ -2155,16 +2641,16 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
 
                 <div className="space-y-1 text-xs">
                   <div className="flex items-center justify-between">
-                    <span className="text-[#475569]">Aktuálne:</span>
+                    <span className="text-[#475569]">Na sklade:</span>
                     <span className="font-bold text-[#16a34a]">
                       {s.unit === 'kg' ? formatKg(stock) : `${formatNumber(stock, 1)} ${s.unit}`}
                     </span>
                   </div>
-                  {s.quantity != null && cs != null && (
+                  {(s as any).min_stock && (
                     <div className="flex items-center justify-between">
-                      <span className="text-[#475569]">Pôvodne:</span>
+                      <span className="text-[#475569]">Min. limit:</span>
                       <span className="text-[#0f172a]">
-                        {s.unit === 'kg' ? formatKg(s.quantity) : `${formatNumber(s.quantity)} ${s.unit}`}
+                        {s.unit === 'kg' ? formatKg((s as any).min_stock) : `${formatNumber((s as any).min_stock, 1)} ${s.unit}`}
                       </span>
                     </div>
                   )}
@@ -2195,37 +2681,61 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
                   </div>
                 )}
 
-                {isAdmin && (
-                  <div className="flex items-center gap-2 pt-3 mt-3 border-t border-[#e2e8f0]">
+                <div className="flex items-center gap-1.5 pt-3 mt-3 border-t border-[#e2e8f0]">
+                  {isAdmin && (
                     <button
-                      onClick={() => openEditDialog(s)}
-                      title="Upraviť"
-                      className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors"
+                      onClick={() => openReceipt(s)}
+                      className="flex-1 h-7 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-xs font-semibold flex items-center justify-center gap-1 transition-colors"
                     >
-                      <Pencil className="h-3.5 w-3.5" />
+                      <PackagePlus className="h-3.5 w-3.5" /> Naskladniť
                     </button>
-                    <button
-                      onClick={() => setDeleteId(s.id)}
-                      title="Zmazať"
-                      className="w-7 h-7 rounded-lg border border-[#fecaca] bg-[#fef2f2] flex items-center justify-center text-[#dc2626] hover:bg-[#fee2e2] transition-colors"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                )}
+                  )}
+                  <button
+                    onClick={() => openHistory(s)}
+                    title="História pohybov"
+                    className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors"
+                  >
+                    <History className="h-3.5 w-3.5" />
+                  </button>
+                  {isAdmin && (
+                    <>
+                      <button
+                        onClick={() => openStocktake(s)}
+                        title="Inventúra"
+                        className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#2563eb] hover:text-[#2563eb] transition-colors"
+                      >
+                        <ClipboardCheck className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => openEditDialog(s)}
+                        title="Upraviť typ"
+                        className="w-7 h-7 rounded-lg border border-[#e2e8f0] flex items-center justify-center text-[#475569] hover:border-[#16a34a] hover:text-[#16a34a] transition-colors"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setDeleteId(s.id)}
+                        title="Zmazať typ"
+                        className="w-7 h-7 rounded-lg border border-[#fecaca] bg-[#fef2f2] flex items-center justify-center text-[#dc2626] hover:bg-[#fee2e2] transition-colors"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             );
           })}
         </div>
       )}
 
-      {/* Add/Edit Dialog */}
+      {/* ===== Definícia typu (Add/Edit) — bez množstva ===== */}
       <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) { setIsDialogOpen(false); resetForm(); } }}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto bg-white">
           <DialogHeader>
-            <DialogTitle className="text-[#0f172a]">{editingSubstrate ? 'Upraviť substrát' : 'Pridať nový substrát'}</DialogTitle>
+            <DialogTitle className="text-[#0f172a]">{editingSubstrate ? 'Upraviť typ substrátu' : 'Nový typ substrátu'}</DialogTitle>
             <DialogDescription className="text-[#475569]">
-              {editingSubstrate ? 'Uprav údaje o substráte.' : 'Vyplň údaje o substráte.'}
+              Definuj typ substrátu. Množstvo na sklade sa nemení tu — rieši ho „Naskladniť" a „Inventúra".
             </DialogDescription>
           </DialogHeader>
 
@@ -2242,32 +2752,18 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
               </Select>
             </div>
 
-            {(type === 'other' || type === 'coconut' || type === 'peat') && (
-              <div>
-                <Label className="text-sm font-semibold text-[#374151]">Konkrétny variant / značka</Label>
-                <Input
-                  type="text"
-                  value={customType}
-                  onChange={(e) => setCustomType(e.target.value)}
-                  placeholder="napr. Klasmann TS3"
-                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
-                />
-              </div>
-            )}
+            <div>
+              <Label className="text-sm font-semibold text-[#374151]">Konkrétny variant / značka</Label>
+              <Input
+                type="text"
+                value={customType}
+                onChange={(e) => setCustomType(e.target.value)}
+                placeholder="napr. Klasmann TS3"
+                className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+              />
+            </div>
 
-            <div className="grid grid-cols-3 gap-2">
-              <div className="col-span-2">
-                <Label className="text-sm font-semibold text-[#374151]">Množstvo (pôvodne) *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  required
-                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
-                />
-              </div>
+            <div className="grid grid-cols-2 gap-2">
               <div>
                 <Label className="text-sm font-semibold text-[#374151]">Jednotka</Label>
                 <Select value={quantityUnit} onValueChange={(v) => setQuantityUnit(v as 'l' | 'kg')}>
@@ -2278,27 +2774,10 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-sm font-semibold text-[#374151]">Aktuálny stav ({quantityUnit})</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={currentStock}
-                  onChange={(e) => setCurrentStock(e.target.value)}
-                  placeholder="Default = množstvo"
-                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
-                />
-              </div>
               <div>
                 <Label className="text-sm font-semibold text-[#374151]">Min. limit ({quantityUnit})</Label>
                 <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
+                  type="number" step="0.01" min="0"
                   value={minStock}
                   onChange={(e) => setMinStock(e.target.value)}
                   className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
@@ -2310,9 +2789,7 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
               <div>
                 <Label className="text-sm font-semibold text-[#374151]">Cena/{quantityUnit} (€)</Label>
                 <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
+                  type="number" step="0.01" min="0"
                   value={unitCost}
                   onChange={(e) => setUnitCost(e.target.value)}
                   className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
@@ -2321,10 +2798,7 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
               <div>
                 <Label className="text-sm font-semibold text-[#374151]">DPH (%)</Label>
                 <Input
-                  type="number"
-                  step="1"
-                  min="0"
-                  max="100"
+                  type="number" step="1" min="0" max="100"
                   value={vatRate}
                   onChange={(e) => setVatRate(e.target.value)}
                   className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
@@ -2342,27 +2816,16 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
               <span className="text-sm text-[#0f172a]">Cena s DPH</span>
             </label>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div>
-                <Label className="text-sm font-semibold text-[#374151]">Dodávateľ</Label>
-                <Select value={supplierId} onValueChange={setSupplierId}>
-                  <SelectTrigger className="h-10 text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"><SelectValue placeholder="Vyber dodávateľa" /></SelectTrigger>
-                  <SelectContent>
-                    {suppliersList.map(sup => (
-                      <SelectItem key={sup.id} value={sup.id}>{sup.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-sm font-semibold text-[#374151]">Dátum naskladnenia</Label>
-                <Input
-                  type="date"
-                  value={stockDate}
-                  onChange={(e) => setStockDate(e.target.value)}
-                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
-                />
-              </div>
+            <div>
+              <Label className="text-sm font-semibold text-[#374151]">Dodávateľ</Label>
+              <Select value={supplierId} onValueChange={setSupplierId}>
+                <SelectTrigger className="h-10 text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"><SelectValue placeholder="Vyber dodávateľa" /></SelectTrigger>
+                <SelectContent>
+                  {suppliersList.map(sup => (
+                    <SelectItem key={sup.id} value={sup.id}>{sup.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
@@ -2386,22 +2849,255 @@ const SubstrateTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) =
               </button>
               <button
                 type="submit"
-                disabled={saving || !quantity}
+                disabled={saving || !type}
                 className="h-9 px-4 rounded-md bg-[#16a34a] hover:bg-[#15803d] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold flex items-center gap-2 transition-colors"
               >
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-                {editingSubstrate ? 'Uložiť' : 'Pridať'}
+                {editingSubstrate ? 'Uložiť' : 'Vytvoriť typ'}
               </button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
+      {/* ===== Naskladniť ===== */}
+      <Dialog open={receiptFor !== null} onOpenChange={(open) => { if (!open) setReceiptFor(null); }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-[#0f172a]">Naskladniť substrát</DialogTitle>
+            <DialogDescription className="text-[#475569]">
+              {receiptFor ? (SUBSTRATE_TYPES[receiptFor.type || ''] || receiptFor.name) : ''} — aktuálne na sklade {receiptFor ? fmtAmt(liveStock(receiptFor), receiptFor.unit) : ''}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleReceipt} className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Množstvo ({receiptFor?.unit || 'kg'}) *</Label>
+                <Input
+                  type="number" min="0" step="0.01" autoFocus
+                  value={rcvQty}
+                  onChange={(e) => setRcvQty(e.target.value)}
+                  required
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Dátum</Label>
+                <Input
+                  type="date"
+                  value={rcvDate}
+                  onChange={(e) => setRcvDate(e.target.value)}
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Cena/{receiptFor?.unit || 'kg'} (€)</Label>
+                <Input
+                  type="number" step="0.01" min="0"
+                  value={rcvPrice}
+                  onChange={(e) => setRcvPrice(e.target.value)}
+                  placeholder="voliteľné"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Šarža</Label>
+                <Input
+                  type="text"
+                  value={rcvBatch}
+                  onChange={(e) => setRcvBatch(e.target.value)}
+                  placeholder="voliteľné"
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-sm font-semibold text-[#374151]">Dodávateľ</Label>
+              <Select value={rcvSupplier} onValueChange={setRcvSupplier}>
+                <SelectTrigger className="h-10 text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"><SelectValue placeholder="Vyber dodávateľa" /></SelectTrigger>
+                <SelectContent>
+                  {suppliersList.map(sup => (
+                    <SelectItem key={sup.id} value={sup.id}>{sup.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className="text-sm font-semibold text-[#374151]">Poznámka</Label>
+              <Textarea
+                value={rcvNotes}
+                onChange={(e) => setRcvNotes(e.target.value)}
+                rows={2}
+                className="resize-none text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+              />
+            </div>
+
+            <DialogFooter className="mt-4 gap-2">
+              <button
+                type="button"
+                onClick={() => setReceiptFor(null)}
+                disabled={rcvSaving}
+                className="h-9 px-4 rounded-md border border-[#e2e8f0] bg-white text-[#475569] hover:bg-[#f8fafc] text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                Zrušiť
+              </button>
+              <button
+                type="submit"
+                disabled={rcvSaving || !rcvQty}
+                className="h-9 px-4 rounded-md bg-[#16a34a] hover:bg-[#15803d] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold flex items-center gap-2 transition-colors"
+              >
+                {rcvSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                <PackagePlus className="h-4 w-4" /> Naskladniť
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== Inventúra ===== */}
+      <Dialog open={stocktakeFor !== null} onOpenChange={(open) => { if (!open) setStocktakeFor(null); }}>
+        <DialogContent className="max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-[#0f172a]">Inventúra</DialogTitle>
+            <DialogDescription className="text-[#475569]">
+              {stocktakeFor ? (SUBSTRATE_TYPES[stocktakeFor.type || ''] || stocktakeFor.name) : ''} — systém eviduje {stocktakeFor ? fmtAmt(liveStock(stocktakeFor), stocktakeFor.unit) : ''}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleStocktake} className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Napočítaný stav ({stkUnit}) *</Label>
+                <Input
+                  type="number" min="0" step="0.01" autoFocus
+                  value={counted}
+                  onChange={(e) => setCounted(e.target.value)}
+                  required
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-semibold text-[#374151]">Dátum</Label>
+                <Input
+                  type="date"
+                  value={stkDate}
+                  onChange={(e) => setStkDate(e.target.value)}
+                  className="text-sm h-10 mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+                />
+              </div>
+            </div>
+
+            {countedDiff !== null && countedDiff !== 0 && (
+              <div className={cn(
+                'text-xs font-semibold rounded-lg px-3 py-2 border',
+                countedDiff > 0 ? 'bg-[#f0fdf4] border-[#bbf7d0] text-[#166534]' : 'bg-[#fef2f2] border-[#fecaca] text-[#dc2626]'
+              )}>
+                Rozdiel oproti systému: {countedDiff > 0 ? '+' : ''}{formatNumber(countedDiff, 2)} {stkUnit}
+              </div>
+            )}
+
+            <div>
+              <Label className="text-sm font-semibold text-[#374151]">Poznámka</Label>
+              <Textarea
+                value={stkNotes}
+                onChange={(e) => setStkNotes(e.target.value)}
+                rows={2}
+                placeholder="napr. dôvod rozdielu"
+                className="resize-none text-sm mt-1.5 bg-white border border-[#cbd5e1] focus:border-[#16a34a] focus:ring-1 focus:ring-[#16a34a]"
+              />
+            </div>
+
+            <DialogFooter className="mt-4 gap-2">
+              <button
+                type="button"
+                onClick={() => setStocktakeFor(null)}
+                disabled={stkSaving}
+                className="h-9 px-4 rounded-md border border-[#e2e8f0] bg-white text-[#475569] hover:bg-[#f8fafc] text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                Zrušiť
+              </button>
+              <button
+                type="submit"
+                disabled={stkSaving || counted === ''}
+                className="h-9 px-4 rounded-md bg-[#2563eb] hover:bg-[#1d4ed8] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold flex items-center gap-2 transition-colors"
+              >
+                {stkSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                <ClipboardCheck className="h-4 w-4" /> Uložiť inventúru
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== História pohybov ===== */}
+      <Dialog open={historyFor !== null} onOpenChange={(open) => { if (!open) { setHistoryFor(null); setMovements([]); } }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-[#0f172a]">História pohybov</DialogTitle>
+            <DialogDescription className="text-[#475569]">
+              {historyFor ? (SUBSTRATE_TYPES[historyFor.type || ''] || historyFor.name) : ''} — aktuálne {historyFor ? fmtAmt(liveStock(historyFor), historyFor.unit) : ''}
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingHistory ? (
+            <div className="py-8 text-center text-sm text-[#64748b]">Načítavam…</div>
+          ) : movements.length === 0 ? (
+            <div className="py-8 text-center text-sm text-[#64748b]">Zatiaľ žiadne pohyby.</div>
+          ) : (
+            <div className="space-y-2">
+              {movements.map((m) => (
+                <div key={m.id} className="flex items-center justify-between gap-2 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] px-3 py-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={cn(
+                        'inline-flex items-center h-5 px-1.5 rounded-full text-[10px] font-bold',
+                        m.movement_type === 'receipt' ? 'bg-[#dcfce7] text-[#166534]'
+                          : m.movement_type === 'consumption' ? 'bg-[#fef2f2] text-[#dc2626]'
+                          : 'bg-[#dbeafe] text-[#1e40af]'
+                      )}>
+                        {MOVEMENT_LABELS[m.movement_type] || m.movement_type}
+                      </span>
+                      <span className="text-[11px] text-[#64748b]">{formatDate(m.occurred_on)}</span>
+                    </div>
+                    {m.notes && <p className="text-[11px] text-[#475569] mt-0.5 truncate">{m.notes}</p>}
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className={cn('text-sm font-bold', m.quantity_delta >= 0 ? 'text-[#16a34a]' : 'text-[#dc2626]')}>
+                      {m.quantity_delta > 0 ? '+' : ''}{formatNumber(m.quantity_delta, 2)} {histUnit}
+                    </div>
+                    {m.balance_after != null && (
+                      <div className="text-[10px] text-[#64748b]">stav: {formatNumber(m.balance_after, 2)} {histUnit}</div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <DialogFooter className="mt-4">
+            <button
+              type="button"
+              onClick={() => { setHistoryFor(null); setMovements([]); }}
+              className="h-9 px-4 rounded-md border border-[#e2e8f0] bg-white text-[#475569] hover:bg-[#f8fafc] text-sm font-semibold transition-colors"
+            >
+              Zavrieť
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirm */}
       <AlertDialog open={deleteId !== null} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Zmazať substrát?</AlertDialogTitle>
-            <AlertDialogDescription>Táto akcia je nevratná.</AlertDialogDescription>
+            <AlertDialogTitle>Zmazať typ substrátu?</AlertDialogTitle>
+            <AlertDialogDescription>Zmaže sa definícia typu aj jeho stav. Táto akcia je nevratná.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Zrušiť</AlertDialogCancel>
