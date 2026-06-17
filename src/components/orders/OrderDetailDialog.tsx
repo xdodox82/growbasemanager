@@ -37,6 +37,10 @@ export function OrderDetailDialog({
   // Flash = prebytky (už zožaté) → preskakuje krok „Rastie"
   const steps = isFlash ? STATUS_STEPS.filter(step => !step.keys.includes('growing')) : STATUS_STEPS;
   const currentStepIdx = steps.findIndex(step => step.keys.includes(s));
+  // trasa: ak nie je textové pole route, dohľadaj názov podľa delivery_route_id
+  const routeName = (order as any).route
+    || routes.find(r => r.id === (order as any).delivery_route_id)?.name
+    || '';
 
   const nextMap: Record<string, { key: string; label: string; color: string }> = {
     'pending':          { key: 'confirmed',  label: 'Potvrdiť objednávku',    color: 'bg-[#2563eb] hover:bg-[#1d4ed8] text-white' },
@@ -131,9 +135,9 @@ export function OrderDetailDialog({
               <div className="bg-white px-4 py-3">
                 <div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1">Trasa</div>
                 <div className="text-[13px] font-semibold text-[#0f172a] flex items-center gap-1.5">
-                  {order.route === 'Osobný odber'
+                  {routeName === 'Osobný odber'
                     ? <><Store className="h-3.5 w-3.5 text-[#16a34a]" /><span className="text-[#16a34a]">Osobný odber</span></>
-                    : <><Truck className="h-3.5 w-3.5 text-[#94a3b8]" />{order.route || '—'}</>
+                    : <><Truck className="h-3.5 w-3.5 text-[#94a3b8]" />{routeName || '—'}</>
                   }
                 </div>
               </div>
