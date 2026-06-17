@@ -24,7 +24,7 @@ export function OrdersStatsBar({ filteredOrders, customers, domaciRevenue, gastr
             <span className="text-xs font-semibold text-gray-700 uppercase">Domáci</span>
           </div>
           <div className="text-right">
-            <div className="text-xl font-bold text-[#10b981]">{domaciRevenue.toFixed(2)} €</div>
+            <div className="text-xl font-bold text-[#10b981]">{domaciRevenue.toFixed(2).replace('.', ',')} €</div>
             <p className="text-[10px] text-gray-500">{countByType('home')} obj.</p>
           </div>
         </div>
@@ -39,7 +39,7 @@ export function OrdersStatsBar({ filteredOrders, customers, domaciRevenue, gastr
             <span className="text-xs font-semibold text-gray-700 uppercase">Gastro</span>
           </div>
           <div className="text-right">
-            <div className="text-xl font-bold text-blue-600">{gastroRevenue.toFixed(2)} €</div>
+            <div className="text-xl font-bold text-blue-600">{gastroRevenue.toFixed(2).replace('.', ',')} €</div>
             <p className="text-[10px] text-gray-500">{countByType('gastro')} obj.</p>
           </div>
         </div>
@@ -54,7 +54,7 @@ export function OrdersStatsBar({ filteredOrders, customers, domaciRevenue, gastr
             <span className="text-xs font-semibold text-gray-700 uppercase">Veľkoobchod</span>
           </div>
           <div className="text-right">
-            <div className="text-xl font-bold text-orange-600">{wholesaleRevenue.toFixed(2)} €</div>
+            <div className="text-xl font-bold text-orange-600">{wholesaleRevenue.toFixed(2).replace('.', ',')} €</div>
             <p className="text-[10px] text-gray-500">{countByType('wholesale')} obj.</p>
           </div>
         </div>
