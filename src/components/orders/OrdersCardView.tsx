@@ -129,11 +129,11 @@ export function OrdersCardView({
                 );
               }
               return (
-                <span className="text-xs text-[#475569]">Doprava: {deliveryFee.toFixed(2)} €</span>
+                <span className="text-xs text-[#475569]">Doprava: {deliveryFee.toFixed(2).replace('.', ',')} €</span>
               );
             })()}
             <span className="text-lg font-bold text-[#0f172a] ml-auto">
-              {(getOrderTotal(order) || 0).toFixed(2)} €
+              {(getOrderTotal(order) || 0).toFixed(2).replace('.', ',')} €
             </span>
           </div>
         </div>

@@ -274,9 +274,9 @@ export function OrderDetailDialog({
                         </div>
                       </div>
                       <div className="text-right ml-4 shrink-0">
-                        <div className="text-[14px] font-bold text-[#0f172a]">{itemTotal.toFixed(2)} €</div>
+                        <div className="text-[14px] font-bold text-[#0f172a]">{itemTotal.toFixed(2).replace('.', ',')} €</div>
                         <div className="text-[11px] text-[#94a3b8]">
-                          {parseFloat((item.price_per_unit?.toString() || '0').replace(',', '.')).toFixed(2)} € / ks
+                          {parseFloat((item.price_per_unit?.toString() || '0').replace(',', '.')).toFixed(2).replace('.', ',')} € / ks
                         </div>
                       </div>
                     </div>
@@ -289,7 +289,7 @@ export function OrderDetailDialog({
             <div className="bg-[#f0fdf4] border border-[#bbf7d0] rounded-xl px-4 py-3 space-y-2">
               <div className="flex justify-between text-[13px]">
                 <span className="text-[#166534]">Medzisúčet</span>
-                <span className="font-semibold text-[#14532d]">{subtotal.toFixed(2)} €</span>
+                <span className="font-semibold text-[#14532d]">{subtotal.toFixed(2).replace('.', ',')} €</span>
               </div>
               {(() => {
                 if (customers.length === 0 || routes.length === 0) return null;
@@ -300,14 +300,14 @@ export function OrderDetailDialog({
                       <Truck className="h-3.5 w-3.5" />Doprava
                     </span>
                     <span className="font-semibold text-[#14532d]">
-                      {!order.charge_delivery || fee === 0 ? 'Zdarma' : `${fee.toFixed(2)} €`}
+                      {!order.charge_delivery || fee === 0 ? 'Zdarma' : `${fee.toFixed(2).replace('.', ',')} €`}
                     </span>
                   </div>
                 );
               })()}
               <div className="flex justify-between items-center pt-2 border-t border-[#86efac]">
                 <span className="text-[14px] font-bold text-[#166534]">Celkom</span>
-                <span className="text-[20px] font-bold text-[#16a34a]">{(getOrderTotal(order) || 0).toFixed(2)} €</span>
+                <span className="text-[20px] font-bold text-[#16a34a]">{(getOrderTotal(order) || 0).toFixed(2).replace('.', ',')} €</span>
               </div>
             </div>
 

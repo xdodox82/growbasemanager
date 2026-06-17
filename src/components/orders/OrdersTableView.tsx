@@ -92,7 +92,7 @@ export function OrdersTableView({ filteredOrders, getOrderTotal, onSelectOrder, 
                 </td>
                 <td className="px-4 py-3 text-right">
                   <span className="text-sm font-bold text-[#0f172a]">
-                    {(getOrderTotal(order) || 0).toFixed(2)} €
+                    {(getOrderTotal(order) || 0).toFixed(2).replace('.', ',')} €
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
