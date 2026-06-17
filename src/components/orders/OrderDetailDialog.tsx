@@ -33,7 +33,10 @@ export function OrderDetailDialog({
 
   const s = order.status;
   const isCancelled = s === 'cancelled' || s === 'zrusena';
-  const currentStepIdx = STATUS_STEPS.findIndex(step => step.keys.includes(s));
+  const isFlash = (order as any).source === 'flash' || (order as any).order_source === 'flash';
+  // Flash = prebytky (už zožaté) → preskakuje krok „Rastie"
+  const steps = isFlash ? STATUS_STEPS.filter(step => !step.keys.includes('growing')) : STATUS_STEPS;
+  const currentStepIdx = steps.findIndex(step => step.keys.includes(s));
 
   const nextMap: Record<string, { key: string; label: string; color: string }> = {
     'pending':          { key: 'confirmed',  label: 'Potvrdiť objednávku',    color: 'bg-[#2563eb] hover:bg-[#1d4ed8] text-white' },
@@ -49,6 +52,11 @@ export function OrderDetailDialog({
     'potvrdena':        { key: 'growing',    label: 'Označiť: Rastie',        color: 'bg-[#16a34a] hover:bg-[#15803d] text-white' },
     'pripravena':       { key: 'on_the_way', label: 'Odoslať: Na ceste',      color: 'bg-[#7c3aed] hover:bg-[#6d28d9] text-white' },
   };
+  if (isFlash) {
+    // po potvrdení ide flash rovno k baleniu (bez „Rastie")
+    nextMap['confirmed'] = { key: 'packed', label: 'Označiť: Zabalená', color: 'bg-[#2563eb] hover:bg-[#1d4ed8] text-white' };
+    nextMap['potvrdena'] = { key: 'packed', label: 'Označiť: Zabalená', color: 'bg-[#2563eb] hover:bg-[#1d4ed8] text-white' };
+  }
   const next = nextMap[s];
   const showQuickActions = !['cancelled', 'delivered', 'zrusena', 'dorucena'].includes(s);
 
@@ -153,15 +161,15 @@ export function OrderDetailDialog({
                     <div className="absolute top-3.5 left-3.5 right-3.5 h-0.5 bg-[#e2e8f0]" />
                     <div
                       className="absolute top-3.5 left-3.5 h-0.5 bg-[#16a34a] transition-all"
-                      style={{ width: currentStepIdx >= 0 ? `${(currentStepIdx / (STATUS_STEPS.length - 1)) * 100}%` : '0%' }}
+                      style={{ width: currentStepIdx >= 0 ? `${(currentStepIdx / (steps.length - 1)) * 100}%` : '0%' }}
                     />
                     {/* Steps */}
                     <div className="relative flex justify-between">
-                      {STATUS_STEPS.map((step, idx) => {
+                      {steps.map((step, idx) => {
                         const done = idx < currentStepIdx;
                         const active = idx === currentStepIdx;
                         return (
-                          <div key={idx} className="flex flex-col items-center" style={{ width: `${100 / STATUS_STEPS.length}%` }}>
+                          <div key={idx} className="flex flex-col items-center" style={{ width: `${100 / steps.length}%` }}>
                             <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all z-10 ${
                               done ? 'bg-[#16a34a] border-[#16a34a]'
                               : active ? 'bg-white border-[#16a34a] shadow-sm shadow-green-200'
