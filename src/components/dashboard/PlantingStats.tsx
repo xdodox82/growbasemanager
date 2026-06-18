@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { usePlantingPlans, useCrops } from '@/hooks/useSupabaseData';
 import { BarChart3, Sprout, TrendingUp } from 'lucide-react';
+import { formatNumber } from '@/utils/formatters';
 import { startOfWeek, endOfWeek, isWithinInterval, addWeeks, format } from 'date-fns';
 import { sk } from 'date-fns/locale';
 
@@ -160,7 +161,7 @@ export function PlantingStats() {
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-medium">Plánovaná úroda podľa plodín</h3>
           <Badge variant="secondary" className="text-xs">
-            {totalExpectedYield.toFixed(0)}g celkom
+            {formatNumber(totalExpectedYield, 0)}g celkom
           </Badge>
         </div>
 
@@ -181,7 +182,7 @@ export function PlantingStats() {
                     <span className="font-medium">{crop.cropName}</span>
                   </div>
                   <span className="text-muted-foreground">
-                    {crop.expectedYield.toFixed(0)}g
+                    {formatNumber(crop.expectedYield, 0)}g
                   </span>
                 </div>
                 <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -194,7 +195,7 @@ export function PlantingStats() {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {crop.trayCount.toFixed(1)} tácok
+                  {formatNumber(crop.trayCount, 1)} tácok
                 </p>
               </div>
             ))}

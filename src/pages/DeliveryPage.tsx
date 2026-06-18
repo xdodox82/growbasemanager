@@ -168,9 +168,9 @@ function SortableOrderRow({
 
       {/* CENA */}
       <TableCell className="py-2 text-right">
-        <div className="font-bold text-sm text-[#0f172a]">{order.totalPrice.toFixed(2)} €</div>
+        <div className="font-bold text-sm text-[#0f172a]">{order.totalPrice.toFixed(2).replace('.', ',')} €</div>
         {(order.deliveryFee || 0) > 0 && (
-          <div className="text-xs text-[#94a3b8]">+ {(order.deliveryFee || 0).toFixed(2)} € dop.</div>
+          <div className="text-xs text-[#94a3b8]">+ {(order.deliveryFee || 0).toFixed(2).replace('.', ',')} € dop.</div>
         )}
         {order.isPaid && (
           <span className="text-[10px] font-semibold text-[#16a34a] bg-[#dcfce7] px-1.5 py-0.5 rounded">Zaplatené</span>
@@ -310,7 +310,7 @@ function DeliveryPage() {
         notes: debtNote || null,
         status: 'unpaid',
       });
-      toast({ title: '⚠️ Dlh zaznamenaný', description: `${customer?.name} dlží ${amount.toFixed(2)} €` });
+      toast({ title: '⚠️ Dlh zaznamenaný', description: `${customer?.name} dlží ${amount.toFixed(2).replace('.', ',')} €` });
       setDebtDialog({ open: false, order: null });
       setDebtAmount('');
       setDebtNote('');
@@ -337,7 +337,7 @@ function DeliveryPage() {
         status: newStatus,
         updated_at: new Date().toISOString(),
       }).eq('id', debt.id);
-      toast({ title: newStatus === 'paid' ? '✅ Dlh uhradený' : '💰 Platba zaznamenaná', description: `Zaplatené: ${amount.toFixed(2)} €` });
+      toast({ title: newStatus === 'paid' ? '✅ Dlh uhradený' : '💰 Platba zaznamenaná', description: `Zaplatené: ${amount.toFixed(2).replace('.', ',')} €` });
       setPaymentDialog({ open: false, debt: null });
       setPaymentAmount('');
       setPaymentNote('');
@@ -1030,12 +1030,12 @@ function DeliveryPage() {
                   type: 'order_payment',
                   status: 'completed',
                   order_id: orderId,
-                  note: `Platba opakovanej objednávky z Pugilaru${remainder > 0 ? ` — doplatiť ${remainder.toFixed(2)} €` : ' — plne uhradené'}`,
+                  note: `Platba opakovanej objednávky z Pugilaru${remainder > 0 ? ` — doplatiť ${remainder.toFixed(2).replace('.', ',')} €` : ' — plne uhradené'}`,
                 });
 
               toast({
                 title: 'Doručené + Pugilar',
-                description: `Odpočítané ${walletPayment.toFixed(2)} € z Pugilaru${remainder > 0 ? `, doplatiť ${remainder.toFixed(2)} €` : ' — plne uhradené'}`,
+                description: `Odpočítané ${walletPayment.toFixed(2).replace('.', ',')} € z Pugilaru${remainder > 0 ? `, doplatiť ${remainder.toFixed(2).replace('.', ',')} €` : ' — plne uhradené'}`,
               });
             } else {
               toast({
@@ -1528,7 +1528,7 @@ function DeliveryPage() {
                     </div>
                     <div className="text-right">
                       <div className="text-[11px] text-[#475569]">Celkový dlh</div>
-                      <div className="text-lg font-bold text-[#dc2626]">{totalRemaining.toFixed(2)} €</div>
+                      <div className="text-lg font-bold text-[#dc2626]">{totalRemaining.toFixed(2).replace('.', ',')} €</div>
                     </div>
                   </div>
                   {/* Individual debts */}
@@ -1552,14 +1552,14 @@ function DeliveryPage() {
                                 </span>
                               </div>
                               <div className="text-xs text-[#475569] mt-0.5">
-                                Dlžná suma: <span className="font-bold text-[#0f172a]">{(debt.amount_owed || 0).toFixed(2)} €</span>
+                                Dlžná suma: <span className="font-bold text-[#0f172a]">{(debt.amount_owed || 0).toFixed(2).replace('.', ',')} €</span>
                                 {(debt.amount_paid || 0) > 0 && (
-                                  <> · Zaplatené: <span className="font-semibold text-[#16a34a]">{(debt.amount_paid || 0).toFixed(2)} €</span></>
+                                  <> · Zaplatené: <span className="font-semibold text-[#16a34a]">{(debt.amount_paid || 0).toFixed(2).replace('.', ',')} €</span></>
                                 )}
                               </div>
                               {debt.notes && <div className="text-xs text-[#94a3b8] mt-0.5 italic">{debt.notes}</div>}
                               <div className="text-sm font-bold text-[#dc2626] mt-1">
-                                Zostatok: {remaining.toFixed(2)} €
+                                Zostatok: {remaining.toFixed(2).replace('.', ',')} €
                               </div>
                             </div>
                             <div className="flex flex-col gap-1.5 shrink-0">
@@ -1596,7 +1596,7 @@ function DeliveryPage() {
                 <div className="font-bold text-[#0f172a]">{customers.find(c => c.id === debtDialog.order?.customer_id)?.name}</div>
                 <div className="text-[#64748b]">
                   {debtDialog.order?.delivery_date ? format(new Date(debtDialog.order.delivery_date), 'd. MMMM yyyy', { locale: sk }) : ''}
-                  {' · '}celková suma: <span className="font-semibold">{debtDialog.order?.totalPrice?.toFixed(2)} €</span>
+                  {' · '}celková suma: <span className="font-semibold">{debtDialog.order?.totalPrice?.toFixed(2).replace('.', ',')} €</span>
                 </div>
               </div>
               <div>
@@ -1648,17 +1648,17 @@ function DeliveryPage() {
                 <div className="font-bold text-[#0f172a]">{paymentDialog.debt.customer?.name}</div>
                 <div className="flex justify-between text-xs text-[#475569]">
                   <span>Dlžná suma:</span>
-                  <span className="font-bold text-[#0f172a]">{(paymentDialog.debt.amount_owed || 0).toFixed(2)} €</span>
+                  <span className="font-bold text-[#0f172a]">{(paymentDialog.debt.amount_owed || 0).toFixed(2).replace('.', ',')} €</span>
                 </div>
                 {(paymentDialog.debt.amount_paid || 0) > 0 && (
                   <div className="flex justify-between text-xs text-[#475569]">
                     <span>Už zaplatené:</span>
-                    <span className="font-semibold text-[#16a34a]">{(paymentDialog.debt.amount_paid || 0).toFixed(2)} €</span>
+                    <span className="font-semibold text-[#16a34a]">{(paymentDialog.debt.amount_paid || 0).toFixed(2).replace('.', ',')} €</span>
                   </div>
                 )}
                 <div className="flex justify-between text-xs font-bold border-t border-[#bbf7d0] pt-1 mt-1">
                   <span>Zostatok:</span>
-                  <span className="text-[#dc2626]">{((paymentDialog.debt.amount_owed || 0) - (paymentDialog.debt.amount_paid || 0)).toFixed(2)} €</span>
+                  <span className="text-[#dc2626]">{((paymentDialog.debt.amount_owed || 0) - (paymentDialog.debt.amount_paid || 0)).toFixed(2).replace('.', ',')} €</span>
                 </div>
               </div>
               <div>
@@ -1833,7 +1833,7 @@ function DeliveryPage() {
                       const df = o.delivery_price ?? 0;
                       return sum + Math.max(0, ot + df - voucherDiscount - walletPay);
                     }, 0);
-                    return `${cash.toFixed(2)} €`;
+                    return `${cash.toFixed(2).replace('.', ',')} €`;
                   })(), color: 'text-[#16a34a]' },
                   { label: 'Na rozvoz', value: `${pendingCount}`, color: 'text-[#0f172a]' },
                   { label: 'Doručených', value: `${deliveredCount}`, color: 'text-[#0f172a]' },
@@ -1967,7 +1967,7 @@ function DeliveryPage() {
                                 </div>
                               </TableCell>
                               <TableCell className="py-2 text-right">
-                                <span className="font-semibold text-sm text-[#16a34a]">{order.totalPrice.toFixed(2)} €</span>
+                                <span className="font-semibold text-sm text-[#16a34a]">{order.totalPrice.toFixed(2).replace('.', ',')} €</span>
                               </TableCell>
                               <TableCell className="py-2 text-center" onClick={e => e.stopPropagation()}>
                                 <div className="flex items-center justify-center gap-2">
@@ -2152,7 +2152,7 @@ function DeliveryPage() {
                       const total = ot + df - voucherDiscount;
                       return sum + Math.max(0, total - walletPay);
                     }, 0);
-                    return `${cash.toFixed(2)} €`;
+                    return `${cash.toFixed(2).replace('.', ',')} €`;
                   })()}
                 </div>
               </div>
@@ -2249,7 +2249,7 @@ function DeliveryPage() {
                             </div>
                           </div>
                           <div className="flex flex-col items-end gap-1 shrink-0">
-                            <span className="text-base font-bold text-[#0f172a]">{order.totalPrice.toFixed(2)} €</span>
+                            <span className="text-base font-bold text-[#0f172a]">{order.totalPrice.toFixed(2).replace('.', ',')} €</span>
                             {payType === 'cash' && cashDue > 0 && (
                               <span className="text-[10px] font-medium px-1.5 py-0.5 bg-[#fff7ed] text-[#c2410c] border border-[#fed7aa] rounded-md">Hotovosť</span>
                             )}
@@ -2288,7 +2288,7 @@ function DeliveryPage() {
                         {order.customerAddress && <div className="text-xs text-[#4ade80] truncate">{order.customerAddress}</div>}
                       </div>
                       <div className="flex flex-col items-end gap-1">
-                        <span className="text-sm font-bold text-[#16a34a]">{order.totalPrice.toFixed(2)} €</span>
+                        <span className="text-sm font-bold text-[#16a34a]">{order.totalPrice.toFixed(2).replace('.', ',')} €</span>
                         <span className="text-[9px] text-[#94a3b8]">Klepni pre vrátenie</span>
                       </div>
                     </div>
@@ -2404,7 +2404,7 @@ function DeliveryPage() {
                               {item.package_type && <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-[#16a34a] text-white rounded">{item.package_type}</span>}
                             </div>
                           </div>
-                          <span className="text-sm font-bold text-[#0f172a] shrink-0">{item.price.toFixed(2)} €</span>
+                          <span className="text-sm font-bold text-[#0f172a] shrink-0">{item.price.toFixed(2).replace('.', ',')} €</span>
                         </div>
                       )) : (
                         <div className="text-sm text-[#475569]">Objednávka</div>
@@ -2415,25 +2415,25 @@ function DeliveryPage() {
                   {/* Cenový súhrn */}
                   <div className="px-3 py-2.5 bg-[#f8fafc] border-b border-[#cbd5e1] space-y-1">
                     <div className="flex justify-between text-xs text-[#475569]">
-                      <span>Medzisúčet</span><span>{(order.totalPrice - (order.deliveryFee || 0)).toFixed(2)} €</span>
+                      <span>Medzisúčet</span><span>{(order.totalPrice - (order.deliveryFee || 0)).toFixed(2).replace('.', ',')} €</span>
                     </div>
                     <div className="flex justify-between text-xs text-[#475569]">
                       <span>Doprava</span>
                       <span className={(order.deliveryFee || 0) === 0 ? 'text-[#16a34a] font-medium' : ''}>
-                        {(order.deliveryFee || 0) === 0 ? 'Zdarma' : `${(order.deliveryFee || 0).toFixed(2)} €`}
+                        {(order.deliveryFee || 0) === 0 ? 'Zdarma' : `${(order.deliveryFee || 0).toFixed(2).replace('.', ',')} €`}
                       </span>
                     </div>
-                    {walletPay > 0 && <div className="flex justify-between text-xs text-[#16a34a]"><span>Pugiľar</span><span>−{walletPay.toFixed(2)} €</span></div>}
-                    {voucherDiscount > 0 && <div className="flex justify-between text-xs text-[#7c3aed]"><span>Poukaz</span><span>−{voucherDiscount.toFixed(2)} €</span></div>}
+                    {walletPay > 0 && <div className="flex justify-between text-xs text-[#16a34a]"><span>Pugiľar</span><span>−{walletPay.toFixed(2).replace('.', ',')} €</span></div>}
+                    {voucherDiscount > 0 && <div className="flex justify-between text-xs text-[#7c3aed]"><span>Poukaz</span><span>−{voucherDiscount.toFixed(2).replace('.', ',')} €</span></div>}
                     <div className="flex justify-between text-sm font-bold pt-1 border-t border-[#cbd5e1]">
                       <span>K úhrade</span>
-                      {payType === 'cash' ? <span className="text-[#dc2626]">{cashDue.toFixed(2)} € hotovosť</span>
+                      {payType === 'cash' ? <span className="text-[#dc2626]">{cashDue.toFixed(2).replace('.', ',')} € hotovosť</span>
                         : payType === 'wallet' ? <span className="text-[#16a34a]">Uhradené z Pugiľaru</span>
                         : <span className="text-[#7c3aed]">Uhradené poukazom</span>}
                     </div>
                     {walletRemainder > 0 && (
                       <div className="mt-1 p-2 bg-[#fff7ed] rounded-lg border border-[#fed7aa]">
-                        <p className="text-xs text-[#c2410c] font-medium">💵 Doplatiť pri doručení: {walletRemainder.toFixed(2)} €</p>
+                        <p className="text-xs text-[#c2410c] font-medium">💵 Doplatiť pri doručení: {walletRemainder.toFixed(2).replace('.', ',')} €</p>
                       </div>
                     )}
                   </div>
@@ -2588,7 +2588,7 @@ function DeliveryPage() {
                         <div className="text-sm font-bold text-[#0f172a]">{item.name}</div>
                         <div className="text-xs text-[#475569]">{item.quantity} × {item.size}g</div>
                       </div>
-                      <div className="font-bold text-sm text-[#16a34a]">{item.price.toFixed(2)} €</div>
+                      <div className="font-bold text-sm text-[#16a34a]">{item.price.toFixed(2).replace('.', ',')} €</div>
                     </div>
                   ))}
                 </div>
@@ -2598,23 +2598,23 @@ function DeliveryPage() {
               <div className="bg-[#f8fafc] rounded-xl border border-[#cbd5e1] px-4 py-3 space-y-2">
                 <div className="flex justify-between text-sm text-[#475569]">
                   <span>Medzisúčet</span>
-                  <span>{(selectedOrderDetail.totalPrice - (selectedOrderDetail.deliveryFee || 0)).toFixed(2)} €</span>
+                  <span>{(selectedOrderDetail.totalPrice - (selectedOrderDetail.deliveryFee || 0)).toFixed(2).replace('.', ',')} €</span>
                 </div>
                 <div className="flex justify-between text-sm text-[#475569]">
                   <span className="flex items-center gap-1"><Truck className="h-3.5 w-3.5" /> Doprava</span>
                   <span className={(selectedOrderDetail.deliveryFee || 0) === 0 ? 'text-[#16a34a] font-medium' : ''}>
-                    {(selectedOrderDetail.deliveryFee || 0) === 0 ? 'Zdarma' : `${(selectedOrderDetail.deliveryFee || 0).toFixed(2)} €`}
+                    {(selectedOrderDetail.deliveryFee || 0) === 0 ? 'Zdarma' : `${(selectedOrderDetail.deliveryFee || 0).toFixed(2).replace('.', ',')} €`}
                   </span>
                 </div>
                 {(selectedOrderDetail as any).voucherDiscount > 0 && (
                   <div className="flex justify-between text-sm text-[#7c3aed]">
                     <span>Poukaz</span>
-                    <span>−{((selectedOrderDetail as any).voucherDiscount || 0).toFixed(2)} €</span>
+                    <span>−{((selectedOrderDetail as any).voucherDiscount || 0).toFixed(2).replace('.', ',')} €</span>
                   </div>
                 )}
                 <div className="flex justify-between pt-2 border-t border-[#cbd5e1]">
                   <span className="font-bold text-sm text-[#0f172a]">K úhrade</span>
-                  <span className="font-bold text-lg text-[#0f172a]">{selectedOrderDetail.totalPrice.toFixed(2)} €</span>
+                  <span className="font-bold text-lg text-[#0f172a]">{selectedOrderDetail.totalPrice.toFixed(2).replace('.', ',')} €</span>
                 </div>
               </div>
 
@@ -2644,19 +2644,19 @@ function DeliveryPage() {
               <div className="bg-blue-50 rounded-lg p-3 text-center">
                 <div className="text-xs text-gray-600">Tovar</div>
                 <div className="text-lg font-bold text-blue-600">
-                  {calculateItemsTotal().toFixed(2)} €
+                  {calculateItemsTotal().toFixed(2).replace('.', ',')} €
                 </div>
               </div>
               <div className="bg-orange-50 rounded-lg p-3 text-center">
                 <div className="text-xs text-gray-600">Doprava</div>
                 <div className="text-lg font-bold text-orange-600">
-                  {calculateDeliveryTotal().toFixed(2)} €
+                  {calculateDeliveryTotal().toFixed(2).replace('.', ',')} €
                 </div>
               </div>
               <div className="bg-green-50 rounded-lg p-3 text-center">
                 <div className="text-xs text-gray-600">Celkom</div>
                 <div className="text-lg font-bold text-green-600">
-                  {calculateGrandTotal().toFixed(2)} €
+                  {calculateGrandTotal().toFixed(2).replace('.', ',')} €
                 </div>
               </div>
             </div>
@@ -2666,13 +2666,13 @@ function DeliveryPage() {
               <div className="bg-green-50 rounded-lg p-3">
                 <div className="text-xs text-gray-600">Zaplatené</div>
                 <div className="text-base font-bold text-green-600">
-                  {calculatePaid().toFixed(2)} €
+                  {calculatePaid().toFixed(2).replace('.', ',')} €
                 </div>
               </div>
               <div className="bg-red-50 rounded-lg p-3">
                 <div className="text-xs text-gray-600">⏳ Nezaplatené</div>
                 <div className="text-base font-bold text-red-600">
-                  {calculateUnpaid().toFixed(2)} €
+                  {calculateUnpaid().toFixed(2).replace('.', ',')} €
                 </div>
               </div>
             </div>
@@ -2682,13 +2682,13 @@ function DeliveryPage() {
               <div className="bg-gray-50 rounded-lg p-3">
                 <div className="text-xs text-gray-600">🏠 Domácnosti</div>
                 <div className="text-base font-bold">
-                  {calculateHouseholds().toFixed(2)} €
+                  {calculateHouseholds().toFixed(2).replace('.', ',')} €
                 </div>
               </div>
               <div className="bg-orange-50 rounded-lg p-3">
                 <div className="text-xs text-gray-600">🍴 Gastro/VO</div>
                 <div className="text-base font-bold text-orange-600">
-                  {calculateGastro().toFixed(2)} €
+                  {calculateGastro().toFixed(2).replace('.', ',')} €
                 </div>
               </div>
             </div>
