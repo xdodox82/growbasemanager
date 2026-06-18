@@ -34,6 +34,7 @@ import {
 import { format, startOfMonth } from 'date-fns';
 import { sk } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { formatEur, formatNumber } from '@/utils/formatters';
 
 // ===================== TYPES =====================
 
@@ -52,8 +53,7 @@ const TAB_CONFIG: Record<CostTab, { label: string; icon: any; table: string; pri
 
 // ===================== HELPERS =====================
 
-const formatEur = (n: number): string =>
-  n.toLocaleString('sk-SK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+// formatEur, formatNumber — z @/utils/formatters (jednotné SK formátovanie s čiarkou)
 
 const SK_MONTHS_GEN = [
   'januára', 'februára', 'marca', 'apríla', 'mája', 'júna',
@@ -413,7 +413,7 @@ const FuelTab = () => {
       <div className="lg:col-span-2 space-y-3">
         <div className="grid grid-cols-2 gap-2">
           <SummaryCard label="Celkové náklady" value={formatEur(total)} color="green" Icon={Euro} />
-          <SummaryCard label="Spolu natankované" value={`${totalLiters.toFixed(2)} L`} color="blue" Icon={Fuel} />
+          <SummaryCard label="Spolu natankované" value={`${formatNumber(totalLiters, 2)} L`} color="blue" Icon={Fuel} />
         </div>
 
         <ListCard title="História tankovaní" count={costs.length} loading={loading} empty={costs.length === 0} emptyText="Zatiaľ nemáš žiadne tankovanie." EmptyIcon={Fuel}>
@@ -441,8 +441,8 @@ const FuelTab = () => {
                         {c.fuel_type === 'diesel' ? 'Diesel' : 'Benzín'}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-right text-[#0f172a]">{c.liters.toFixed(2)} L</td>
-                    <td className="px-3 py-2 text-right text-[#475569]">{c.price_per_liter.toFixed(3)} €</td>
+                    <td className="px-3 py-2 text-right text-[#0f172a]">{formatNumber(c.liters, 2)} L</td>
+                    <td className="px-3 py-2 text-right text-[#475569]">{formatNumber(c.price_per_liter, 3)} €</td>
                     <td className="px-3 py-2 text-right font-bold text-[#0f172a]">{formatEur(c.total_price)}</td>
                     <td className="px-3 py-2 text-right">
                       <RowActions onEdit={() => handleEdit(c)} onDelete={() => setDeleteId(c.id)} />
@@ -593,7 +593,7 @@ const AdblueTab = () => {
       <div className="lg:col-span-2 space-y-3">
         <div className="grid grid-cols-2 gap-2">
           <SummaryCard label="Celkové náklady" value={formatEur(total)} color="green" Icon={Euro} />
-          <SummaryCard label="Spolu litrov" value={`${totalLiters.toFixed(2)} L`} color="blue" Icon={Droplets} />
+          <SummaryCard label="Spolu litrov" value={`${formatNumber(totalLiters, 2)} L`} color="blue" Icon={Droplets} />
         </div>
 
         <ListCard title="História AdBlue" count={costs.length} loading={loading} empty={costs.length === 0} emptyText="Zatiaľ nemáš žiadny záznam o AdBlue." EmptyIcon={Droplets}>
@@ -612,8 +612,8 @@ const AdblueTab = () => {
                 {costs.map(c => (
                   <tr key={c.id} className="hover:bg-[#f8fafc] transition-colors">
                     <td className="px-3 py-2 text-[#0f172a]">{format(new Date(c.date), 'd.M.yyyy')}</td>
-                    <td className="px-3 py-2 text-right text-[#0f172a]">{c.liters.toFixed(2)} L</td>
-                    <td className="px-3 py-2 text-right text-[#475569]">{c.price_per_liter.toFixed(3)} €</td>
+                    <td className="px-3 py-2 text-right text-[#0f172a]">{formatNumber(c.liters, 2)} L</td>
+                    <td className="px-3 py-2 text-right text-[#475569]">{formatNumber(c.price_per_liter, 3)} €</td>
                     <td className="px-3 py-2 text-right font-bold text-[#0f172a]">{formatEur(c.total_price)}</td>
                     <td className="px-3 py-2 text-right">
                       <RowActions onEdit={() => handleEdit(c)} onDelete={() => setDeleteId(c.id)} />
@@ -760,7 +760,7 @@ const ElectricityTab = () => {
           {meterStart && meterEnd && (
             <div className="bg-[#f0fdf4] border border-[#bbf7d0] rounded-md px-3 py-2 text-sm">
               <span className="text-[#475569]">Spotreba: </span>
-              <span className="font-bold text-[#16a34a]">{(parseFloat(meterEnd) - parseFloat(meterStart)).toFixed(2)} kWh</span>
+              <span className="font-bold text-[#16a34a]">{formatNumber(parseFloat(meterEnd) - parseFloat(meterStart), 2)} kWh</span>
             </div>
           )}
           <div className="space-y-1.5">
@@ -784,7 +784,7 @@ const ElectricityTab = () => {
       <div className="lg:col-span-2 space-y-3">
         <div className="grid grid-cols-2 gap-2">
           <SummaryCard label="Celkové náklady" value={formatEur(totalSpent)} color="green" Icon={Euro} />
-          <SummaryCard label="Spolu spotrebované" value={`${totalConsumption.toFixed(2)} kWh`} color="blue" Icon={Zap} />
+          <SummaryCard label="Spolu spotrebované" value={`${formatNumber(totalConsumption, 2)} kWh`} color="blue" Icon={Zap} />
         </div>
 
         <ListCard title="História odpisov" count={costs.length} loading={loading} empty={costs.length === 0} emptyText="Zatiaľ žiadne odpisy." EmptyIcon={Zap}>
@@ -804,9 +804,9 @@ const ElectricityTab = () => {
                 {costs.map(c => (
                   <tr key={c.id} className="hover:bg-[#f8fafc] transition-colors">
                     <td className="px-3 py-2 text-[#0f172a]">{format(new Date(c.month), 'LLLL yyyy', { locale: sk })}</td>
-                    <td className="px-3 py-2 text-right text-[#475569]">{c.meter_start.toFixed(0)}</td>
-                    <td className="px-3 py-2 text-right text-[#475569]">{c.meter_end.toFixed(0)}</td>
-                    <td className="px-3 py-2 text-right font-semibold text-[#0f172a]">{c.total_consumption.toFixed(2)} kWh</td>
+                    <td className="px-3 py-2 text-right text-[#475569]">{formatNumber(c.meter_start, 0)}</td>
+                    <td className="px-3 py-2 text-right text-[#475569]">{formatNumber(c.meter_end, 0)}</td>
+                    <td className="px-3 py-2 text-right font-semibold text-[#0f172a]">{formatNumber(c.total_consumption, 2)} kWh</td>
                     <td className="px-3 py-2 text-right font-bold text-[#0f172a]">{c.total_price ? formatEur(c.total_price) : '—'}</td>
                     <td className="px-3 py-2 text-right">
                       <RowActions onEdit={() => handleEdit(c)} onDelete={() => setDeleteId(c.id)} />
@@ -953,7 +953,7 @@ const WaterTab = () => {
           {meterStart && meterEnd && (
             <div className="bg-[#f0fdf4] border border-[#bbf7d0] rounded-md px-3 py-2 text-sm">
               <span className="text-[#475569]">Spotreba: </span>
-              <span className="font-bold text-[#16a34a]">{(parseFloat(meterEnd) - parseFloat(meterStart)).toFixed(2)} m³</span>
+              <span className="font-bold text-[#16a34a]">{formatNumber(parseFloat(meterEnd) - parseFloat(meterStart), 2)} m³</span>
             </div>
           )}
           <div className="space-y-1.5">
@@ -977,7 +977,7 @@ const WaterTab = () => {
       <div className="lg:col-span-2 space-y-3">
         <div className="grid grid-cols-2 gap-2">
           <SummaryCard label="Celkové náklady" value={formatEur(totalSpent)} color="green" Icon={Euro} />
-          <SummaryCard label="Spolu spotrebované" value={`${totalConsumption.toFixed(2)} m³`} color="blue" Icon={Droplet} />
+          <SummaryCard label="Spolu spotrebované" value={`${formatNumber(totalConsumption, 2)} m³`} color="blue" Icon={Droplet} />
         </div>
 
         <ListCard title="História odpisov vody" count={costs.length} loading={loading} empty={costs.length === 0} emptyText="Zatiaľ žiadne odpisy." EmptyIcon={Droplet}>
@@ -997,9 +997,9 @@ const WaterTab = () => {
                 {costs.map(c => (
                   <tr key={c.id} className="hover:bg-[#f8fafc] transition-colors">
                     <td className="px-3 py-2 text-[#0f172a]">{format(new Date(c.month), 'LLLL yyyy', { locale: sk })}</td>
-                    <td className="px-3 py-2 text-right text-[#475569]">{c.meter_start.toFixed(2)}</td>
-                    <td className="px-3 py-2 text-right text-[#475569]">{c.meter_end.toFixed(2)}</td>
-                    <td className="px-3 py-2 text-right font-semibold text-[#0f172a]">{c.total_consumption.toFixed(2)} m³</td>
+                    <td className="px-3 py-2 text-right text-[#475569]">{formatNumber(c.meter_start, 2)}</td>
+                    <td className="px-3 py-2 text-right text-[#475569]">{formatNumber(c.meter_end, 2)}</td>
+                    <td className="px-3 py-2 text-right font-semibold text-[#0f172a]">{formatNumber(c.total_consumption, 2)} m³</td>
                     <td className="px-3 py-2 text-right font-bold text-[#0f172a]">{c.total_price ? formatEur(c.total_price) : '—'}</td>
                     <td className="px-3 py-2 text-right">
                       <RowActions onEdit={() => handleEdit(c)} onDelete={() => setDeleteId(c.id)} />
