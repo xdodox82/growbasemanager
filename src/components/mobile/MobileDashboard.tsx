@@ -15,6 +15,7 @@ import {
 import { addDays, isSameDay, startOfWeek, endOfWeek, isWithinInterval, format } from 'date-fns';
 import { sk } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
+import { formatNumber } from '@/utils/formatters';
 
 export function MobileDashboard() {
   const { data: plantingPlans } = usePlantingPlans();
@@ -156,7 +157,7 @@ export function MobileDashboard() {
               <TrendingUp className="h-4 w-4 text-info" />
               <span className="text-xs text-muted-foreground">Úroda</span>
             </div>
-            <p className="text-xl font-bold">{yieldByCrop.reduce((s, c) => s + c.yield, 0).toFixed(0)}g</p>
+            <p className="text-xl font-bold">{formatNumber(yieldByCrop.reduce((s, c) => s + c.yield, 0), 0)}g</p>
           </div>
         </div>
         {yieldByCrop.length > 0 && (
@@ -165,7 +166,7 @@ export function MobileDashboard() {
               <div key={i} className="flex items-center gap-2 text-sm">
                 <div className="h-2 w-2 rounded-full" style={{ backgroundColor: crop.color }} />
                 <span className="flex-1 truncate">{crop.name}</span>
-                <span className="text-muted-foreground">{crop.yield.toFixed(0)}g</span>
+                <span className="text-muted-foreground">{formatNumber(crop.yield, 0)}g</span>
               </div>
             ))}
           </div>

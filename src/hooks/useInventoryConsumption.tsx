@@ -1,5 +1,6 @@
 import { useSeeds, usePackagings, useLabels, useCrops } from '@/hooks/useSupabaseData';
 import { useToast } from '@/hooks/use-toast';
+import { formatNumber } from '@/utils/formatters';
 
 // Recommended minimum quantities for different crops (in grams)
 // Limity pre objednávanie zásob
@@ -230,7 +231,7 @@ export function useInventoryConsumption() {
     const crop = crops.find(c => c.id === cropId);
     toast({
       title: 'Semená spotrebované',
-      description: `Odpočítané ${consumption.amount.toFixed(0)}g semien ${crop?.name || ''}.`,
+      description: `Odpočítané ${formatNumber(consumption.amount, 0)}g semien ${crop?.name || ''}.`,
     });
 
     return true;
