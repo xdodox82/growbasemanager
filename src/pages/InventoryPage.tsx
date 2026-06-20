@@ -668,6 +668,23 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
     [filteredSeeds]
   );
 
+  // Ktoré plodiny sú nízke (agregát po plodine — rovnako ako badge na karte)
+  const lowStockCropIds = useMemo(() => {
+    const byCrop = new Map<string, { cur: number; min: number }>();
+    filteredSeeds.forEach(s => {
+      const k = s.crop_id || '__unknown__';
+      const factor = s.unit === 'kg' ? 1 : 0.001;
+      const e = byCrop.get(k) || { cur: 0, min: 0 };
+      e.cur += (s.quantity || 0) * factor;
+      const min = (s as any).min_stock;
+      if (min != null) e.min += min * factor;
+      byCrop.set(k, e);
+    });
+    const ids = new Set<string>();
+    byCrop.forEach((v, k) => { if (v.min > 0 && v.cur < v.min) ids.add(k); });
+    return ids;
+  }, [filteredSeeds]);
+
   // Available crops in current category filter
   const availableCrops = useMemo(() => {
     if (categoryFilter === 'all') return crops;
@@ -881,16 +898,27 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
             Súhrn zásob po plodinách
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-            {seedTotalsByCrop.map(t => (
-              <div key={t.cropId} className="bg-[#f8fafc] rounded-lg border border-[#e2e8f0] p-2.5 flex items-center gap-2">
+            {seedTotalsByCrop.map(t => {
+              const low = lowStockCropIds.has(t.cropId);
+              return (
+              <div
+                key={t.cropId}
+                className={cn(
+                  'rounded-lg border p-2.5 flex items-center gap-2',
+                  low ? 'bg-[#fef2f2] border-[#fecaca]' : 'bg-[#f8fafc] border-[#e2e8f0]'
+                )}
+              >
                 <div
                   className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center border"
                   style={{ backgroundColor: `${t.cropColor}15`, borderColor: `${t.cropColor}30` }}
                 >
                   <Sprout className="h-3.5 w-3.5" style={{ color: t.cropColor }} />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-[#0f172a] truncate">{t.cropName}</p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1">
+                    <p className="text-xs font-bold text-[#0f172a] truncate">{t.cropName}</p>
+                    {low && <AlertTriangle className="h-3 w-3 text-[#dc2626] flex-shrink-0" />}
+                  </div>
                   <p className="text-[11px] text-[#475569]">
                     {t.totalKg > 0 && <span className="font-bold text-[#0f172a]">{formatKg(t.totalKg)}</span>}
                     {t.totalKg > 0 && t.totalG > 0 && ' + '}
@@ -898,7 +926,8 @@ const SeedsTab = ({ isAdmin, isMobile, toast, getSupplierName }: TabProps) => {
                   </p>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
