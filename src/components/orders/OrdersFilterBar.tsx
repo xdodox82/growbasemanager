@@ -1,7 +1,7 @@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SearchableCustomerSelect } from '@/components/orders/SearchableCustomerSelect';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronDown, ChevronLeft, ChevronRight, Calendar as CalendarIcon, House, Utensils, Store, Leaf, Sprout, Flower, Palette } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Calendar as CalendarIcon, House, Utensils, Store, Leaf, Sprout, Flower, Palette, RefreshCw, ShoppingBag } from 'lucide-react';
 import { format, isSameDay, isToday, getDay, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { sk } from 'date-fns/locale';
 import { useState } from 'react';
@@ -20,6 +20,8 @@ interface Props {
   onFilterPeriodChange: (v: string) => void;
   filterStatus: string;
   onFilterStatusChange: (v: string) => void;
+  recurrenceFilter: string;
+  onRecurrenceFilterChange: (v: string) => void;
   selectedDates: Date[];
   onSelectedDatesChange: (dates: Date[]) => void;
   calendarOpen: boolean;
@@ -45,6 +47,7 @@ export function OrdersFilterBar({
   filterCrop, onFilterCropChange,
   filterPeriod, onFilterPeriodChange,
   filterStatus, onFilterStatusChange,
+  recurrenceFilter, onRecurrenceFilterChange,
   selectedDates, onSelectedDatesChange,
   calendarOpen, onCalendarOpenChange,
   customers, crops, blends, orders,
@@ -72,6 +75,7 @@ export function OrdersFilterBar({
     orderCategoryFilter !== 'all',
     filterCrop !== 'all',
     filterStatus !== 'all',
+    recurrenceFilter !== 'all',
     filterPeriod !== 'all',
     selectedDates.length > 0,
   ].filter(Boolean).length;
@@ -250,6 +254,23 @@ export function OrdersFilterBar({
               );
             })}
           </div>
+          <div className="border-t border-[#e2e8f0]" />
+
+          {/* Riadok: Typ objednávky */}
+          <div className="flex items-center gap-2 flex-wrap py-2">
+            {rowLabel('Typ')}
+            <button onClick={() => onRecurrenceFilterChange('all')} className={chip(recurrenceFilter === 'all', 'bg-[#16a34a] border-[#16a34a] text-white')}>Všetky</button>
+            <button onClick={() => onRecurrenceFilterChange('once')} className={chip(recurrenceFilter === 'once', 'bg-[#f0fdf4] border-[#16a34a] text-[#16a34a]')}>
+              <ShoppingBag className="w-3 h-3" />Jednorazové
+            </button>
+            <button onClick={() => onRecurrenceFilterChange('weekly')} className={chip(recurrenceFilter === 'weekly', 'bg-[#eff6ff] border-[#2563eb] text-[#2563eb]')}>
+              <RefreshCw className="w-3 h-3" />Týždenné
+            </button>
+            <button onClick={() => onRecurrenceFilterChange('biweekly')} className={chip(recurrenceFilter === 'biweekly', 'bg-[#eff6ff] border-[#2563eb] text-[#2563eb]')}>
+              <RefreshCw className="w-3 h-3" />Dvojtýždňové
+            </button>
+          </div>
+
           <div className="flex items-center gap-2 flex-wrap py-2">
             {rowLabel('Dátum')}
             {([

@@ -163,6 +163,23 @@ const formatOrderNotes = (notes: string | null): string | null => {
   return result.length > 0 ? result : null;
 };
 
+// Helper: typ opakovania objednávky pre filter Všetky/Jednorazové/Týždenné/Dvojtýždňové
+// Zdroj pravdy: PWA/server značí frekvenciu cez `freq:` v notes; GrowBase cez recurrence_pattern.
+const getOrderRecurrence = (order: any): 'once' | 'weekly' | 'biweekly' => {
+  const n = order?.notes || '';
+  if (n.includes('freq:weekly')) return 'weekly';
+  if (n.includes('freq:biweekly')) return 'biweekly';
+  const rp = String(order?.recurrence_pattern || '').toLowerCase();
+  if (rp === 'weekly') return 'weekly';
+  if (rp === 'biweekly' || rp === 'bi-weekly') return 'biweekly';
+  return 'once';
+};
+
+const isRecurringOrder = (order: any): boolean =>
+  !!order?.parent_order_id ||
+  (order?.is_recurring && (order?.recurring_weeks || 0) > 1) ||
+  getOrderRecurrence(order) !== 'once';
+
 const deleteOrderItemsDirectFetch = async (orderId: string) => {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -251,6 +268,9 @@ export default function OrdersPage() {
   const [customerFilter, setCustomerFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [filterRoute, setFilterRoute] = useState('all');
+  const [recurrenceFilter, setRecurrenceFilter] = useState('all');
+  const [sortField, setSortField] = useState<'delivery_date' | 'total_price' | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [showArchive, setShowArchive] = useState(false);
   const [showCancelled, setShowCancelled] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -316,6 +336,31 @@ export default function OrdersPage() {
 
   useEffect(() => {
     loadData();
+  }, []);
+
+  // Živé obnovenie zoznamu objednávok cez dva mechanizmy:
+  // a. realtime kanál na tabuľke orders — okamžite, ak je Realtime pre orders zapnutý;
+  // b. obnova pri návrate na okno/záložku — funguje vždy, nezávisí od Realtime.
+  // Obnovujeme „ticho" bez spinnera, aby sa stránka nepreblikávala.
+  useEffect(() => {
+    const channel = supabase
+      .channel('growbase-orders-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        loadData({ silent: true });
+      })
+      .subscribe();
+
+    const refetchOnFocus = () => {
+      if (document.visibilityState === 'visible') loadData({ silent: true });
+    };
+    document.addEventListener('visibilitychange', refetchOnFocus);
+    window.addEventListener('focus', refetchOnFocus);
+
+    return () => {
+      supabase.removeChannel(channel);
+      document.removeEventListener('visibilitychange', refetchOnFocus);
+      window.removeEventListener('focus', refetchOnFocus);
+    };
   }, []);
 
   // Automaticky otvorí detail objednávky ak je v URL ?orderId=
@@ -482,10 +527,12 @@ export default function OrdersPage() {
     return form;
   };
 
-  const loadData = async () => {
+  const loadData = async (opts?: { silent?: boolean }) => {
     try {
-      setLoading(true);
-      setDataLoaded(false);
+      if (!opts?.silent) {
+        setLoading(true);
+        setDataLoaded(false);
+      }
       const [ordersRes, customersRes, cropsRes, blendsRes, routesRes, pricesRes, packagingsRes, deliveryDaysRes, plantingsRes] = await Promise.all([
         supabase.from('orders').select('*, order_items(*), customers(id, name, delivery_route_id, delivery_routes(id, name))').order('created_at', { ascending: false }),
         supabase.from('customers').select('*').order('name'),
@@ -498,7 +545,22 @@ export default function OrdersPage() {
         supabase.from('planting_plans').select('*').order('harvest_date'),
       ]);
 
-      if (ordersRes.data) setOrders(ordersRes.data as Order[]);
+      if (ordersRes.data) {
+        // Trasa: objednávky z PWA/servera ukladajú delivery_route_id, nie textový `route`,
+        // takže v zozname svietilo „—". Ak textový route chýba, doplníme názov trasy
+        // z delivery_route_id objednávky (rovnaký zdroj, aký používa detail objednávky).
+        const routesData = (routesRes.data || []) as Route[];
+        const enrichedOrders = (ordersRes.data as Order[]).map((o) => {
+          if (o.route && String(o.route).trim() !== '') return o;
+          const rid = (o as any).delivery_route_id;
+          const rname = rid ? routesData.find((r: any) => r.id === rid)?.name : undefined;
+          if (rname) return { ...o, route: rname };
+          // Osobný odber: PWA/server nemá trasu, príznak je v notes („Osobný odber").
+          if ((o.notes || '').includes('Osobný odber')) return { ...o, route: 'Osobný odber' };
+          return o;
+        });
+        setOrders(enrichedOrders);
+      }
       if (customersRes.data) setCustomers(customersRes.data);
       if (cropsRes.data) setCrops(cropsRes.data);
       if (blendsRes.data) setBlends(blendsRes.data);
@@ -634,6 +696,15 @@ export default function OrdersPage() {
       const orderNum = String((order as any).order_number || '').toLowerCase();
       const custName = String(order.customer_name || '').toLowerCase();
       if (!orderNum.includes(q) && !custName.includes(q)) return false;
+    }
+
+    // Filter podľa typu objednávky: jednorazová / týždenná / dvojtýždňová
+    if (recurrenceFilter !== 'all') {
+      if (recurrenceFilter === 'once') {
+        if (isRecurringOrder(order)) return false;
+      } else if (getOrderRecurrence(order) !== recurrenceFilter) {
+        return false;
+      }
     }
 
     return true;
@@ -778,6 +849,31 @@ export default function OrdersPage() {
       return 0;
     }
   };
+
+  // Triedenie zoznamu podľa dátumu dodania alebo celkovej ceny (klik na hlavičku stĺpca).
+  const handleSort = (field: 'delivery_date' | 'total_price') => {
+    if (sortField === field) {
+      setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  };
+
+  const sortedOrders = useMemo(() => {
+    if (!sortField) return filteredOrders;
+    const arr = [...filteredOrders];
+    arr.sort((a, b) => {
+      let cmp = 0;
+      if (sortField === 'delivery_date') {
+        cmp = String(a?.delivery_date || '').localeCompare(String(b?.delivery_date || ''));
+      } else if (sortField === 'total_price') {
+        cmp = (getOrderTotal(a) || 0) - (getOrderTotal(b) || 0);
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+    return arr;
+  }, [filteredOrders, sortField, sortDir]);
 
   const totalRevenue = (() => {
     try {
@@ -2319,6 +2415,8 @@ export default function OrdersPage() {
           onFilterPeriodChange={setFilterPeriod}
           filterStatus={filterStatus}
           onFilterStatusChange={setFilterStatus}
+          recurrenceFilter={recurrenceFilter}
+          onRecurrenceFilterChange={setRecurrenceFilter}
           selectedDates={selectedDates}
           onSelectedDatesChange={setSelectedDates}
           calendarOpen={calendarOpen}
@@ -2341,8 +2439,11 @@ export default function OrdersPage() {
         {viewMode === 'list' ? (
           isMobile ? (
             <OrdersListView
-              filteredOrders={filteredOrders}
+              filteredOrders={sortedOrders}
               getOrderTotal={getOrderTotal}
+              sortField={sortField}
+              sortDir={sortDir}
+              onSort={handleSort}
               onSelectOrder={(order) => { setSelectedOrderDetail(order); setDetailModalOpen(true); }}
               onDuplicate={duplicateOrder}
               onEdit={openEdit}
@@ -2350,8 +2451,11 @@ export default function OrdersPage() {
             />
           ) : (
             <OrdersTableView
-              filteredOrders={filteredOrders}
+              filteredOrders={sortedOrders}
               getOrderTotal={getOrderTotal}
+              sortField={sortField}
+              sortDir={sortDir}
+              onSort={handleSort}
               onSelectOrder={(order) => { setSelectedOrderDetail(order); setDetailModalOpen(true); }}
               onDuplicate={duplicateOrder}
               onEdit={openEdit}
@@ -2360,7 +2464,7 @@ export default function OrdersPage() {
           )
         ) : (
           <OrdersCardView
-            filteredOrders={filteredOrders}
+            filteredOrders={sortedOrders}
             customers={customers}
             routes={routes}
             getOrderTotal={getOrderTotal}

@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart, Copy, Pencil, Trash2, House, Utensils, Store, Smartphone, RefreshCw, Users, Truck } from 'lucide-react';
+import { ShoppingCart, Copy, Pencil, Trash2, House, Utensils, Store, Smartphone, RefreshCw, Users, Truck, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { getStatusBadgeClass, getStatusBorderColor, getStatusLabel, formatDeliveryDate } from './orderUtils';
 import { formatEur } from '@/utils/formatters';
 import type { Order } from './types';
@@ -8,6 +8,9 @@ import type { Order } from './types';
 interface Props {
   filteredOrders: Order[];
   getOrderTotal: (order: Order) => number;
+  sortField?: 'delivery_date' | 'total_price' | null;
+  sortDir?: 'asc' | 'desc';
+  onSort?: (field: 'delivery_date' | 'total_price') => void;
   onSelectOrder: (order: Order) => void;
   onDuplicate: (order: Order) => void;
   onEdit: (order: Order) => void;
@@ -21,6 +24,7 @@ interface Props {
  */
 export function OrdersListView({
   filteredOrders, getOrderTotal,
+  sortField, sortDir, onSort,
   onSelectOrder, onDuplicate, onEdit, onDelete,
 }: Props) {
   const isRecurring = (order: Order) =>
@@ -56,6 +60,31 @@ export function OrdersListView({
 
   return (
     <div className="bg-white rounded-xl border border-[#cbd5e1] overflow-hidden">
+      {onSort && (
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-[#e2e8f0] bg-[#f8fafc]">
+          <span className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-wider">Zoradiť</span>
+          {([
+            { f: 'delivery_date' as const, l: 'Dátum' },
+            { f: 'total_price' as const, l: 'Cena' },
+          ]).map(({ f, l }) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => onSort(f)}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md border text-[11px] font-medium transition-colors ${
+                sortField === f
+                  ? 'border-[#16a34a] text-[#16a34a] bg-[#f0fdf4]'
+                  : 'border-[#cbd5e1] text-[#475569] bg-white'
+              }`}
+            >
+              {l}
+              {sortField === f
+                ? (sortDir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)
+                : <ChevronsUpDown className="h-3 w-3 text-[#cbd5e1]" />}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="divide-y divide-[#e2e8f0]">
         {filteredOrders.map((order) => {
           const itemCount = order.order_items?.reduce((sum, item) => sum + (item?.quantity || 0), 0) || 0;

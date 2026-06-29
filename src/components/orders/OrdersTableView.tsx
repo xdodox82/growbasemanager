@@ -1,19 +1,28 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart, Copy, Pencil, Trash2, House, Utensils, Store, Smartphone, RefreshCw, Users } from 'lucide-react';
+import { ShoppingCart, Copy, Pencil, Trash2, House, Utensils, Store, Smartphone, RefreshCw, Users, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { getStatusBadgeClass, getStatusBorderColor, getStatusLabel, formatDeliveryDate } from './orderUtils';
 import type { Order } from './types';
 
 interface Props {
   filteredOrders: Order[];
   getOrderTotal: (order: Order) => number;
+  sortField?: 'delivery_date' | 'total_price' | null;
+  sortDir?: 'asc' | 'desc';
+  onSort?: (field: 'delivery_date' | 'total_price') => void;
   onSelectOrder: (order: Order) => void;
   onDuplicate: (order: Order) => void;
   onEdit: (order: Order) => void;
   onDelete: (orderId: string) => void;
 }
 
-export function OrdersTableView({ filteredOrders, getOrderTotal, onSelectOrder, onDuplicate, onEdit, onDelete }: Props) {
+export function OrdersTableView({ filteredOrders, getOrderTotal, sortField, sortDir, onSort, onSelectOrder, onDuplicate, onEdit, onDelete }: Props) {
+  const SortIcon = ({ field }: { field: 'delivery_date' | 'total_price' }) => {
+    if (sortField !== field) return <ChevronsUpDown className="h-3 w-3 text-[#cbd5e1]" />;
+    return sortDir === 'asc'
+      ? <ChevronUp className="h-3 w-3 text-[#16a34a]" />
+      : <ChevronDown className="h-3 w-3 text-[#16a34a]" />;
+  };
   return (
     <div className="hidden md:block bg-white rounded-xl border border-[#cbd5e1] overflow-hidden">
       <div className="overflow-x-auto">
@@ -21,10 +30,28 @@ export function OrdersTableView({ filteredOrders, getOrderTotal, onSelectOrder, 
           <thead className="bg-[#f8fafc] border-b-2 border-[#cbd5e1]">
             <tr>
               <th className="px-4 py-3 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wider">Zákazník</th>
-              <th className="px-4 py-3 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wider">Dátum dodania</th>
+              <th className="px-4 py-3 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wider">
+                <button
+                  type="button"
+                  onClick={() => onSort?.('delivery_date')}
+                  className={`inline-flex items-center gap-1 uppercase tracking-wider ${onSort ? 'cursor-pointer hover:text-[#16a34a]' : 'cursor-default'} ${sortField === 'delivery_date' ? 'text-[#16a34a]' : ''}`}
+                >
+                  Dátum dodania
+                  {onSort && <SortIcon field="delivery_date" />}
+                </button>
+              </th>
               <th className="px-4 py-3 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wider">Trasa</th>
               <th className="px-4 py-3 text-left text-[10px] font-bold text-[#475569] uppercase tracking-wider">Stav</th>
-              <th className="px-4 py-3 text-right text-[10px] font-bold text-[#475569] uppercase tracking-wider">Celková cena</th>
+              <th className="px-4 py-3 text-right text-[10px] font-bold text-[#475569] uppercase tracking-wider">
+                <button
+                  type="button"
+                  onClick={() => onSort?.('total_price')}
+                  className={`inline-flex items-center gap-1 uppercase tracking-wider ${onSort ? 'cursor-pointer hover:text-[#16a34a]' : 'cursor-default'} ${sortField === 'total_price' ? 'text-[#16a34a]' : ''}`}
+                >
+                  Celková cena
+                  {onSort && <SortIcon field="total_price" />}
+                </button>
+              </th>
               <th className="px-4 py-3 text-right text-[10px] font-bold text-[#475569] uppercase tracking-wider">Akcie</th>
             </tr>
           </thead>
