@@ -37,9 +37,11 @@ export function OrderDetailDialog({
   // Flash = prebytky (už zožaté) → preskakuje krok „Rastie"
   const steps = isFlash ? STATUS_STEPS.filter(step => !step.keys.includes('growing')) : STATUS_STEPS;
   const currentStepIdx = steps.findIndex(step => step.keys.includes(s));
-  // trasa: ak nie je textové pole route, dohľadaj názov podľa delivery_route_id
+  // trasa: ak nie je textové pole route, dohľadaj názov podľa delivery_route_id;
+  // ak ani to nie je a v notes je príznak osobného odberu, zobraz „Osobný odber".
   const routeName = (order as any).route
     || routes.find(r => r.id === (order as any).delivery_route_id)?.name
+    || (((order as any).notes || '').includes('Osobný odber') ? 'Osobný odber' : '')
     || '';
 
   const nextMap: Record<string, { key: string; label: string; color: string }> = {
