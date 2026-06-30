@@ -2612,7 +2612,9 @@ export default function OrdersPage() {
                               <select value={status || 'pending'} onChange={(e) => setStatus(e.target.value)} className="mt-1 w-full h-10 px-3 border border-[#cbd5e1] rounded-md text-sm bg-white">
                                 <option value="pending">Čakajúca</option>
                                 <option value="confirmed">Potvrdená</option>
-                                <option value="ready">Pripravená</option>
+                                <option value="growing">Rastie</option>
+                                <option value="packed">Zabalená</option>
+                                <option value="on_the_way">Na ceste</option>
                                 <option value="delivered">Doručená</option>
                                 <option value="cancelled">Zrušená</option>
                               </select>
