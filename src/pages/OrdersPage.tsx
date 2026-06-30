@@ -163,6 +163,26 @@ const formatOrderNotes = (notes: string | null): string | null => {
   return result.length > 0 ? result : null;
 };
 
+// Interné značky v poznámke, ktoré sa needitujú ručne (freq:weekly/biweekly = frekvencia
+// opakovania, Osobný odber = spôsob doručenia). Pri editácii ich z poľa skryjeme
+// a pri uložení znova pripojíme, nech sa nestratia a nerozbijú rozpoznávanie.
+const extractInternalMarkers = (notes: string | null): string => {
+  const n = notes || '';
+  const markers: string[] = [];
+  if (n.includes('Osobný odber')) markers.push('Osobný odber');
+  const m = n.match(/freq:(weekly|biweekly)/);
+  if (m) markers.push('freq:' + m[1]);
+  return markers.join('\n');
+};
+
+const stripInternalMarkers = (notes: string | null): string => {
+  return (notes || '')
+    .replace(/freq:(weekly|biweekly)/g, '')
+    .replace(/Osobný odber/g, '')
+    .replace(/\n{2,}/g, '\n')
+    .trim();
+};
+
 // Helper: typ opakovania objednávky pre filter Všetky/Jednorazové/Týždenné/Dvojtýždňové
 // Zdroj pravdy: PWA/server značí frekvenciu cez `freq:` v notes; GrowBase cez recurrence_pattern.
 const getOrderRecurrence = (order: any): 'once' | 'weekly' | 'biweekly' => {
@@ -1037,7 +1057,7 @@ export default function OrdersPage() {
       setOrderType(recurrenceType);
       setWeekCount(order.recurring_weeks || 1);
       setRoute(order.route || '');
-      setOrderNotes(order.notes || '');
+      setOrderNotes(stripInternalMarkers(order.notes));
       // Invert logic: DB stores charge_delivery (true=charge), UI uses freeDelivery (true=free)
       const shouldBeFree = !(order.charge_delivery ?? true);
       setFreeDelivery(shouldBeFree);
@@ -1512,7 +1532,11 @@ export default function OrdersPage() {
       const capturedDeliveryDate = deliveryDate;
       const capturedOrderType = orderType;
       const capturedRoute = route;
-      const capturedOrderNotes = orderNotes;
+      const capturedOrderNotes = (() => {
+        const markers = editingOrder ? extractInternalMarkers(editingOrder.notes) : '';
+        const human = (orderNotes || '').trim();
+        return [markers, human].filter(Boolean).join('\n').trim();
+      })();
       const capturedStatus = status;
 
 
