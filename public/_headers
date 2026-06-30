@@ -1,0 +1,9 @@
+# Hashované súbory (Vite im dáva hash do názvu) — cachuj navždy.
+# Pri zmene sa zmení názov, takže sa starý nikdy nepoužije.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Všetko ostatné (hlavne index.html / SPA shell) — vždy čerstvé.
+# index.html odkazuje na aktuálne JS, preto sa nesmie cachovať.
+/*
+  Cache-Control: no-cache
