@@ -231,6 +231,7 @@ export function OrdersFilterBar({
               { v: 'confirmed',        l: 'Potvrdená',   a: 'bg-[#f0fdf4] border-[#16a34a] text-[#16a34a]' },
               { v: 'delivered',        l: 'Doručená',    a: 'bg-[#d1fae5] border-[#059669] text-[#064e3b]' },
               { v: 'cancelled',        l: 'Zrušená',     a: 'bg-[#f8fafc] border-[#94a3b8] text-[#64748b]' },
+              { v: 'paused',           l: 'Pozastavená', a: 'bg-[#f1f5f9] border-[#64748b] text-[#475569]' },
             ] as const).map(s => {
               const count = s.v === 'all'
                 ? orders?.length || 0
