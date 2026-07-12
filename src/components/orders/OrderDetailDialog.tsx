@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Truck, Store, RefreshCw, Check, X, Clock, Smartphone, Pencil, Plus } from 'lucide-react';
+import { Truck, Store, RefreshCw, Check, X, Clock, Smartphone, Pencil, Plus, Pause } from 'lucide-react';
 import {
   sortOrderItemsByValue, formatOrderNotes, getDeliveryFormLabel,
   formatDeliveryDate, STATUS_STEPS, getStatusLabel,
@@ -33,6 +33,7 @@ export function OrderDetailDialog({
 
   const s = order.status;
   const isCancelled = s === 'cancelled' || s === 'zrusena';
+  const isPaused = s === 'paused';
   const isFlash = (order as any).source === 'flash' || (order as any).order_source === 'flash';
   // Flash = prebytky (už zožaté) → preskakuje krok „Rastie"
   const steps = isFlash ? STATUS_STEPS.filter(step => !step.keys.includes('growing')) : STATUS_STEPS;
@@ -157,6 +158,14 @@ export function OrderDetailDialog({
                 <div className="flex items-center gap-2 text-[#dc2626] justify-center py-1">
                   <X className="h-5 w-5" />
                   <span className="font-semibold text-[14px]">Zrušená objednávka</span>
+                </div>
+              ) : isPaused ? (
+                <div className="flex flex-col items-center gap-1 text-[#475569] justify-center py-1">
+                  <div className="flex items-center gap-2">
+                    <Pause className="h-5 w-5" />
+                    <span className="font-semibold text-[14px]">Pozastavená dodávka</span>
+                  </div>
+                  <span className="text-[11px] text-[#64748b]">Zákazník preskočil tento termín — príprava sa nespúšťa</span>
                 </div>
               ) : (
                 <>
