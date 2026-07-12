@@ -51,6 +51,7 @@ export const getStatusBadgeClass = (status: string): string => {
     case 'packaging_ready':  return 'bg-orange-100 text-orange-800 border-orange-300';
     case 'delivered':        return 'bg-blue-100 text-blue-800 border-blue-300';
     case 'cancelled':        return 'bg-red-100 text-red-800 border-red-300';
+    case 'paused':           return 'bg-slate-100 text-slate-700 border-slate-300';
     // legacy Slovak values kept for existing DB records
     case 'cakajuca':         return 'bg-yellow-100 text-yellow-800 border-yellow-300';
     case 'potvrdena':        return 'bg-green-100 text-green-800 border-green-300';
@@ -73,6 +74,7 @@ export const getStatusBorderColor = (status: string): string => {
     case 'packaging_ready':  return '#f97316';
     case 'delivered':        return '#3b82f6';
     case 'cancelled':        return '#ef4444';
+    case 'paused':           return '#64748b';
     // legacy Slovak values kept for existing DB records
     case 'cakajuca':         return '#eab308';
     case 'potvrdena':        return '#22c55e';
@@ -95,6 +97,7 @@ export const getStatusLabel = (status: string): string => {
     'on_the_way':      'Na ceste',
     'delivered':       'Doručená',
     'cancelled':       'Zrušená',
+    'paused':          'Pozastavená',
     // legacy Slovak values kept for existing DB records
     'cakajuca':        'Čakajúca',
     'potvrdena':       'Potvrdená',
