@@ -981,81 +981,17 @@ function DeliveryPage() {
           order.has_label !== false
         );
 
-        const isRecurring = (order as any).notes?.includes('freq:');
-        const paymentMethod = (order as any).payment_method;
-
-        if (isRecurring && paymentMethod === 'wallet' && order.customer_id) {
-          try {
-            const { data: customerData } = await supabase
-              .from('customers')
-              .select('credit, wallet_enabled, name, email')
-              .eq('id', order.customer_id)
-              .maybeSingle();
-
-            if (customerData?.wallet_enabled && (customerData.credit || 0) > 0) {
-              const { data: orderItemsData } = await supabase
-                .from('order_items')
-                .select('price_per_unit, quantity')
-                .eq('order_id', orderId);
-
-              const itemsTotal = (orderItemsData || []).reduce((sum: number, item: any) =>
-                sum + (parseFloat(item.price_per_unit) * item.quantity), 0);
-
-              const deliveryFee = (order as any).charge_delivery ? ((order as any).delivery_price || 0) : 0;
-              const orderTotal = itemsTotal > 0 ? itemsTotal + deliveryFee : ((order as any).total_price || 0) + deliveryFee;
-
-              const currentCredit = customerData.credit || 0;
-              const walletPayment = Math.min(currentCredit, orderTotal);
-              const remainder = Math.max(0, orderTotal - walletPayment);
-              const newCredit = Math.max(0, currentCredit - walletPayment);
-
-              await supabase
-                .from('customers')
-                .update({ credit: newCredit })
-                .eq('id', order.customer_id);
-
-              await supabase
-                .from('orders')
-                .update({
-                  wallet_payment: walletPayment,
-                  wallet_remainder: remainder > 0 ? remainder : null,
-                })
-                .eq('id', orderId);
-
-              await supabase
-                .from('credit_transactions')
-                .insert({
-                  customer_id: order.customer_id,
-                  amount: -walletPayment,
-                  type: 'order_payment',
-                  status: 'completed',
-                  order_id: orderId,
-                  note: `Platba opakovanej objednávky z Pugilaru${remainder > 0 ? ` — doplatiť ${remainder.toFixed(2).replace('.', ',')} €` : ' — plne uhradené'}`,
-                });
-
-              toast({
-                title: 'Doručené + Pugilar',
-                description: `Odpočítané ${walletPayment.toFixed(2).replace('.', ',')} € z Pugilaru${remainder > 0 ? `, doplatiť ${remainder.toFixed(2).replace('.', ',')} €` : ' — plne uhradené'}`,
-              });
-            } else {
-              toast({
-                title: 'Doručené',
-                description: 'Kredit v Pugilari je prázdny — zákazník platí pri prevzatí.',
-              });
-            }
-          } catch (walletErr) {
-            console.error('Wallet payment error:', walletErr);
-            toast({
-              title: 'Doručené',
-              description: 'Objednávka doručená, ale chyba pri odpočítaní Pugilaru.',
-            });
-          }
-        } else {
-          toast({
-            title: 'Doručené',
-            description: 'Objednávka bola označená ako doručená a zásoby boli odpočítané.',
-          });
-        }
+        // Kredit z Pugilara strhava VYHRADNE server — trigger trg_charge_wallet_on_packed
+        // pri prechode do stavu 'packed'. Povodny klientsky vypocet, ktory tu strhaval
+        // kredit este raz pri 'delivered', bol odstraneny: nebol idempotentny (nekontroloval
+        // credit_transactions ani wallet_payment), takze pri plne pokrytej dodavke strhol
+        // sumu dvakrat. Sumu navyse ratal inak nez trigger (price_per_unit*quantity,
+        // doprava len pri charge_delivery, bez voucher_discount). Jediny zdroj pravdy o
+        // peniazoch je server — sem uz peniaze nepatria.
+        toast({
+          title: 'Doručené',
+          description: 'Objednávka bola označená ako doručená a zásoby boli odpočítané.',
+        });
       }
     }
   };
