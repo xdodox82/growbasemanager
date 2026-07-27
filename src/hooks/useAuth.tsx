@@ -57,15 +57,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setSession(session);
             setUser(session?.user ?? null);
 
+            // TOKEN_REFRESHED nemeni identitu — rolu uz mame a znovu ju nenacitavame.
+            // Inak by kazde obnovenie tokenu na chvilu prepislo obrazovku na
+            // „Nacitavam...".
+            if (event === 'TOKEN_REFRESHED') return;
+
             // Defer role fetching with setTimeout to avoid deadlock
             if (session?.user) {
+              // KLUCOVE: loading musi ostat true, kym nemame rolu.
+              // Bez toho vznikne okno, v ktorom je `user` uz nastaveny, ale
+              // `userRole` je este null — ProtectedRoute to vyhodnoti ako
+              // „Pristup zamietnuty" a obrazovka blikne, kym rola nedorazi.
+              // V tom istom okne odchadzaju aj prve dotazy do DB bez platneho
+              // kontextu (401 na planting_plans).
+              setLoading(true);
               setTimeout(() => {
                 fetchUserRole(session.user.id).then((role) => {
-                  if (mounted) setUserRole(role);
+                  if (!mounted) return;
+                  setUserRole(role);
+                  setLoading(false);
                 });
               }, 0);
             } else {
               setUserRole(null);
+              setLoading(false);
             }
           }
         );
