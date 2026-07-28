@@ -46,6 +46,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     let mounted = true;
+    // Posledny pouzivatel, pre ktoreho uz mame nacitanu rolu. Supabase ohlasi
+    // SIGNED_IN aj pri navrate do okna alebo obnove relacie — bez tejto kontroly
+    // by sa zakazdym zaplo loading, ProtectedRoute by prekreslil „Nacitavam...",
+    // deti by sa odpojili a stranka by prisla o svoj stav (napr. vybrany den
+    // v Priprave obalov).
+    let roleLoadedFor: string | null = null;
 
     const initAuth = async () => {
       try {
@@ -64,6 +70,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
             // Defer role fetching with setTimeout to avoid deadlock
             if (session?.user) {
+              // Rovnaky pouzivatel a rolu uz mame → nic nerobime.
+              if (roleLoadedFor === session.user.id) return;
+
               // KLUCOVE: loading musi ostat true, kym nemame rolu.
               // Bez toho vznikne okno, v ktorom je `user` uz nastaveny, ale
               // `userRole` je este null — ProtectedRoute to vyhodnoti ako
@@ -74,11 +83,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               setTimeout(() => {
                 fetchUserRole(session.user.id).then((role) => {
                   if (!mounted) return;
+                  roleLoadedFor = session.user.id;
                   setUserRole(role);
                   setLoading(false);
                 });
               }, 0);
             } else {
+              roleLoadedFor = null;
               setUserRole(null);
               setLoading(false);
             }
@@ -102,6 +113,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (session?.user) {
           const role = await fetchUserRole(session.user.id);
           if (mounted) {
+            roleLoadedFor = session.user.id;
             setUserRole(role);
             setLoading(false);
           }
