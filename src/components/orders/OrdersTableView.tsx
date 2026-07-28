@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart, Copy, Pencil, Trash2, House, Utensils, Store, Smartphone, RefreshCw, Users, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { ShoppingCart, Pencil, Trash2, House, Utensils, Store, Smartphone, RefreshCw, Users, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { getStatusBadgeClass, getStatusBorderColor, getStatusLabel, formatDeliveryDate } from './orderUtils';
 import type { Order } from './types';
 
@@ -11,12 +11,11 @@ interface Props {
   sortDir?: 'asc' | 'desc';
   onSort?: (field: 'delivery_date' | 'total_price') => void;
   onSelectOrder: (order: Order) => void;
-  onDuplicate: (order: Order) => void;
   onEdit: (order: Order) => void;
   onDelete: (orderId: string) => void;
 }
 
-export function OrdersTableView({ filteredOrders, getOrderTotal, sortField, sortDir, onSort, onSelectOrder, onDuplicate, onEdit, onDelete }: Props) {
+export function OrdersTableView({ filteredOrders, getOrderTotal, sortField, sortDir, onSort, onSelectOrder, onEdit, onDelete }: Props) {
   const SortIcon = ({ field }: { field: 'delivery_date' | 'total_price' }) => {
     if (sortField !== field) return <ChevronsUpDown className="h-3 w-3 text-[#cbd5e1]" />;
     return sortDir === 'asc'
@@ -124,9 +123,6 @@ export function OrdersTableView({ filteredOrders, getOrderTotal, sortField, sort
                 </td>
                 <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                   <div className="flex gap-0.5 justify-end">
-                    <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-[#f0fdf4]" onClick={() => onDuplicate(order)}>
-                      <Copy className="h-3.5 w-3.5 text-[#94a3b8]" />
-                    </Button>
                     <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-[#f0fdf4]" onClick={() => onEdit(order)}>
                       <Pencil className="h-3.5 w-3.5 text-[#94a3b8]" />
                     </Button>

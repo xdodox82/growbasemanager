@@ -318,7 +318,7 @@ export default function OrdersPage() {
   const [customerType, setCustomerType] = useState('home');
   const [customerId, setCustomerId] = useState('');
   const [deliveryDate, setDeliveryDate] = useState('');
-  const [status, setStatus] = useState('pending');
+  const [status, setStatus] = useState('growing');
   const [orderType, setOrderType] = useState('jednorazova');
   const [weekCount, setWeekCount] = useState<number | string>(1);
   const [route, setRoute] = useState('');
@@ -646,10 +646,10 @@ export default function OrdersPage() {
     if (filterRoute !== 'all' && order?.route !== filterRoute) return false;
 
     // Archive filter: if showArchive is false, only show active orders (not completed)
-    if (!showArchive && (order?.status === 'delivered' || order?.status === 'dorucena')) {
+    if (!showArchive && order?.status === 'delivered') {
       return false;
     }
-    if (!showCancelled && (order?.status === 'cancelled' || order?.status === 'zrusena')) {
+    if (!showCancelled && order?.status === 'cancelled') {
       return false;
     }
 
@@ -976,7 +976,7 @@ export default function OrdersPage() {
       setCustomerType('home');
       setCustomerId('');
       setDeliveryDate('');
-      setStatus('pending');
+      setStatus('growing');
       setOrderType('jednorazova');
       setWeekCount(1);
       setRoute('');
@@ -1198,7 +1198,7 @@ export default function OrdersPage() {
           customer_name: lastOrder.customer_name,
           customer_type: lastOrder.customer_type,
           delivery_date: format(lastDeliveryDate, 'yyyy-MM-dd'),
-          status: 'pending',
+          status: 'growing',
           order_type: lastOrder.order_type,
           route: lastOrder.route,
           charge_delivery: lastOrder.charge_delivery,
@@ -2180,194 +2180,11 @@ export default function OrdersPage() {
     }
   };
 
-  const duplicateOrder = async (order: Order) => {
-    try {
-
-      // Sanitize and ensure proper data types - convert everything to valid numbers or 0
-      const sanitizeNumber = (val: any, defaultValue = 0): number => {
-        if (val === null || val === undefined || val === '') return defaultValue;
-        const num = typeof val === 'string' ? parseFloat(val) : Number(val);
-        return isNaN(num) ? defaultValue : num;
-      };
-
-      // Create a completely clean order object with SNAKE_CASE database columns
-      // CRITICAL: Database uses snake_case column names, NOT camelCase
-      // Strip: id, created_at, updated_at, user_id (auto-populated by trigger)
-      const orderData: any = {
-        customer_id: order.customer_id,
-        customer_name: order.customer_name || '',
-        customer_type: order.customer_type || '',
-        delivery_date: null, // Reset date - user MUST select new date
-        status: 'pending', // Force pending status for new duplicate
-        charge_delivery: Boolean(order.charge_delivery),
-        // Default to single order (not recurring)
-        is_recurring: false,
-        recurrence_pattern: null,
-        recurring_weeks: null,
-        recurring_type: null,
-        // Critical: Convert ALL numeric strings to Number
-        total_price: Number(order.total_price) || 0,
-        delivery_price: Number(order.delivery_price) || 0
-      };
-
-      // Add optional fields with proper snake_case database column mapping
-      if (order.route) {
-        orderData.route = order.route;
-      }
-      if (order.notes) {
-        orderData.notes = order.notes;
-      }
-      // packaging_type (snake_case) - NOT packagingType (camelCase)
-      if (order.packaging_type) {
-        orderData.packaging_type = order.packaging_type;
-      }
-      // has_label (snake_case) - NOT hasLabel (camelCase)
-      if (order.has_label !== undefined && order.has_label !== null) {
-        orderData.has_label = Boolean(order.has_label);
-      }
-      // delivery_route_id (snake_case) - NOT deliveryRouteId (camelCase)
-      if (order.delivery_route_id) {
-        orderData.delivery_route_id = order.delivery_route_id;
-      }
-      // delivery_type - if exists
-      if (order.delivery_type) {
-        orderData.delivery_type = order.delivery_type;
-      }
-      // delivery_order - if exists
-      if (order.delivery_order !== undefined && order.delivery_order !== null) {
-        orderData.delivery_order = order.delivery_order;
-      }
-
-      // Get current user for user_id
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('No authenticated user found');
-      }
-
-      // Add user_id for consistency (even though trigger should auto-populate)
-      orderData.user_id = user.id;
-
-      const { data: newOrder, error } = await supabase
-        .from('orders')
-        .insert(orderData)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('❌ ORDER INSERT FAILED');
-        console.error('Error object:', JSON.stringify(error, null, 2));
-        console.error('Error message:', error.message);
-        console.error('Error details:', error.details);
-        console.error('Error hint:', error.hint);
-        console.error('Error code:', error.code);
-        console.error('Data that was sent:', JSON.stringify(orderData, null, 2));
-        throw error;
-      }
-
-      // Copy all order items with completely sanitized data
-      if (order.order_items && order.order_items.length > 0) {
-
-        const items = order.order_items.map((item, index) => {
-          // Create completely clean item with SNAKE_CASE database columns
-          // CRITICAL: order_items table does NOT have packaging_type column!
-          // packaging_type only exists in orders table, not order_items
-          const cleanItem: any = {
-            order_id: newOrder.id, // NEW order id
-            quantity: Number(item.quantity) || 0, // Convert to Number
-            unit: item.unit || 'g',
-            // Fields that exist in order_items table (verified against schema)
-            packaging_size: item.packaging_size || '',
-            delivery_form: item.delivery_form || '',
-            packaging_type: item.packaging_type || '',
-            packaging_volume_ml: Number(item.packaging_volume_ml) || 0, // integer type
-            has_label: Boolean(item.has_label),
-            // Price fields - convert to Number
-            price_per_unit: Number(item.price_per_unit) || 0,
-            total_price: Number(item.total_price) || 0,
-            // Add user_id for consistency
-            user_id: user.id
-          };
-
-          // Add optional fields only if they exist (all snake_case)
-          if (item.crop_id) cleanItem.crop_id = item.crop_id;
-          if (item.crop_name) cleanItem.crop_name = item.crop_name;
-          if (item.blend_id) cleanItem.blend_id = item.blend_id;
-          if (item.packaging_id) cleanItem.packaging_id = item.packaging_id;
-          if (item.notes) cleanItem.notes = item.notes;
-          if (item.special_requirements) cleanItem.special_requirements = item.special_requirements;
-          if (item.is_special_item !== undefined) cleanItem.is_special_item = Boolean(item.is_special_item);
-          if (item.custom_crop_name) cleanItem.custom_crop_name = item.custom_crop_name;
-          if (item.pieces !== undefined && item.pieces !== null) cleanItem.pieces = Number(item.pieces) || 0;
-
-          return cleanItem;
-        });
-
-        for (let idx = 0; idx < items.length; idx++) {
-          const item = items[idx];
-
-          const itemData = {
-            order_id: newOrder.id,
-            crop_id: item.crop_id || null,
-            blend_id: item.blend_id || null,
-            quantity: item.quantity,
-            pieces: item.pieces || 0,
-            delivery_form: item.delivery_form || 'whole',
-            price_per_unit: item.price_per_unit,
-            total_price: item.total_price,
-            package_type: item.packaging_type || null,
-            package_ml: item.packaging_volume_ml || null,
-            has_label_req: item.has_label || false,
-            crop_name: item.crop_name || null,
-            unit: item.unit || 'ks',
-            packaging_size: item.packaging_size || '50g',
-            notes: item.notes || null,
-            packaging_id: item.packaging_id || null,
-            special_requirements: item.special_requirements || null,
-            is_special_item: item.is_special_item || false,
-            custom_crop_name: item.custom_crop_name || null
-          };
-
-          try {
-            await createOrderItemDirectFetch(itemData);
-          } catch (itemError) {
-            console.error('❌ DIRECT FETCH FAILED (DUPLICATE ORDER) Item', idx + 1);
-            console.error('Error object:', JSON.stringify(itemError, null, 2));
-            console.error('Item that was sent:', JSON.stringify(item, null, 2));
-            throw itemError;
-          }
-        }
-
-      }
-
-      // Reload data
-      await loadData();
-
-      // Find and open the new order for editing
-      const allOrdersQuery = await supabase
-        .from('orders')
-        .select('*, order_items(*)')
-        .eq('id', newOrder.id)
-        .single();
-
-      if (allOrdersQuery.data) {
-        openEdit(allOrdersQuery.data);
-      }
-
-      toast({ title: 'Úspech', description: 'Objednávka zduplikovaná - prosím vyberte nový dátum dodania' });
-    } catch (error: any) {
-      console.error('=== DUPLICATION FAILED ===');
-      console.error('Full error object:', error);
-      console.error('Error message:', error?.message);
-      console.error('Error code:', error?.code);
-      console.error('Error details:', error?.details);
-
-      toast({
-        title: 'Chyba',
-        description: `Nepodarilo sa zduplikovať objednávku: ${error?.message || 'Neznáma chyba'}. Skontrolujte konzolu pre detaily.`,
-        variant: 'destructive'
-      });
-    }
-  };
+  // Duplikovanie objednavky bolo odstranene 28.7.2026.
+  // Vytvaralo riadok v `orders` s delivery_date = null a status = 'pending' —
+  // teda polovicnu objednavku, ktora sa zobrazovala aj zakaznikovi v PWA a plánovač
+  // vysevov si s nou nevedel poradit. Funkcia sa vrati pri prerobeni tvorby
+  // objednavok v GrowBase, ale ako PREDVYPLNENIE formulara, nie ako zapis do DB.
 
   const handleQuickStatusChange = async (orderId: string, newStatus: string) => {
     const { error } = await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
@@ -2469,7 +2286,6 @@ export default function OrdersPage() {
               sortDir={sortDir}
               onSort={handleSort}
               onSelectOrder={(order) => { setSelectedOrderDetail(order); setDetailModalOpen(true); }}
-              onDuplicate={duplicateOrder}
               onEdit={openEdit}
               onDelete={openDeleteDialog}
             />
@@ -2481,7 +2297,6 @@ export default function OrdersPage() {
               sortDir={sortDir}
               onSort={handleSort}
               onSelectOrder={(order) => { setSelectedOrderDetail(order); setDetailModalOpen(true); }}
-              onDuplicate={duplicateOrder}
               onEdit={openEdit}
               onDelete={openDeleteDialog}
             />
@@ -2494,7 +2309,6 @@ export default function OrdersPage() {
             getOrderTotal={getOrderTotal}
             getDeliveryFee={getDeliveryFee}
             onSelectOrder={(order) => { setSelectedOrderDetail(order); setDetailModalOpen(true); }}
-            onDuplicate={duplicateOrder}
             onEdit={openEdit}
             onDelete={openDeleteDialog}
           />
@@ -2633,9 +2447,12 @@ export default function OrdersPage() {
                           {editingOrder && (
                             <>
                               <Label className="text-sm font-medium">Stav</Label>
-                              <select value={status || 'pending'} onChange={(e) => setStatus(e.target.value)} className="mt-1 w-full h-10 px-3 border border-[#cbd5e1] rounded-md text-sm bg-white">
-                                <option value="pending">Čakajúca</option>
-                                <option value="confirmed">Potvrdená</option>
+                              <select value={status || 'growing'} onChange={(e) => setStatus(e.target.value)} className="mt-1 w-full h-10 px-3 border border-[#cbd5e1] rounded-md text-sm bg-white">
+                                {/* 'pending' a 'confirmed' odstranene 28.7.2026 — objednavka zadana
+                                    v GrowBase je tym prijata, nic nepotvrdzuje. Rovnako ju vytvara
+                                    cron pre opakovane serie. Jednotny slovnik stavov:
+                                    pending_approval / growing / packed / on_the_way / delivered /
+                                    cancelled / paused. */}
                                 <option value="growing">Rastie</option>
                                 <option value="packed">Zabalená</option>
                                 <option value="on_the_way">Na ceste</option>

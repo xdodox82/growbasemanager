@@ -1,6 +1,6 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Copy, Pencil, Trash2, Calendar, Truck, Store, House, Utensils, Smartphone, RefreshCw, ShoppingCart, Users } from 'lucide-react';
+import { Pencil, Trash2, Calendar, Truck, Store, House, Utensils, Smartphone, RefreshCw, ShoppingCart, Users } from 'lucide-react';
 import { getStatusBadgeClass, getStatusBorderColor, getStatusLabel, formatDeliveryDate } from './orderUtils';
 import type { Order, Customer, Route } from './types';
 
@@ -11,7 +11,6 @@ interface Props {
   getOrderTotal: (order: Order) => number;
   getDeliveryFee: (order: Order) => number;
   onSelectOrder: (order: Order) => void;
-  onDuplicate: (order: Order) => void;
   onEdit: (order: Order) => void;
   onDelete: (orderId: string) => void;
 }
@@ -19,7 +18,7 @@ interface Props {
 export function OrdersCardView({
   filteredOrders, customers, routes,
   getOrderTotal, getDeliveryFee,
-  onSelectOrder, onDuplicate, onEdit, onDelete,
+  onSelectOrder, onEdit, onDelete,
 }: Props) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -85,9 +84,6 @@ export function OrdersCardView({
 
             {/* Actions */}
             <div className="flex gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-[#f0fdf4]" onClick={() => onDuplicate(order)}>
-                <Copy className="h-3.5 w-3.5 text-[#94a3b8]" />
-              </Button>
               <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-[#f0fdf4]" onClick={() => onEdit(order)}>
                 <Pencil className="h-3.5 w-3.5 text-[#94a3b8]" />
               </Button>

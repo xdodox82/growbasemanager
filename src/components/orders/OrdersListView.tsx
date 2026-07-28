@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart, Copy, Pencil, Trash2, House, Utensils, Store, Smartphone, RefreshCw, Users, Truck, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { ShoppingCart, Pencil, Trash2, House, Utensils, Store, Smartphone, RefreshCw, Users, Truck, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { getStatusBadgeClass, getStatusBorderColor, getStatusLabel, formatDeliveryDate } from './orderUtils';
 import { formatEur } from '@/utils/formatters';
 import type { Order } from './types';
@@ -12,7 +12,6 @@ interface Props {
   sortDir?: 'asc' | 'desc';
   onSort?: (field: 'delivery_date' | 'total_price') => void;
   onSelectOrder: (order: Order) => void;
-  onDuplicate: (order: Order) => void;
   onEdit: (order: Order) => void;
   onDelete: (orderId: string) => void;
 }
@@ -25,7 +24,7 @@ interface Props {
 export function OrdersListView({
   filteredOrders, getOrderTotal,
   sortField, sortDir, onSort,
-  onSelectOrder, onDuplicate, onEdit, onDelete,
+  onSelectOrder, onEdit, onDelete,
 }: Props) {
   const isRecurring = (order: Order) =>
     !!order.parent_order_id ||
@@ -171,9 +170,6 @@ export function OrdersListView({
 
               {/* Akcie — len desktop (na mobile by zaberali príliš veľa miesta; akcie sú v detaile) */}
               <div className="hidden md:flex gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-[#f0fdf4]" onClick={() => onDuplicate(order)}>
-                  <Copy className="h-3.5 w-3.5 text-[#94a3b8]" />
-                </Button>
                 <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-[#f0fdf4]" onClick={() => onEdit(order)}>
                   <Pencil className="h-3.5 w-3.5 text-[#94a3b8]" />
                 </Button>
