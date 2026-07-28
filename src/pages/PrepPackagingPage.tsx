@@ -185,11 +185,15 @@ export default function PrepPackagingPage() {
   }, [allOrders, custTypeFilter, customerFilter, categoryFilter, sizeFilter, labelFilter, pkgTypeFilter]);
 
   useEffect(() => {
+    // Pripravenost obalov sa uklada na POLOZKE objednavky (order_items.packaging_prepared).
+    // Povodne sa zapisovala do orders.status ako 'packaging_ready' — jedno zaskrtnutie
+    // tak oznacilo celu objednavku a odskrtnutie jej zapisalo status = null, cim
+    // objednavka stratila stav a vypadla z filtrov aj z triggerov.
     const prepared = new Set<string>();
     filteredOrders.forEach(order => {
-      if (order.status === 'packaging_ready') {
-        order.items?.forEach((item: any) => prepared.add(`${order.id}-${item.id}`));
-      }
+      order.items?.forEach((item: any) => {
+        if (item.packaging_prepared) prepared.add(`${order.id}-${item.id}`);
+      });
     });
     setPreparedItems(prepared);
   }, [filteredOrders]);
@@ -380,24 +384,36 @@ export default function PrepPackagingPage() {
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
-  const updateOrderStatus = async (orderId: string, done: boolean) => {
-    await supabase.from('orders').update({ status: done ? 'packaging_ready' : null }).eq('id', orderId);
-    if (done) toast({ title: 'Obaly pripravené', description: 'Kontrola obalov dokončená' });
+  const setItemPrepared = async (orderItemId: string, done: boolean, notify = true) => {
+    const { error } = await supabase
+      .from('order_items')
+      .update({ packaging_prepared: done })
+      .eq('id', orderItemId);
+    if (error) {
+      console.error('packaging_prepared update:', error);
+      toast({ title: 'Chyba', description: 'Nepodarilo sa uložiť pripravenosť obalu', variant: 'destructive' });
+      return;
+    }
+    if (done && notify) toast({ title: 'Obaly pripravené', description: 'Kontrola obalov dokončená' });
   };
 
-  const markItem = async (itemId: string, orderId: string, done: boolean) => {
-    setPreparedItems(prev => { const s = new Set(prev); done ? s.add(itemId) : s.delete(itemId); return s; });
-    await updateOrderStatus(orderId, done);
+  // compositeId = `${order.id}-${item.id}` pre lokalny stav,
+  // orderItemId = skutocne order_items.id pre zapis do DB
+  const markItem = async (compositeId: string, orderItemId: string, done: boolean) => {
+    setPreparedItems(prev => { const s = new Set(prev); done ? s.add(compositeId) : s.delete(compositeId); return s; });
+    await setItemPrepared(orderItemId, done);
   };
 
   const markAllInGroup = async (group: GroupedItem, done: boolean) => {
-    const updates = group.size_subgroups.flatMap(s => s.items.map(i => ({ itemId: i.id, orderId: i.order_id })));
+    const updates = group.size_subgroups.flatMap(s => s.items.map(i => ({ compositeId: i.id, orderItemId: i.order_item_id })));
     setPreparedItems(prev => {
       const s = new Set(prev);
-      updates.forEach(({ itemId }) => done ? s.add(itemId) : s.delete(itemId));
+      updates.forEach(({ compositeId }) => done ? s.add(compositeId) : s.delete(compositeId));
       return s;
     });
-    for (const { itemId, orderId } of updates) await updateOrderStatus(orderId, done);
+    // notify=false — pri hromadnej akcii by inak vyskocil toast pre kazdu polozku
+    for (const { orderItemId } of updates) await setItemPrepared(orderItemId, done, false);
+    if (done) toast({ title: 'Obaly pripravené', description: 'Kontrola obalov dokončená' });
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -459,7 +475,7 @@ export default function PrepPackagingPage() {
         </div>
 
         <button
-          onClick={e => { e.stopPropagation(); markItem(item.id, item.order_id, !isPrepared); }}
+          onClick={e => { e.stopPropagation(); markItem(item.id, item.order_item_id, !isPrepared); }}
           className={[
             'shrink-0 flex items-center gap-1.5 px-4 h-11 lg:h-9 lg:px-3 rounded-xl lg:rounded-lg text-sm lg:text-xs font-semibold transition-colors border',
             isPrepared
@@ -685,7 +701,7 @@ export default function PrepPackagingPage() {
               Zavrieť
             </button>
             <button
-              onClick={() => { markItem(detailItem.id, detailItem.order_id, !isDone); setDetailItem(null); }}
+              onClick={() => { markItem(detailItem.id, detailItem.order_item_id, !isDone); setDetailItem(null); }}
               className={[
                 'flex-1 h-10 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors',
                 isDone
