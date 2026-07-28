@@ -584,7 +584,10 @@ const TodayTasksPage = () => {
     const result: BaseTaskItem[] = [];
     for (const order of orders) {
       if (order.skipped === true) continue;
-      if (order.status === 'delivered' || order.status === 'cancelled' || order.status === 'dorucena' || order.status === 'zrusena') continue;
+      // Stare slovenske hodnoty ('dorucena', 'zrusena') odstranene 28.7.2026 —
+      // jednotny slovnik stavov ma sedem anglickych hodnot, v DB ziadna objednavka
+      // slovensku hodnotu nemala.
+      if (order.status === 'delivered' || order.status === 'cancelled') continue;
       const isToday = order.delivery_date === todayStr;
       const isOverdue = order.delivery_date < todayStr;
       if (!isToday && !isOverdue) continue;
