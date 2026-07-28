@@ -32,7 +32,7 @@ export function OrderDetailDialog({
   if (!order) return null;
 
   const s = order.status;
-  const isCancelled = s === 'cancelled' || s === 'zrusena';
+  const isCancelled = s === 'cancelled';
   const isPaused = s === 'paused';
   const isFlash = (order as any).source === 'flash' || (order as any).order_source === 'flash';
   // Flash = prebytky (už zožaté) → preskakuje krok „Rastie"
@@ -45,27 +45,24 @@ export function OrderDetailDialog({
     || (((order as any).notes || '').includes('Osobný odber') ? 'Osobný odber' : '')
     || '';
 
+  // Tok stavov podla jednotneho slovnika (28.7.2026): sedem hodnot,
+  // pending_approval → growing → packed → on_the_way → delivered.
+  // Odstranene 'pending', 'confirmed', 'ready', 'packaging_ready' a stare
+  // slovenske hodnoty — databaza ich uz nepovoluje (orders_status_check),
+  // takze schvalenie predobjednavky na 'confirmed' by skoncilo chybou.
   const nextMap: Record<string, { key: string; label: string; color: string }> = {
-    'pending':          { key: 'confirmed',  label: 'Potvrdiť objednávku',    color: 'bg-[#2563eb] hover:bg-[#1d4ed8] text-white' },
-    'pending_approval': { key: 'confirmed',  label: 'Schváliť a potvrdiť',    color: 'bg-[#7c3aed] hover:bg-[#6d28d9] text-white' },
-    'confirmed':        { key: 'growing',    label: 'Označiť: Rastie',        color: 'bg-[#16a34a] hover:bg-[#15803d] text-white' },
-    'growing':          { key: 'packed',     label: 'Označiť: Zabalená',      color: 'bg-[#2563eb] hover:bg-[#1d4ed8] text-white' },
-    'packed':           { key: 'on_the_way', label: 'Odoslať: Na ceste',      color: 'bg-[#7c3aed] hover:bg-[#6d28d9] text-white' },
-    'on_the_way':       { key: 'delivered',  label: 'Označiť ako Doručenú',   color: 'bg-[#16a34a] hover:bg-[#15803d] text-white' },
-    'ready':            { key: 'on_the_way', label: 'Odoslať: Na ceste',      color: 'bg-[#7c3aed] hover:bg-[#6d28d9] text-white' },
-    'packaging_ready':  { key: 'on_the_way', label: 'Odoslať: Na ceste',      color: 'bg-[#7c3aed] hover:bg-[#6d28d9] text-white' },
-    // legacy
-    'cakajuca':         { key: 'confirmed',  label: 'Potvrdiť objednávku',    color: 'bg-[#2563eb] hover:bg-[#1d4ed8] text-white' },
-    'potvrdena':        { key: 'growing',    label: 'Označiť: Rastie',        color: 'bg-[#16a34a] hover:bg-[#15803d] text-white' },
-    'pripravena':       { key: 'on_the_way', label: 'Odoslať: Na ceste',      color: 'bg-[#7c3aed] hover:bg-[#6d28d9] text-white' },
+    'pending_approval': { key: 'growing',    label: 'Schváliť objednávku',  color: 'bg-[#7c3aed] hover:bg-[#6d28d9] text-white' },
+    'growing':          { key: 'packed',     label: 'Označiť: Zabalená',    color: 'bg-[#2563eb] hover:bg-[#1d4ed8] text-white' },
+    'packed':           { key: 'on_the_way', label: 'Odoslať: Na ceste',    color: 'bg-[#7c3aed] hover:bg-[#6d28d9] text-white' },
+    'on_the_way':       { key: 'delivered',  label: 'Označiť ako Doručenú', color: 'bg-[#16a34a] hover:bg-[#15803d] text-white' },
   };
   if (isFlash) {
-    // po potvrdení ide flash rovno k baleniu (bez „Rastie")
-    nextMap['confirmed'] = { key: 'packed', label: 'Označiť: Zabalená', color: 'bg-[#2563eb] hover:bg-[#1d4ed8] text-white' };
-    nextMap['potvrdena'] = { key: 'packed', label: 'Označiť: Zabalená', color: 'bg-[#2563eb] hover:bg-[#1d4ed8] text-white' };
+    // flash objednavka je uz zozbierana — po schvaleni ide rovno k baleniu
+    nextMap['pending_approval'] = { key: 'packed', label: 'Označiť: Zabalená', color: 'bg-[#2563eb] hover:bg-[#1d4ed8] text-white' };
+    nextMap['growing']          = { key: 'packed', label: 'Označiť: Zabalená', color: 'bg-[#2563eb] hover:bg-[#1d4ed8] text-white' };
   }
   const next = nextMap[s];
-  const showQuickActions = !['cancelled', 'delivered', 'zrusena', 'dorucena'].includes(s);
+  const showQuickActions = !['cancelled', 'delivered'].includes(s);
 
   const subtotal = (order.order_items || []).reduce((sum, item) => {
     if (!item) return sum;
@@ -358,7 +355,7 @@ export function OrderDetailDialog({
                   </div>
                 </div>
 
-                {!['cancelled', 'delivered', 'zrusena', 'dorucena'].includes(s) && (
+                {!['cancelled', 'delivered'].includes(s) && (
                   <div className="flex gap-3 items-start">
                     <div className="w-7 h-7 rounded-full bg-[#2563eb] flex items-center justify-center shrink-0 shadow-sm mt-0.5">
                       <Clock className="h-3.5 w-3.5 text-white" />
@@ -374,7 +371,7 @@ export function OrderDetailDialog({
                   </div>
                 )}
 
-                {['delivered', 'dorucena'].includes(s) && (
+                {s === 'delivered' && (
                   <div className="flex gap-3 items-start">
                     <div className="w-7 h-7 rounded-full bg-[#16a34a] flex items-center justify-center shrink-0 shadow-sm mt-0.5">
                       <Check className="h-3.5 w-3.5 text-white" />
@@ -386,7 +383,7 @@ export function OrderDetailDialog({
                   </div>
                 )}
 
-                {(['cancelled', 'zrusena'].includes(s) || (order as any).cancelled_at) && (
+                {(s === 'cancelled' || (order as any).cancelled_at) && (
                   <div className="flex gap-3 items-start">
                     <div className="w-7 h-7 rounded-full bg-[#dc2626] flex items-center justify-center shrink-0 shadow-sm mt-0.5">
                       <X className="h-3.5 w-3.5 text-white" />
