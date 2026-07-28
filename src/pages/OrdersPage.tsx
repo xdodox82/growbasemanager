@@ -1053,8 +1053,21 @@ export default function OrdersPage() {
       setCustomerId(order.customer_id);
       setDeliveryDate(order.delivery_date);
       setStatus(order.status);
-      const recurrenceType = order.recurrence_pattern || 'jednorazova';
-      setOrderType(recurrenceType);
+      // Typ opakovania citame cez getOrderRecurrence — ta sa najprv pozrie na znacku
+      // `freq:` v poznamke (tak ho zapisuje PWA a cron topup_recurring_orders) a az
+      // potom na stlpec recurrence_pattern (tak ho zapisuje GrowBase).
+      //
+      // Povodne sa citalo LEN z recurrence_pattern. Objednavky z PWA ho maju prazdny,
+      // takze kazda opakovana objednavka zo zakaznickej aplikacie sa v tomto dialogu
+      // tvarila ako jednorazova. Keby ju niekto v tom stave prepol na "tyzdenne",
+      // stala by sa opakovanou v OBOCH modeloch naraz — dodavky by generoval cron
+      // (cez recurring_order_id) aj GrowBase (cez recurrence_pattern).
+      const recurrenceMap: Record<string, string> = {
+        once: 'jednorazova',
+        weekly: 'tyzdenne',
+        biweekly: 'dvojtyzdenne',
+      };
+      setOrderType(recurrenceMap[getOrderRecurrence(order)] || 'jednorazova');
       setWeekCount(order.recurring_weeks || 1);
       setRoute(order.route || '');
       setOrderNotes(stripInternalMarkers(order.notes));
