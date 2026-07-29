@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ShoppingCart, Pencil, Trash2, House, Utensils, Store, Smartphone, RefreshCw, Users, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
-import { getStatusBadgeClass, getStatusBorderColor, getStatusLabel, formatDeliveryDate } from './orderUtils';
+import { getStatusBadgeClass, getStatusBorderColor, getStatusLabel, formatDeliveryDate, formatOrderDeliveryDate } from './orderUtils';
 import type { Order } from './types';
 
 interface Props {
@@ -104,7 +104,7 @@ export function OrdersTableView({ filteredOrders, getOrderTotal, sortField, sort
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-sm text-[#334155]">{formatDeliveryDate(order.delivery_date)}</td>
+                <td className="px-4 py-3 text-sm text-[#334155]">{formatOrderDeliveryDate(order)}</td>
                 <td className="px-4 py-3 text-sm text-[#475569]">{order.route || <span className="text-[#cbd5e1]">—</span>}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1.5">

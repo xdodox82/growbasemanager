@@ -44,6 +44,16 @@ export const formatDeliveryDate = (dateString: string): string => {
 // Odstranene: 'pending', 'confirmed' (objednavka zadana v GrowBase je tym prijata),
 // 'ready', 'packaging_ready' (pripravenost obalov je teraz order_items.packaging_prepared)
 // a stare slovenske hodnoty, ktore v databaze nemala ani jedna objednavka.
+// Termin objednavky pre zobrazenie. Pri predobjednavke bez potvrdeneho terminu
+// je delivery_date len zastupna hodnota (create_order zapisuje current_date + 30),
+// takze datum nezobrazujeme vobec.
+export const formatOrderDeliveryDate = (
+  order: { delivery_date: string; delivery_date_confirmed?: boolean }
+): string =>
+  (order as any).delivery_date_confirmed === false
+    ? 'termín neurčený'
+    : formatDeliveryDate(order.delivery_date);
+
 export const getStatusBadgeClass = (status: string): string => {
   switch (status) {
     case 'growing':          return 'bg-green-100 text-green-800 border-green-300';

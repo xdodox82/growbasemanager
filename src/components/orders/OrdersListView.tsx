@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ShoppingCart, Pencil, Trash2, House, Utensils, Store, Smartphone, RefreshCw, Users, Truck, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
-import { getStatusBadgeClass, getStatusBorderColor, getStatusLabel, formatDeliveryDate } from './orderUtils';
+import { getStatusBadgeClass, getStatusBorderColor, getStatusLabel, formatDeliveryDate, formatOrderDeliveryDate } from './orderUtils';
 import { formatEur } from '@/utils/formatters';
 import type { Order } from './types';
 
@@ -139,7 +139,7 @@ export function OrdersListView({
 
                 {/* Druhý riadok: dátum + trasa (skratená na mobile) */}
                 <div className="flex items-center gap-2 text-[11px] text-[#64748b] mt-0.5">
-                  <span className="truncate">{formatDeliveryDate(order.delivery_date)}</span>
+                  <span className="truncate">{formatOrderDeliveryDate(order)}</span>
                   {order.route && (
                     <>
                       <span className="text-[#cbd5e1]">·</span>

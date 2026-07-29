@@ -1,7 +1,7 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Pencil, Trash2, Calendar, Truck, Store, House, Utensils, Smartphone, RefreshCw, ShoppingCart, Users } from 'lucide-react';
-import { getStatusBadgeClass, getStatusBorderColor, getStatusLabel, formatDeliveryDate } from './orderUtils';
+import { getStatusBadgeClass, getStatusBorderColor, getStatusLabel, formatDeliveryDate, formatOrderDeliveryDate } from './orderUtils';
 import type { Order, Customer, Route } from './types';
 
 interface Props {
@@ -97,7 +97,7 @@ export function OrdersCardView({
           <div className="px-4 pb-3 space-y-1.5 text-xs text-[#475569]">
             <div className="flex items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5 text-[#94a3b8] shrink-0" />
-              <span>{formatDeliveryDate(order.delivery_date)}</span>
+              <span>{formatOrderDeliveryDate(order)}</span>
             </div>
             {order.route && (
               order.route === 'Osobný odber' ? (
