@@ -1,6 +1,9 @@
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { Truck, Store, RefreshCw, Check, X, Clock, Smartphone, Pencil, Plus, Pause } from 'lucide-react';
+import { Truck, Store, RefreshCw, Check, X, Clock, Smartphone, Pencil, Plus, Pause, CalendarClock, Loader as Loader2 } from 'lucide-react';
 import {
   sortOrderItemsByValue, formatOrderNotes, getDeliveryFormLabel,
   formatDeliveryDate, STATUS_STEPS, getStatusLabel,
@@ -29,6 +32,47 @@ export function OrderDetailDialog({
   getDeliveryFee, getOrderTotal,
   onQuickStatusChange, onEdit, onExtend,
 }: Props) {
+  const { toast } = useToast();
+
+  // ── Predobjednavka bez potvrdeneho terminu ────────────────────────────
+  // delivery_date je pri nej len zastupna hodnota (create_order zapisuje
+  // current_date + 30). Skutocny termin urcuje pestovatel — az vtedy sa
+  // delivery_date_confirmed prepne na true.
+  const needsDate = order ? (order as any).delivery_date_confirmed === false : false;
+  const [dateOptions, setDateOptions] = useState<string[] | null>(null);
+  const [confirming, setConfirming] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open || !order || !needsDate) { setDateOptions(null); return; }
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase.rpc('preorder_available_dates', { p_order_id: order.id });
+      if (cancelled) return;
+      if (error) {
+        console.error('preorder_available_dates:', error);
+        setDateOptions([]);
+        return;
+      }
+      setDateOptions((data || []).map((r: any) => (typeof r === 'string' ? r : r.delivery_date)));
+    })();
+    return () => { cancelled = true; };
+  }, [open, order?.id, needsDate]);
+
+  const confirmDate = async (d: string) => {
+    if (!order) return;
+    setConfirming(d);
+    try {
+      const { error } = await supabase.rpc('confirm_preorder_date', { p_order_id: order.id, p_date: d });
+      if (error) throw error;
+      toast({ title: 'Termín určený', description: 'Zákazníkovi sme poslali e-mail s termínom doručenia.' });
+      onOpenChange(false);
+    } catch (e: any) {
+      toast({ title: 'Chyba', description: e?.message || 'Termín sa nepodarilo určiť', variant: 'destructive' });
+    } finally {
+      setConfirming(null);
+    }
+  };
+
   if (!order) return null;
 
   const s = order.status;
@@ -62,7 +106,9 @@ export function OrderDetailDialog({
     nextMap['growing']          = { key: 'packed', label: 'Označiť: Zabalená', color: 'bg-[#2563eb] hover:bg-[#1d4ed8] text-white' };
   }
   const next = nextMap[s];
-  const showQuickActions = !['cancelled', 'delivered'].includes(s);
+  // Kym predobjednavka nema termin, nema zmysel ju posuvat dalej v stavoch —
+  // najprv treba urcit, kedy bude dorucena.
+  const showQuickActions = !['cancelled', 'delivered'].includes(s) && !needsDate;
 
   const subtotal = (order.order_items || []).reduce((sum, item) => {
     if (!item) return sum;
@@ -202,6 +248,47 @@ export function OrderDetailDialog({
                 </>
               )}
             </div>
+
+            {/* Predobjednavka — urcenie terminu dorucenia */}
+            {needsDate && (
+              <div className="p-4 rounded-xl border border-[#fdba74] bg-[#fff7ed]">
+                <div className="flex items-center gap-2 mb-1">
+                  <CalendarClock className="h-4 w-4 text-[#ea580c]" />
+                  <span className="font-semibold text-[13px] text-[#7c2d12]">Určte termín doručenia</span>
+                </div>
+                <p className="text-[12px] text-[#7c2d12] opacity-80 mb-3">
+                  Ponúkame len rozvozové dni zákazníka, na ktoré sa plodiny stihnú dopestovať.
+                </p>
+
+                {dateOptions === null && (
+                  <div className="flex items-center gap-2 text-[12px] text-[#7c2d12]">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Načítavam termíny…
+                  </div>
+                )}
+
+                {dateOptions?.length === 0 && (
+                  <p className="text-[12px] text-[#7c2d12]">
+                    Žiadny vhodný termín. Skontrolujte, či má zákazník priradenú rozvozovú trasu.
+                  </p>
+                )}
+
+                {dateOptions && dateOptions.length > 0 && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {dateOptions.map(d => (
+                      <button
+                        key={d}
+                        onClick={() => confirmDate(d)}
+                        disabled={confirming !== null}
+                        className="py-2 px-3 rounded-lg bg-white border border-[#fdba74] text-[13px] font-semibold text-[#7c2d12] hover:bg-[#ffedd5] disabled:opacity-50 transition-colors"
+                      >
+                        {confirming === d ? 'Ukladám…' : formatDeliveryDate(d)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Quick actions */}
             {showQuickActions && next && (
