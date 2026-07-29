@@ -176,7 +176,12 @@ export function OrderDetailDialog({
               </div>
               <div className="bg-white px-4 py-3">
                 <div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1">Dátum dodania</div>
-                <div className="text-[13px] font-semibold text-[#0f172a]">{formatDeliveryDate(order.delivery_date)}</div>
+                {/* Pri nepotvrdenej predobjednavke je delivery_date len zastupna hodnota
+                    (create_order zapisuje current_date + 30). Zobrazovat ju ako termin
+                    by bol slub, ktory nikto nedal. */}
+                <div className="text-[13px] font-semibold text-[#0f172a]">
+                  {needsDate ? <span className="text-[#ea580c]">Termín zatiaľ neurčený</span> : formatDeliveryDate(order.delivery_date)}
+                </div>
               </div>
               <div className="bg-white px-4 py-3">
                 <div className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-1">Trasa</div>
