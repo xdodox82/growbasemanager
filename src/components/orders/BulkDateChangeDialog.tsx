@@ -17,6 +17,7 @@ interface BulkDateChangeDialogProps {
 
 interface AffectedOrder {
   id: string;
+  customer_id: string;
   customer_name: string;
   delivery_date: string;
   status: string;
@@ -76,9 +77,12 @@ export function BulkDateChangeDialog({ open, onOpenChange, onSuccess }: BulkDate
     try {
       const { data, error } = await supabase
         .from('orders')
-        .select('id, customer_name, delivery_date, status')
+        // Stavy 'cakajuca' a 'pestovanie' NIKDY v databaze neexistovali — hromadna
+        // zmena terminu preto ticho nerobila nic. Jednotny slovnik (28.7.2026) pozna
+        // sedem hodnot; presuvat ma zmysel to, co este nie je zabalene.
+        .select('id, customer_id, customer_name, delivery_date, status')
         .eq('delivery_date', date)
-        .in('status', ['cakajuca', 'pestovanie']);
+        .in('status', ['growing', 'pending_approval']);
 
       if (error) throw error;
 
@@ -102,9 +106,11 @@ export function BulkDateChangeDialog({ open, onOpenChange, onSuccess }: BulkDate
     try {
       const { error: updateError } = await supabase
         .from('orders')
+        // Presuvame PRESNE tie objednavky, ktore boli v nahlade. Povodne sa update
+        // robil znovu podla datumu a stavu — medzi nahladom a potvrdenim mohla
+        // pribudnut dalsia a presunula by sa bez toho, aby ju niekto videl.
         .update({ delivery_date: newDate })
-        .eq('delivery_date', originalDate)
-        .in('status', ['cakajuca', 'pestovanie']);
+        .in('id', affectedOrders.map(o => o.id));
 
       if (updateError) throw updateError;
 
@@ -113,9 +119,12 @@ export function BulkDateChangeDialog({ open, onOpenChange, onSuccess }: BulkDate
       for (const order of affectedOrders) {
         const { data: customerData } = await supabase
           .from('customers')
+          // POZOR: povodne tu bolo .eq('id', order.id) — zakaznik sa hladal podla
+          // identifikatora OBJEDNAVKY. Nikdy nic nenaslo, takze sa neodosiel ani
+          // jeden e-mail o zmene terminu.
           .select('name, email, app_user_id')
-          .eq('id', order.id)
-          .single();
+          .eq('id', order.customer_id)
+          .maybeSingle();
 
         if (customerData?.app_user_id && customerData?.email) {
           customersWithEmail.push({
@@ -199,7 +208,7 @@ export function BulkDateChangeDialog({ open, onOpenChange, onSuccess }: BulkDate
                   </p>
                   {affectedOrders.length === 0 && (
                     <p className="text-sm text-blue-700 mt-1">
-                      Žiadne čakajúce alebo pestované objednávky
+                      Žiadne objednávky, ktoré sa dajú presunúť
                     </p>
                   )}
                 </div>
