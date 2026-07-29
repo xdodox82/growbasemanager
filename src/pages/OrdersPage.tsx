@@ -2465,12 +2465,16 @@ export default function OrdersPage() {
                                     v GrowBase je tym prijata, nic nepotvrdzuje. Rovnako ju vytvara
                                     cron pre opakovane serie. Jednotny slovnik stavov:
                                     pending_approval / growing / packed / on_the_way / delivered /
-                                    cancelled / paused. */}
+                                    cancelled / paused — vsetkych sedem musi byt vo vybere, inak
+                                    prehliadac pri objednavke s chybajucim stavom ukaze prvu moznost
+                                    a obsluha vidi nieco ine, nez je v databaze. */}
+                                <option value="pending_approval">Čaká na schválenie</option>
                                 <option value="growing">Rastie</option>
                                 <option value="packed">Zabalená</option>
                                 <option value="on_the_way">Na ceste</option>
                                 <option value="delivered">Doručená</option>
                                 <option value="cancelled">Zrušená</option>
+                                <option value="paused">Pozastavená</option>
                               </select>
                             </>
                           )}
